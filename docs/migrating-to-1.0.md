@@ -328,7 +328,39 @@ Every layer now keeps its own run start and peak pace and serves the pace as der
   it). It returns an `AutoPlayer` (`look`, `blind`). New options: `objective`, `worthLooks`, `quiet`.
 - `AutoStore` may have `trial(run)`.
 
-<!-- SIM-EXTRA -->
+### The fit kit
+
+The engine now ships what a game used to write around `runFit`: a live price table, snapshots, resuming, a proof
+(single-threaded or on workers) and a profiler. The reference is [fit-kit.md](fit-kit.md).
+
+| Old | New |
+| --- | --- |
+| `fitReader(table)` (fixed strings from a frozen table) | `fitTable<Key>(table)`: live; `get(key)` is a Decimal (`BLOCKED` while unfitted), plus `figure`, `has`, `set`, `version`, `data`, `load`; `isBlocked(price)` |
+| a game's own price map, setter and version counter | the same `fitTable`, read by the game and written by the fit |
+| `FitGate.block()` | removed: `runFit` shuts every gate in the table itself |
+| `FitGate.price()` writing the price somewhere | returns the figure; `runFit` writes it into `table` |
+| `runFit({ … })` | `runFit({ …, table })`, required; also `quality`, `snapshotEveryMs`, `from` |
+| `fitTableSource(result, opts)` | `fitTableSource(table, { header, planImport, keyType, order?, draft? })` |
+| `holdings(refs, read, window)` | `holdings(refs, read, { window, from })`; `remember()` gives what a snapshot keeps |
+| a hand-written `SimWorld` | must add `snapshot()`; `resumeSimWorld(build, snapshot)` starts from one |
+| a game's own snapshot files (a save export, patched) | `takeSnapshot` / `encodeSnapshot` / `decodeSnapshot` / `latestSnapshot`; the plain store's `snapshot()` and `restore()` carry transient fields too |
+| a game's own "does this snapshot still hold" stamp | `fitHolds` for the plan and earlier prices; a rule change is still the game's to stamp |
+| one process per proof stretch, handed off through files | `proveFit({ marks, start, replay })`, or `proveFitParallel({ module, table, marks, workers })` with a module exporting `fitProof = { table, replay }` |
+| a game's own profiler script | `profileSim` + `timeSteps` + `formatProfile` (the caller passes the timer) |
+
+Moving a game's own tooling across, in order: the gate module becomes one `fitTable`; gates drop `block()` and
+return their price; the run builder takes a `SimSnapshot` and returns a `FitRun` with `capture` (the auto-player's
+and the holdings' memory go in `extra`); snapshot files go through the codec; the proof script becomes `proveFit`;
+the profiler becomes `profileSim`. Old snapshot files are not readable: fit once from nothing after the move.
+
+Three things to know before trusting a fit:
+
+- The proof replays the fit's own run and must run at the fit's quality. A draft at `quick` is unproved; fit at
+  `exact` to prove.
+- The proof only passes for prices strictly above anything held before the gate: use `priceAbove`, not
+  `nicePrice`, for a table that is to be proved.
+- A derived value that reads the fit table (or anything else outside the state) is not recomputed when the fit
+  writes a price. Read the table in a step or a select, not in `derived`.
 
 ## Tests (`watchpot/test`)
 
