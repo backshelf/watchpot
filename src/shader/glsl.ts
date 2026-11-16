@@ -1,5 +1,6 @@
 // A library of GLSL ES 3.00 chunks a game builds its fragments from: standard published techniques, written fresh,
 // with no game's look. Each chunk names what it depends on; `compose` pulls those in once, in order.
+import { MAIN_MARK } from "./head";
 
 /** A piece of GLSL: its name, its code, and the chunks its code calls. Interpolates as its code alone. */
 export interface GlslChunk {
@@ -16,7 +17,8 @@ export function chunk(name: string, code: string, deps: readonly GlslChunk[] = [
 
 /**
  * A fragment from chunks and code: every chunk once, each after the chunks it depends on (in the order first met),
- * then the strings (the game's uniforms and `main`) in the order given. Pure.
+ * then the strings (the game's uniforms and `main`) in the order given, after a marking comment line when there are
+ * chunks before them, so a compile log reads their lines as `main:N` (`fixLog`). Pure.
  */
 export function compose(...parts: readonly (GlslChunk | string)[]): string {
   const seen = new Set<GlslChunk>();
@@ -28,7 +30,9 @@ export function compose(...parts: readonly (GlslChunk | string)[]): string {
     out.push(`// ${c.name}\n${c.code}`);
   };
   for (const p of parts) if (typeof p !== "string") visit(p);
-  for (const p of parts) if (typeof p === "string") out.push(p.trim());
+  const code = parts.filter((p): p is string => typeof p === "string").map((p) => p.trim());
+  if (out.length > 0 && code.length > 0) code[0] = `${MAIN_MARK}\n${code[0]}`;
+  out.push(...code);
   return `${out.join("\n\n")}\n`;
 }
 

@@ -83,6 +83,18 @@ describe("the head", () => {
     expect(`${SHADER_HEAD}void main() {}`.split("\n")[HEAD_LINES]).toBe("void main() {}");
   });
 
+  test("a composed fragment's own code reads as main:N, its chunks as fragment lines", () => {
+    const fragment = compose(HASH, "uniform float u_x;\nvoid main() { oops; }");
+    const lines = `${SHADER_HEAD}${fragment}`.split("\n");
+    const at = (text: string) => lines.findIndex((l) => l.startsWith(text)) + 1;
+    const log = `ERROR: 0:${at("void main")}: 'oops'\nERROR: 0:${at("float hash11")}: x`;
+    expect(fixLog(log, HEAD_LINES, fragment)).toBe(
+      `ERROR: main:2: 'oops'\nERROR: 0:${at("float hash11") - HEAD_LINES}: x`,
+    );
+    // A fragment with no chunks has no mark: its lines are already its own.
+    expect(compose("void main() {}")).toBe("void main() {}\n");
+  });
+
   test("canvas size: the ratio is capped by dpr and the area by maxPixels", () => {
     expect(canvasSize(100, 50, 3, 2, 1e9)).toEqual({ width: 200, height: 100, ratio: 2 });
     const capped = canvasSize(1000, 1000, 2, 2, 1_000_000);

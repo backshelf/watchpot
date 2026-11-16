@@ -1,6 +1,7 @@
 import { createContext, type ReactNode, StrictMode, useContext } from "react";
 import { createRoot } from "react-dom/client";
 import { useStore } from "zustand";
+import { useShallow as shallowSelector } from "zustand/react/shallow";
 import type { RootActions } from "../core/store";
 import { type PacedViewOptions, usePacedState } from "./paced";
 
@@ -28,18 +29,38 @@ export function IdleStoreProvider({ store, children }: { store: RuntimeStore; ch
   return <IdleStoreContext.Provider value={store}>{children}</IdleStoreContext.Provider>;
 }
 
-/** The store in context, untyped: what the engine's own hooks, the shell and the dev panel read. */
-export function useIdleStore(): RuntimeStore {
+/**
+ * The store in context, untyped: what the engine's own hooks, the shell and the dev panel read. Outside a provider it
+ * throws, naming `hook` (the engine hook that was called) and the ways to provide the store.
+ */
+export function useIdleStore(hook = "useIdleStore"): RuntimeStore {
   const store = useContext(IdleStoreContext);
-  if (!store) throw new Error("useGameStore outside an IdleStoreProvider");
+  if (!store)
+    throw new Error(
+      `${hook} needs the game's store: render under mountGame(store, …) or an IdleStoreProvider (renderWith in a test)`,
+    );
   return store;
 }
+
+/**
+ * Wraps a selector that builds a new value from the same state (an object, an array, a Decimal from arithmetic), so
+ * it hands back its last value while the new one is shallowly equal: `useGameState(useShallow((s) => ({ a: s.a })))`.
+ * A Decimal compares by its fields, so `useShallow((s) => s.gold.mul(2))` is stable too. zustand's own, here so a
+ * game needs no import of zustand for it.
+ */
+export const useShallow: <S, U>(selector: (state: S) => U) => (state: S) => U = shallowSelector;
 
 /** The typed store hooks `createRuntimeHooks` makes for a game: `useGameStore`, `useGameState` and `useGameView`. */
 export interface RuntimeHooks<Store extends RuntimeStore> {
   /** The store in context, as the game's own type. Handlers read it with `store.getState()`. */
   useGameStore(): Store;
-  /** `useStore(selector)` against the store in context. Object-building selectors want `useShallow`. */
+  /**
+   * `useStore(selector)` against the store in context: re-renders when the selected value changes by identity
+   * (`Object.is`). So a selector must answer the same state with the same value: one that builds a new object,
+   * array or Decimal on every call (`(s) => ({ a: s.a })`, `(s) => s.gold.mul(2)`) re-renders until React throws.
+   * Wrap such a selector in `useShallow`, or select the stored values and compute in the render. In development
+   * the first such selector is named in a console warning.
+   */
   useGameState<T>(selector: (state: StoreState<Store>) => T): T;
   /**
    * The whole state at a slow pace (`usePacedState`), for a screen that reads much of it: at once after the
@@ -63,15 +84,35 @@ export function createRuntimeHooks<Store extends RuntimeStore>(
 ): RuntimeHooks<Store> {
   // The provider holds whichever store the composition root built: the game's, which the caller types these over.
   return {
-    useGameStore: useIdleStore as () => Store,
+    useGameStore: () => useIdleStore("useGameStore") as Store,
     useGameState: useStoreState as RuntimeHooks<Store>["useGameState"],
-    useGameView: () => usePacedState(useIdleStore(), options.view) as StoreState<Store>,
+    useGameView: () => usePacedState(useIdleStore("useGameView"), options.view) as StoreState<Store>,
   };
+}
+
+/** The selectors already warned about, by source: each is named once. */
+const warnedSelectors = new Set<string>();
+
+/**
+ * Development only: a selector that answers one state with two identities is named once, with the fix, before
+ * React's own loop error (which names neither).
+ */
+function checkSelector(store: RuntimeStore, selector: (state: never) => unknown): void {
+  const state = store.getState() as never;
+  if (Object.is(selector(state), selector(state))) return;
+  const source = String(selector);
+  if (warnedSelectors.has(source)) return;
+  warnedSelectors.add(source);
+  console.warn(
+    `watchpot: a useGameState selector returned a new value for the same state, so it re-renders until React throws:\n${source}\nWrap it in useShallow (watchpot/react) when it builds an object, an array or a Decimal, or select the stored values and compute in the render.`,
+  );
 }
 
 /** `useStore(selector)` against the store in context, untyped; `createRuntimeHooks` gives it the game's type. */
 function useStoreState<T>(selector: (state: never) => T): T {
-  return useStore(useIdleStore() as never, selector);
+  const store = useIdleStore("useGameState");
+  if (typeof process !== "undefined" && process.env.NODE_ENV !== "production") checkSelector(store, selector);
+  return useStore(store as never, selector);
 }
 
 /** Renders `node` into `#root` (or `rootId`) under the store's provider: a game's root and every dev page mount this way. */

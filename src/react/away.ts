@@ -16,7 +16,10 @@ import { useIdleStore } from "./store";
 export interface AwayReturn<S> {
   before: S;
   after: S;
-  /** Game time the catch-up credited the gap for, ms. */
+  /**
+   * The time away, ms: the whole jump in the clock's `lastSeen` across the catch-up. The offline cap may have
+   * credited less of it; the states say what was paid.
+   */
   ms: number;
 }
 
@@ -44,11 +47,36 @@ export function watchAway<S extends object>(
   onReturn: (away: AwayReturn<S>) => void,
   options: AwayOptions = {},
 ): () => void {
+  return listenAway(store, onReturn, options, null);
+}
+
+/** The two states either side of a catch-up. */
+interface Jump<S> {
+  before: S;
+  after: S;
+}
+
+/**
+ * `watchAway`, starting from a catch-up that came before the subscription (`opening`), heard as if it came after.
+ */
+function listenAway<S extends object>(
+  store: Subscribable<S>,
+  onReturn: (away: AwayReturn<S>) => void,
+  options: AwayOptions,
+  opening: Jump<S> | null,
+): () => void {
   const lens = options.lens ?? clockLens(store);
   const minMs = options.minMs ?? AWAY_REPORT_MIN_MS;
   const settle = Math.max(0, Math.floor(options.settlePasses ?? 0));
   let pending: { before: S; ms: number; left: number } | null = null;
-  return store.subscribe((next, prev) => {
+  const jumped = (before: S, after: S) => {
+    const was = readClock(before, lens).lastSeen;
+    const ms = readClock(after, lens).lastSeen - was;
+    if (was <= 0 || ms < minMs) return;
+    if (settle === 0) onReturn({ before, after, ms });
+    else pending = { before, ms, left: settle };
+  };
+  const off = store.subscribe((next, prev) => {
     if (pending) {
       pending.left -= 1;
       if (pending.left > 0) return;
@@ -57,12 +85,31 @@ export function watchAway<S extends object>(
       onReturn({ before, after: next, ms });
       return;
     }
-    const was = readClock(prev, lens).lastSeen;
-    const ms = readClock(next, lens).lastSeen - was;
-    if (was <= 0 || ms < minMs) return;
-    if (settle === 0) onReturn({ before: prev, after: next, ms });
-    else pending = { before: prev, ms, left: settle };
+    jumped(prev, next);
   });
+  if (opening) jumped(opening.before, opening.after);
+  return off;
+}
+
+/**
+ * The states either side of each store's opening catch-up, the one `useGameClock` makes as it starts: kept for a
+ * `useAwayReport` that begins listening just after it (later in the same component).
+ */
+const openings = new WeakMap<object, Jump<object>>();
+
+/**
+ * Keeps the states either side of `store`'s opening catch-up: `before` from just ahead of it, the store's state now
+ * after it. `useGameClock` calls this; a game has no need to.
+ * @internal
+ */
+export function noteOpening(store: { getState(): object }, before: object): void {
+  openings.set(store, { before, after: store.getState() });
+}
+
+/** The opening catch-up of `store`, while it is the last thing to have happened to it (null after any change). */
+function freshOpening<S extends object>(store: { getState(): object }): Jump<S> | null {
+  const opening = openings.get(store);
+  return opening && opening.after === store.getState() ? (opening as Jump<S>) : null;
 }
 
 /** What `useAwayReport` returns: the game's report of the last return (null for none) and its dismissal. */
@@ -73,30 +120,36 @@ export interface AwayReport<R> {
 
 /**
  * The last return as the game's own report, held until dismissed: `summarize` turns the states into it (null for a
- * return not worth telling). Listens from a layout effect, so it hears the first catch-up a parent's runtime makes.
- * Reads the store in context.
+ * return not worth telling). It hears the clock's opening catch-up wherever it is called: in a child of the
+ * component that starts the clock, or after `useGameClock` or `useGameRuntime` in that same component. Reads the
+ * store in context.
  */
 export function useAwayReport<S extends object, R>(
   summarize: (away: AwayReturn<S>) => R | null,
   options: AwayOptions = {},
 ): AwayReport<R> {
-  const store = useIdleStore() as unknown as Subscribable<S>;
+  const store = useIdleStore("useAwayReport");
   const [report, setReport] = useState<R | null>(null);
   const latest = useRef(summarize);
   latest.current = summarize;
   const { minMs, settlePasses, lens } = options;
-  useLayoutEffect(
-    () =>
-      watchAway(
-        store,
-        (away) => {
-          const r = latest.current(away);
-          if (r !== null) setReport(r);
-        },
-        { minMs, settlePasses, lens },
-      ),
-    [store, minMs, settlePasses, lens],
-  );
+  // The state after the last return this hook heard: StrictMode's second run of the effect must not hear it again.
+  const heard = useRef<object | null>(null);
+  // A child's layout effect runs before its parent's, so it subscribes before the clock's catch-up; a hook after the
+  // clock's in one component subscribes after it, and starts from the catch-up it missed.
+  useLayoutEffect(() => {
+    const opening = freshOpening<S>(store);
+    return listenAway(
+      store as unknown as Subscribable<S>,
+      (away) => {
+        heard.current = away.after;
+        const r = latest.current(away);
+        if (r !== null) setReport(r);
+      },
+      { minMs, settlePasses, lens },
+      opening && opening.after !== heard.current ? opening : null,
+    );
+  }, [store, minMs, settlePasses, lens]);
   const dismiss = useCallback(() => setReport(null), []);
   return { report, dismiss };
 }

@@ -47,7 +47,7 @@ export class ShaderProgram {
     const vertex = shader(gl.VERTEX_SHADER, VERTEX_SHADER);
     const frag = shader(gl.FRAGMENT_SHADER, SHADER_HEAD + fragment);
     if (typeof vertex === "string" || typeof frag === "string") {
-      this.error = typeof frag === "string" ? fixLog(frag) : `vertex: ${vertex}`;
+      this.error = typeof frag === "string" ? fixLog(frag, undefined, fragment) : `vertex: ${vertex}`;
       if (typeof vertex !== "string") gl.deleteShader(vertex);
       if (typeof frag !== "string") gl.deleteShader(frag);
       return;
@@ -64,7 +64,7 @@ export class ShaderProgram {
     gl.deleteShader(vertex);
     gl.deleteShader(frag);
     if (!gl.getProgramParameter(program, gl.LINK_STATUS)) {
-      this.error = fixLog(gl.getProgramInfoLog(program) ?? "link failed");
+      this.error = fixLog(gl.getProgramInfoLog(program) ?? "link failed", undefined, fragment);
       gl.deleteProgram(program);
       return;
     }

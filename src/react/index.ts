@@ -1,3 +1,6 @@
+// `watchpot/react`, the entry a game's page imports by default: the store hooks, the clock and runtime hooks, the
+// dev panel and the sound desk. `watchpot/hooks` is the same hooks without the dev parts, for a build with no
+// CSS-module loader; each export there is the same binding as here.
 export { SheetOutlet, type SheetOutletProps, type SheetRegistry } from "../ui/page";
 export {
   type AwayGain,
@@ -14,6 +17,7 @@ export { DevPanel, type DevPanelProps } from "./dev/gate";
 export { type DeskSwitch, openSoundDesk, type SoundDeskOptions } from "./dev/SoundDesk";
 export { type FetchSampleHostOptions, fetchSampleHost } from "./dev/sampleHost";
 export { type GameClockState, useGameClock } from "./gameClock";
+export { useHashRoute } from "./hashRoute";
 export { useHotkeys } from "./hotkeys";
 export { type PageLayout, PageLayoutProvider, usePageLayout, usePageLayoutObserver, WIDE_AT } from "./layout";
 export { useNews } from "./news";
@@ -57,6 +61,7 @@ export {
   type RuntimeStore,
   type StoreState,
   useIdleStore,
+  useShallow,
 } from "./store";
 export { type LayerSwap, type LayerSwapOptions, useLayerSwap } from "./swap";
 export { type AwayTitleOptions, claimTabTitle, releaseTabTitle, useAwayTitle } from "./tabTitle";

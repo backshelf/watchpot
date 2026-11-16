@@ -25,7 +25,7 @@ const WARPS = [
  * development build.
  */
 export function DevPanel({ onClose }: DevPanelProps) {
-  const store = useIdleStore();
+  const store = useIdleStore("DevPanel");
   const headingId = useId();
   // The game clock, re-read each second and at once when a warp moves the offset: the day follows it.
   const now = useClockNow(1000);

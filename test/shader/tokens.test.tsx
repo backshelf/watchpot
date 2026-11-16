@@ -1,6 +1,6 @@
 import { describe, expect, spyOn, test } from "bun:test";
 import { act, render, screen } from "@testing-library/react";
-import { useRef } from "react";
+import { StrictMode, useRef } from "react";
 import { parseColour, useShaderTokens } from "watchpot/shader";
 
 /**
@@ -13,6 +13,17 @@ function Palette() {
   return (
     <div ref={ref} data-testid="scope" style={{ "--ground": "#ffffff", "--ink": "#000000" }}>
       {tokens ? `${tokens["--ground"]} ${tokens["--ink"]}` : "none"}
+    </div>
+  );
+}
+
+/** Asks for a token its scope does not define. */
+function Missing() {
+  const ref = useRef<HTMLDivElement>(null);
+  const tokens = useShaderTokens(ref, ["--ground", "--glow"]);
+  return (
+    <div ref={ref} style={{ "--ground": "#ffffff" }}>
+      {tokens ? "read" : "none"}
     </div>
   );
 }
@@ -33,8 +44,28 @@ describe("useShaderTokens", () => {
     expect(scope).toHaveTextContent("#ffffffff #000000ff");
     await act(async () => scope.setAttribute("style", "--ground: #102030; --ink: #fff"));
     expect(scope).toHaveTextContent("#102030ff #ffffffff");
+    const warn = spyOn(console, "warn").mockImplementation(() => {});
     await act(async () => scope.setAttribute("style", "--ground: #102030"));
+    warn.mockRestore();
     expect(scope).toHaveTextContent("none");
+  });
+
+  test("a token with no value is named in development, once, under StrictMode", () => {
+    const warn = spyOn(console, "warn").mockImplementation(() => {});
+    try {
+      render(
+        <StrictMode>
+          <Missing />
+        </StrictMode>,
+      );
+      expect(screen.getByText("none")).toBeInTheDocument();
+      expect(warn).toHaveBeenCalledTimes(1);
+      const said = String(warn.mock.calls[0]?.[0]);
+      expect(said).toContain("--glow");
+      expect(said).not.toContain("--ground");
+    } finally {
+      warn.mockRestore();
+    }
   });
 
   test("an ancestor's data-theme, data-scheme or class change reads again", async () => {
