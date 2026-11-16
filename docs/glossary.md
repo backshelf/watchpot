@@ -129,6 +129,8 @@ governor treats it. A screen plays it by name. Taught in
 
 ## Currency
 
+**In short:** A kind of money in the game, named once in its words and kept in the wallet: Simmer's bubbles.
+
 A kind of money in the game, named once in the vocabulary and held in a wallet. Simmer's is `bubbles`. Taught in
 [chapter 4](guide/04-words-and-numbers.md#the-games-words). Reference: [add a currency](add-a-currency.md).
 
@@ -149,6 +151,8 @@ out any shallower reset. It is how a prestige currency survives the reset it pay
 [a prestige layer](prestige-layer.md), [layers](layers.md).
 
 ## Derived value
+
+**In short:** A number worked out from the state instead of kept in it: read like any field, never saved, always current.
 
 A value a feature works out from the state, declared in its `derived` block: `nextPrice: (s) => burnerPrice(s.stove.burners)`. You read it like
 any field, but it is never saved and cannot be written. The engine keeps it current, working it out again whenever
@@ -188,12 +192,16 @@ action is not allowed: `wallet.draft.credit(s, "bubbles", 1)`. Taught in
 
 ## Effect
 
+**In short:** One change to a stat, written as data: which stat, and an amount to add to it or to multiply it by.
+
 One change to a stat, as data: an amount to add or a factor to multiply by, such as `{ stat: "heat", mul: 1.25 }` or
 `{ stat: "heat", add: (q) => q.stove.burners }`; the amount is a number or a function of the state. Upgrades, buffs and
 achievements carry effects; the game's `stats` feature folds them. Taught in
 [chapter 8](guide/08-effects.md#stats-and-effects). Reference: [the stat graph](stat-graph.md).
 
 ## Factory
+
+**In short:** An engine function that writes a whole feature for you from a description, such as the generators or the wallet.
 
 An engine function that builds a ready-made feature from a description: `defineCurrencies`, `defineGenerators`,
 `defineUpgradeTree`, `defineClicker`, `definePrestige`, `defineAchievements` and the rest. Each hands back the feature
@@ -269,6 +277,8 @@ the top. Taught in [chapter 6](guide/06-the-first-page.md#the-meter-gauge). Refe
 
 ## Generator
 
+**In short:** A thing the player buys that makes more of a number every second, each one dearer than the last: Simmer's burners.
+
 The building every idle game has: bought with a currency, at a price that grows with each one owned, and making a
 currency every second. Simmer's is the burner. Taught by hand in
 [chapter 2](guide/02-your-first-game.md#step-6-a-burner-you-can-buy) and on the `defineGenerators` factory in
@@ -323,6 +333,8 @@ is keyed by the version it produces. Taught in [chapter 9](guide/09-saving-and-t
 Reference: [a save migration](migration.md).
 
 ## Milestone
+
+**In short:** A count of one generator at which its output is multiplied: Simmer's kettles double at 10, 25, 50 and 100.
 
 An owned count at which a generator's output is multiplied, such as "doubles at 10, 25, 50 and 100". Global
 milestones apply to every generator once the lowest count reaches them. Taught in
@@ -434,6 +446,8 @@ each stretch must end exactly where the fit's own run stood. Taught in
 [chapter 12](guide/12-proving-the-pacing.md#what-a-large-game-does-plan-and-fit). Reference: [the fit kit](fit-kit.md).
 
 ## Reach
+
+**In short:** The other features a feature may read and change, named in a list: the stove reaches the pot to spend its bubbles.
 
 A feature's list of the other features it touches. It types the draft (`s.pot` exists in the stove's steps) and is
 checked when the game is defined. Written as a function, `reach: () => [pot, lid]`, it may name a feature further
@@ -557,6 +571,8 @@ Taught in [chapter 6](guide/06-the-first-page.md#surprises-and-timed-boosts-spaw
 
 ## Stat
 
+**In short:** A named number that many things change, gathered in one place: Simmer's heat, which the lid doubles.
+
 A named number that many things can change, such as Simmer's `heat` (what multiplies the stove's rate) or a game's `print`.
 Effects name the stat they change. Introduced in [chapter 3](guide/03-the-mental-model.md#a-first-stat); taught in
 [chapter 8](guide/08-effects.md#stats-and-effects). Reference: [the stat graph](stat-graph.md).
@@ -644,17 +660,23 @@ Taught in [chapter 11](guide/11-look-and-sound.md#why-a-shader-and-what-one-is).
 
 ## Upgrade tree
 
+**In short:** The engine's shop: things bought a rank at a time, each with a price and effects, some needing others bought first.
+
 A set of nodes bought one rank at a time, each with a cost, requirements and effects. With one rank and no
 requirements it is a shop. Taught in [chapter 6](guide/06-the-first-page.md#the-shop-upgradetree). Reference:
 [an upgrade tree](upgrade-tree.md).
 
 ## Vocabulary
 
+**In short:** A game's own words, declared once: the names of its money and of its stats.
+
 A game's words, declared once with `vocab`: its currencies, its stat ids and its rarity ladder. Every engine type that
 names a currency reads it from there. Taught in [chapter 4](guide/04-words-and-numbers.md#the-games-words). Reference:
 [add a currency](add-a-currency.md).
 
 ## Wallet
+
+**In short:** The feature that holds every balance of the game's money, pays in and out, and keeps running totals.
 
 The feature `defineCurrencies` makes: one balance per currency in a vocabulary, with `credit` and `debit` as actions
 and as draft helpers (`wallet.draft`), questions under `wallet.select`, and optional running totals. Taught in [chapter 4](guide/04-words-and-numbers.md#the-wallet).
