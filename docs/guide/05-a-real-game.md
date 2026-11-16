@@ -23,7 +23,7 @@ export const MAIN = "labels";
 
 TAG talks to you the whole time, in short lowercase lines, fond of you and a little ominous. The first hour is the same loop as Simmer with more on top. You tap a pad marked FEED and each press prints labels. Labels buy stations (the game's generators), which print labels by themselves. Labels also buy supplies, small one-off upgrades. Stamps (the game's achievements) mark what you have done, and before long you can start the roll over for a new currency, cores, which is the game's first reset. Three pages are open by then: Feed, Stamps and Roll.
 
-The game's repository is private, so this guide names its files rather than linking them. Every excerpt below is the game's code as it stands, trimmed with `// ...` where lines belong to parts of the game you have not met yet.
+The game's repository is private, so this guide names its files rather than linking them. Every excerpt below is the game's code, trimmed with `// ...` where lines belong to parts of the game you have not met yet. The game is built on an older engine than this guide (0.17, before 1.0): where a call has only been renamed since (the factories' `select`, `def` and `draft` helpers), the excerpt shows today's name; where the engine now does a thing differently, the text says so beside the excerpt.
 
 ## Why a real game is split up
 
@@ -55,9 +55,9 @@ The rest of this chapter follows one supply on the Feed page. It is called Darkn
 
 1. **Content** describes the stations and the supply.
 2. **Features** turn that content into engine factories: the stations become a `generators` feature, the supplies an `upgradeTree`.
-3. **The stats** fold every bought effect into named numbers, once a pass.
+3. **The stats** fold every bought effect into named numbers.
 4. **The screen** reads the state, shows the rate and calls `buy`.
-5. **`defineGame`** lists every feature, in the order their steps run.
+5. **`defineGame`** lists every feature.
 
 ### 1. Content: the stations and the supplies
 
@@ -289,13 +289,13 @@ export function shop<const K extends string>(key: K, def: Shop) {
 }
 ```
 
-So `supplies = shop("supplies", SUPPLIES)` is an `upgradeTree` feature saved under `supplies`, holding a rank per item, with a `buy(id)` action. `effects: it.fx` carries Darkness +1's `print(1.25)` onto the node. `reset: { depth: def.depth }` clears the ranks at the first reset. `open` keeps an item off the shelf until the game says it is on offer: here, until its tier has opened, the items it needs are held and the station it is for is owned. `withMoves` adds the moves the simulated player uses to shop, which [chapter 12](12-proving-the-pacing.md) returns to.
+So `supplies = shop("supplies", SUPPLIES)` is an `upgradeTree` feature saved under `supplies`, holding a rank per item, with a `buy(id)` action. `effects: it.fx` carries Darkness +1's `print(1.25)` onto the node. `reset: { depth: def.depth }` clears the ranks at the first reset. `open` keeps an item off the shelf until the game says it is on offer: here, until its tier has opened, the items it needs are held and the station it is for is owned. `withMoves` adds the moves the simulated player uses to shop, which [chapter 12](12-proving-the-pacing.md) returns to; on the current engine a tree offers those moves itself.
 
 Two things in `nodeOf` deserve a note. The price is a getter, read each time the engine asks, so the pacing script can price an item while a run is under way. That works because the engine reads `amount` fresh every time it prices a rank, and its docs promise to keep doing so. And the two `?? 1` defaults work together: most supplies are bought once (`maxLevel: 1`), so a `costGrowth` of 1 never comes into play for them.
 
 ### 3. The stats: where effects become numbers
 
-Buying Darkness +1 sets `state.supplies.ranks["darkness-1"]` to 1. Nothing else happens yet. Something has to walk every held item, collect its effects and turn them into the number `stationMult` reads. In a watchpot game that something is the [stats feature](../glossary.md#stats-feature): one place that folds every effect in the game into named stats. VOID IF REMOVED, written before it, keeps its own fold, its "stat bus", folded once a pass.
+Buying Darkness +1 sets `state.supplies.ranks["darkness-1"]` to 1. Nothing else happens yet. Something has to walk every held item, collect its effects and turn them into the number `stationMult` reads. In a watchpot game that something is the [stats feature](../glossary.md#stats-feature): one place that folds every effect in the game into named stats. VOID IF REMOVED, written before it, keeps its own fold, its "stat bus", folded once a pass. Read this section as that game's code on its older engine: the shape carries over, the code does not.
 
 The stats are a feature with no actions, only a step:
 
@@ -329,7 +329,9 @@ export const stats = feature({
 
 - `feature({...})` is the engine's general factory, the one the others are built on.
 - `transient` lists fields that are never saved. The stats can always be worked out again from what was bought, so saving them would only let a save go stale.
-- `steps.rates.fold` runs in the `rates` [phase](../glossary.md#phase) of every pass and replaces `state.stats` with a fresh fold. `derive` runs the same fold right after a load or reset, before the first pass has had a chance to.
+- `steps.rates.fold` runs in the `rates` [phase](../glossary.md#phase) of every pass and replaces `state.stats` with a fresh fold, and `derive`, an option of that older engine, ran the same fold after a load or reset.
+
+On the current engine this whole feature is one declaration, `defineStats({ key: "stats", stats, contributions })`, whose stats are [derived values](../glossary.md#derived-value): never saved, never written, and current wherever they are read, with no step and no place in any order. [Chapter 8](08-effects.md) builds one.
 
 The fold itself, at its heart, is this:
 
@@ -392,9 +394,9 @@ function stationMult(s: Reads, n: number, owned: number): Decimal {
 
 `print` (Darkness +1 lives here) plus this station's own `station.<n>`, turned back from a logarithm into a [Decimal](../glossary.md#decimal). The engine multiplies the station's base rate, its owned count and its milestones by it, and that is the labels a second you see.
 
-**Where the game goes its own way.** The engine ships a stat bus of its own: `busOf` and `statValue` in `watchpot/core`, which the template's `src/game/bus.ts` uses, and a live stat graph, `liveIndex`, described in [the stat graph page](../stat-graph.md). VOID IF REMOVED uses neither. It folds its own, in log10, with its own breakdown type. The shape is the same in both (a `bus.ts` that knows every source, a `stats` feature that runs it in `rates`, rules that read the result), so what you learn here carries over, but the code is not the engine's. [Chapter 8](08-effects.md) teaches effects on the engine's own bus; read this one as a picture of the pattern, not a recipe to copy.
+**Where the game goes its own way.** The engine's stats feature (`defineStats`, with the stat graph under it, described in [the stats page](../stat-graph.md)) folds every effect as a Decimal and serves each stat on the state. VOID IF REMOVED folds its own, in log10, with its own breakdown type. The shape is the same (one place that knows every source, rules that read the result), so what you learn here carries over, but the code is not the engine's. [Chapter 8](08-effects.md) teaches effects on the engine's own stats; read this one as a picture of the pattern, not a recipe to copy.
 
-Notice also the type every callback above is annotated with, `Reads`. It is the whole game state as a rule sees it, and this game writes it out by hand in `src/game/reads.ts`. A feature cannot import the finished game's state type (`StateOf<typeof game.features>`) because the game imports the features, and the import would go in a circle. So when you add a feature to this game, you also add its slice to `Reads`.
+Notice also the type every callback above is annotated with, `Reads`. It is the whole game state as a rule sees it, and this game writes it out by hand in `src/game/reads.ts`, because on its engine a feature could not name one declared after it. On the current engine a feature (and every factory) takes `reach: () => [stats, heat]` instead: the callbacks are typed from the features named, a feature further down the file may be named, and two that read each other name one side by its state type (chapter 3). A game started on 1.0 has no `Reads`.
 
 ### 4. The screen: reading state and calling an action
 
@@ -464,7 +466,7 @@ The components split along the layers too. `BuyAmount` and `buyCount` come from 
 
 One small inconsistency is visible in this excerpt. The callbacks you give `generators` take the station's definition (`mult: (s, def) => ...`), but the rules you call from a screen take its id (`stations.select.price(st, def.id, count)`). You will keep both in mind until it becomes habit.
 
-### 5. `defineGame`: the list, and its order
+### 5. `defineGame`: the list
 
 Every feature only exists for the game once `defineGame` lists it. Here is the game's definition, trimmed to the features this chapter touched and their neighbours:
 
@@ -515,7 +517,7 @@ export type GameState = StateOf<typeof game.features>;
 
 - `id` and `save.key` name the game and where its save is kept. `version` and `migrations` let an old save load into a newer game; [chapter 9](09-saving-and-time-away.md) covers them.
 - `vocab: WORDS` is the game's [vocabulary](../glossary.md#vocabulary), its list of currencies, from `src/content/words.ts`.
-- `features` is every feature, and **the order is part of the rules**. A pass of the clock runs phase by phase (`guard`, `sync`, `rates`, `produce`, and so on), and inside each phase it runs the features' steps in this array's order. `heat` comes before `stats` so the fold sees this pass's heat; `stats` comes before `stations` so the stations read this pass's stats. Move `stats` below `stations` and every station would run one pass behind every purchase. (`defineGame` also takes an `order` option that pulls named steps to the front of a phase; this game leaves it out and lets the array decide.)
+- `features` is every feature. A pass of the clock runs phase by phase (`guard`, `sync`, `rates`, `produce`, and so on), and inside each phase it runs the features' steps in this array's order. On this game's engine the order was part of the rules: `heat` before `stats` so the fold saw this pass's heat, `stats` before `stations` so the stations read this pass's stats. On the current engine the stats are derived values, current wherever they are read, so that order stops mattering; a step that must follow another says `after` itself (chapter 3).
 - `GameState` is the finished state type, worked out from the features. It is what screens see through the hooks.
 
 From here, `src/game/store.ts` hands `game` to the engine's `createIdleStore` with a save backend, and `src/main.tsx` mounts the app over that store with `mountGame`. Those two files are short, and they do what the last lines of Simmer's `game.ts` and `main.tsx` do.
@@ -527,14 +529,14 @@ You have now been through every layer once. When you open a game you have not se
 - **A word, a name, a line of flavour?** `src/content/`. In this game every word on the page comes from there, down to the button labels in `copy.ts`.
 - **A number: a rate, a base price, a multiplier on an item?** `src/content/` too. If a price is missing from the content, look for a fitted table beside it (here `gates.ts` and `fit.ts`) and the sim that writes it.
 - **A rule: how something pays, when it opens, what a button does?** `src/game/`. Search that folder for the engine factory you expect (`defineGenerators(`, `defineUpgradeTree(`, `definePrestige(`, `defineAchievements(`); the feature's `key` is the name its state has in the store.
-- **Why a number is the size it is?** The stat bus: `src/game/bus.ts` and the `stats` feature, then whatever rule reads the stat.
+- **Why a number is the size it is?** The stats: here `src/game/bus.ts` and the `stats` feature (in a game on 1.0, its `defineStats` feature), then whatever rule reads the stat.
 - **What is on screen?** `src/app/screens.tsx` maps each page to its screen in `src/screens/`.
 - **How it looks?** The component in `src/ui/` and its `.module.css`, then the theme tokens.
-- **What runs before what?** The `features` array in `defineGame`.
+- **What runs before what?** The `features` array in `defineGame`, and any step's `after` or `before`.
 
 ## Things that bite
 
-- **The order of `features` is the order steps run in.** Nothing warns you when a feature reads a slice that is updated later in the same pass; you get numbers one pass stale, which looks like lag or a flicker. When a rule reads another feature's result, check that feature sits above it.
+- **The order of `features` is the order steps run in.** A step that reads a field another feature's step sets later in the same pass reads it one pass stale, which looks like lag or a flicker. Make such a number a derived value, which is always current, or say `after` on the step that reads it.
 - **An effect does nothing until something reads its stat.** Adding `mul("press", 2)` to an item is half the job if no rule calls `mulOf(s, "press")`. The type checker will not catch it, because the stat name is valid either way.
 - **`at` on an item is an hour, not a price.** It is easy to read `min(9.5)` as "costs 9.5". In this game prices come from the fitted table; change `at` and the item moves in the plan, but not until the table is fitted again.
 - **A selector that builds a new object re-renders forever.** `useGameState((g) => ({ ... }))` returns a fresh object every time, so React never sees it settle and stops with a "maximum update depth" error. In development the engine warns you first and names the fix. Select one value, wrap an object-building selector in `useShallow` (from `watchpot/react`), or use `useGameView()` for a screen that reads a lot.

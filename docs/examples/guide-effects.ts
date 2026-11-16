@@ -100,12 +100,12 @@ const NAMES: Record<string, string> = {
 export const heat = defineStats({
   key: "stats",
   vocab: WORDS,
-  reach: () => [wallet, stove, kitchen, boosts, medals],
+  reach: () => [stove, kitchen, boosts, medals],
   stats: { heat: { base: 1, ...HEAT } },
   contributions: (s) => [
     ...kitchen.select.contributions(s),
+    // Every buff still held: the buffs' own step ends the expired ones at the start of each pass.
     ...boosts.select.contributions(s),
-
     ...medals.select.contributions(s),
     ...milestones(s),
   ],

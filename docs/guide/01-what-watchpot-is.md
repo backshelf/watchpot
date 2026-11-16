@@ -39,8 +39,11 @@ export const pot = feature({
   steps: {
     produce: {
       // Runs on every live tick and on the catch-up after time away.
-      simmer: (s, ctx) => {
-        s.pot.bubbles = s.pot.bubbles.add((SIMMER_PER_SECOND * ctx.dtMs) / 1000);
+      simmer: {
+        pass: "both",
+        run: (s, ctx) => {
+          s.pot.bubbles = s.pot.bubbles.add((SIMMER_PER_SECOND * ctx.dtMs) / 1000);
+        },
       },
     },
   },

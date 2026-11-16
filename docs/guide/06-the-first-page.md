@@ -45,40 +45,21 @@ export const game = defineGame({
   save: { key: "simmer.save", version: 1 },
   vocab: WORDS,
   features: [...SIMMER, kitchen, foam, kettles, spoon, boosts, surface],
-  order: { rates: [...SIMMER_RATES] },
 });
 ```
 
 `docs/examples/guide-first-page.ts`
 
-`SIMMER` is chapter 4's features in their order and `SIMMER_RATES` is the step order they need pinned (the lid doubles
-the stove after the stove sets its rate). Spreading both keeps the core exactly as it was and puts the new features
-after it.
+`SIMMER` is chapter 4's features in their order. Spreading it keeps the core exactly as it was and puts the new
+features after it.
 
-Several factories take callbacks such as `power`, `mult` or `open` that read the whole game state. They are called
-with the store's state, typed as whatever you annotate the first parameter with. The new features read each other
-(the spoon reads the kettles, the kettles read the kitchen), so no one of them can see the finished game's type, and
-Simmer writes the shape down once:
-
-<!-- example-code: guide-first-page.ts -->
-
-```ts
-/** What the callbacks below read: chapter 4's Simmer, plus the slices this page adds. Written by hand: they read each other. */
-export type Page = Simmer & {
-  kitchen: TreeState;
-  foam: GaugeState;
-  kettles: GeneratorsState;
-  spoon: ClickerState;
-  boosts: BuffsState;
-  surface: SpawnsState;
-};
-```
-
-`docs/examples/guide-first-page.ts`
-
-The engine exports each factory's state type (`TreeState`, `GaugeState` and so on), so the hand-written part is only
-the list of keys. VOID IF REMOVED does the same thing at a larger size with a type it calls `Reads`, and every excerpt
-below annotates its callbacks with it.
+Several factories take callbacks such as `power`, `mult` or `open` that read the game state. Each factory takes the
+same `reach` a feature does (chapter 3), and its callbacks are typed from it: the spoon says
+`reach: () => [stove, kitchen, kettles, foam]`, and its `power` reads all four with no annotation. Where two read each
+other (the kettles read the kitchen's upgrades, and the kitchen's copper waits for a kettle), one side names the other
+by its state type, `reach<{ kettles: GeneratorsState }>()`; the engine exports each factory's state type for that.
+VOID IF REMOVED, on an older engine without `reach` on its factories, annotates every callback with a hand-written
+whole-game type it calls `Reads`, which is what the excerpts below show.
 
 Each of these callbacks also gets a second argument, `{ now }`: the [game time](../glossary.md#game-time) of the pass
 or the press it is read in. That is how a callback asks about anything that depends on time, such as a buff that is
@@ -167,15 +148,16 @@ export const spoon = defineClicker({
   key: "spoon",
   wallet,
   currency: "bubbles",
+  reach: () => [stove, kitchen, kettles, foam],
   // The stir stat, plus 2% of what the pot makes a second, up to twice that on a full head of foam.
-  power: (s: Page, { now }) => {
+  power: (s, { now }) => {
     const base = clickShare(statOf(s, "stir"), income(s), 0.02);
     return gaugeLocked(s.foam, now) ? base : base.mul(1 + gaugeFill(s.foam, FOAM.max));
   },
   crit: () => ({ chance: 0.03, mult: 10 }),
   maxPerSecond: 20,
   // A stir raises the foam, through the gauge's draft helper: a stir that takes it to the top spills it.
-  onClick: (d: Draft<Page>, _paid, now) => {
+  onClick: (d, _paid, now) => {
     foam.draft.nudge(d, FOAM.perStir, now);
   },
 });
@@ -194,7 +176,7 @@ Line by line:
 - `crit` returns `{ chance, mult }`. It is a function of the state so an upgrade can raise the chance later.
 - `maxPerSecond` counts presses in one-second windows of game time and drops the rest.
 - `onClick` runs inside the same [draft](../glossary.md#draft) as the payment, so anything that should happen on a
-  press (raising the foam here) lands in the same state change. `Draft` comes from `watchpot/core`.
+  press (raising the foam here) lands in the same state change.
 
 The clicker's screen-side pieces are the action's return value (to flash "crit!") and two free functions,
 `comboAt` and `comboShown`, for a combo meter (`tap.select.comboShown(state, now)` reads them off the state). The
@@ -507,6 +489,7 @@ export const kitchen = defineUpgradeTree({
   key: "kitchen",
   nodes: UPGRADES,
   wallet,
+  // The kettles reach the kitchen, so the kitchen names the kettles by their state type: one side of a pair does.
   reach: reach<{ kettles: GeneratorsState }>(),
   // The copper waits until there is a kettle to put it on.
   open: (s, node) => node.id !== "copper" || (s.kettles.owned.kettle ?? 0) > 0,
@@ -514,22 +497,21 @@ export const kitchen = defineUpgradeTree({
 
 // ...
 
-/** The kitchen's two stats on the engine's stat graph, from a base of 1, each node counted once per rank held. */
-const KITCHEN = statIndex<Stat, never, Pick<Page, "kitchen">>({ base: () => 1 });
-for (const node of UPGRADES)
-  KITCHEN.add(node, { label: node.name, owner: "kitchen", times: (s) => s.kitchen.ranks[node.id] ?? 0 });
-
 /** A stat's value from the kitchen's ranks: 1, plus its adds, times its muls. Chapter 8 serves stats as a feature. */
-export const statOf = (s: Pick<Page, "kitchen">, stat: Stat): number => KITCHEN.over(s).stat(stat).toNumber();
+export const statOf = (s: Kitchen, stat: Stat): number =>
+  foldContributions(kitchen.select.contributions(s), { base: () => 1 })
+    .stat(stat)
+    .toNumber();
 ```
 
 `docs/examples/guide-first-page.ts`
 
 An [effect](../glossary.md#effect) is `{ stat, add }` or `{ stat, mul }`, and `Effect<Stat>` says which stats it may
-name. `statIndex` is the engine's [stat graph](../glossary.md#stat-graph): each node goes in once, counted `times`
-over (the ranks held), and `over(s).stat("stir")` gives `(1 + adds) × muls` as a Decimal. That is where the spoon's
-`statOf(s, "stir")` and the kettles' `statOf(s, "kettle")` came from. A graph per call is fine for four upgrades;
-chapter 8 declares the stats once as a feature the whole game reads.
+name. `kitchen.select.contributions(s)` hands back every rank held as a [contribution](../glossary.md#contribution)
+(an effect and where it came from), and `foldContributions` folds a list of them with a base of 1:
+`.stat("stir")` gives `(1 + adds) × muls` as a Decimal. That is where the spoon's `statOf(s, "stir")` and the kettles'
+`statOf(s, "kettle")` came from. A fold per call is fine for four upgrades; chapter 8 declares the stats once as a
+feature the whole game reads.
 
 The screen asks the feature itself. `kitchen.select.open(state, id)` says whether a node is on offer by your `open`,
 `kitchen.select.check(state, id)` says why `buy(id)` would refuse it now (`"closed"` first, then the price or a missing
@@ -541,7 +523,7 @@ owned)` and its `contributions`.
 
 ```ts
 /** The kitchen shelf: what is on offer, what the next rank costs, and whether it can be bought now. */
-export function shelf(s: Page) {
+export function shelf(s: StateOf<typeof game.features>) {
   return kitchen.def.nodes
     .filter((node) => kitchen.select.open(s, node.id))
     .map((node) => {
@@ -563,8 +545,8 @@ export function shelf(s: Page) {
 A "stock up" button that buys everything on the shelf it can afford is `store.getState().kitchen.buyAll()`. It reads
 your `open` the same way `buy` does.
 
-The rest is in [An upgrade tree](../upgrade-tree.md); the stat bus is [chapter 8](08-effects.md) and
-[The stat graph](../stat-graph.md).
+The rest is in [An upgrade tree](../upgrade-tree.md); stats are [chapter 8](08-effects.md) and
+[Stats](../stat-graph.md).
 
 ## Surprises and timed boosts: `spawns` and `buffs`
 
@@ -585,7 +567,7 @@ is on the kind's own saved random stream. The screen reads `state.<key>.kinds[ki
 
 `defineBuffs({ key, list, onEnd?, reset? })` is timed boosts, each a [buff](../glossary.md#buff). Each entry has an `id`, a
 `durationMs`, a `stack` rule for starting it while it runs (`"refresh"`, `"extend"`, `"stack"` or `"ignore"`) and,
-if it should feed a stat bus, its `effects`. Without `effects` a buff is a timer that your own rules ask about. The
+if it should feed the game's stats (chapter 8), its `effects`. Without `effects` a buff is a timer that your own rules ask about. The
 readers are `boosts.select.active(state, id, now)`, `boosts.select.leftMs(state, id, now)` and `boosts.select.overlapMs(state, id,
 from, to)`, which says how much of a stretch of time the buff covered.
 
@@ -690,19 +672,20 @@ and the big bubble:
 ```ts
 export const surface = defineSpawns({
   key: "surface",
+  reach: () => [wallet, stove, kitchen, kettles, boosts],
   kinds: [
     {
       id: "big-bubble",
       wait: { minMs: 45_000, maxMs: 150_000, ramp: { power: 3, stepMs: 1000 } },
       lifeMs: 12_000,
-      active: (s: Page) => has(s, "ladle"),
+      active: (s) => has(s, "ladle"),
       outcomes: [
         { id: "splash", weight: 60 },
         { id: "rolling-boil", weight: 40, noRepeat: true },
       ],
     },
   ],
-  onCatch: (d: Draft<Page>, outcome, now) => {
+  onCatch: (d, outcome, now) => {
     if (outcome === "splash") {
       wallet.draft.credit(d, "bubbles", income(d).mul(60).max(25)); // a minute of everything, 25 at least
       return;
@@ -767,10 +750,10 @@ same on every run; with this seed none of the thirty stirs crits.
   out partway pays nothing for the part it covered. Use `overlapMs` in a step when that matters.
 - **`buyCount` can return 0.** It means "you can afford none". `select.row` already takes care of it; if you call
   `buyCount` yourself, use `Math.max(1, ...)` for the label, or the row shows the price of nothing.
-- **Feature order is behaviour.** Steps in the same phase run in the order the features are listed. A step that reads
-  another feature's derived values in the same phase has to come after it (or be named first in `defineGame`'s
-  `order`). Across phases the list order does not matter: the spoon reads `kettles.perSecond` at a press, long after
-  `rates` set it.
+- **A field a step sets is as fresh as that step.** The kettles' `perSecond` is set by the generators' own `rates`
+  step, because it reads the buff at `now`. A step of yours in `rates` that reads it must say
+  `after: "kettles.rates.perSecond"`; across phases, or at a press, it is always current. The stove's rate is a
+  derived value and needs no such care.
 
 ## Next
 
