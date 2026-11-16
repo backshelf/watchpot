@@ -164,6 +164,34 @@ Pure kernels and free functions keep their API (`board()`, `fillBoard`, `searchB
 | | (new) | `summon.def` is `{ ladder, boxes, odds, pity }` |
 | `layers` | `climb.model` | `climb.def.model` |
 | | `climb.balance(s, currency)` | `climb.select.balance(s, currency)` |
+| `achievements` | `wall.board` | `wall.def.board` (the kernel: `wall.def.board.rows(earned)` still works for a screen subscribed to `earned` alone) |
+| | `wall.board.rows / count / rowsComplete / contributions / power(earned, …)` | `wall.select.rows / count / rowsComplete / contributions / power(state, …)` |
+| | `wall.earn(d, id, now)` | `wall.draft.earn(d, id, now)` |
+| | `achievements<K, G, E>` | `achievements<K, E, R, G>`; drop the type arguments and use `reach` |
+| `missions` | `trips.rules.slots / freeSlots / ready(s, now)` | `trips.select.slots / freeSlots / ready` |
+| | `trips.rules.list`, `trips.rules.mission(id)` | `trips.def.list`, `trips.def.mission(id)` |
+| `challenges` | `trials.rules.check(s, id)` | `trials.select.check(s, id)` |
+| | `trials.rules.maxed(s.trials, id)`, `trials.rules.contributions(s.trials)` | `trials.select.maxed(s, id)`, `trials.select.contributions(s)` |
+| | `challengeRule(s.trials, rule)` (removed) | `trials.select.rule(s, rule)` |
+| | `trials.rules.list`, `trials.rules.challenge(id)` | `trials.def.list`, `trials.def.challenge(id)` |
+| `levels` | `skills.rules.level / progress(s.skills, track)`, `skills.rules.contributions(s.skills)` | `skills.select.level / progress(s, track)`, `skills.select.contributions(s)` |
+| | `skills.rules.tracks`, `skills.rules.track(id)` | `skills.def.tracks`, `skills.def.track(id)` |
+| | `skills.gain(d, track, amount)` | `skills.draft.gain(d, track, amount)` |
+| `stages` | `roads.rules.force / fill / passable / secondsToClear / ended` | `roads.select.*`, same arguments |
+| | `roads.rules.resistance(id, stage)`, `roads.rules.tracks`, `roads.rules.track(id)` | `roads.def.*` |
+| `streak` | `daily.status(s.daily, now)` | `daily.select.status(s, now)` |
+| | (new) | `daily.def.grace`, `daily.def.rewards` |
+| `records` | `tally.track` | `tally.def.track` |
+| | `tally.add(d, n, v)`, `tally.note(d, n, v)` | `tally.draft.add`, `tally.draft.note` |
+| | `tally.value(s.tally, scope, name)` | `tally.select.value(s, scope, name)` |
+| `gauge` | `heat.rules` (`{ max, trip }`) | `heat.def` |
+| | `heat.nudge(d, amount, now)` | `heat.draft.nudge(d, amount, now)` |
+| | (new) | `heat.select.locked(s, now)`, `heat.select.fill(s)`, `heat.select.secondsToTrip(s, perSecond)` |
+| `seenOnce`, `settings` | (no members) | carry the three namespaces, empty |
+
+Removed types: `MissionRules`, `ChallengeRules`, `LevelRules`, `StageRules`. `LevelHelpers` is now the
+`{ select, def, draft }` bundle. Explicit type arguments on these factories no longer line up (a reach parameter
+sits before `G`): remove them and use `reach`.
 
 <!-- FACTORIES -->
 
