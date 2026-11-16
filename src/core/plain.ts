@@ -36,6 +36,13 @@ export interface PlainStore<S extends object> {
   setState(recipe: (state: S) => void): void;
   /** Runs something and puts the state back as it was: how the auto-player tries a purchase to see what it is worth. */
   trial<T>(run: () => T): T;
+  /**
+   * The state's data as it stands, every feature's slice copied (its own objects, the same Decimals), with no
+   * actions and no derived values: with `restore`, how a sim snapshot carries a run.
+   */
+  snapshot(): PlainData;
+  /** Puts the state to what `snapshot` gave (this store's or another's over the same game); derived values follow. */
+  restore(data: PlainData): void;
   /** Present so the plain store stands in where a store is expected; it never calls back. */
   subscribe(listener: () => void): () => void;
   /** Settled already: there is no save to load. */
@@ -53,6 +60,9 @@ export interface PlainStoreOptions {
   /** The entropy behind unseeded draws. Default `Math.random`. */
   entropy?: () => number;
 }
+
+/** A plain store's data: each feature's slice by key, actions and derived values left out. */
+export type PlainData = Record<string, Record<string, unknown>>;
 
 type Slices = Record<string, Record<string, unknown>>;
 
@@ -144,6 +154,29 @@ export function createPlainStore<F extends readonly FeatureSpec[], R extends obj
         });
         cells.touchAll();
       }
+    },
+    snapshot: (): PlainData => {
+      const out: PlainData = {};
+      for (const f of features) {
+        const derived = new Set(cells.names(f.key));
+        const slice: Record<string, unknown> = {};
+        for (const [k, v] of Object.entries(state[f.key] ?? {}))
+          if (typeof v !== "function" && !derived.has(k)) slice[k] = own(v);
+        out[f.key] = slice;
+      }
+      return out;
+    },
+    restore: (data: PlainData): void => {
+      for (const f of features) {
+        const slice = state[f.key];
+        const next = data[f.key];
+        if (!slice || !next) continue;
+        const derived = new Set(cells.names(f.key));
+        for (const [k, v] of Object.entries(slice))
+          if (typeof v !== "function" && !derived.has(k) && !(k in next)) delete slice[k];
+        for (const [k, v] of Object.entries(next)) slice[k] = own(v);
+      }
+      cells.touchAll();
     },
     hydrated: Promise.resolve(),
     profileSwaps: () => swaps,

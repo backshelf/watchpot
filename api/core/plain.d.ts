@@ -23,6 +23,13 @@ export interface PlainStore<S extends object> {
     setState(recipe: (state: S) => void): void;
     /** Runs something and puts the state back as it was: how the auto-player tries a purchase to see what it is worth. */
     trial<T>(run: () => T): T;
+    /**
+     * The state's data as it stands, every feature's slice copied (its own objects, the same Decimals), with no
+     * actions and no derived values: with `restore`, how a sim snapshot carries a run.
+     */
+    snapshot(): PlainData;
+    /** Puts the state to what `snapshot` gave (this store's or another's over the same game); derived values follow. */
+    restore(data: PlainData): void;
     /** Present so the plain store stands in where a store is expected; it never calls back. */
     subscribe(listener: () => void): () => void;
     /** Settled already: there is no save to load. */
@@ -39,5 +46,7 @@ export interface PlainStoreOptions {
     /** The entropy behind unseeded draws. Default `Math.random`. */
     entropy?: () => number;
 }
+/** A plain store's data: each feature's slice by key, actions and derived values left out. */
+export type PlainData = Record<string, Record<string, unknown>>;
 /** Builds a plain store over a game: its features' state, actions, passes and derived values, on plain data. */
 export declare function createPlainStore<F extends readonly FeatureSpec[], R extends object>(game: Game<F, R>, options: PlainStoreOptions): PlainStore<StateOf<F> & R>;

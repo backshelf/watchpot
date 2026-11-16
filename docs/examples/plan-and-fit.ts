@@ -1,8 +1,8 @@
 import { D, type Decimal } from "watchpot/core";
 import {
-  BLOCKED,
   type FitGate,
-  fitReader,
+  type FitTable,
+  fitTable,
   fitTableSource,
   fmtClock,
   formatFit,
@@ -75,17 +75,17 @@ function step(b: Bakery, dtMs: number) {
 }
 
 /** The pilot: sells and buys what it can, then hires while a baker costs a tenth of the gold or less. */
-function look(b: Bakery, price: (key: GateKey) => string) {
+function look(b: Bakery, prices: FitTable<GateKey>) {
   const sale = SALES[b.sold];
-  if (sale && b.gold.gte(price(sale))) {
+  if (sale && b.gold.gte(prices.get(sale))) {
     b.gems++;
     b.sold++;
     b.gold = D(0);
     b.bakers = 1;
   }
   for (const t of TOOLS) {
-    if (b.tools.has(t) || b.gold.lt(price(t))) continue;
-    b.gold = b.gold.sub(price(t));
+    if (b.tools.has(t) || b.gold.lt(prices.get(t))) continue;
+    b.gold = b.gold.sub(prices.get(t));
     b.tools.add(t);
   }
   while (bakerCost(b).lte(b.gold.mul(0.1))) {
@@ -101,21 +101,15 @@ export function fitAndReplay(): boolean {
   // ------------------------------------------------------------------------------------------------ the fit
 
   const bakery = freshBakery();
-  const prices = {} as Record<GateKey, string>;
+  // The live table: the game reads every gate's price from it, and the fit prices each gate into it.
+  const prices = fitTable<GateKey>();
   const have = holdings(["gold"], () => bakery.gold);
 
   /** A tool is priced at nine tenths of the most gold held lately, so the pilot pays it within moments. */
   const toolGate = (key: GateKey): FitGate => ({
     key,
     atMs: PLAN[key] * MIN,
-    block: () => {
-      prices[key] = BLOCKED;
-    },
-    price: () => {
-      const value = nicePrice(have.held("gold").mul(0.9));
-      if (value) prices[key] = value;
-      return value;
-    },
+    price: () => nicePrice(have.held("gold").mul(0.9)),
   });
 
   /** A sale waits until the gold passes every earlier peak (a sale resets it), then asks what is held. */
@@ -124,13 +118,9 @@ export function fitAndReplay(): boolean {
     return {
       key,
       atMs: PLAN[key] * MIN,
-      block: () => {
-        prices[key] = BLOCKED;
-      },
       price: () => {
         if (!clear()) return null;
         const value = nicePrice(have.held("gold"));
-        if (value) prices[key] = value;
         return value && `${value} (with ${bakery.bakers} bakers)`;
       },
     };
@@ -138,9 +128,10 @@ export function fitAndReplay(): boolean {
 
   const lastPlanned = Math.max(...Object.values(PLAN)) * MIN;
   const result = runFit({
+    table: prices,
     gates: [...TOOLS.map(toolGate), ...SALES.map(saleGate)],
     step: (dt) => step(bakery, dt),
-    look: () => look(bakery, (k) => prices[k]),
+    look: () => look(bakery, prices),
     afterStep: () => have.sample(),
     playedMs: () => bakery.playedMs,
     done: () => finished(bakery),
@@ -157,20 +148,18 @@ export function fitAndReplay(): boolean {
   }
   console.log(`fit: finished at ${fmtClock(result.playedMs)} played, ${result.gates.length} gates priced\n`);
   console.log(
-    fitTableSource(result, {
+    fitTableSource(prices, {
       header: "Written by the fit from the plan. Never edit by hand: change the plan and fit again.",
       planImport: "./plan",
       keyType: "GateKey",
+      order: Object.keys(PLAN),
     }),
   );
 
   // ------------------------------------------------------------------------------------------------ the replay
 
-  // The table a game would import from the generated module, read back through `fitReader`.
-  const table: Partial<Record<GateKey, string>> = Object.fromEntries(
-    result.gates.flatMap((g) => (g.value ? [[g.key, g.value.split(" ")[0]]] : [])),
-  );
-  const fitted = fitReader(table);
+  // The table a game would load from the generated module: `fitTable(FIT)`.
+  const fitted = fitTable<GateKey>(prices.data());
   const replay = freshBakery();
   for (let s = 0; replay.playedMs < lastPlanned * 1.5 && !finished(replay); s++) {
     if (s % 3 === 0) look(replay, fitted);

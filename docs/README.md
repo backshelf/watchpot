@@ -77,6 +77,7 @@ type-checks and, where the page says so, runs with `bun docs/examples/<name>.ts`
 | A live stat graph | [stat-graph](stat-graph.md) | `stat-graph.ts` |
 | Time away, a journal and a deep fill | [time-away](time-away.md) | `time-away.ts` |
 | Plan and fit | [plan-and-fit](plan-and-fit.md) | `plan-and-fit.ts` |
+| The fit kit: the live table, snapshots, resuming, the proof, the profiler | [fit-kit](fit-kit.md) | `fit-kit.ts` |
 | A 3D stage | [three](three.md) | `three-stage.tsx` |
 | Headless UI (behaviour from the engine, look from the game) | [ui](ui.md) | `ui.tsx` |
 | Feel: answer the player, ration the machine | [feel](feel.md) | (inline) |

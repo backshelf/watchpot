@@ -19,8 +19,12 @@ six tools and two sales, fitted, then replayed on the fitted table.
 - **The fit** is a script the game owns. It builds its gates, a pilot and a `holdings` over what gates are paid in,
   calls `runFit`, prints `formatFit`, and, only when `finished` is true, writes `fitTableSource` to a module beside the
   plan. When a gate never opened, it says which and writes nothing.
-- **The game** reads every fitted price through `fitReader(FIT)`, so a gate the table lacks costs `BLOCKED` and cannot
-  be bought. Never edit the table by hand: change the plan and fit again.
+- **The game** reads every fitted price from one live table, `fitTable(FIT)`, kept where the game's gates read it
+  (`prices.get(key)`). A gate the table lacks costs `BLOCKED` and cannot be bought (`isBlocked(price)` tells a screen
+  to leave it off the shelf). The fit writes into the same table as it prices each gate, so the run plays every price
+  the moment it is set. Never edit the table by hand: change the plan and fit again.
+- **The kit** around a long fit (snapshots, carrying a fit on from one, the proof, a draft, the profiler) is its own
+  page: [the fit kit](fit-kit.md).
 - **The replay** is a test: play the pilot on the fitted table from a fresh start and check it finishes between 0.7 and
   1.25 of the plan's last minute. It guards against a dead end and a fit gone stale.
 
@@ -44,30 +48,42 @@ once in a replay. Move its minute ahead of the reset and fit again.
 
 ## Writing a gate
 
-The engine never writes a definition. A `FitGate` is `{ key, atMs, block(), price() }`, and both calls are the game's:
+The engine never writes a definition. A `FitGate` is `{ key, atMs, price() }`:
 
-- `block()` sets the gate's price, wherever the game keeps it, to `BLOCKED`. The loop calls it once, before the run.
+- The loop shuts the gate in the table (`table.set(key, null)`) before the run, and writes the price `price()` gives
+  into it.
 - `price()` is asked every step once `atMs` has come, until it returns a string. It checks whatever the gate needs
-  (its screen is open, nothing else is running), reads `holdings`, rounds with `nicePrice`, writes the price where the
-  game reads it, and returns it. Text after a space is a note: it shows in the report, never in the table. Null means
-  "not yet"; a gate that stays null leaves the fit unfinished.
+  (its screen is open, nothing else is running), reads `holdings`, rounds, and returns the price. Text after a space
+  is a note: it shows in the report, never in the table. Null means "not yet"; a gate that stays null leaves the fit
+  unfinished.
 
-`holdings(refs, read, window?)` keeps the last `window` samples per ref (90 by default; call `sample()` in
-`afterStep`) and the peak ever seen. `held(ref, last?)` is the most in the window, or in its last `last` samples, so a
+`holdings(refs, read, { window?, from? })` keeps the last `window` samples per ref (90 by default; call `sample()` in
+`afterStep`) and the peak ever seen; `remember()` and `from` carry them across a snapshot. `held(ref, last?)` is the most in the window, or in its last `last` samples, so a
 price set just after a purchase still reads what was held before it. A share of it (nine tenths, say) is paid within
 moments; all of it waits a little. For a gate behind a reset, `ratchet(ref, margin?)` fixes its bar at the peak times
 `margin` (1.34) the first time it is checked and holds the price back until `held` reaches it, so the price lands above
 anything held before the reset.
 
 `nicePrice(x, steps?)` never rounds up: null below 1 or not finite, whole below 100, two figures off
-`1, 1.2, 1.5, 2, 2.5, 3, 4, 5, 6, 8` up to a million, and `<step>e<exponent>` from there.
+`1, 1.2, 1.5, 2, 2.5, 3, 4, 5, 6, 8` up to a million, and `<step>e<exponent>` from there. A price at or under what
+is held is paid within moments, which is the point, but it may also have been payable a little before its minute.
+
+`priceAbove(x)` is the other way: a readable figure strictly above `x` (the next whole number below 100, then two
+figures rounded up). Priced above the most ever held (`peak`), or the most held since the gate could first be
+reached, a gate cannot be paid before the fit priced it, so a replay on the finished table is the fit's own run
+again. That is what [the proof](fit-kit.md#the-proof) checks, and a table priced with `nicePrice` will not pass it.
 
 ## The loop
 
-`runFit` blocks every gate and orders them by `atMs`, the plan's order between equals. Each step it lets the pilot
-`look()` (every `lookEvery`th step, 3 by default), plays `step(stepMs)` (1,000 ms), runs `afterStep()`, then asks each
-unopened gate whose minute has come for a price; a string opens it at `playedMs()`. It stops on `done()` or at
-`limitMs`, and `finished` is `done()` with every gate open. A gate opens at or after its minute, never before.
+`runFit({ table, gates, … })` shuts every gate in the table and orders them by `atMs`, the plan's order between
+equals. Each step it lets the pilot `look()` (every `lookEvery`th step, 3 by default), plays `step(stepMs)`, runs
+`afterStep()`, then asks each unopened gate whose minute has come for a price; a string goes into the table and opens
+it at `playedMs()`. It stops on `done()` or at `limitMs`, and `finished` is `done()` with every gate open. A gate
+opens at or after its minute, never before.
+
+The step is the fit's `quality` (`SIM_QUALITY`: `exact` a second, the default; `quick` ten; `rough` a minute), or
+`stepMs` outright. A quick fit is a draft: it reads the plan's curve in a fraction of the time, and its prices are
+the ones a coarser pilot held. Fit `exact` before a checkpoint.
 
 ## When to refit
 
