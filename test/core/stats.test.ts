@@ -8,6 +8,7 @@ import {
   defineStats,
   type Effect,
   feature,
+  foldContributions,
   reach,
   vocab,
 } from "watchpot/core";
@@ -186,5 +187,24 @@ describe("the stats feature", () => {
     });
     const store = createIdleStore(defineGame({ id: "far", save, vocab: WORDS, features: [pan, far] }), at());
     expect(store.getState().pan.boil).toBe(6);
+  });
+});
+
+describe("foldContributions", () => {
+  test("folds a list with no game: adds, then muls, copies as one row", () => {
+    const sharp: Effect<"edge"> = { stat: "edge", mul: 2 };
+    const graph = foldContributions(
+      [
+        { source: "kit:whetstone", effect: sharp },
+        { source: "kit:whetstone", effect: sharp },
+        { source: "kit:oil", effect: { stat: "edge", add: 3 }, times: 2 },
+      ],
+      { base: () => 1 },
+    );
+    expect(graph.stat("edge").toNumber()).toBe((1 + 6) * 4);
+    expect(graph.parts("edge").map((p) => [p.label, p.times])).toEqual([
+      ["kit:whetstone", 2],
+      ["kit:oil", 2],
+    ]);
   });
 });

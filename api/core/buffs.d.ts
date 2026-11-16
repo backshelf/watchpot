@@ -98,8 +98,13 @@ export interface BuffsSelect<K extends string, E> {
     stacks(state: BuffsHost<K>, id: string, now: number): number;
     /** How much of the stretch from `from` to `to` the buff covered, running or ended (see `overlapMs`). */
     overlapMs(state: BuffsHost<K>, id: string, from: number, to: number): number;
-    /** Every buff running at `now` as its effects, sourced `<key>:<id>`. */
-    contributions(state: BuffsHost<K>, now: number): {
+    /**
+     * Every buff running at `now` as its effects, sourced `<key>:<id>`. Without `now`, every buff still held: the
+     * feature's own `sync` step ends each buff whose time is up at the start of a pass, so what is held is what is
+     * running, to within a pass. That is the form a stats feature's `contributions` uses, since a derived value
+     * reads no clock.
+     */
+    contributions(state: BuffsHost<K>, now?: number): {
         source: string;
         effect: E;
     }[];

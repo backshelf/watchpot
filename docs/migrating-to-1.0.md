@@ -314,10 +314,10 @@ export const numbers = defineStats({
   Code that read `e.mult` as a number reads `e.mul`, which may be a function: `Number(e.mul ?? 1)` for fixed content.
 - `explainStat(…).sources` → `stats.select.explain(s, id).parts`; `statTotals(bus, id)` → `explain(…).add` and
   `.mult`.
-- Buffs inside `contributions`: pass `Number.NEGATIVE_INFINITY` as `now` (a derived value cannot read the clock,
-  and the buffs' own `sync` step has already ended the expired ones).
-- Weighing stats for a state that does not exist (a loadout being auto-filled):
-  `statIndex({ base }).over(null, { extra: () => contribs.map((c) => ({ effect: c.effect, meta: { label: c.source, owner } })) })`.
+- Buffs inside `contributions`: `boosts.select.contributions(s)`, with no `now` (a derived value cannot read the
+  clock; without `now` every buff still held counts, and the buffs' own `sync` step ends the expired ones).
+- Weighing stats for a state that does not exist (a loadout being auto-filled, a build being compared):
+  `foldContributions(contribs, { base: (stat) => 1 }).stat("output")`.
 - A feature that reads a stat adds the stats feature to its `reach`.
 - Stat ids `flags` and `feed` are reserved.
 - A game that folded in log10 with plain numbers will see last-digit differences against Decimal products: compare

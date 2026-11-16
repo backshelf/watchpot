@@ -6,7 +6,9 @@ import {
   type SourceMeta,
   type StatBreakdown,
   type StatCaps,
+  type StatGraph,
   type StatIndex,
+  type StatIndexOptions,
   type StatPart,
   type StatSource,
   statIndex,
@@ -42,6 +44,32 @@ export interface Contribution<S extends string = string, Q = unknown> {
   readonly effect: Effect<S, Q>;
   /** How many times over it counts (default 1): the copies owned, said once and not listed one by one. */
   readonly times?: number;
+}
+
+/**
+ * Folds a list of contributions with no game around them: the stats a loadout would give before it is slotted, a
+ * build being compared, a test. `base` gives each stat's base (and `caps` its caps); the graph that comes back
+ * answers `stat`, `explain` and `parts` like any other. Amounts that are functions are handed `q`.
+ */
+export function foldContributions<S extends string, Q = null>(
+  contributions: readonly Contribution<S, Q>[],
+  options: StatIndexOptions<S> & { q?: Q },
+): StatGraph<S, never> {
+  const byStat = new Map<string, ExtraEffect<S, Q>[]>();
+  for (const { source, effect, times = 1 } of contributions) {
+    if (!(times > 0)) continue;
+    const rows = byStat.get(effect.stat) ?? [];
+    byStat.set(effect.stat, rows);
+    const held = rows.find((r) => r.effect === effect && r.meta.label === source);
+    const count = (held?.meta.times?.(options.q as Q) ?? 0) + times;
+    const row = {
+      effect,
+      meta: { label: source, owner: source.split(":")[0] ?? source, times: () => count },
+    };
+    if (held) rows[rows.indexOf(held)] = row;
+    else rows.push(row);
+  }
+  return statIndex<S, never, Q>(options).over(options.q as Q, { extra: (stat) => byStat.get(stat) ?? [] });
 }
 
 /** The names a stat cannot take: the feature's own derived values beside the stats. */
