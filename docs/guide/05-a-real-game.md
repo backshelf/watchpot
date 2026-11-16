@@ -529,7 +529,7 @@ You have now been through every layer once. When you open a game you have not se
 - **A word, a name, a line of flavour?** `src/content/`. In this game every word on the page comes from there, down to the button labels in `copy.ts`.
 - **A number: a rate, a base price, a multiplier on an item?** `src/content/` too. If a price is missing from the content, look for a fitted table beside it (here `gates.ts` and `fit.ts`) and the sim that writes it.
 - **A rule: how something pays, when it opens, what a button does?** `src/game/`. Search that folder for the engine factory you expect (`defineGenerators(`, `defineUpgradeTree(`, `definePrestige(`, `defineAchievements(`); the feature's `key` is the name its state has in the store.
-- **Why a number is the size it is?** The stats: here `src/game/bus.ts` and the stats feature (`defineStats`) (in a game on 1.0, its `defineStats` feature), then whatever rule reads the stat.
+- **Why a number is the size it is?** The stats: here `src/game/bus.ts` and its `stats` feature (in a game on 1.0, its `defineStats` feature), then whatever rule reads the stat.
 - **What is on screen?** `src/app/screens.tsx` maps each page to its screen in `src/screens/`.
 - **How it looks?** The component in `src/ui/` and its `.module.css`, then the theme tokens.
 - **What runs before what?** The `features` array in `defineGame`, and any step's `after` or `before`.
