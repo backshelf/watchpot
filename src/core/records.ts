@@ -1,5 +1,5 @@
 import { D, type Decimal, type DecimalSource, isDecimal } from "./decimal";
-import { type Feature, type FeatureApi, feature } from "./feature";
+import { defineFeature, type Feature, type FeatureApi } from "./feature";
 import { pushLine } from "./journal";
 
 /**
@@ -178,7 +178,7 @@ export function defineRecords<const K extends string, const T extends Record<str
   const value = (slice: RecordsState, at: RecordScope | "best", name: string) =>
     slice.values[at][name] as TrackedValue<T[Name<T>]> | undefined;
 
-  const made = feature({
+  const made = defineFeature({
     key: def.key,
     initial: (ctx): RecordsState => ({
       values: { run: scope("run"), life: scope("life"), best: {} },

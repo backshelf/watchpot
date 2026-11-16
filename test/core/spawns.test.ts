@@ -2,11 +2,11 @@ import { describe, expect, test } from "bun:test";
 import {
   advanceSpawn,
   D,
+  defineFeature,
   defineGame,
   defineSpawns,
   drawOutcome,
   drawSpawnWait,
-  feature,
   HOUR_MS,
   type RngState,
   type SpawnState,
@@ -80,7 +80,7 @@ describe("the spawn kernel", () => {
   });
 });
 
-const purse = feature({ key: "purse", initial: () => ({ gold: 0, gems: 0 }) });
+const purse = defineFeature({ key: "purse", initial: () => ({ gold: 0, gems: 0 }) });
 /** A copy of a state without its actions: what a recipe is handed, for calling a draft helper directly. */
 const plain = <T>(state: T): T => JSON.parse(JSON.stringify(state));
 const fair = defineSpawns({
@@ -188,7 +188,7 @@ describe("spawns feature", () => {
   });
 
   test("a callback reads a reached feature; one it does not reach is a type error", () => {
-    const other = feature({ key: "other", initial: () => ({ m: 0 }) });
+    const other = defineFeature({ key: "other", initial: () => ({ m: 0 }) });
     const peek = defineSpawns({
       key: "peek",
       reach: [purse],

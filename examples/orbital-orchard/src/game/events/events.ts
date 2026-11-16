@@ -3,12 +3,12 @@ import {
   buyEventNode,
   composeBoards,
   type Decimal,
+  defineFeature,
   dueMilestones,
   type EventBag,
   eventCurrencyCap,
   eventNodeCost,
   type FeatureApi,
-  feature,
   freshRuntime,
   isEventFailure,
   type Move,
@@ -59,7 +59,7 @@ function pay(
  * The game's events: the meteor shower's runtime (a fresh one each shower), the sky board composed in, and what is
  * kept across showers. The shower is outside the run: changing orbit leaves it alone.
  */
-export const events = feature({
+export const events = defineFeature({
   key: "events",
   reach: [wallet, summon, generators],
   initial: () => ({

@@ -3,8 +3,8 @@ import {
   createGameStorage,
   createIdleStore,
   createMemoryBackend,
+  defineFeature,
   defineGame,
-  feature,
   HOUR_MS,
   type InitialReason,
   definePrestige as prestigeLayer,
@@ -50,7 +50,7 @@ describe("resetRun", () => {
   });
 
   test("a function rule maps the state before and a fresh initial to the state after", () => {
-    const settings = feature({
+    const settings = defineFeature({
       key: "settings",
       initial: () => ({ theme: "light", volume: 1 }),
       reset: (before, fresh) => ({ ...fresh, theme: before.theme }),
@@ -108,7 +108,7 @@ describe("resetRun", () => {
 
   test("the reasons: new, run, reset, import", () => {
     const seen: InitialReason[] = [];
-    const why = feature({
+    const why = defineFeature({
       key: "why",
       initial: (ctx) => {
         seen.push(ctx.reason);
@@ -155,13 +155,13 @@ describe("resetProfile", () => {
 describe("reset depths", () => {
   /** Two layers: `lower` resets the run; `upper` resets at depth 2, which also starts `lower` and its shop over. */
   function layered() {
-    const run = feature({ key: "run", initial: () => ({ gold: 0 }) });
-    const shop = feature({
+    const run = defineFeature({ key: "run", initial: () => ({ gold: 0 }) });
+    const shop = defineFeature({
       key: "shop",
       initial: () => ({ ranks: 0, seen: 0 }),
       reset: { depth: 2, rule: { keep: ["seen"] } },
     });
-    const vault = feature({
+    const vault = defineFeature({
       key: "vault",
       initial: () => ({ gems: 0, depths: [] as number[] }),
       reset: (before, fresh, ctx) => ({
@@ -216,7 +216,7 @@ describe("reset depths", () => {
     const store = layered();
     store.getState().resetRun({ depth: 2 });
     expect(store.getState().shop.ranks).toBe(0);
-    const bad = feature({ key: "bad", initial: () => ({ n: 0 }), reset: { depth: 0 } });
+    const bad = defineFeature({ key: "bad", initial: () => ({ n: 0 }), reset: { depth: 0 } });
     expect(() => defineGame({ id: "bad", save: { key: "bad", version: 1 }, features: [bad] })).toThrow(
       "a reset depth is 1 or more",
     );

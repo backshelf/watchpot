@@ -2,9 +2,9 @@ import type { Draft } from "immer";
 import type { CurrenciesFeature, CurrencyDraft, Purse } from "./currencies";
 import { D, type Decimal, type DecimalSource, ZERO } from "./decimal";
 import {
+  defineFeature,
   type Feature,
   type FeatureApi,
-  feature,
   type NeedsOf,
   type ReachOf,
   type ReachShape,
@@ -360,7 +360,7 @@ export function defineCrafting<
     return craftDraft(draft, id, most, now) ? most : 0;
   };
 
-  const made = feature<K, CraftingState, CraftingActions, ReachShape, Record<never, never>, Own>({
+  const made = defineFeature<K, CraftingState, CraftingActions, ReachShape, Record<never, never>, Own>({
     reach: def.reach,
     key: def.key,
     initial: (): CraftingState => ({ made: {}, queue: [] }),

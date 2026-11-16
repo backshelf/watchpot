@@ -1,4 +1,4 @@
-import { type Feature, type FeatureApi, feature, type ResetRule } from "../feature";
+import { defineFeature, type Feature, type FeatureApi, type ResetRule } from "../feature";
 import { nextInt, type RngState, seedRng } from "../rng";
 import type { AnyVocab, Ladder, OddsTable } from "../vocab";
 import { drawRarity, freshPity, type PityRule, type PityState, type PityTrigger } from "./kernel";
@@ -178,7 +178,7 @@ export function defineGacha<const K extends string, R extends string, B extends 
     return open;
   };
 
-  const made = feature({
+  const made = defineFeature({
     key: def.key,
     vocab: def.vocab,
     initial: (ctx): State => ({

@@ -2,9 +2,9 @@ import { describe, expect, test } from "bun:test";
 import {
   advanceTrack,
   D,
+  defineFeature,
   defineGame,
   defineStages,
-  feature,
   passable,
   resistanceAt,
   type StageTrack,
@@ -65,7 +65,7 @@ describe("advanceTrack", () => {
 });
 
 describe("stages feature", () => {
-  const army = feature({ key: "army", initial: () => ({ force: 5, loot: 0, unlocked: false }) });
+  const army = defineFeature({ key: "army", initial: () => ({ force: 5, loot: 0, unlocked: false }) });
   const front = defineStages({
     reach: [army],
     key: "front",

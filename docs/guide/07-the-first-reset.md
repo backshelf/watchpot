@@ -53,7 +53,7 @@ Chapter 4's pot was:
 <!-- example-code: simmer/game-wallet.ts -->
 
 ```ts
-export const pot = feature({
+export const pot = defineFeature({
   key: "pot",
   reach: [wallet],
   initial: () => ({ taps: 0 }),
@@ -68,7 +68,7 @@ This chapter's pot is the same feature with one change:
 <!-- example-code: guide-first-reset.ts -->
 
 ```ts
-export const pot = feature({
+export const pot = defineFeature({
   key: "pot",
   reach: [wallet],
   initial: () => ({ taps: 0 }),

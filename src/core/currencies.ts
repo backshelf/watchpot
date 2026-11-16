@@ -1,9 +1,9 @@
 import { D, type Decimal, type DecimalSource, ZERO } from "./decimal";
 import {
   applyReachedRule,
+  defineFeature,
   type Feature,
   type FeatureApi,
-  feature,
   type InitialContext,
   type ReachedRule,
   type ReachOf,
@@ -302,7 +302,7 @@ export function defineCurrencies<
       }
     : "never";
 
-  const made = feature<K, S, CurrencyActions<C> & A, R, Record<never, never>, G>({
+  const made = defineFeature<K, S, CurrencyActions<C> & A, R, Record<never, never>, G>({
     key: def.key,
     reach: def.reach,
     initial,

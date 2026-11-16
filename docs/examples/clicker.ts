@@ -4,8 +4,8 @@ import {
   type Decimal,
   defineClicker,
   defineCurrencies,
+  defineFeature,
   defineGame,
-  feature,
   fmt,
 } from "watchpot/core";
 import { TOY } from "./vocab";
@@ -13,7 +13,7 @@ import { TOY } from "./vocab";
 const wallet = defineCurrencies({ key: "wallet", vocab: TOY });
 
 /** What the game makes a second without pressing: here a stand-in, a mine whose rate is its drills. */
-const mine = feature({
+const mine = defineFeature({
   key: "mine",
   initial: () => ({ drills: 4 }),
   derived: { perSecond: (s) => D(s.mine.drills) },

@@ -3,10 +3,10 @@ import {
   D,
   defineChallenges,
   defineCurrencies,
+  defineFeature,
   defineGame,
   defineSpawns,
   defineUpgradeTree,
-  feature,
   type GraphNode,
   powerGain,
   vocab,
@@ -18,7 +18,7 @@ const wallet = defineCurrencies({ key: "wallet", vocab: WORDS, start: { gold: 10
 
 describe("an upgrade tree with an open rule", () => {
   type State = { door: { open: boolean } };
-  const door = feature({ key: "door", initial: () => ({ open: false }) });
+  const door = defineFeature({ key: "door", initial: () => ({ open: false }) });
   const NODES: GraphNode<never, "gold">[] = [
     {
       id: "a",
@@ -58,8 +58,8 @@ describe("powerGain", () => {
 });
 
 describe("challenges at a depth", () => {
-  const shallow = feature({ key: "shallow", initial: () => ({ n: 0 }) });
-  const deep = feature({ key: "deep", initial: () => ({ n: 0 }), reset: { depth: 2 } });
+  const shallow = defineFeature({ key: "shallow", initial: () => ({ n: 0 }) });
+  const deep = defineFeature({ key: "deep", initial: () => ({ n: 0 }), reset: { depth: 2 } });
   const trials = defineChallenges({ key: "trials", depth: 2, list: [{ id: "t", goal: () => false }] });
   const game = defineGame({
     id: "depth",
@@ -79,7 +79,7 @@ describe("challenges at a depth", () => {
 });
 
 describe("a spawn taken inside a recipe", () => {
-  const tally = feature({ key: "tally", initial: () => ({ caught: [] as string[] }) });
+  const tally = defineFeature({ key: "tally", initial: () => ({ caught: [] as string[] }) });
   const birds = defineSpawns({
     key: "birds",
     reach: [tally],
@@ -88,7 +88,7 @@ describe("a spawn taken inside a recipe", () => {
     ],
     onCatch: (d, outcome) => void d.tally.caught.push(outcome),
   });
-  const net = feature({
+  const net = defineFeature({
     key: "net",
     reach: [birds],
     initial: () => ({}),

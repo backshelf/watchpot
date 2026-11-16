@@ -5,9 +5,9 @@ import {
   createMemoryBackend,
   D,
   defineCurrencies,
+  defineFeature,
   defineGame,
   definePrestige,
-  feature,
   lifetimeMultiplier,
   nextFloat,
   powerGain,
@@ -120,7 +120,7 @@ describe("the draft helper", () => {
       beforeReset: (_s, now) => void hooks.push(now),
     });
     // A feature that resets for the player once a reset would pay three or more.
-    const auto = feature({
+    const auto = defineFeature({
       key: "auto",
       reach: [wallet, layer],
       initial: () => ({ fired: 0 }),

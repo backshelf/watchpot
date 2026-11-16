@@ -1,8 +1,8 @@
 import type { Draft } from "immer";
 import {
+  defineFeature,
   type Feature,
   type FeatureApi,
-  feature,
   type NeedsOf,
   type ReachOf,
   type ReachShape,
@@ -172,7 +172,7 @@ export function defineStreak<
 }): StreakFeature<K, R> & { readonly needs?: NeedsOf<Re> } {
   type Own = Record<K, StreakState>;
   const own = (draft: unknown): StreakState => (draft as Own)[def.key];
-  const made = feature<K, StreakState, StreakActions<R>, ReachShape, Record<never, never>, Own>({
+  const made = defineFeature<K, StreakState, StreakActions<R>, ReachShape, Record<never, never>, Own>({
     reach: def.reach,
     key: def.key,
     initial: (): StreakState => ({ ...NO_STREAK }),

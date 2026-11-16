@@ -1,5 +1,5 @@
 import { describe, expect, test } from "bun:test";
-import { D, defineGame, defineRecords, feature } from "watchpot/core";
+import { D, defineFeature, defineGame, defineRecords } from "watchpot/core";
 import { freshStore, T0 } from "watchpot/test";
 
 const stats = defineRecords({
@@ -15,7 +15,7 @@ const stats = defineRecords({
 });
 
 /** A step that counts through the draft helper: one tick, one gold. */
-const mine = feature({
+const mine = defineFeature({
   key: "mine",
   reach: [stats],
   initial: () => ({}),

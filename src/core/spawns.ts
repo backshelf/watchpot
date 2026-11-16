@@ -1,8 +1,8 @@
 import type { Draft } from "immer";
 import {
+  defineFeature,
   type Feature,
   type FeatureApi,
-  feature,
   type Move,
   type NeedsOf,
   type ReachOf,
@@ -288,7 +288,7 @@ export function defineSpawns<
     return outcome;
   };
 
-  const made = feature<K, SpawnsState, SpawnsActions, ReachShape, Record<never, never>, Own>({
+  const made = defineFeature<K, SpawnsState, SpawnsActions, ReachShape, Record<never, never>, Own>({
     reach: def.reach,
     key: def.key,
     initial: (ctx): SpawnsState => ({

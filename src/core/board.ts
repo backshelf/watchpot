@@ -1,7 +1,7 @@
 import {
+  defineFeature,
   type Feature,
   type FeatureApi,
-  feature,
   type NeedsOf,
   type ReachOf,
   type ReachShape,
@@ -484,7 +484,7 @@ export function defineBoard<
     held: def.held ? (piece) => def.held?.(state, piece) ?? 0 : undefined,
     open: def.open ? (x, y) => def.open?.(state, x, y) ?? true : undefined,
   });
-  const made = feature<K, BoardState, BoardActions, ReachShape, Record<never, never>, Own>({
+  const made = defineFeature<K, BoardState, BoardActions, ReachShape, Record<never, never>, Own>({
     reach: def.reach,
     key: def.key,
     initial: (): BoardState => ({ cells: {} }),

@@ -269,7 +269,7 @@ Open your `game.ts`. Five changes move the bubbles; the lid and the stats do not
 <!-- example-code: simmer/game.ts -->
 
 ```ts
-export const pot = feature({
+export const pot = defineFeature({
   key: "pot",
   initial: () => ({ bubbles: ZERO }),
   actions: (api) => ({
@@ -300,7 +300,7 @@ After, it reaches the wallet, keeps a count of taps, and credits every bubble it
 
 ```ts
 /** The pot: the tap that makes a bubble, how many taps, and the simmer that makes them over time. */
-export const pot = feature({
+export const pot = defineFeature({
   key: "pot",
   reach: [wallet],
   initial: () => ({ taps: 0 }),

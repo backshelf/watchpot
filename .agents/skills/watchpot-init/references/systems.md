@@ -118,7 +118,7 @@ thirty lines each, and it is where a game stops being the template.
 
 Every game is expected to invent at least one mechanic. Sort it before writing it:
 
-- **Specific to this game's fiction** (it only makes sense with these nouns): it lives in the game, as a `feature()`
+- **Specific to this game's fiction** (it only makes sense with these nouns): it lives in the game, as a `defineFeature()`
   built on the engine's primitives, with `derived`, `reach`, `defineStats` sources and `moves` as above.
 - **Generic** (another game could use it with different words; a rule, a factory, a hook, an effect, a headless
   component, a GLSL chunk): it is built **in the engine**, not the game: named for no game, words as data, with tests,

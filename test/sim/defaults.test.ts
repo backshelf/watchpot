@@ -1,12 +1,20 @@
 import { describe, expect, test } from "bun:test";
-import { D, defineCurrencies, defineGame, feature, type Move, type StepContext, vocab } from "watchpot/core";
+import {
+  D,
+  defineCurrencies,
+  defineFeature,
+  defineGame,
+  type Move,
+  type StepContext,
+  vocab,
+} from "watchpot/core";
 import { autoPlayer, createSimWorld, fixedSchedule, playDays, rngFor, simStore } from "watchpot/sim";
 import { freshStore, T0 } from "watchpot/test";
 
 const WORDS = vocab({ currencies: ["gold", "gems"], stats: [], rarities: ["common"] } as const);
 const wallet = defineCurrencies({ key: "wallet", vocab: WORDS, start: { gold: 10 } });
 /** One good for 10 gold, bought once. */
-const shop = feature({
+const shop = defineFeature({
   key: "shop",
   initial: () => ({ bought: false }),
   moves: (s: { shop: { bought: boolean } }) =>
@@ -93,7 +101,7 @@ describe("playDays stops", () => {
 describe("freshStore's play", () => {
   test("moves the clock and ticks the store over it, at the new now", () => {
     type Seen = { seen: { dtMs: number; at: number } };
-    const watch = feature({
+    const watch = defineFeature({
       key: "seen",
       initial: () => ({ dtMs: 0, at: 0 }),
       steps: {

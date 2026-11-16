@@ -5,9 +5,9 @@ import {
   D,
   type Decimal,
   type DecimalSource,
+  defineFeature,
   defineGame,
   defineStats,
-  feature,
   fmt,
   vocab,
 } from "watchpot/core";
@@ -17,7 +17,7 @@ const n = (value: DecimalSource): string => fmt(value, { decimals: 1 }).text;
 const WORDS = vocab({ currencies: ["gold"], stats: ["dig", "haul", "luck"] });
 
 /** The state the effects read. */
-const mine = feature({
+const mine = defineFeature({
   key: "mine",
   initial: () => ({ gold: D(0) as Decimal, drills: 0, charms: 0, hushed: false }),
   actions: (api) => ({

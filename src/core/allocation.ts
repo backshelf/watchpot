@@ -4,9 +4,9 @@ import { type CostCurve, costAt, costOfMany, maxAffordable } from "./cost";
 import { D, type Decimal, type DecimalSource, ZERO } from "./decimal";
 import type { DimensionAway } from "./dimensions";
 import {
+  defineFeature,
   type Feature,
   type FeatureApi,
-  feature,
   type NeedsOf,
   type ReachOf,
   type ReachShape,
@@ -297,7 +297,7 @@ export function defineAllocation<
     return total;
   };
 
-  const made = feature<K, AllocationState, AllocationActions, ReachShape, Record<never, never>, Own>({
+  const made = defineFeature<K, AllocationState, AllocationActions, ReachShape, Record<never, never>, Own>({
     reach: def.reach,
     key: def.key,
     initial: (): AllocationState => ({

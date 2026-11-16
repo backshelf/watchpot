@@ -1,8 +1,8 @@
 import type { Draft } from "immer";
 import {
+  defineFeature,
   type Feature,
   type FeatureApi,
-  feature,
   type NeedsOf,
   type ReachOf,
   type ReachShape,
@@ -255,7 +255,7 @@ export function defineBuffs<
     return next !== before;
   };
 
-  const made = feature<K, BuffsState, BuffsActions, ReachShape, Record<never, never>, Own>({
+  const made = defineFeature<K, BuffsState, BuffsActions, ReachShape, Record<never, never>, Own>({
     reach: def.reach,
     key: def.key,
     initial: (): BuffsState => ({ active: {}, ended: {} }),

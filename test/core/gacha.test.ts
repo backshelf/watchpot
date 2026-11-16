@@ -4,11 +4,11 @@ import {
   createGameStorage,
   createIdleStore,
   createMemoryBackend,
+  defineFeature,
   defineGacha,
   defineGame,
   drawMany,
   drawRarity,
-  feature,
   freshPity,
   ladder,
   type OddsTable,
@@ -149,7 +149,7 @@ const bag = defineGacha({
   roll: ({ rarity, box, rng }) => [`${box}:${rarity}`, rng],
 });
 
-const purse = feature({
+const purse = defineFeature({
   key: "purse",
   reach: [bag],
   initial: () => ({ gems: 25 }),
@@ -239,7 +239,7 @@ describe("gacha()", () => {
   });
 
   test("an import of a save from before the gacha draws what the run would have drawn", () => {
-    const wallet = feature({ key: "purse", initial: () => ({ gems: 25 }) });
+    const wallet = defineFeature({ key: "purse", initial: () => ({ gems: 25 }) });
     const before = defineGame({ id: "bag", save: { key: "bag.save", version: 1 }, features: [wallet] });
     const old = createIdleStore(before, {
       storage: createGameStorage(createMemoryBackend(), { debounceMs: 0, onError: () => {} }),

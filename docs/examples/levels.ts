@@ -26,5 +26,5 @@ export const game = defineGame({
   vocab: TOY,
 });
 // store.getState().skills.gain("gather", 500) → levels gained · skills.draft.gain(draft, "trade", 20) inside a recipe
-// skills.select.progress(state, "gather") → { level, into, need, share } · skills.select.contributions(state) feeds a `stats` feature
+// skills.select.progress(state, "gather") → { level, into, need, share } · skills.select.contributions(state) feeds a `stats` defineFeature
 export const where = (xp: number) => ({ level: levelAt(steady, xp), bar: levelProgress(steady, xp).share });

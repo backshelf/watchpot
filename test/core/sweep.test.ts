@@ -1,9 +1,9 @@
 import { describe, expect, test } from "bun:test";
 import {
+  defineFeature,
   defineGame,
   defineSweep,
   drawTarget,
-  feature,
   gradeStrike,
   passesIn,
   type SweepTarget,
@@ -65,7 +65,7 @@ describe("sweep kernel", () => {
 });
 
 describe("sweep feature", () => {
-  const purse = feature({ key: "purse", initial: () => ({ paid: 0, wide: 0.2 }) });
+  const purse = defineFeature({ key: "purse", initial: () => ({ paid: 0, wide: 0.2 }) });
   const line = defineSweep({
     key: "line",
     reach: [purse],
@@ -115,7 +115,7 @@ describe("sweep feature", () => {
   });
 
   test("a callback reads a reached feature; one it does not reach is a type error", () => {
-    const other = feature({ key: "other", initial: () => ({ m: 0 }) });
+    const other = defineFeature({ key: "other", initial: () => ({ m: 0 }) });
     const peek = defineSweep({
       key: "peek",
       reach: [purse],

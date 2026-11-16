@@ -4,9 +4,9 @@ import {
   assignUnits,
   D,
   defineAllocation,
+  defineFeature,
   defineGame,
   type Effect,
-  feature,
   freeUnits,
   HOUR_MS,
   rebalanceUnits,
@@ -53,7 +53,7 @@ describe("assign, free and rebalance", () => {
 });
 
 type State = { crew: { size: number }; jobs: { level: Record<string, number> } };
-const crew = feature({
+const crew = defineFeature({
   key: "crew",
   initial: () => ({ size: 10 }),
   actions: (api) => ({

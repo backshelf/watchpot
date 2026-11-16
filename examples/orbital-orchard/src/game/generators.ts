@@ -1,4 +1,4 @@
-import { D, type Decimal, feature, type Move, offlineCredit, ZERO } from "watchpot/core";
+import { D, type Decimal, defineFeature, type Move, offlineCredit, ZERO } from "watchpot/core";
 import { COST_GROWTH, GENERATORS, type GeneratorDef, OFFLINE_CAP_MS } from "../content/generators";
 import { MAIN } from "../content/words";
 import { stats } from "./stats";
@@ -14,7 +14,7 @@ export const generatorCost = (g: GeneratorDef, owned: number): Decimal =>
  * tick read it: the generator moves value a purchase on it, so the auto-player's choices (and the pacing contract)
  * are the ones it made before the stats were derived; reading `s.stats.output` there instead moves the contract.
  */
-export const generators = feature({
+export const generators = defineFeature({
   key: "generators",
   reach: [wallet, stats],
   initial: () => ({

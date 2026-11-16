@@ -1,8 +1,8 @@
 import { describe, expect, test } from "bun:test";
 import {
+  defineFeature,
   defineGame,
   defineGauge,
-  feature,
   type GaugeState,
   gaugeFill,
   gaugeLocked,
@@ -59,7 +59,7 @@ interface Knob {
 }
 
 describe("gauge feature", () => {
-  const knob = feature({
+  const knob = defineFeature({
     key: "knob",
     initial: () => ({ hot: true, tripsSeen: 0 }),
     actions: (api) => ({

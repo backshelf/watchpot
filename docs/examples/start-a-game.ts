@@ -1,7 +1,7 @@
-import { createIdleStore, D, defineGame, feature, startGameClock } from "watchpot/core";
+import { createIdleStore, D, defineFeature, defineGame, startGameClock } from "watchpot/core";
 
 /** One feature: a wallet with one action. Its state, its actions and its tick steps are all declared here. */
-const wallet = feature({
+const wallet = defineFeature({
   key: "wallet",
   initial: () => ({ gold: D(10) }),
   actions: (api) => ({

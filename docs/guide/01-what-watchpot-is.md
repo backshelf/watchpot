@@ -27,7 +27,7 @@ import { costAt, createIdleStore, D, defineGame, feature, ZERO } from "watchpot/
 // ...
 
 /** The pot: the bubbles you have, the tap that makes one, and the simmer that makes them over time. */
-export const pot = feature({
+export const pot = defineFeature({
   key: "pot",
   initial: () => ({ bubbles: ZERO }),
   actions: (api) => ({

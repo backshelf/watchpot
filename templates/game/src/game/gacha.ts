@@ -1,5 +1,5 @@
 // @feature gacha
-import { type Balances, catalogueRoll, D, feature, defineGacha, type Move, withMoves } from "watchpot/core";
+import { type Balances, catalogueRoll, D, defineFeature, defineGacha, type Move, withMoves } from "watchpot/core";
 import { BOX, DRIP_MS, ITEMS, ODDS, PITY, PULL_PRICE } from "../content/gacha";
 import { type Currency, PREMIUM, WORDS } from "../content/words";
 import { type IncomeSources, incomeOf } from "./income";
@@ -29,7 +29,7 @@ interface PullMoveState extends IncomeSources {
  * the screen, and the premium drip's remainder. The collection survives a prestige.
  */
 export const collection = withMoves(
-  feature({
+  defineFeature({
     key: "collection",
     reach: [wallet, summon],
     initial: () => ({ owned: {} as Record<string, number>, last: [] as string[], drip: 0 }),

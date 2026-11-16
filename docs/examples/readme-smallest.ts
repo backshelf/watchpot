@@ -1,6 +1,6 @@
-import { createIdleStore, D, defineGame, feature, startGameClock } from "watchpot/core";
+import { createIdleStore, D, defineFeature, defineGame, startGameClock } from "watchpot/core";
 
-const bakery = feature({
+const bakery = defineFeature({
   key: "bakery",
   initial: () => ({ loaves: D(0), ovens: 1 }),
   derived: { perSecond: (s) => D(s.bakery.ovens) },

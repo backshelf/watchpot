@@ -1,4 +1,11 @@
-import { type Decimal, defineChallenges, defineGame, defineStats, type Effect, feature } from "watchpot/core";
+import {
+  type Decimal,
+  defineChallenges,
+  defineFeature,
+  defineGame,
+  defineStats,
+  type Effect,
+} from "watchpot/core";
 import { wallet } from "./add-a-currency";
 import { TOY } from "./vocab";
 
@@ -21,7 +28,7 @@ export const trials = defineChallenges({
 });
 
 /** The game's own rule, reading the flag: gems cannot be spent inside "no-gems". */
-export const shop = feature({
+export const shop = defineFeature({
   key: "shop",
   reach: [wallet, trials],
   initial: () => ({ boughtWithGems: 0 }),

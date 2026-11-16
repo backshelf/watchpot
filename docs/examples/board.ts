@@ -2,10 +2,10 @@ import {
   type BoardPiece,
   type BoardState,
   defineBoard,
+  defineFeature,
   defineGame,
   defineStats,
   type Effect,
-  feature,
   fillBoard,
   vocab,
 } from "watchpot/core";
@@ -25,7 +25,7 @@ const PLANTS: readonly BoardPiece<Fx>[] = [
 ];
 
 type State = { shed: { seeds: Record<string, number>; beds: number } };
-export const shed = feature({
+export const shed = defineFeature({
   key: "shed",
   initial: (): State["shed"] => ({ seeds: { moss: 3, fern: 4, ivy: 2 }, beds: 3 }),
 });

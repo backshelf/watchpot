@@ -3,16 +3,16 @@ import {
   createGameStorage,
   createIdleStore,
   createMemoryBackend,
+  defineFeature,
   defineGame,
   defineSettings,
-  feature,
 } from "watchpot/core";
 
 const prefs = defineSettings({
   key: "prefs",
   initial: () => ({ sound: true, theme: "dusk" as "dusk" | "dawn" }),
 });
-const run = feature({
+const run = defineFeature({
   key: "run",
   initial: () => ({ n: 0 }),
   actions: (api) => ({

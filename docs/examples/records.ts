@@ -1,4 +1,4 @@
-import { defineGame, defineRecords, feature, fmtPlayed, type RecordsState } from "watchpot/core";
+import { defineFeature, defineGame, defineRecords, fmtPlayed, type RecordsState } from "watchpot/core";
 
 export const stats = defineRecords({
   key: "stats",
@@ -11,7 +11,7 @@ export const stats = defineRecords({
 });
 
 /** A game's step counts through the draft helper; an action would call `store.getState().stats.add(...)`. */
-export const mine = feature({
+export const mine = defineFeature({
   key: "mine",
   reach: [stats],
   initial: () => ({ perSecond: 2 }),

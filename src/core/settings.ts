@@ -1,4 +1,4 @@
-import { type Feature, feature } from "./feature";
+import { defineFeature, type Feature } from "./feature";
 
 /** The three namespaces of a `settings` feature, all empty: the choices are read directly and `change` writes them. */
 export interface SettingsHelpers {
@@ -25,7 +25,7 @@ export function defineSettings<const K extends string, S extends object>(def: {
   readonly initial: () => S;
 }): SettingsFeature<K, S> {
   // `feature` types its draft over a record keyed by `K`; the slice is the one thing the action touches.
-  const made = feature({
+  const made = defineFeature({
     key: def.key,
     initial: def.initial,
     reset: "never",

@@ -2,11 +2,11 @@ import {
   boardRegistry,
   composeBoards,
   D,
+  defineFeature,
   type EventBoard,
   type EventDefinition,
   eventNodeRow,
   type FeatureApi,
-  feature,
   freshRuntime,
   HOUR_MS,
   regenEventCurrencies,
@@ -69,7 +69,7 @@ export const fairBoard: EventBoard<Game, null, "fairBoard", { visits: number }, 
 const boards = composeBoards(registry.list(["fair"]), { keys: ["runtime"], actions: [] });
 
 /** The game's events feature: a runtime per event plus the composed boards' state and actions. */
-export const events = feature({
+export const events = defineFeature({
   key: "events",
   initial: () => ({ ...boards.initial(), runtime: freshRuntime(FAIR, 0) }),
   // The board set types its recipes over the game state; the feature's api is narrower, so it is cast once, here.

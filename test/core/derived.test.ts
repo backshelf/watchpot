@@ -3,8 +3,8 @@ import {
   createGameStorage,
   createIdleStore,
   createMemoryBackend,
+  defineFeature,
   defineGame,
-  feature,
   flushSave,
   reach,
 } from "watchpot/core";
@@ -20,7 +20,7 @@ const reset = () => {
   runs.label = 0;
 };
 
-const stove = feature({
+const stove = defineFeature({
   key: "stove",
   initial: () => ({ burners: 0, paid: 0 }),
   derived: {
@@ -56,7 +56,7 @@ const stove = feature({
   },
 });
 
-const lid = feature({
+const lid = defineFeature({
   key: "lid",
   reach: () => [stove],
   initial: () => ({ on: false }),
@@ -74,7 +74,7 @@ const lid = feature({
   }),
 });
 
-const sign = feature({
+const sign = defineFeature({
   key: "sign",
   initial: () => ({ text: "hot" }),
   derived: {
@@ -177,7 +177,7 @@ describe("derived values", () => {
   });
 
   test("cannot be written", () => {
-    const cheat = feature({
+    const cheat = defineFeature({
       key: "cheat",
       reach: () => [stove],
       initial: () => ({}),
@@ -193,13 +193,13 @@ describe("derived values", () => {
   });
 
   test("two values that read each other are refused, naming the loop", () => {
-    const a = feature({
+    const a = defineFeature({
       key: "a",
       reach: reach<{ b: { y: number } }>(),
       initial: () => ({}),
       derived: { x: (s): number => s.b.y + 1 },
     });
-    const b = feature({
+    const b = defineFeature({
       key: "b",
       reach: () => [a],
       initial: () => ({}),
@@ -220,7 +220,7 @@ describe("derived values", () => {
   });
 
   test("a derived value named like a field or an action is refused", () => {
-    const clash = feature({ key: "clash", initial: () => ({ n: 1 }), derived: { n: () => 2 } });
+    const clash = defineFeature({ key: "clash", initial: () => ({ n: 1 }), derived: { n: () => 2 } });
     expect(() => defineGame({ id: "clash", save, features: [clash] })).toThrow('derived value "n"');
   });
 });

@@ -3,8 +3,8 @@ import {
   catalogueRoll,
   D,
   type Decimal,
+  defineFeature,
   defineGacha,
-  feature,
   type Move,
   withMoves,
 } from "watchpot/core";
@@ -37,7 +37,7 @@ interface PullMoveState {
  * the screen, and the premium drip's remainder. The collection survives a prestige.
  */
 export const collection = withMoves(
-  feature({
+  defineFeature({
     key: "collection",
     reach: [wallet, summon],
     initial: () => ({ owned: {} as Record<string, number>, last: [] as string[], drip: 0 }),

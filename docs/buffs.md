@@ -30,7 +30,7 @@ export const boosts = defineBuffs<"boosts", Effect<"speed">>({
 // store.getState().boosts.start("rush"), and boosts.draft.start(d, "rush", now) inside a recipe
 
 /** Income of 1 gold a second, ×7 for the part of a tick or an absence the rush covered. */
-export const mine = feature({
+export const mine = defineFeature({
   key: "mine",
   reach: [boosts],
   initial: () => ({ gold: 0 }),

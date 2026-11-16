@@ -6,8 +6,8 @@
 import {
   D,
   type Decimal,
+  defineFeature,
   defineGame,
-  feature,
   type Move,
   nextFloat,
   type RngState,
@@ -40,7 +40,7 @@ export const TABLE = fitTable<CharmKey>();
 
 const pumpCost = (pumps: number): Decimal => D(4).mul(D(1.25).pow(pumps));
 
-const pond = feature({
+const pond = defineFeature({
   key: "pond",
   initial: (ctx) => ({ drops: D(5), pumps: 1, charms: [] as string[], luck: [...ctx.rng], found: 0 }),
   derived: { rate: (s) => D(s.pond.pumps).mul(2 ** s.pond.charms.length) },

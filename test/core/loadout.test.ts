@@ -1,9 +1,9 @@
 import { describe, expect, test } from "bun:test";
 import {
+  defineFeature,
   defineGame,
   defineLoadout,
   type Effect,
-  feature,
   fillLoadout,
   type LoadoutItem,
   type LoadoutSet,
@@ -69,7 +69,7 @@ describe("loadout rules", () => {
 });
 
 describe("loadoutFeature", () => {
-  const bag = feature({
+  const bag = defineFeature({
     key: "bag",
     initial: () => ({ held: ["cap", "mitt"] as string[] }),
   });
@@ -103,7 +103,7 @@ describe("loadoutFeature", () => {
   });
 
   test("`owns` reads a reached feature; one it does not reach is a type error", () => {
-    const other = feature({ key: "other", initial: () => ({ m: 0 }) });
+    const other = defineFeature({ key: "other", initial: () => ({ m: 0 }) });
     const peek = defineLoadout({
       key: "peek",
       reach: [bag],

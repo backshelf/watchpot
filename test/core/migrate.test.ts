@@ -2,9 +2,9 @@ import { describe, expect, test } from "bun:test";
 import {
   D,
   type Decimal,
+  defineFeature,
   defineGame,
   deserialize,
-  feature,
   type Migration,
   migrate,
   migrationProblems,
@@ -38,7 +38,7 @@ const renamePrestige: Migration = (saved) => {
 
 /** v3: the generator counts `count`, not `owned` (the feature's step: its own data). */
 const engines = (steps: Record<number, Migration>) =>
-  feature({
+  defineFeature({
     key: "generator",
     initial: () => ({ count: 1, unlocked: { bronze: true, silver: false } as Record<string, boolean> }),
     migrations: steps,
@@ -48,7 +48,11 @@ const countOwned: Migration = (saved) => {
   return { ...rest, count: owned };
 };
 
-const ascension = feature({ key: "ascension", initial: () => ({ runs: 0, shards: ZERO }), reset: "never" });
+const ascension = defineFeature({
+  key: "ascension",
+  initial: () => ({ runs: 0, shards: ZERO }),
+  reset: "never",
+});
 
 /** The toy at version 3: both steps. */
 const toyV3 = defineGame({
@@ -175,8 +179,8 @@ describe("the runner", () => {
         ran.push(what);
         return saved;
       };
-    const a = feature({ key: "a", initial: () => ({}), migrations: { 2: log("a2"), 3: log("a3") } });
-    const b = feature({ key: "b", initial: () => ({}), migrations: { 3: log("b3") } });
+    const a = defineFeature({ key: "a", initial: () => ({}), migrations: { 2: log("a2"), 3: log("a3") } });
+    const b = defineFeature({ key: "b", initial: () => ({}), migrations: { 3: log("b3") } });
     const game = defineGame({
       id: "order",
       save: { key: "order", version: 3, migrations: { 3: log("game3"), 2: log("game2") } },
@@ -187,7 +191,7 @@ describe("the runner", () => {
   });
 
   test("a feature's step sees only its own data, and its result lands under its key", () => {
-    const a = feature({
+    const a = defineFeature({
       key: "a",
       initial: () => ({ n: D(0) }),
       migrations: { 2: (saved) => ({ n: (saved as { n: number }).n * 2 }) },

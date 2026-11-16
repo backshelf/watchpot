@@ -6,9 +6,9 @@ import {
   createMemoryBackend,
   D,
   type Decimal,
+  defineFeature,
   defineGame,
   deserialize,
-  feature,
   holdHideFlush,
   type InitialContext,
   mergeFeature,
@@ -92,7 +92,7 @@ describe("why saving is blocked", () => {
 
   test("a save whose load threw", () => {
     quiet();
-    const fragile = feature({
+    const fragile = defineFeature({
       key: "fragile",
       initial: () => ({ n: 0 }),
       merge: () => {
@@ -172,7 +172,7 @@ describe("the page-hide flush", () => {
 
 describe("merging a saved field over a Decimal default", () => {
   const toyContext: InitialContext = { now: 0, wallNow: 0, rng: seedRng(0), reason: "new" };
-  const purse = feature({ key: "purse", initial: () => ({ gold: D(5), note: "a" as string | null }) });
+  const purse = defineFeature({ key: "purse", initial: () => ({ gold: D(5), note: "a" as string | null }) });
 
   test("undefined, null, an object or NaN keep the default; a number or a string is read", () => {
     for (const bad of [undefined, null, {}, Number.NaN, true])
@@ -189,7 +189,7 @@ describe("merging a saved field over a Decimal default", () => {
 
 describe("migration steps", () => {
   test("a feature's step is not called when the save has no slice for it", () => {
-    const strict = feature({
+    const strict = defineFeature({
       key: "strict",
       initial: () => ({ count: ZERO }),
       migrations: {

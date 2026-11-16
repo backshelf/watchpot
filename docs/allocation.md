@@ -11,7 +11,7 @@ the pool shrinks, the most recently assigned sink gives way first.
 import { defineAllocation, defineGame, defineStats, type Effect, feature } from "watchpot/core";
 import { TOY } from "./vocab";
 
-const crew = feature({ key: "crew", initial: () => ({ size: 12 }) });
+const crew = defineFeature({ key: "crew", initial: () => ({ size: 12 }) });
 
 /** Twelve workers across three sinks: one that only counts, two bars that level up as they fill. */
 export const jobs = defineAllocation({

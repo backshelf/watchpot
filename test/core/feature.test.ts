@@ -4,8 +4,8 @@ import {
   createIdleStore,
   createMemoryBackend,
   D,
+  defineFeature,
   defineGame,
-  feature,
   type StateOf,
   ZERO,
 } from "watchpot/core";
@@ -36,7 +36,7 @@ describe("types read off the feature tuple", () => {
   });
 
   test("a self-contained feature sees its own slice", () => {
-    const counter = feature({
+    const counter = defineFeature({
       key: "counter",
       initial: () => ({ n: 0 }),
       actions: (api) => ({
@@ -59,7 +59,7 @@ describe("types read off the feature tuple", () => {
   });
 
   test("a feature with no actions and no steps is still a feature", () => {
-    const flags = feature({ key: "flags", initial: () => ({ seen: false }) });
+    const flags = defineFeature({ key: "flags", initial: () => ({ seen: false }) });
     expect(flags.reset).toBe("run");
     expect(flags.transient).toEqual([]);
     expect(Object.keys(flags.actions(undefined as never))).toEqual([]);
@@ -83,7 +83,7 @@ describe("saved and transient keys", () => {
   });
 
   test("a Decimal nested one level down survives the save", () => {
-    const vault = feature({
+    const vault = defineFeature({
       key: "vault",
       initial: () => ({ by: { common: D(3), rare: ZERO } }),
     });
@@ -109,18 +109,22 @@ describe("defineGame refuses", () => {
   const save = { key: "bad.save", version: 1 };
 
   test("two features with the same key, naming it", () => {
-    const twin = feature({ key: "wallet", initial: () => ({ x: 1 }) });
+    const twin = defineFeature({ key: "wallet", initial: () => ({ x: 1 }) });
     expect(() => defineGame({ id: "dup", save, features: [wallet, twin] })).toThrow('key "wallet"');
   });
 
   test("a feature named like the built-in clock when no clock fields are given", () => {
-    const clockish = feature({ key: "clock", initial: () => ({ lastSeen: 0 }) });
+    const clockish = defineFeature({ key: "clock", initial: () => ({ lastSeen: 0 }) });
     expect(() => defineGame({ id: "clockish", save, features: [clockish] })).toThrow('key "clock"');
   });
 
   test("an after target no feature declares, one in another phase, and one that is no step", () => {
     const step = (target: string) =>
-      feature({ key: "w", initial: () => ({}), steps: { sync: { x: { after: target, run: () => {} } } } });
+      defineFeature({
+        key: "w",
+        initial: () => ({}),
+        steps: { sync: { x: { after: target, run: () => {} } } },
+      });
     expect(() => defineGame({ id: "order", save, features: [step("nobody.sync.y")] })).toThrow(
       'no feature "nobody"',
     );
@@ -133,13 +137,13 @@ describe("defineGame refuses", () => {
   });
 
   test("a transient or kept key that is not in the initial state", () => {
-    const leaky = feature({
+    const leaky = defineFeature({
       key: "leaky",
       initial: () => ({ a: 1 }) as { a: number; b?: number },
       transient: ["b"],
     });
     expect(() => defineGame({ id: "leaky", save, features: [leaky] })).toThrow('transient key "b"');
-    const keepy = feature({
+    const keepy = defineFeature({
       key: "keepy",
       initial: () => ({ a: 1 }) as { a: number; b?: number },
       reset: { keep: ["b"] },
@@ -153,8 +157,12 @@ describe("defineGame refuses", () => {
   });
 
   test("a feature key or step name with a dot in it", () => {
-    expect(() => feature({ key: "a.b", initial: () => ({}) })).toThrow('"a.b"');
-    const dotted = feature({ key: "dotted", initial: () => ({}), steps: { sync: { "x.y": () => {} } } });
+    expect(() => defineFeature({ key: "a.b", initial: () => ({}) })).toThrow('"a.b"');
+    const dotted = defineFeature({
+      key: "dotted",
+      initial: () => ({}),
+      steps: { sync: { "x.y": () => {} } },
+    });
     expect(() => defineGame({ id: "dotted", save, features: [dotted] })).toThrow('"x.y"');
   });
 

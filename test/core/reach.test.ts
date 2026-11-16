@@ -4,9 +4,9 @@ import {
   createIdleStore,
   createMemoryBackend,
   defineCurrencies,
+  defineFeature,
   defineGame,
   defineGenerators,
-  feature,
   type GeneratorsState,
   reach,
   vocab,
@@ -16,7 +16,7 @@ type LidState = { open: boolean };
 type StoveState = { burners: number };
 
 // 1. A value reach of a feature declared further down the file.
-const pot = feature({
+const pot = defineFeature({
   key: "pot",
   initial: () => ({ bubbles: 0 }),
   reach: () => [stove],
@@ -31,7 +31,7 @@ const pot = feature({
 });
 
 // 2. A cycle: lid reaches stove by value, stove reaches lid by type.
-const lid = feature({
+const lid = defineFeature({
   key: "lid",
   initial: (): LidState => ({ open: false }),
   reach: () => [stove],
@@ -44,7 +44,7 @@ const lid = feature({
   }),
 });
 
-const stove = feature({
+const stove = defineFeature({
   key: "stove",
   initial: (): StoveState => ({ burners: 0 }),
   reach: reach<{ lid: LidState }>(),
@@ -58,7 +58,7 @@ const stove = feature({
 });
 
 // 3. A mix: one by value, one by type, and a third feature reaching both sides of the cycle by type.
-const fan = feature({
+const fan = defineFeature({
   key: "fan",
   initial: () => ({ rpm: 0 }),
   reach: () => [pot, reach<{ lid: LidState; stove: StoveState }>()],
@@ -90,12 +90,12 @@ test("a lazy reach and a type reach play together", () => {
 });
 
 test("a type reach is checked against the game", () => {
-  const typo = feature({
+  const typo = defineFeature({
     key: "typo",
     initial: () => ({}),
     reach: reach<{ ldi: LidState }>(),
   });
-  const drift = feature({
+  const drift = defineFeature({
     key: "drift",
     initial: () => ({}),
     reach: reach<{ lid: { open: string } }>(),
@@ -125,7 +125,7 @@ const burners = defineGenerators({
   open: (s, g) => s.kitchen.hot || g.id === "burner",
 });
 
-const kitchen = feature({
+const kitchen = defineFeature({
   key: "kitchen",
   initial: () => ({ hot: false }),
   reach: reach<{ burners: GeneratorsState }>(),

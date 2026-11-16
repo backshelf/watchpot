@@ -5,9 +5,9 @@ import {
   createIdleStore,
   createMemoryBackend,
   defineBuffs,
+  defineFeature,
   defineGame,
   defineGauge,
-  feature,
   fmt,
   gaugeFill,
   gaugeLocked,
@@ -50,7 +50,7 @@ export const whistle = defineGauge({
 });
 
 /** The kettle: a tap that pumps the pressure, and a pour that pays more the higher it is and nothing after it blows. */
-export const kettle = feature({
+export const kettle = defineFeature({
   key: "kettle",
   reach: [pressure, boosts],
   initial: () => ({ cups: ZERO, lit: true }),

@@ -3,8 +3,8 @@ import {
   type CurrencyOf,
   checkRank,
   D,
+  defineFeature,
   defineGame,
-  feature,
   type GameVocab,
   type GraphNode,
   ladder,
@@ -172,7 +172,7 @@ describe("the ladder", () => {
 });
 
 describe("a game's vocabulary", () => {
-  const wallet = feature({ key: "wallet", initial: () => ({ gold: D(0) }), vocab: TOY });
+  const wallet = defineFeature({ key: "wallet", initial: () => ({ gold: D(0) }), vocab: TOY });
 
   test("defineGame carries it and types it back", () => {
     const game = defineGame({
@@ -189,7 +189,7 @@ describe("a game's vocabulary", () => {
   });
 
   test("a game with none has an undefined vocabulary", () => {
-    const plain = feature({ key: "plain", initial: () => ({}) });
+    const plain = defineFeature({ key: "plain", initial: () => ({}) });
     const game = defineGame({ id: "plain", save: { key: "p", version: 1 }, features: [plain] });
     const none: undefined = game.vocab;
     expect(none).toBeUndefined();

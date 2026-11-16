@@ -28,6 +28,7 @@ across with its numbers unchanged.
   state `costGrowth`.
 - **The sim.** It runs on plain data (`createPlainStore`): no immer, no zustand, no save, and several times faster.
   The auto-player works a purchase's worth out from one `objective`, takes a free move once a look, and steps a
+- `feature` is renamed `defineFeature`, beside `defineGame` and the other `defineX` factories.
   second by default, with a named quality (`exact`, `quick`, `rough`). `upgradeTree` declares its own moves. The fit
   kit ships: `fitTable`, snapshots and resuming, `proveFit` (and on workers), a profiler.
 - **Packages.** The dev panel and sound desk are `watchpot/devtools`; `watchpot/hooks` and `watchpot/env` are gone.

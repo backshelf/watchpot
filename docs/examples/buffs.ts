@@ -1,4 +1,4 @@
-import { defineBuffs, defineGame, defineStats, type Effect, feature, vocab } from "watchpot/core";
+import { defineBuffs, defineFeature, defineGame, defineStats, type Effect, vocab } from "watchpot/core";
 
 const WORDS = vocab({ currencies: ["gold"], stats: ["speed"] });
 
@@ -20,7 +20,7 @@ export const boosts = defineBuffs<"boosts", Effect<"speed">>({
 // store.getState().boosts.start("rush"), and boosts.draft.start(d, "rush", now) inside a recipe
 
 /** Income of 1 gold a second, ×7 for the part of a tick or an absence the rush covered. */
-export const mine = feature({
+export const mine = defineFeature({
   key: "mine",
   reach: [boosts],
   initial: () => ({ gold: 0 }),

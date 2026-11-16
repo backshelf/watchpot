@@ -3,13 +3,13 @@ import {
   createGameStorage,
   createIdleStore,
   createMemoryBackend,
+  defineFeature,
   defineGame,
   defineSeenOnce,
-  feature,
 } from "watchpot/core";
 
 const guide = defineSeenOnce({ key: "guide" });
-const run = feature({
+const run = defineFeature({
   key: "run",
   initial: () => ({ n: 0 }),
   actions: (api) => ({

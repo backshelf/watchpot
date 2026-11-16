@@ -1,5 +1,5 @@
 import { D, type Decimal } from "../decimal";
-import { type Feature, feature, type Migration, type Move } from "../feature";
+import { defineFeature, type Feature, type Migration, type Move } from "../feature";
 import { fillDeep } from "../fill";
 import { type LayerModel, layerModel } from "./rules";
 import type { LayerModelDef, LayerResourceRef, LayersState } from "./types";
@@ -84,7 +84,7 @@ export function defineLayers<
   type Own = Record<K, St & LayersActions<L>>;
   const slice = (state: unknown): St => (state as Record<string, St>)[key] as St;
 
-  const made = feature<K, St, LayersActions<L>>({
+  const made = defineFeature<K, St, LayersActions<L>>({
     key,
     initial: () => model.fresh(),
     reset: "never",

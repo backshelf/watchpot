@@ -1,8 +1,8 @@
 import type { Draft } from "immer";
 import {
+  defineFeature,
   type Feature,
   type FeatureApi,
-  feature,
   type NeedsOf,
   type ReachOf,
   type ReachShape,
@@ -387,7 +387,7 @@ export function defineLoadout<
   const rules = loadout<E>({ id: def.key, slots: def.slots, items: def.items, sets: def.sets });
   type Own = Record<K, LoadoutState>;
   const slice = (draft: Draft<Own>): LoadoutState => (draft as Own)[def.key];
-  const made = feature<K, LoadoutState, LoadoutActions, ReachShape, Record<never, never>, Own>({
+  const made = defineFeature<K, LoadoutState, LoadoutActions, ReachShape, Record<never, never>, Own>({
     reach: def.reach,
     key: def.key,
     initial: (): LoadoutState => ({ slotted: Object.fromEntries(def.slots.map((s) => [s.id, null])) }),

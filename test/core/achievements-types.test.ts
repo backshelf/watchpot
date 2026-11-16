@@ -1,12 +1,12 @@
 // What types `achievements`' callbacks: the state from an annotation or from `reach`, the effect from the list. The
 // checks are the compiler's: a wrong type fails `bun check`, and the runtime test only keeps the file in the suite.
 import { expect, test } from "bun:test";
-import { type AchievementsFeature, defineAchievements, feature } from "watchpot/core";
+import { type AchievementsFeature, defineAchievements, defineFeature } from "watchpot/core";
 
 type Reads = { sky: { stars: number } };
 
-const sky = feature({ key: "sky", initial: () => ({ stars: 0 }) });
-const moon = feature({ key: "moon", initial: () => ({ phase: 0 }) });
+const sky = defineFeature({ key: "sky", initial: () => ({ stars: 0 }) });
+const moon = defineFeature({ key: "moon", initial: () => ({ phase: 0 }) });
 
 test("an annotated callback gives the state, and a wrong read fails", () => {
   const wall = defineAchievements({

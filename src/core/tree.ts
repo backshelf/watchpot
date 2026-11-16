@@ -2,9 +2,9 @@ import { type CostCurve, costOfMany, maxAffordable } from "./cost";
 import type { CurrenciesFeature, CurrencyDraft, Purse } from "./currencies";
 import { D, type Decimal, ZERO } from "./decimal";
 import {
+  defineFeature,
   type Feature,
   type FeatureApi,
-  feature,
   type Move,
   type NeedsOf,
   type ReachOf,
@@ -423,7 +423,7 @@ export function defineUpgradeTree<
       limit,
     });
 
-  const made = feature<K, TreeState, TreeActions<CostOf<N>>, ReachShape, Record<never, never>, Draft>({
+  const made = defineFeature<K, TreeState, TreeActions<CostOf<N>>, ReachShape, Record<never, never>, Draft>({
     reach: def.reach,
     key: def.key,
     initial: () => ({ ranks: {} }),

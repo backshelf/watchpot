@@ -2,9 +2,9 @@ import { describe, expect, test } from "bun:test";
 import {
   createGameStorage,
   createIdleStore,
+  defineFeature,
   defineGame,
   deserialize,
-  feature,
   flushSave,
   saveBlocked,
   serialize,
@@ -151,7 +151,7 @@ describe("an async backend", () => {
   });
 
   test("a synchronous backend is loaded when the store is built", async () => {
-    const thing = feature({ key: "thing", initial: () => ({ n: 0 }) });
+    const thing = defineFeature({ key: "thing", initial: () => ({ n: 0 }) });
     const game = defineGame({ id: "sync", save: { key: "sync", version: 1 }, features: [thing] });
     const store = createIdleStore(game, {
       storage: createGameStorage(

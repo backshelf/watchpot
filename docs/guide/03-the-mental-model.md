@@ -29,7 +29,7 @@ Here is the pot, exactly as you wrote it in chapter 2:
 <!-- example-code: simmer/game.ts -->
 
 ```ts
-export const pot = feature({
+export const pot = defineFeature({
   key: "pot",
   initial: () => ({ bubbles: ZERO }),
   actions: (api) => ({
@@ -207,7 +207,7 @@ feature keeps (below). For that it needs `s.pot` and `s.stats`. A feature says w
 <!-- example-code: guide-mental-model.ts -->
 
 ```ts
-export const stove = feature({
+export const stove = defineFeature({
   key: "stove",
   // A function, so it may name the stats, which are declared further down.
   reach: () => [pot, stats],
@@ -234,7 +234,7 @@ Here is the lid, the new feature this chapter adds:
 <!-- example-code: guide-mental-model.ts -->
 
 ```ts
-export const lid = feature({
+export const lid = defineFeature({
   key: "lid",
   initial: () => ({ on: false }),
   actions: (api) => ({
@@ -682,7 +682,7 @@ Open the `game.ts` you wrote in chapter 2 and make five changes. The pot does no
    <!-- example-code: guide-mental-model.ts -->
 
    ```ts
-   export const stove = feature({
+   export const stove = defineFeature({
      key: "stove",
      // A function, so it may name the stats, which are declared further down.
      reach: () => [pot, stats],

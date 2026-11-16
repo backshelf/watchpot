@@ -5,8 +5,8 @@ import {
   type Decimal,
   defineCurrencies,
   defineDimensions,
+  defineFeature,
   defineGame,
-  feature,
   HOUR_MS,
   vocab,
 } from "watchpot/core";
@@ -230,7 +230,7 @@ describe("dimensions", () => {
 
 describe("reach", () => {
   test("a callback reads a reached feature with no annotation, and not one that was not reached", () => {
-    const door = feature({ key: "door", initial: () => ({ open: true }) });
+    const door = defineFeature({ key: "door", initial: () => ({ open: true }) });
     const gated = defineDimensions({
       key: "gated",
       wallet,

@@ -1,8 +1,8 @@
 import type { Draft } from "immer";
 import {
+  defineFeature,
   type Feature,
   type FeatureApi,
-  feature,
   type NeedsOf,
   type ReachOf,
   type ReachShape,
@@ -154,7 +154,7 @@ export function defineAutobuyers<
     for (const a of def.list) own(draft).on[a.id] = on;
   };
 
-  const made = feature<K, AutobuyersState, AutobuyerActions, ReachShape, Record<never, never>, Own>({
+  const made = defineFeature<K, AutobuyersState, AutobuyerActions, ReachShape, Record<never, never>, Own>({
     reach: def.reach,
     key: def.key,
     initial: (): AutobuyersState => ({

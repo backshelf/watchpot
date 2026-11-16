@@ -263,7 +263,7 @@ describe("what the pages show still holds", () => {
 describe("finding a piece of an example", () => {
   const text = [
     "/** The pot. */",
-    "export const pot = feature({",
+    "export const pot = defineFeature({",
     '  key: "pot",',
     "  actions: (api) => ({",
     "    tap: () =>",

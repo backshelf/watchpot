@@ -1,4 +1,4 @@
-import { defineGame, defineLevels, type Effect, feature, type XpCurve } from "watchpot/core";
+import { defineFeature, defineGame, defineLevels, type Effect, type XpCurve } from "watchpot/core";
 
 /** A minute for the first level, each after it half again as long. */
 const SLOW: XpCurve = { kind: "geometric", base: 60, growth: 1.5 };
@@ -14,7 +14,7 @@ export const fame = defineLevels({
 });
 
 /** The window: two dishes on show at a time, picked by the player. */
-export const shopWindow = feature({
+export const shopWindow = defineFeature({
   key: "window",
   reach: [fame],
   initial: () => ({ shown: ["soup"] as string[] }),

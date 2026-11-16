@@ -5,8 +5,8 @@ import {
   createMemoryBackend,
   D,
   type DecimalSource,
+  defineFeature,
   defineGame,
-  feature,
   HOUR_MS,
   type StateOf,
   type StorageBackend,
@@ -15,11 +15,11 @@ import {
 
 /**
  * The toy game the core tests play: a wallet, a generator that fills it, a prestige layer that resets the run.
- * It is the cookbook page: three `feature` calls and one `defineGame`, every type read off the declarations.
+ * It is the cookbook page: three `defineFeature` calls and one `defineGame`, every type read off the declarations.
  */
 
 /** Gold, and the lifetime total the prestige layer reads. `flash` is what the screen shows for a second: never saved. */
-export const wallet = feature({
+export const wallet = defineFeature({
   key: "wallet",
   initial: () => ({ gold: D(10), lifetime: ZERO, flash: null as string | null }),
   transient: ["flash"],
@@ -52,7 +52,7 @@ export const generatorCost = (owned: number) => D(10).mul(owned);
  * Generators make gold every second. The tiers unlocked survive a prestige; `since` is when this run's
  * generators started (0 on a brand-new profile, whose clock starts at the first catch-up).
  */
-export const generator = feature({
+export const generator = defineFeature({
   key: "generator",
   reach: [wallet],
   initial: (ctx) => ({
@@ -127,7 +127,7 @@ export const generator = feature({
 });
 
 /** Shards for lifetime gold; ascending resets the run and keeps the shards. */
-export const prestige = feature({
+export const prestige = defineFeature({
   key: "prestige",
   reach: [wallet, generator],
   initial: () => ({ runs: 0, shards: ZERO }),

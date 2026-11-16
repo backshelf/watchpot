@@ -12,7 +12,7 @@ feature, the core on [`generators`](generators.md) or [`dimensions`](dimensions.
 [`achievements`](achievements.md), [`spawns`](spawns.md) with [`buffs`](buffs.md)) listed in one `defineGame`. Read
 on to see what it is made of.
 
-1. Declare each slice with `feature({ key, initial, actions, steps })`. The store's type is read off the features;
+1. Declare each slice with `defineFeature({ key, initial, actions, steps })`. The store's type is read off the features;
    never write it by hand. A feature that touches another names it in `reach: [other]`.
 2. `defineGame({ id, save: { key, version }, features })`. Add `vocab` once you have currencies (see
    [add a currency](add-a-currency.md)).

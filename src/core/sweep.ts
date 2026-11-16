@@ -1,8 +1,8 @@
 import type { Draft } from "immer";
 import {
+  defineFeature,
   type Feature,
   type FeatureApi,
-  feature,
   type NeedsOf,
   type ReachOf,
   type ReachShape,
@@ -246,7 +246,7 @@ export function defineSweep<
     def.onStrike?.(draft as Draft<G>, result, now);
     return result;
   };
-  const made = feature<K, SweepState, SweepActions, ReachShape, Record<never, never>, Own>({
+  const made = defineFeature<K, SweepState, SweepActions, ReachShape, Record<never, never>, Own>({
     reach: def.reach,
     key: def.key,
     initial: (ctx): SweepState => ({

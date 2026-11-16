@@ -59,7 +59,7 @@ the whole of it is in the example. The game's feature that runs it:
  * The game's events feature: the framework is pure functions over data, so the feature is yours. It keeps one
  * runtime and the mastery, starts a new cycle when the window moves on, and lets the trickle run in `sync`.
  */
-export const tasting = feature({
+export const tasting = defineFeature({
   key: "tasting",
   initial: (ctx) => ({
     runtime: freshRuntime(TASTING, ctx.now),

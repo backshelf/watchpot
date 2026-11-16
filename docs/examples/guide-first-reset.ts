@@ -8,10 +8,10 @@
  */
 import {
   defineAchievements,
+  defineFeature,
   defineGame,
   definePrestige,
   defineStats,
-  feature,
   lifetimeMultiplier,
   powerGain,
 } from "watchpot/core";
@@ -20,7 +20,7 @@ import { LID_HEAT, lid, SIMMER_PER_SECOND, scriptStore, stove, WORDS, wallet } f
 // --- The run -------------------------------------------------------------------------------------------------
 
 /** Chapter 4's pot, under the same key, with one change: a reset keeps its count of taps. */
-export const pot = feature({
+export const pot = defineFeature({
   key: "pot",
   reach: [wallet],
   initial: () => ({ taps: 0 }),

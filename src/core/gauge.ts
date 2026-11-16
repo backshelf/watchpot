@@ -1,8 +1,8 @@
 import type { Draft } from "immer";
 import {
+  defineFeature,
   type Feature,
   type FeatureApi,
-  feature,
   type NeedsOf,
   type ReachOf,
   type ReachShape,
@@ -209,7 +209,7 @@ export function defineGauge<
     land(draft, step, now);
     return step.tripped;
   };
-  const made = feature<K, GaugeState, GaugeActions, ReachShape, Record<never, never>, Own>({
+  const made = defineFeature<K, GaugeState, GaugeActions, ReachShape, Record<never, never>, Own>({
     reach: def.reach,
     key: def.key,
     initial: (): GaugeState => ({ level: 0, lockedUntil: 0, trips: 0 }),

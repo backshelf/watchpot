@@ -1,9 +1,9 @@
 import type { Draft } from "immer";
 import { D, type Decimal, type DecimalSource } from "./decimal";
 import {
+  defineFeature,
   type Feature,
   type FeatureApi,
-  feature,
   type NeedsOf,
   type ReachOf,
   type ReachShape,
@@ -267,7 +267,14 @@ export function defineAchievements<
 
   const ticked = def.list.filter((a) => a.when && !a.on?.length);
 
-  const made = feature<K, AchievementsState, AchievementsActions, ReachShape, Record<never, never>, Own>({
+  const made = defineFeature<
+    K,
+    AchievementsState,
+    AchievementsActions,
+    ReachShape,
+    Record<never, never>,
+    Own
+  >({
     reach: def.reach,
     key: def.key,
     initial: (): AchievementsState => ({ earned: {}, fresh: [], holding: {} }),

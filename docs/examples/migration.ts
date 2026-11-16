@@ -1,8 +1,8 @@
 import {
   D,
+  defineFeature,
   defineGame,
   deserialize,
-  feature,
   type Migration,
   oldestReadable,
   savedRecord,
@@ -12,8 +12,12 @@ import {
 import { fixtureSave, freshStore } from "watchpot/test";
 
 /** Version 1: the layer is called `prestige` and the counter `owned`. */
-const prestigeV1 = feature({ key: "prestige", initial: () => ({ runs: 0, shards: ZERO }), reset: "never" });
-const generatorV1 = feature({ key: "generator", initial: () => ({ owned: 1 }) });
+const prestigeV1 = defineFeature({
+  key: "prestige",
+  initial: () => ({ runs: 0, shards: ZERO }),
+  reset: "never",
+});
+const generatorV1 = defineFeature({ key: "generator", initial: () => ({ owned: 1 }) });
 const v1 = defineGame({
   id: "mig",
   save: { key: "mig.save", version: 1 },
@@ -35,8 +39,16 @@ const countOwned: Migration = (saved) => {
   return { ...rest, count: owned ?? 1 };
 };
 
-const ascension = feature({ key: "ascension", initial: () => ({ runs: 0, shards: ZERO }), reset: "never" });
-const generator = feature({ key: "generator", initial: () => ({ count: 1 }), migrations: { 3: countOwned } });
+const ascension = defineFeature({
+  key: "ascension",
+  initial: () => ({ runs: 0, shards: ZERO }),
+  reset: "never",
+});
+const generator = defineFeature({
+  key: "generator",
+  initial: () => ({ count: 1 }),
+  migrations: { 3: countOwned },
+});
 
 /** Steps are keyed by the version they PRODUCE. `defineGame` refuses a gap between the oldest step and `version`. */
 export const v3 = defineGame({

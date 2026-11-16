@@ -2,11 +2,11 @@ import type { Draft } from "immer";
 import { Decimal, type DecimalSource, ZERO } from "../decimal";
 import {
   applyReachedRule,
+  defineFeature,
   type Feature,
   type FeatureApi,
   type FeatureSpec,
   type FeatureSteps,
-  feature,
   type InitialContext,
   type Migration,
   type Move,
@@ -396,7 +396,7 @@ export function definePrestige<
     return pay ? [...list, pay.wallet] : list;
   };
 
-  const made = feature<K, S, Record<N, PrestigeReset> & A, ReachShape, PrestigePaceValues, G>({
+  const made = defineFeature<K, S, Record<N, PrestigeReset> & A, ReachShape, PrestigePaceValues, G>({
     key: def.key,
     reach: reachOf,
     initial: (ctx) =>

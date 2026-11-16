@@ -1,8 +1,8 @@
 import {
   D,
   type Decimal,
+  defineFeature,
   defineGame,
-  feature,
   type Move,
   nextFloat,
   type RngState,
@@ -61,7 +61,7 @@ const PRICES = fitTable<Glaze>();
 
 const wheelCost = (wheels: number): Decimal => D(4).mul(D(1.25).pow(wheels));
 
-const studio = feature({
+const studio = defineFeature({
   key: "studio",
   initial: (ctx) => ({ clay: D(5), wheels: 1, glazes: [] as string[], kiln: [...ctx.rng], cracked: 0 }),
   derived: { perSecond: (s) => D(s.studio.wheels).mul(2 ** s.studio.glazes.length) },

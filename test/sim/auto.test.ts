@@ -1,5 +1,5 @@
 import { describe, expect, test } from "bun:test";
-import { D, type Decimal, defineGame, feature, type Move } from "watchpot/core";
+import { D, type Decimal, defineFeature, defineGame, type Move } from "watchpot/core";
 import {
   activeSchedule,
   autoPlayer,
@@ -25,7 +25,7 @@ const GOODS = [
 
 type ShopState = { shop: { gold: Decimal; bought: string[]; claimed: boolean; lowest: number } };
 
-const shop = feature({
+const shop = defineFeature({
   key: "shop",
   initial: () => ({ gold: D(25), bought: [] as string[], claimed: false, lowest: 25 }),
   actions: (api) => ({

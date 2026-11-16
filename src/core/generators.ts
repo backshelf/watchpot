@@ -13,9 +13,9 @@ import type { CurrenciesFeature, CurrencyDraft } from "./currencies";
 import { D, type Decimal, type DecimalSource, ZERO } from "./decimal";
 import type { DimensionAway } from "./dimensions";
 import {
+  defineFeature,
   type Feature,
   type FeatureApi,
-  feature,
   type Move,
   type NeedsOf,
   type ReachOf,
@@ -475,7 +475,7 @@ export function defineGenerators<
     return Number.isFinite(n) ? n : Number.MAX_VALUE;
   };
 
-  const made = feature<K, GeneratorsState, GeneratorActions, ReachShape, Record<never, never>, Own>({
+  const made = defineFeature<K, GeneratorsState, GeneratorActions, ReachShape, Record<never, never>, Own>({
     reach: def.reach,
     key: def.key,
     initial: (): GeneratorsState => ({

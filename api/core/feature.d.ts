@@ -251,7 +251,7 @@ export interface FeatureDef<K extends string, S extends object, A extends object
     /**
      * The vocabulary this feature speaks, when it is built over one (a primitive made with `defineCurrencies({ vocab })`):
      * `defineGame` refuses it unless the game declares the same vocabulary. Its words type the feature through the
-     * factory that made it; `feature()` itself takes no vocabulary type parameter.
+     * factory that made it; `defineFeature()` itself takes no vocabulary type parameter.
      */
     readonly vocab?: AnyVocab;
     /**
@@ -262,7 +262,7 @@ export interface FeatureDef<K extends string, S extends object, A extends object
 }
 /**
  * A feature as the store sees it: every callback's game type erased (a callback over `G` accepts `never`), so a
- * tuple of features has one type and a game's state type may be derived from it. `feature()` is the only maker.
+ * tuple of features has one type and a game's state type may be derived from it. `defineFeature()` is the only maker.
  */
 export interface FeatureSpec {
     readonly key: string;
@@ -340,8 +340,8 @@ export type DerivedLayers<K extends string, S, Reached, D1, D2, D3, D4> = Derive
  * Declares a feature. `K`, `S`, `A`, the reach `R` and the derived values are read off the definition; `G`, the
  * game the callbacks see, is the feature's own slice (derived values included) plus its reach.
  */
-export declare function feature<const K extends string, S extends object, A extends object, const R extends ReachShape, D1, D2, D3, D4, G extends object = Record<K, S & D1 & D2 & D3 & D4> & ReachOf<R>>(def: FeatureDef<K, S, A, R, G, D1 & D2 & D3 & D4, DerivedLayers<K, S, ReachOf<R>, D1, D2, D3, D4>>): Feature<K, S, A, NeedsOf<R>, D1 & D2 & D3 & D4>;
-export declare function feature<const K extends string, S extends object, A extends object = Record<never, never>, const R extends ReachShape = readonly [], Dv = Record<never, never>, G extends object = Record<K, S & Dv> & ReachOf<R>>(def: FeatureDef<K, S, A, R, G, Dv>): Feature<K, S, A, NeedsOf<R>, Dv>;
+export declare function defineFeature<const K extends string, S extends object, A extends object, const R extends ReachShape, D1, D2, D3, D4, G extends object = Record<K, S & D1 & D2 & D3 & D4> & ReachOf<R>>(def: FeatureDef<K, S, A, R, G, D1 & D2 & D3 & D4, DerivedLayers<K, S, ReachOf<R>, D1, D2, D3, D4>>): Feature<K, S, A, NeedsOf<R>, D1 & D2 & D3 & D4>;
+export declare function defineFeature<const K extends string, S extends object, A extends object = Record<never, never>, const R extends ReachShape = readonly [], Dv = Record<never, never>, G extends object = Record<K, S & Dv> & ReachOf<R>>(def: FeatureDef<K, S, A, R, G, Dv>): Feature<K, S, A, NeedsOf<R>, Dv>;
 /**
  * The same feature with its auto-player moves: for a feature a factory made (`currencies`, `prestige`, `gacha`),
  * whose definition the game does not write itself. Keeps everything else the factory put on it.

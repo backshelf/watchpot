@@ -1,8 +1,8 @@
 import type { Draft } from "immer";
 import {
+  defineFeature,
   type Feature,
   type FeatureApi,
-  feature,
   type NeedsOf,
   type ReachOf,
   type ReachShape,
@@ -174,7 +174,7 @@ export function defineChallenges<
     draft: {},
   };
 
-  const made = feature<K, ChallengesState, ChallengeActions, ReachShape, Record<never, never>, Own>({
+  const made = defineFeature<K, ChallengesState, ChallengeActions, ReachShape, Record<never, never>, Own>({
     reach: def.reach,
     key: def.key,
     initial: (): ChallengesState => ({ active: null, startedAt: 0, rules: [], completions: {}, bestMs: {} }),

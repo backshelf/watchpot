@@ -26,7 +26,7 @@ pacing plan** (played hours the game should last, and what the player is doing i
   that a step keeps in step, or a whole-game state type is the sign the engine's own was missed.
 - Take out what the game does not want. A template tab nobody chose is clutter.
 - **Build the invention.** Decide whether it is generic (then it is built in the engine and released before the game
-  uses it: `systems.md` › When the engine lacks it) or the game's own, a `feature()` shaped like
+  uses it: `systems.md` › When the engine lacks it) or the game's own, a `defineFeature()` shaped like
   `examples/invention.ts`: derived values, a `produce` step that names its pass, moves for the sim.
 - Re-pace: `bun run sim -- --contract`. Move a band only on purpose, and say why in the commit. For a move that does
   not pay at once (an unlock, a cap), state its `worth`; `autoPlayer`'s `objective` is income a second unless the

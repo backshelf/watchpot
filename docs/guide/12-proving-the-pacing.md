@@ -78,7 +78,7 @@ when buying it moves nothing the objective sees at once (an unlock, an offline c
 works out nothing and never takes it. `player.blind()` lists the moves that has happened to.
 
 In a game of your own, the moves usually sit in the feature's own definition, beside its actions:
-`feature({ ..., moves: (s) => [...] })`. `withMoves` is for a feature someone else wrote, as the stove is here.
+`defineFeature({ ..., moves: (s) => [...] })`. `withMoves` is for a feature someone else wrote, as the stove is here.
 
 At each look the auto-player buys the purchase with the best worth for the share of its balance it spends, again and
 again while one is affordable, then takes every free move worth anything once, and goes round once more if either did

@@ -4,9 +4,9 @@ import {
   D,
   type Decimal,
   defineCurrencies,
+  defineFeature,
   defineGame,
   defineGenerators,
-  feature,
   HOUR_MS,
   vocab,
 } from "watchpot/core";
@@ -323,7 +323,7 @@ describe("generators: game time, the milestone gate, the away rate and buy rows"
 
 describe("reach", () => {
   test("a callback reads a reached feature with no annotation, and not one that was not reached", () => {
-    const door = feature({ key: "door", initial: () => ({ open: true }) });
+    const door = defineFeature({ key: "door", initial: () => ({ open: true }) });
     const gated = defineGenerators({
       key: "gated",
       wallet,

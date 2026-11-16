@@ -17,10 +17,10 @@ import {
   D,
   type Decimal,
   defineCurrencies,
+  defineFeature,
   defineGame,
   defineStats,
   type FeatureSpec,
-  feature,
   type Game,
   reach,
   type StateOf,
@@ -64,7 +64,7 @@ export const wallet = defineCurrencies({
 });
 
 /** The pot: the tap that makes a bubble, how many taps, and the simmer that makes them over time. */
-export const pot = feature({
+export const pot = defineFeature({
   key: "pot",
   reach: [wallet],
   initial: () => ({ taps: 0 }),
@@ -89,7 +89,7 @@ export const pot = feature({
 });
 
 /** The stove: its burners, a switch, the price of the next burner and the rate they burn at. */
-export const stove = feature({
+export const stove = defineFeature({
   key: "stove",
   // The stats by their state type, so any game that lists a stats feature with a `heat` stat can hold this stove.
   reach: () => [wallet, reach<{ stats: { heat: Decimal } }>()],
@@ -140,7 +140,7 @@ export const stove = feature({
 });
 
 /** The lid: on or off. It knows nothing of the stove; the heat counts it. */
-export const lid = feature({
+export const lid = defineFeature({
   key: "lid",
   initial: () => ({ on: false }),
   actions: (api) => ({

@@ -2,9 +2,9 @@ import { describe, expect, test } from "bun:test";
 import {
   claimStreak,
   DAY_MS,
+  defineFeature,
   defineGame,
   defineStreak,
-  feature,
   NO_STREAK,
   type StreakState,
   streakStatus,
@@ -114,7 +114,7 @@ describe("the streak kernel", () => {
 });
 
 describe("streak feature", () => {
-  const bank = feature({ key: "bank", initial: () => ({ gems: 10, gold: 0 }) });
+  const bank = defineFeature({ key: "bank", initial: () => ({ gems: 10, gold: 0 }) });
   const daily = defineStreak({
     key: "daily",
     rewards: (day) => Math.min(day, 7) * 100,

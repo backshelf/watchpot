@@ -5,10 +5,10 @@ import {
   D,
   type Decimal,
   defineCurrencies,
+  defineFeature,
   defineGame,
   defineGenerators,
   definePrestige,
-  feature,
   HOUR_MS,
   lifetimeMultiplier,
   type Move,
@@ -89,7 +89,7 @@ function build({ pressure = 0.25 }: Tuning = {}) {
   });
 
   /** The one thing a hand does: lift the lid. A press pays a tenth of a second of the pot's own output, never under 1. */
-  const lid = feature({
+  const lid = defineFeature({
     key: "lid",
     reach: [wallet, heat],
     initial: () => ({ presses: 0 }),

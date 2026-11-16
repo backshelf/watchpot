@@ -4,8 +4,8 @@ import {
   type BoardPiece,
   board,
   defineBoard,
+  defineFeature,
   defineGame,
-  feature,
   fillBoard,
   searchBoard,
 } from "watchpot/core";
@@ -112,7 +112,7 @@ describe("board", () => {
 });
 
 describe("boardFeature", () => {
-  const bag = feature({ key: "bag", initial: () => ({ pairs: 1, size: 2 }) });
+  const bag = defineFeature({ key: "bag", initial: () => ({ pairs: 1, size: 2 }) });
   const sheet = defineBoard({
     key: "sheet",
     reach: [bag],
@@ -155,7 +155,7 @@ describe("boardFeature", () => {
   });
 
   test("a callback reads a reached feature; one it does not reach is a type error", () => {
-    const other = feature({ key: "other", initial: () => ({ m: 0 }) });
+    const other = defineFeature({ key: "other", initial: () => ({ m: 0 }) });
     const peek = defineBoard({
       key: "peek",
       reach: [bag],

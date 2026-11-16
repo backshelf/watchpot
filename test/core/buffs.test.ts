@@ -6,11 +6,11 @@ import {
   buffLeftMs,
   buffStacks,
   defineBuffs,
+  defineFeature,
   defineGame,
   type Effect,
   endBuff,
   expireBuffs,
-  feature,
   overlapMs,
   startBuff,
 } from "watchpot/core";
@@ -85,7 +85,7 @@ const boosts = defineBuffs<"boosts", Effect>({
 });
 
 /** Income of 1 a second, 7 while the rush runs: exact over a tick and over an absence. */
-const mine = feature({
+const mine = defineFeature({
   key: "mine",
   reach: [boosts],
   initial: () => ({ gold: 0 }),
@@ -163,8 +163,8 @@ describe("buffs select and def", () => {
 });
 
 describe("buffs reach", () => {
-  const gold = feature({ key: "gold", initial: () => ({ n: 0 }) });
-  const other = feature({ key: "other", initial: () => ({ m: 0 }) });
+  const gold = defineFeature({ key: "gold", initial: () => ({ n: 0 }) });
+  const other = defineFeature({ key: "other", initial: () => ({ m: 0 }) });
 
   test("onEnd reads a reached feature; one it does not reach is a type error", () => {
     const reached = defineBuffs({

@@ -1,6 +1,6 @@
 import type { Clock, ClockOptions } from "./clock";
 import { createClock } from "./clock";
-import { type FeatureSpec, type FeatureSteps, feature, type SavedOf } from "./feature";
+import { defineFeature, type FeatureSpec, type FeatureSteps, type SavedOf } from "./feature";
 import { flushSave } from "./persist";
 import type { RootActions } from "./store";
 
@@ -19,7 +19,7 @@ export interface ClockState {
 export const CLOCK_KEY = "clock";
 
 /** The built-in clock. A run reset keeps the offset; a profile reset zeroes it. */
-export const clockFeature = feature({
+export const clockFeature = defineFeature({
   key: CLOCK_KEY,
   initial: (): ClockState => ({ lastSeen: 0, createdAt: 0, offsetMs: 0 }),
   reset: { keep: ["offsetMs"] },

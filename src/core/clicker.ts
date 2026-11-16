@@ -2,9 +2,9 @@ import type { Draft } from "immer";
 import type { CurrenciesFeature, CurrencyDraft } from "./currencies";
 import { D, type Decimal, type DecimalSource, ZERO } from "./decimal";
 import {
+  defineFeature,
   type Feature,
   type FeatureApi,
-  feature,
   type Move,
   type NeedsOf,
   type ReachOf,
@@ -223,7 +223,7 @@ export function defineClicker<
     return result;
   };
 
-  const made = feature<K, ClickerState, ClickerActions, ReachShape, Record<never, never>, Own>({
+  const made = defineFeature<K, ClickerState, ClickerActions, ReachShape, Record<never, never>, Own>({
     reach: def.reach,
     key: def.key,
     initial: (ctx): ClickerState => ({

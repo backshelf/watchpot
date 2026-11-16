@@ -27,9 +27,9 @@ One feature with a derived value, two actions and a tick step, then a store and 
 [`docs/examples/readme-smallest.ts`](docs/examples/readme-smallest.ts), and `bun check` type-checks it.
 
 ```ts
-import { createIdleStore, D, defineGame, feature, startGameClock } from "watchpot/core";
+import { createIdleStore, D, defineFeature, defineGame, startGameClock } from "watchpot/core";
 
-const bakery = feature({
+const bakery = defineFeature({
   key: "bakery",
   initial: () => ({ loaves: D(0), ovens: 1 }),
   derived: { perSecond: (s) => D(s.bakery.ovens) },

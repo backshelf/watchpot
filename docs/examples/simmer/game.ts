@@ -1,4 +1,4 @@
-import { costAt, createIdleStore, D, defineGame, feature, ZERO } from "watchpot/core";
+import { costAt, createIdleStore, D, defineFeature, defineGame, ZERO } from "watchpot/core";
 
 /** Bubbles a second the pot makes on its own, and each burner adds. */
 export const SIMMER_PER_SECOND = 1;
@@ -10,7 +10,7 @@ export function perSecond(burners: number): number {
 }
 
 /** The pot: the bubbles you have, the tap that makes one, and the simmer that makes them over time. */
-export const pot = feature({
+export const pot = defineFeature({
   key: "pot",
   initial: () => ({ bubbles: ZERO }),
   actions: (api) => ({
@@ -41,7 +41,7 @@ export function burnerPrice(owned: number) {
 }
 
 /** The stove: how many burners are lit, buying one, and the bubbles they make. */
-export const stove = feature({
+export const stove = defineFeature({
   key: "stove",
   reach: [pot],
   initial: () => ({ burners: 0 }),

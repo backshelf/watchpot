@@ -21,7 +21,7 @@ import {
   ZERO,
 } from "watchpot/core";
 
-const wallet = feature({
+const wallet = defineFeature({
   key: "wallet",
   initial: () => ({ gold: D(10), lifetime: ZERO }),
   actions: (api) => ({
@@ -33,7 +33,7 @@ const wallet = feature({
   }),
 });
 
-const generator = feature({
+const generator = defineFeature({
   key: "generator",
   reach: [wallet],
   initial: () => ({ owned: 1, unlocked: { bronze: true } }),
@@ -53,7 +53,7 @@ const generator = feature({
   },
 });
 
-const prestige = feature({
+const prestige = defineFeature({
   key: "prestige",
   reach: [wallet, generator],
   initial: () => ({ runs: 0, shards: ZERO }),
@@ -239,7 +239,7 @@ export const toy = defineGame({ id: "toy", save: { key: "toy.save", version: 1 }
 - **The game holds it.** `defineGame({ vocab })` carries it as `game.vocab` (`undefined` without one), and
   `GameVocab<typeof game>` types it back. A feature built over a vocabulary records it in `vocab`, and
   `defineGame` refuses that feature unless the game declares the same object. A feature is typed by its words
-  through the factory that builds it (`defineCurrencies({ vocab })`); `feature()` takes no vocabulary type parameter.
+  through the factory that builds it (`defineCurrencies({ vocab })`); `defineFeature()` takes no vocabulary type parameter.
 
 ## Gacha
 

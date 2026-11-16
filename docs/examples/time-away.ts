@@ -5,8 +5,8 @@ import {
   createMemoryBackend,
   D,
   type Decimal,
+  defineFeature,
   defineGame,
-  feature,
   fillDeep,
   fmt,
   HOUR_MS,
@@ -41,7 +41,7 @@ const grow = (p: Pond, dtMs: number) => {
 
 const AWAY_CAP_MS = 8 * HOUR_MS;
 
-export const pond = feature({
+export const pond = defineFeature({
   key: "pond",
   initial,
   transient: ["away"],

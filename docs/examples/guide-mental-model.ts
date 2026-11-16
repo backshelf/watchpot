@@ -13,9 +13,9 @@ import {
   createIdleStore,
   createMemoryBackend,
   D,
+  defineFeature,
   defineGame,
   defineStats,
-  feature,
   fmt,
   resolvedSteps,
   vocab,
@@ -33,7 +33,7 @@ export const flameOf = (burners: number) => D(burners * BURNER_PER_SECOND);
 export const WORDS = vocab({ currencies: ["bubbles"], stats: ["heat"] });
 
 /** The stove: its burners, a switch, the price of the next burner and the rate they burn at. */
-export const stove = feature({
+export const stove = defineFeature({
   key: "stove",
   // A function, so it may name the stats, which are declared further down.
   reach: () => [pot, stats],
@@ -85,7 +85,7 @@ export const stove = feature({
 });
 
 /** The lid: on or off. It knows nothing of the stove; the heat counts it. */
-export const lid = feature({
+export const lid = defineFeature({
   key: "lid",
   initial: () => ({ on: false }),
   actions: (api) => ({

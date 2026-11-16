@@ -4,10 +4,10 @@ import {
   createIdleStore,
   createMemoryBackend,
   type Decimal,
+  defineFeature,
   defineGame,
   defineStats,
   type Effect,
-  feature,
   foldContributions,
   reach,
   vocab,
@@ -19,7 +19,7 @@ const at = () => ({ now: () => 1000, storage: createGameStorage(createMemoryBack
 
 const COPPER: Effect<"heat"> = { stat: "heat", mul: 2 };
 
-const stove = feature({
+const stove = defineFeature({
   key: "stove",
   initial: () => ({ burners: 0, copper: 0, lid: false, muted: false }),
   actions: (api) => ({
@@ -126,7 +126,7 @@ describe("the stats feature", () => {
   });
 
   test("a step reads a stat like any field", () => {
-    const pot = feature({
+    const pot = defineFeature({
       key: "pot",
       reach: () => [numbers],
       initial: () => ({ bubbles: 0 }),
@@ -172,7 +172,7 @@ describe("the stats feature", () => {
 
   test("a feature reached by type may feed the stats that it reads", () => {
     // The pan reads the stats; the stats read the pan by its state type.
-    const pan = feature({
+    const pan = defineFeature({
       key: "pan",
       reach: () => [far],
       initial: () => ({ size: 2 }),

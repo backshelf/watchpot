@@ -3,8 +3,8 @@ import {
   createIdleStore,
   createMemoryBackend,
   D,
+  defineFeature,
   defineGame,
-  feature,
   HOUR_MS,
   offlineCredit,
 } from "watchpot/core";
@@ -17,7 +17,7 @@ export const generatorCost = (owned: number) => D(10).mul(D(1.15).pow(owned));
  * A generator: owned count, a rate derived from it, income on a tick and a capped, discounted payout for the time
  * the tab was closed.
  */
-export const generator = feature({
+export const generator = defineFeature({
   key: "generator",
   reach: [wallet], // it touches the wallet's slice, so it names it
   initial: () => ({ owned: 1 }),

@@ -2,10 +2,10 @@ import {
   createGameStorage,
   createIdleStore,
   createMemoryBackend,
+  defineFeature,
   defineGame,
   defineLoadout,
   type Effect,
-  feature,
   fillLoadout,
   foldContributions,
   type LoadoutItem,
@@ -22,7 +22,7 @@ export const UTENSILS: LoadoutItem<Effect<"simmer">>[] = [
 ];
 
 /** What the player holds: found utensils, by id. */
-export const cupboard = feature({
+export const cupboard = defineFeature({
   key: "cupboard",
   initial: () => ({ held: ["glass-lid", "copper-lid", "wooden-spoon", "copper-ladle", "copper-trivet"] }),
 });

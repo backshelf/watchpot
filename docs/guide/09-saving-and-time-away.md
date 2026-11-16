@@ -214,7 +214,7 @@ const renameTaps: Migration = (saved) => {
 };
 
 /** The pot at version 2: the same pot, its count renamed, with the step that brings a version 1 save across. */
-const pot = feature({
+const pot = defineFeature({
   key: "pot",
   reach: [wallet],
   initial: () => ({ presses: 0 }),

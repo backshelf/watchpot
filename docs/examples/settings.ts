@@ -2,10 +2,10 @@ import {
   createGameStorage,
   createIdleStore,
   createMemoryBackend,
+  defineFeature,
   defineGame,
   defineSeenOnce,
   defineSettings,
-  feature,
   ZERO,
 } from "watchpot/core";
 
@@ -26,7 +26,7 @@ export const intro = defineSeenOnce({ key: "intro" });
 export const TIPS = { stove: "tip.stove", shop: "tab.shop" } as const;
 
 /** Simmer's pot, so a run reset has something to clear. */
-export const pot = feature({
+export const pot = defineFeature({
   key: "pot",
   initial: () => ({ bubbles: ZERO }),
   actions: (api) => ({

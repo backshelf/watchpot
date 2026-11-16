@@ -309,7 +309,7 @@ The stats are a feature with no actions, only a step:
  * A store that has just been built, loaded, imported or reset holds none, and the first pass's `sync` steps already
  * read them (a pool trims itself to what a flag allows), so the engine folds them there too (`derive`).
  */
-export const stats = feature({
+export const stats = defineFeature({
   key: "stats",
   initial: (): StatsState => ({ log: {}, add: {}, flags: {} }),
   transient: ["log", "add", "flags"],
@@ -327,7 +327,7 @@ export const stats = feature({
 });
 ```
 
-- `feature({...})` is the engine's general factory, the one the others are built on.
+- `defineFeature({...})` is the engine's general factory, the one the others are built on.
 - `transient` lists fields that are never saved. The stats can always be worked out again from what was bought, so saving them would only let a save go stale.
 - `steps.rates.fold` runs in the `rates` [phase](../glossary.md#phase) of every pass and replaces `state.stats` with a fresh fold, and `derive`, an option of that older engine, ran the same fold after a load or reset.
 

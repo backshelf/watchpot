@@ -1,5 +1,5 @@
 import type { Decimal, DecimalSource } from "./decimal";
-import { type Feature, feature, type NeedsOf, type ReachOf, type ReachShape } from "./feature";
+import { defineFeature, type Feature, type NeedsOf, type ReachOf, type ReachShape } from "./feature";
 import {
   type Effect,
   type ExtraEffect,
@@ -256,7 +256,7 @@ export function defineStats<
   };
   for (const id of ids) derived[id] = (q) => graph(q).stat(id);
 
-  const made = feature<
+  const made = defineFeature<
     K,
     Record<never, never>,
     Record<never, never>,

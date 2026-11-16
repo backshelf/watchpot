@@ -9,10 +9,10 @@ import {
   D,
   type Decimal,
   defineCurrencies,
+  defineFeature,
   defineGame,
   definePrestige,
   defineStats,
-  feature,
   powerGain,
   type StateOf,
   vocab,
@@ -30,10 +30,10 @@ export const wallet = defineCurrencies({
 });
 
 /**
- * The game's own mechanic: not an engine system, so a `feature()`. `glaze` is a derived value: never saved, never
+ * The game's own mechanic: not an engine system, so a `defineFeature()`. `glaze` is a derived value: never saved, never
  * written, worked out again only when `fired` changes. Nothing keeps a second copy of it in a step.
  */
-export const kiln = feature({
+export const kiln = defineFeature({
   key: "kiln",
   initial: () => ({ fired: 0 }),
   derived: { glaze: (s) => D(1).add(s.kiln.fired * 0.25) },
@@ -62,7 +62,7 @@ const STOKE_PRICE = (stoked: number): Decimal => costAt({ base: 10, growth: 1.15
 const HEARTH = D("1e12");
 
 /** The core's income, as the invention reads it: reaches the wallet and the stats, lazily. */
-export const furnace = feature({
+export const furnace = defineFeature({
   key: "furnace",
   reach: () => [wallet, numbers],
   initial: () => ({ stoked: 1 }),

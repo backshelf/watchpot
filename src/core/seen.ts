@@ -1,4 +1,4 @@
-import { type Feature, feature } from "./feature";
+import { defineFeature, type Feature } from "./feature";
 
 /** What a `seenOnce` feature saves: the ids that have been seen. */
 export interface SeenState {
@@ -35,7 +35,7 @@ export type SeenFeature<K extends string> = Feature<K, SeenState, SeenActions> &
 export function defineSeenOnce<const K extends string>(def: { readonly key: K }): SeenFeature<K> {
   // `feature` types its draft over a record keyed by `K`; the slice is the one thing the actions touch.
   const slice = (state: unknown): SeenState => (state as Record<K, SeenState>)[def.key];
-  const made = feature({
+  const made = defineFeature({
     key: def.key,
     initial: (): SeenState => ({ seen: {} }),
     reset: "never",

@@ -2,9 +2,9 @@ import {
   createGameStorage,
   createIdleStore,
   createMemoryBackend,
+  defineFeature,
   defineGame,
   defineSettings,
-  feature,
   fmt,
   localStorageBackend,
   ZERO,
@@ -27,7 +27,7 @@ import {
 
 // ---- the game: Simmer's pot, a burner, and the player's settings
 
-export const pot = feature({
+export const pot = defineFeature({
   key: "pot",
   initial: () => ({ bubbles: ZERO, burners: 0, stirredAt: 0 }),
   actions: (api) => ({

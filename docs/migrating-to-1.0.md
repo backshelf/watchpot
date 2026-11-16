@@ -40,7 +40,7 @@ Old: a transient field with a dummy initial value, a `derive` function, and the 
 step.
 
 ```ts
-const stove = feature({
+const stove = defineFeature({
   key: "stove",
   initial: () => ({ burners: 0, perSecond: ZERO }),
   transient: ["perSecond"],
@@ -52,7 +52,7 @@ const stove = feature({
 New: one declaration. The field's name is the property name, its type is what the function returns.
 
 ```ts
-const stove = feature({
+const stove = defineFeature({
   key: "stove",
   initial: () => ({ burners: 0 }),
   derived: { perSecond: (s) => flameOf(s.stove.burners) },
@@ -70,8 +70,8 @@ const stove = feature({
   list of up to four, and each layer sees the ones before it with no annotation:
   `derived: [{ price: (s) => … }, { canBuy: (s) => s.pot.bubbles.gte(s.stove.price) }]`.
 - Write `derived` after `initial` and `reach` and before `actions` and `steps`.
-- `feature<…>` called with explicit type arguments has a new fifth parameter (the derived values) before `G`:
-  `feature<K, S, A, R, Record<never, never>, G>`.
+- `defineFeature<…>` called with explicit type arguments has a new fifth parameter (the derived values) before `G`:
+  `defineFeature<K, S, A, R, Record<never, never>, G>`.
 - `Feature<K, S, A, N, Dv>` has two more type parameters (type reaches needed, derived values); `StateOf` includes
   derived values, `SavedOf` does not, and `DataOf` is state plus derived with no actions.
 
@@ -115,25 +115,26 @@ const stove = feature({
 ## Factory names: `defineX`
 
 Every feature factory is named `defineX`, beside `defineGame`, so a game can call its own feature `prestige` or
-`settings` without clashing with the import. `feature` keeps its name, and so do the pure kernels (`tree`, `board`,
-`loadout`, `statIndex`, `achievementBoard`, `layerModel`). Rename the import and the call; nothing else changes.
+`settings` without clashing with the import. The pure kernels (`tree`, `board`,
+`loadout`, `statIndex`, `achievementBoard`, `layerModel`) keep their names. Rename the import and the call; nothing else changes.
 
 | Old | New | Old | New |
 | --- | --- | --- | --- |
-| `achievements` | `defineAchievements` | `levels` | `defineLevels` |
-| `allocation` | `defineAllocation` | `loadoutFeature` | `defineLoadout` |
-| `autobuyers` | `defineAutobuyers` | `market` | `defineMarket` |
-| `boardFeature` | `defineBoard` | `missions` | `defineMissions` |
-| `buffs` | `defineBuffs` | `prestige` | `definePrestige` |
-| `challenges` | `defineChallenges` | `records` | `defineRecords` |
-| `clicker` | `defineClicker` | `seenOnce` | `defineSeenOnce` |
-| `crafting` | `defineCrafting` | `settings` | `defineSettings` |
-| `currencies` | `defineCurrencies` | `spawns` | `defineSpawns` |
-| `dimensions` | `defineDimensions` | `stages` | `defineStages` |
-| `gacha` | `defineGacha` | `streak` | `defineStreak` |
-| `gauge` | `defineGauge` | `sweep` | `defineSweep` |
-| `generators` | `defineGenerators` | `upgradeTree` | `defineUpgradeTree` |
-| `layers` | `defineLayers` | (new) | `defineStats` |
+| `feature` | `defineFeature` | `levels` | `defineLevels` |
+| `achievements` | `defineAchievements` | `loadoutFeature` | `defineLoadout` |
+| `allocation` | `defineAllocation` | `market` | `defineMarket` |
+| `autobuyers` | `defineAutobuyers` | `missions` | `defineMissions` |
+| `boardFeature` | `defineBoard` | `prestige` | `definePrestige` |
+| `buffs` | `defineBuffs` | `records` | `defineRecords` |
+| `challenges` | `defineChallenges` | `seenOnce` | `defineSeenOnce` |
+| `clicker` | `defineClicker` | `settings` | `defineSettings` |
+| `crafting` | `defineCrafting` | `spawns` | `defineSpawns` |
+| `currencies` | `defineCurrencies` | `stages` | `defineStages` |
+| `dimensions` | `defineDimensions` | `streak` | `defineStreak` |
+| `gacha` | `defineGacha` | `sweep` | `defineSweep` |
+| `gauge` | `defineGauge` | `upgradeTree` | `defineUpgradeTree` |
+| `generators` | `defineGenerators` | (new) | `defineStats` |
+| `layers` | `defineLayers` |  |  |
 
 The tables below name each factory by its old name, since that is what the game being migrated says.
 

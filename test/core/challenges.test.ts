@@ -3,9 +3,9 @@ import {
   type Decimal,
   defineChallenges,
   defineCurrencies,
+  defineFeature,
   defineGame,
   type Effect,
-  feature,
   vocab,
 } from "watchpot/core";
 import { freshStore, T0 } from "watchpot/test";
@@ -13,7 +13,7 @@ import { totals } from "./fold";
 
 const WORDS = vocab({ currencies: ["gold"], stats: [], rarities: ["common"] } as const);
 const wallet = defineCurrencies({ key: "wallet", vocab: WORDS, start: { gold: 10 } });
-const log = feature({
+const log = defineFeature({
   key: "log",
   initial: () => ({ completed: [] as string[] }),
   reset: "never",

@@ -7,8 +7,8 @@ import {
   type Decimal,
   defineCrafting,
   defineCurrencies,
+  defineFeature,
   defineGame,
-  feature,
   HOUR_MS,
   maxCraftable,
   type Recipe,
@@ -191,7 +191,7 @@ describe("crafting", () => {
 
 describe("reach", () => {
   test("a callback reads a reached feature with no annotation, and not one that was not reached", () => {
-    const door = feature({ key: "door", initial: () => ({ open: true }) });
+    const door = defineFeature({ key: "door", initial: () => ({ open: true }) });
     const gated = defineCrafting({
       key: "gated",
       wallet,

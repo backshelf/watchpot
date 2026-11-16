@@ -3,8 +3,8 @@ import {
   createGameStorage,
   createIdleStore,
   createMemoryBackend,
+  defineFeature,
   defineGame,
-  feature,
   HOUR_MS,
   type Pass,
   type Phase,
@@ -33,12 +33,12 @@ describe("the resolved order", () => {
   });
 
   test("`after` and `before` pull a step to the other side of another; the rest follow in feature order", () => {
-    const a = feature({
+    const a = defineFeature({
       key: "a",
       initial: () => ({}),
       steps: { sync: { one: () => {}, two: { before: "a.sync.one", run: () => {} } } },
     });
-    const b = feature({
+    const b = defineFeature({
       key: "b",
       initial: () => ({}),
       steps: { sync: { three: { before: "a.sync.two", run: () => {} } } },
@@ -54,12 +54,12 @@ describe("the resolved order", () => {
   });
 
   test("a feature key as a target means all of that feature's steps in the phase", () => {
-    const a = feature({
+    const a = defineFeature({
       key: "a",
       initial: () => ({}),
       steps: { sync: { one: { after: "b", run: () => {} }, two: () => {} } },
     });
-    const b = feature({ key: "b", initial: () => ({}), steps: { sync: { x: () => {}, y: () => {} } } });
+    const b = defineFeature({ key: "b", initial: () => ({}), steps: { sync: { x: () => {}, y: () => {} } } });
     const game = defineGame({ id: "keyed", save: { key: "k", version: 1 }, features: [a, b] });
     expect(resolvedSteps(game, "tick")).toEqual([
       "clock.guard.dt",
@@ -72,12 +72,12 @@ describe("the resolved order", () => {
   });
 
   test("steps that wait on each other in a loop are refused at definition", () => {
-    const a = feature({
+    const a = defineFeature({
       key: "a",
       initial: () => ({}),
       steps: { sync: { one: { after: "b.sync.two", run: () => {} } } },
     });
-    const b = feature({
+    const b = defineFeature({
       key: "b",
       initial: () => ({}),
       steps: { sync: { two: { after: "a.sync.one", run: () => {} } } },
@@ -109,7 +109,7 @@ function logged(stopAt: Partial<Record<Phase, boolean>>) {
       },
     ]),
   );
-  const probe = feature({ key: "probe", initial: () => ({}), steps });
+  const probe = defineFeature({ key: "probe", initial: () => ({}), steps });
   const game = defineGame({ id: "log", save: { key: "log", version: 1 }, features: [probe] });
   const store = createIdleStore(game, {
     storage: createGameStorage(createMemoryBackend(), { debounceMs: 0 }),
@@ -160,7 +160,7 @@ describe('"stop"', () => {
 describe("the two passes", () => {
   test("a step sees which pass it is in", () => {
     const seen: Pass[] = [];
-    const spy = feature({
+    const spy = defineFeature({
       key: "spy",
       initial: () => ({}),
       steps: { sync: { look: (_s, ctx) => void seen.push(ctx.pass) } },

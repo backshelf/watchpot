@@ -9,8 +9,8 @@ import {
   defineBuffs,
   defineClicker,
   defineCurrencies,
+  defineFeature,
   defineGame,
-  feature,
   vocab,
 } from "watchpot/core";
 import { autoPlayer, createSimWorld, simStore } from "watchpot/sim";
@@ -169,7 +169,7 @@ describe("clicker", () => {
 
 describe("reach", () => {
   test("a callback reads a reached feature with no annotation, and not one that was not reached", () => {
-    const door = feature({ key: "door", initial: () => ({ open: true }) });
+    const door = defineFeature({ key: "door", initial: () => ({ open: true }) });
     const gated = defineClicker({
       key: "gated",
       wallet,

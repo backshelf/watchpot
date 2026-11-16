@@ -3,9 +3,9 @@ import {
   createGameStorage,
   createIdleStore,
   createMemoryBackend,
+  defineFeature,
   defineGame,
   type FeatureSpec,
-  feature,
   type Game,
 } from "watchpot/core";
 import { T0, wallet } from "./toy";
@@ -20,7 +20,7 @@ const storeOf = <F extends readonly FeatureSpec[], R extends object>(game: Game<
     now: () => T0,
   });
 
-const counter = feature({
+const counter = defineFeature({
   key: "counter",
   initial: () => ({ n: 0 }),
   actions: (api) => ({
@@ -50,7 +50,7 @@ describe("api.set", () => {
   });
 
   test("an action called inside a recipe throws, and the outer change is not half made", () => {
-    const nesting = feature({
+    const nesting = defineFeature({
       key: "nesting",
       reach: [counter],
       initial: () => ({ m: 0 }),
@@ -72,7 +72,7 @@ describe("api.set", () => {
   });
 
   test("an action called from a step throws inside the tick", () => {
-    const eager = feature({
+    const eager = defineFeature({
       key: "eager",
       reach: [counter],
       initial: () => ({}),
@@ -86,7 +86,7 @@ describe("api.set", () => {
 
 describe("defineGame refuses a name that would replace another", () => {
   test("an action named like a key of its feature's initial state", () => {
-    const shadow = feature({
+    const shadow = defineFeature({
       key: "shadow",
       initial: () => ({ open: false }),
       actions: (api) => ({
@@ -109,7 +109,7 @@ describe("defineGame refuses a name that would replace another", () => {
 
   test("a before target, naming the feature it points at", () => {
     const step = (target: string) =>
-      feature({
+      defineFeature({
         key: "counter",
         initial: () => ({}),
         steps: { sync: { x: { before: target, run: () => {} } } },

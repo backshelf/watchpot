@@ -1,10 +1,10 @@
 import { describe, expect, test } from "bun:test";
 import {
   D,
+  defineFeature,
   defineGame,
   defineLevels,
   type Effect,
-  feature,
   levelAt,
   levelProgress,
   totalXpAt,
@@ -76,7 +76,7 @@ describe("xp curves", () => {
   });
 });
 
-const log = feature({ key: "log", initial: () => ({ ups: [] as string[] }) });
+const log = defineFeature({ key: "log", initial: () => ({ ups: [] as string[] }) });
 type State = { log: { ups: string[] } };
 const skills = defineLevels({
   key: "skills",

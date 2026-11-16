@@ -4,9 +4,9 @@ import { type CostCurve, costAt, costOfMany, maxAffordable, stepsOf, untilStep }
 import type { CurrenciesFeature, CurrencyDraft } from "./currencies";
 import { D, type Decimal, type DecimalSource, ONE, ZERO } from "./decimal";
 import {
+  defineFeature,
   type Feature,
   type FeatureApi,
-  feature,
   type Move,
   type NeedsOf,
   type ReachOf,
@@ -359,7 +359,7 @@ export function defineDimensions<
     return buyDraft(draft, id, untilStep(boughtOf(draft, hit[0]), set.size), false);
   };
 
-  const made = feature<K, DimensionsState, DimensionActions, ReachShape, Record<never, never>, Own>({
+  const made = defineFeature<K, DimensionsState, DimensionActions, ReachShape, Record<never, never>, Own>({
     reach: def.reach,
     key: def.key,
     initial: (): DimensionsState => ({

@@ -2,9 +2,9 @@ import type { Draft } from "immer";
 import { costAt, costOfMany, type GeometricCost, maxAffordable } from "./cost";
 import { D, type Decimal, type DecimalSource, ZERO } from "./decimal";
 import {
+  defineFeature,
   type Feature,
   type FeatureApi,
-  feature,
   type NeedsOf,
   type ReachOf,
   type ReachShape,
@@ -283,7 +283,7 @@ export function defineLevels<
     return to - from;
   };
 
-  const made = feature<K, LevelsState, LevelActions, ReachShape, Record<never, never>, Own>({
+  const made = defineFeature<K, LevelsState, LevelActions, ReachShape, Record<never, never>, Own>({
     reach: def.reach,
     key: def.key,
     initial: (): LevelsState => ({ xp: Object.fromEntries(def.tracks.map((t) => [t.id, ZERO])) }),

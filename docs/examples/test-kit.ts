@@ -3,8 +3,8 @@ import {
   costAt,
   createGameStorage,
   createIdleStore,
+  defineFeature,
   defineGame,
-  feature,
   fmt,
   HOUR_MS,
   type IdleStore,
@@ -26,7 +26,7 @@ import {
 
 export const BURNER_COST = { base: 10, growth: 1.15 } as const;
 
-export const pot = feature({
+export const pot = defineFeature({
   key: "pot",
   initial: () => ({ bubbles: ZERO, burners: 0 }),
   actions: (api) => ({

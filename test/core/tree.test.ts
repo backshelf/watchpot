@@ -6,10 +6,10 @@ import {
   D,
   type Decimal,
   defineCurrencies,
+  defineFeature,
   defineGame,
   defineUpgradeTree,
   type Effect,
-  feature,
   type GraphNode,
   type Purse,
   tree,
@@ -383,7 +383,7 @@ describe("treeMoves", () => {
 describe("upgradeTree reach", () => {
   test("a callback reads a reached feature with no annotation, and not one that was not reached", () => {
     const wallet = defineCurrencies({ key: "wallet", vocab: TOY });
-    const door = feature({ key: "door", initial: () => ({ open: true }) });
+    const door = defineFeature({ key: "door", initial: () => ({ open: true }) });
     const gated = defineUpgradeTree({
       key: "gated",
       nodes: NODES,

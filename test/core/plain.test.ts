@@ -3,9 +3,9 @@ import {
   createPlainStore,
   D,
   defineCurrencies,
+  defineFeature,
   defineGame,
   defineGenerators,
-  feature,
   vocab,
 } from "watchpot/core";
 import { autoPlayer } from "watchpot/sim";
@@ -25,7 +25,7 @@ const kettles = defineGenerators({
     { id: "urn", pays: "bubbles", makes: "bubbles", rate: 8, cost: { base: 100, growth: 1.2 } },
   ],
 });
-const log = feature({
+const log = defineFeature({
   key: "log",
   reach: () => [kettles],
   // A shared constant in `initial`: the real store never writes to it, and the plain one must not either.
@@ -128,7 +128,7 @@ describe("the plain store", () => {
 
   test("parity names the first field that differs", () => {
     let calls = 0;
-    const flaky = feature({
+    const flaky = defineFeature({
       key: "flaky",
       initial: () => ({ n: 0 }),
       steps: {
@@ -148,7 +148,7 @@ describe("the plain store", () => {
 
 describe("the plain store works a derived value out only when a field it read is written", () => {
   let runs = 0;
-  const shelf = feature({
+  const shelf = defineFeature({
     key: "shelf",
     initial: () => ({ jars: 1, dust: 0, tags: [] as string[] }),
     derived: {

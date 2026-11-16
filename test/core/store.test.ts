@@ -3,9 +3,9 @@ import {
   createGameStorage,
   createIdleStore,
   createMemoryBackend,
+  defineFeature,
   defineGame,
   deserialize,
-  feature,
   HOUR_MS,
   SaveError,
   saveBlocked,
@@ -175,7 +175,7 @@ describe("export and import", () => {
 
 describe("the game's own actions and the save status", () => {
   test("defineGame's actions sit at the root beside the engine's", () => {
-    const counter = feature({ key: "counter", initial: () => ({ n: 0 }) });
+    const counter = defineFeature({ key: "counter", initial: () => ({ n: 0 }) });
     const game = defineGame({
       id: "root",
       save: { key: "root", version: 1 },

@@ -85,9 +85,9 @@ const exchange = defineMarket({
   fee: (s) => s.flags.fee,
 });
 
-import { feature } from "watchpot/core";
+import { defineFeature } from "watchpot/core";
 
-const flags = feature({ key: "flags", initial: () => ({ tinOpen: false, fee: 0 }), reset: "never" });
+const flags = defineFeature({ key: "flags", initial: () => ({ tinOpen: false, fee: 0 }), reset: "never" });
 const game = defineGame({
   id: "exchange",
   save: { key: "exchange.save", version: 1 },
@@ -193,7 +193,7 @@ describe("market", () => {
 });
 
 describe("market trader", () => {
-  const botFlags = feature({
+  const botFlags = defineFeature({
     key: "flags",
     initial: () => ({ tinOpen: false, fee: 0, bot: true }),
     reset: "never",
@@ -340,7 +340,7 @@ describe("market trader", () => {
 
 describe("reach", () => {
   test("a callback reads a reached feature with no annotation, and not one that was not reached", () => {
-    const door = feature({ key: "door", initial: () => ({ open: true }) });
+    const door = defineFeature({ key: "door", initial: () => ({ open: true }) });
     const gated = defineMarket({
       key: "gated",
       wallet,

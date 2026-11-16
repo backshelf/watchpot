@@ -289,7 +289,7 @@ export interface FeatureDef<
   /**
    * The vocabulary this feature speaks, when it is built over one (a primitive made with `defineCurrencies({ vocab })`):
    * `defineGame` refuses it unless the game declares the same vocabulary. Its words type the feature through the
-   * factory that made it; `feature()` itself takes no vocabulary type parameter.
+   * factory that made it; `defineFeature()` itself takes no vocabulary type parameter.
    */
   readonly vocab?: AnyVocab;
   /**
@@ -301,7 +301,7 @@ export interface FeatureDef<
 
 /**
  * A feature as the store sees it: every callback's game type erased (a callback over `G` accepts `never`), so a
- * tuple of features has one type and a game's state type may be derived from it. `feature()` is the only maker.
+ * tuple of features has one type and a game's state type may be derived from it. `defineFeature()` is the only maker.
  */
 export interface FeatureSpec {
   readonly key: string;
@@ -429,7 +429,7 @@ export type DerivedLayers<K extends string, S, Reached, D1, D2, D3, D4> =
  * Declares a feature. `K`, `S`, `A`, the reach `R` and the derived values are read off the definition; `G`, the
  * game the callbacks see, is the feature's own slice (derived values included) plus its reach.
  */
-export function feature<
+export function defineFeature<
   const K extends string,
   S extends object,
   A extends object,
@@ -442,7 +442,7 @@ export function feature<
 >(
   def: FeatureDef<K, S, A, R, G, D1 & D2 & D3 & D4, DerivedLayers<K, S, ReachOf<R>, D1, D2, D3, D4>>,
 ): Feature<K, S, A, NeedsOf<R>, D1 & D2 & D3 & D4>;
-export function feature<
+export function defineFeature<
   const K extends string,
   S extends object,
   A extends object = Record<never, never>,
@@ -450,7 +450,7 @@ export function feature<
   Dv = Record<never, never>,
   G extends object = Record<K, S & Dv> & ReachOf<R>,
 >(def: FeatureDef<K, S, A, R, G, Dv>): Feature<K, S, A, NeedsOf<R>, Dv>;
-export function feature(
+export function defineFeature(
   def: FeatureDef<string, object, object, ReachShape, object, unknown, unknown>,
 ): Feature<string, object, object, unknown, unknown> {
   if (def.key.includes(".")) throw new Error(`feature "${def.key}": a key cannot contain "."`);

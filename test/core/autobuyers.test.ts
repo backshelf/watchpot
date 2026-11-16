@@ -3,9 +3,9 @@ import {
   type Decimal,
   defineAutobuyers,
   defineCurrencies,
+  defineFeature,
   defineGame,
   everyMs,
-  feature,
   HOUR_MS,
   vocab,
 } from "watchpot/core";
@@ -40,7 +40,7 @@ describe("everyMs", () => {
 
 const WORDS = vocab({ currencies: ["gold"], stats: [], rarities: ["common"] } as const);
 const wallet = defineCurrencies({ key: "wallet", vocab: WORDS, start: { gold: 10 } });
-const shop = feature({
+const shop = defineFeature({
   key: "shop",
   initial: () => ({ carts: 0, mills: 0, unlocked: true }),
   actions: (api) => ({
@@ -172,7 +172,7 @@ describe("autobuyers", () => {
 
 describe("reach", () => {
   test("a callback reads a reached feature with no annotation, and not one that was not reached", () => {
-    const door = feature({ key: "door", initial: () => ({ open: true }) });
+    const door = defineFeature({ key: "door", initial: () => ({ open: true }) });
     const gated = defineAutobuyers({
       key: "gated",
       reach: [wallet, door],

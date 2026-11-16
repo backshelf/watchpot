@@ -3,9 +3,9 @@ import { offlineCredit } from "./clock";
 import { D, Decimal, type DecimalSource, ZERO } from "./decimal";
 import type { DimensionAway } from "./dimensions";
 import {
+  defineFeature,
   type Feature,
   type FeatureApi,
-  feature,
   type NeedsOf,
   type ReachOf,
   type ReachShape,
@@ -232,7 +232,7 @@ export function defineStages<
     draft: {},
   };
 
-  const made = feature<K, StagesState, StagesActions, ReachShape, Record<never, never>, Own>({
+  const made = defineFeature<K, StagesState, StagesActions, ReachShape, Record<never, never>, Own>({
     reach: def.reach,
     key: def.key,
     initial: (): StagesState => ({ tracks: Object.fromEntries(def.tracks.map((t) => [t.id, fresh()])) }),

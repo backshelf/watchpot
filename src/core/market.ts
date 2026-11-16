@@ -3,9 +3,9 @@ import { offlineCredit } from "./clock";
 import type { CurrenciesFeature, CurrencyDraft } from "./currencies";
 import { D, type Decimal, type DecimalSource, ZERO } from "./decimal";
 import {
+  defineFeature,
   type Feature,
   type FeatureApi,
-  feature,
   type Move,
   type NeedsOf,
   type ReachOf,
@@ -432,7 +432,7 @@ export function defineMarket<
     return buyDraft(draft, id, most.mul(Math.min(1, Math.max(0, share))), now);
   };
 
-  const made = feature<K, MarketState, MarketActions, ReachShape, Record<never, never>, Own>({
+  const made = defineFeature<K, MarketState, MarketActions, ReachShape, Record<never, never>, Own>({
     reach: def.reach,
     key: def.key,
     initial: (ctx): MarketState => ({
