@@ -341,7 +341,7 @@ reach: () => [wallet, reach<{ stats: { heat: Decimal } }>()],
 
 The wallet replaces the pot. The stats are now named by their state type (chapter 3's type reach, with `reach` and
 `type Decimal` imported from `watchpot/core`): later chapters list a stats feature of their own, with more sources of
-heat, and the stove must take whichever one the game lists. Before, from chapter 3, `buyBurner` compared, subtracted
+heat, and the stove must take whichever one the game lists. Before, from chapter 3, `buyBurner` checked, subtracted
 and reassigned:
 
 <!-- example-code: guide-mental-model.ts -->
@@ -349,9 +349,8 @@ and reassigned:
 ```ts
 buyBurner: () =>
   api.set((s) => {
-    const price = s.stove.nextPrice;
-    if (s.pot.bubbles.lt(price)) return false;
-    s.pot.bubbles = s.pot.bubbles.sub(price);
+    if (!s.stove.canBuy) return false;
+    s.pot.bubbles = s.pot.bubbles.sub(s.stove.nextPrice);
     s.stove.burners += 1;
     return true;
   }),
@@ -400,7 +399,7 @@ produce: {
 
 From `docs/examples/simmer/game-wallet.ts`.
 
-Everything else in the stove (`off`, both derived values, `toggle` and the guard) stays as chapter 3 left it. The
+Everything else in the stove (`off`, its derived values, with `canBuy` now reading the wallet, `toggle` and the guard) stays as chapter 3 left it. The
 lid and the stats do not change at all, except that the stats' lid source now has a name, `LID_HEAT`, so a later
 chapter's stats can list it too.
 

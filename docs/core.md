@@ -123,7 +123,9 @@ export const store = createIdleStore(toy, {
   slice under its name, typed by what it returns, and is never saved and never written (a write throws). The engine
   works it out on load and reset, and again whenever a slice it read was changed by a step or a recipe, so it is
   current as of the start of whatever reads it. One may read another; the engine orders them and throws on a loop.
-  The function sees the feature's saved state and its reach, and reads no clock and no rng: a value that needs `now`
+  A value that reads another of the same feature goes in a later layer: `derived` takes one block or a list of up to
+  four, each seeing the layers before it on the feature's own slice (`derived: [{ nextPrice }, { canBuy }]`); a name in
+  two layers throws. The function sees the feature's saved state and its reach, and reads no clock and no rng: a value that needs `now`
   is worked out in a `rates` step into a `transient` field instead.
 - **Reach.** `reach: [a, b]`, or `reach: () => [a, b]` to name a feature declared further down. Two features that read
   each other name one side by its state type, `reach: reach<{ lid: LidState }>()` (alone or in the list);

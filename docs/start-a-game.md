@@ -23,5 +23,6 @@ on to see what it is made of.
 4. Boot with `startGameClock(store)` (or `useGameRuntime` in React): one catch-up for the time away, then ticks.
 
 Things that bite: a step runs in a phase (`guard, sync, rates, produce, automate, settle, commit, after`), so put
-derived rates in `rates` and income in `produce`. `transient: ["flash"]` keeps a key out of the save. Next:
+income in `produce`; a rate worked out from the state is a derived value (`derived: { perSecond: (s) => … }`), not a
+step. `transient: ["flash"]` keeps a key out of the save. Next:
 [add a generator](add-a-generator.md).

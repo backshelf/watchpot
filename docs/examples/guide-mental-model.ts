@@ -38,18 +38,21 @@ export const stove = feature({
   // A function, so it may name the stats, which are declared further down.
   reach: () => [pot, stats],
   initial: () => ({ burners: 0, off: false }),
-  derived: {
-    // The price of the next burner, worked out from how many are lit. Never saved.
-    nextPrice: (s) => burnerPrice(s.stove.burners),
-    // The burners' flame, times heat: the one number every multiplier on the stove goes into.
-    perSecond: (s) => flameOf(s.stove.burners).mul(s.stats.heat),
-  },
+  derived: [
+    {
+      // The price of the next burner, worked out from how many are lit. Never saved.
+      nextPrice: (s) => burnerPrice(s.stove.burners),
+      // The burners' flame, times heat: the one number every multiplier on the stove goes into.
+      perSecond: (s) => flameOf(s.stove.burners).mul(s.stats.heat),
+    },
+    // A second layer sees the first: whether the pot holds enough for the next burner.
+    { canBuy: (s) => s.pot.bubbles.gte(s.stove.nextPrice) },
+  ],
   actions: (api) => ({
     buyBurner: () =>
       api.set((s) => {
-        const price = s.stove.nextPrice;
-        if (s.pot.bubbles.lt(price)) return false;
-        s.pot.bubbles = s.pot.bubbles.sub(price);
+        if (!s.stove.canBuy) return false;
+        s.pot.bubbles = s.pot.bubbles.sub(s.stove.nextPrice);
         s.stove.burners += 1;
         return true;
       }),
@@ -120,6 +123,7 @@ if (import.meta.main) {
   for (let i = 0; i < 10; i++) play().pot.tap();
   console.log("bought a burner:", play().stove.buyBurner()); // true: 10 bubbles spent
   console.log("the next one costs:", fmt(play().stove.nextPrice).text); // 12: worked out from one burner lit
+  console.log("can buy it:", play().stove.canBuy); // false: the pot is empty
   play().lid.toggle();
   console.log("heat:", fmt(play().stats.heat).text); // 2: the lid doubles it
   console.log("the stove's rate:", fmt(play().stove.perSecond).text); // 2: one burner at double heat
