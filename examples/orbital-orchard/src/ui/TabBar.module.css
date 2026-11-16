@@ -1,0 +1,132 @@
+/* Narrow: a bar of 64px blocks along the foot, one equal column per tab, the gutter between them. */
+.bar {
+  display: grid;
+  grid-auto-flow: column;
+  grid-auto-columns: minmax(0, 1fr);
+  gap: var(--ui-gutter);
+  box-sizing: border-box;
+  width: 100%;
+  padding: var(--ui-gutter) 0 env(safe-area-inset-bottom, 0px);
+  background: var(--ui-ground);
+}
+/* Wide: the same blocks stacked down the rail, 96px each. */
+.bar[data-rail] {
+  grid-auto-flow: row;
+  grid-template-columns: minmax(0, 1fr);
+  align-content: start;
+  height: 100%;
+  padding: 0;
+}
+
+/* A tab: a raised block ruled in the control's edge; icon top-left, name bottom-left, count top-right. */
+.tab {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  box-sizing: border-box;
+  width: 100%;
+  min-width: 0;
+  height: 64px;
+  margin: 0;
+  padding: 8px 12px;
+  border: 0;
+  border-radius: var(--ui-radius);
+  background: var(--ui-surface);
+  box-shadow: inset 0 0 0 1px var(--ui-edge);
+  color: var(--ui-ink);
+  text-align: start;
+  cursor: pointer;
+  transition: background-color var(--ui-duration) var(--ui-ease-out);
+}
+.bar[data-rail] .tab {
+  align-items: flex-start;
+  justify-content: space-between;
+  height: 96px;
+  padding: 12px;
+}
+@media (hover: hover) {
+  .tab:hover {
+    background: var(--ui-sunken);
+  }
+}
+.tab:active:not([data-current]) {
+  background: var(--ui-sunken-press);
+}
+/* The open tab: the signal block, black type, no ring. */
+.tab[data-current] {
+  background: var(--ui-accent);
+  box-shadow: none;
+  color: var(--ui-on-accent);
+}
+.icon {
+  display: block;
+  width: 24px;
+  height: 24px;
+}
+.icon svg {
+  display: block;
+  width: 100%;
+  height: 100%;
+}
+
+/* The display voice: read, not drawn, on the narrow bar; drawn at the foot of each rail block. */
+.label {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  margin: -1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+}
+.bar[data-rail] .label {
+  position: static;
+  width: auto;
+  height: auto;
+  margin: 0;
+  overflow: visible;
+  clip-path: none;
+  font-family: var(--ui-font-display);
+  font-size: 17px;
+  font-weight: 650;
+  font-variation-settings: "opsz" 48;
+  line-height: 1;
+  letter-spacing: -0.01em;
+  white-space: normal;
+}
+
+/* Not open yet: the icon and the name recede. */
+.tab[data-locked] .icon,
+.tab[data-locked] .label {
+  opacity: 0.45;
+}
+
+/* Something waiting: the signal square at the top right; on the open tab (already the signal), an ink square. */
+.count {
+  position: absolute;
+  top: 4px;
+  right: 4px;
+  box-sizing: border-box;
+  display: grid;
+  place-items: center;
+  min-width: 20px;
+  height: 20px;
+  padding: 0 4px;
+  background: var(--ui-accent);
+  color: var(--ui-on-accent);
+  font-family: var(--ui-font-num);
+  font-size: 11px;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  line-height: 1;
+}
+.bar[data-rail] .count {
+  top: 12px;
+  right: 12px;
+}
+.tab[data-current] .count {
+  background: var(--ui-ink);
+  color: var(--ui-surface);
+}

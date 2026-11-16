@@ -1,0 +1,8 @@
+node_modules/
+.env
+*.log
+dist/
+# Local only: the working notes, plans and briefs name people and places.
+/.claude/
+.scratch/
+dsp/target/

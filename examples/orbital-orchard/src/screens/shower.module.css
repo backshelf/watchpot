@@ -1,0 +1,111 @@
+/* The meteor shower's screen: the head with its countdown, the sky, the nets and the milestones. */
+
+.head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-2);
+}
+
+/* The sky: square panes of the observation glass, the window's mullions between them. */
+.sky {
+  display: grid;
+  max-width: 480px;
+  grid-template-columns: repeat(var(--sky-cols), minmax(0, 1fr));
+  gap: 1px;
+  margin: 0;
+  padding: 1px;
+  list-style: none;
+  background: var(--hairline);
+}
+.sky > li {
+  display: grid;
+}
+
+.cell {
+  display: grid;
+  place-items: center;
+  align-content: center;
+  gap: var(--space-1);
+  aspect-ratio: 1;
+  min-height: 64px;
+  padding: var(--space-1);
+  border: 0;
+  background: var(--ground);
+  color: var(--ink-muted);
+  text-align: center;
+}
+
+/*
+ * A patch of sky not yet netted. Between showers the glass is dark, a hairline pin in each pane. While the shower
+ * falls each pane holds a star in the ink and a faint fall of the signal from its top edge, the way the sky looks
+ * when something is coming; under the pointer the star takes the signal.
+ */
+/* Wide, the glass runs the panel's breadth in landscape panes: the observation window, not a phone's grid. */
+[data-wide] .sky {
+  max-width: none;
+}
+[data-wide] .cell {
+  aspect-ratio: 16 / 9;
+}
+
+button.cell {
+  background: radial-gradient(circle at 50% 50%, var(--hairline) 0 1.5px, transparent 2px), var(--ground);
+}
+.sky[data-live] button.cell {
+  cursor: pointer;
+  background:
+    radial-gradient(circle at 50% 50%, var(--ink-muted) 0 1.5px, transparent 2.5px),
+    linear-gradient(to bottom, color-mix(in srgb, var(--signal) 10%, transparent), transparent 60%),
+    var(--ground);
+}
+.sky[data-live] button.cell:hover:not(:disabled) {
+  background:
+    radial-gradient(circle at 50% 50%, var(--signal) 0 2.5px, transparent 3.5px),
+    linear-gradient(to bottom, color-mix(in srgb, var(--signal) 18%, transparent), transparent 70%),
+    var(--ground-raised);
+}
+.sky[data-live] button.cell:disabled {
+  cursor: default;
+  background: radial-gradient(circle at 50% 50%, var(--hairline) 0 1.5px, transparent 2px), var(--ground);
+}
+
+.cell[data-token="glint"],
+.cell[data-token="streak"],
+.cell[data-token="fireball"] {
+  color: var(--signal);
+}
+.cell[data-token="pod"] {
+  color: var(--rarity-rare);
+}
+.cell[data-token="dark"] {
+  color: var(--hairline);
+}
+.cell > span {
+  color: var(--ink-muted);
+}
+
+.catch {
+  min-height: 1.4em;
+  margin-top: var(--space-3);
+  color: var(--ink-muted);
+}
+
+.node,
+.milestone {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-2) var(--space-4);
+}
+.node > div,
+.milestoneText {
+  flex: 1 1 220px;
+  min-width: 0;
+}
+.milestoneText {
+  display: grid;
+  gap: var(--space-1);
+}

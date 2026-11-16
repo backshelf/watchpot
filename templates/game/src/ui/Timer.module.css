@@ -1,0 +1,33 @@
+.timer {
+  display: inline-flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 6px;
+  margin: 0;
+}
+.timer[data-size="large"] {
+  display: grid;
+  gap: 4px;
+}
+.label {
+  color: var(--ui-ink-muted);
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+.digits {
+  font-family: var(--ui-font-num);
+  font-size: 13px;
+  font-variant-numeric: tabular-nums;
+}
+.timer[data-size="large"] .digits {
+  font-size: 36px;
+  line-height: 1;
+}
+.timer[data-warn] .digits {
+  color: var(--ui-danger);
+}
+.timer[data-ended] {
+  color: var(--ui-ink-muted);
+}

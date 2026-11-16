@@ -1,0 +1,123 @@
+/* @feature tree */
+/*
+ * `TreeGraph` places each node at `--col`/`--row` (both from 0) and its tier heading at `--col`; the root carries
+ * `--cols`/`--rows`. The graph is a grid of equal cells with no gap, so the edges' SVG, stretched over the node rows,
+ * lands each elbow on a cell's centre; the space between tiles is the cells' own padding.
+ */
+.tree {
+  display: grid;
+  gap: 16px;
+}
+.tree[data-wide] {
+  grid-template-columns: minmax(0, 1fr) 280px;
+  align-items: start;
+}
+
+.tree > [data-graph] {
+  display: grid;
+  grid-template-columns: repeat(var(--cols), minmax(150px, 1fr));
+  grid-template-rows: auto repeat(var(--rows), 76px);
+  overflow-x: auto;
+}
+.tree [data-tier-head] {
+  grid-row: 1;
+  grid-column: calc(var(--col) + 1);
+  padding: 0 8px 8px;
+  color: var(--ui-ink-muted);
+  font-size: 12px;
+  font-weight: 600;
+}
+
+/* The elbows, behind the tiles; lit from a built node. */
+.tree [data-edges] {
+  grid-row: 2 / -1;
+  grid-column: 1 / -1;
+  width: 100%;
+  height: 100%;
+}
+.tree [data-edges] line {
+  stroke: var(--ui-line);
+  stroke-width: 2px;
+}
+.tree [data-edges] line[data-lit] {
+  stroke: var(--ui-accent);
+}
+
+.tree [data-node] {
+  position: relative;
+  z-index: 1;
+  grid-row: calc(var(--row) + 2);
+  grid-column: calc(var(--col) + 1);
+  display: grid;
+  padding: 6px 8px;
+}
+.tree [data-pick] {
+  display: grid;
+  align-content: center;
+  gap: 2px;
+  padding: 8px 10px;
+  border: 1px solid var(--ui-line);
+  border-radius: var(--ui-radius);
+  background: var(--ui-surface);
+  text-align: start;
+  cursor: pointer;
+}
+.tree [data-node][data-lit] [data-pick] {
+  border-color: var(--ui-accent);
+}
+.tree [data-node][data-chosen] [data-pick] {
+  box-shadow: inset 0 0 0 1px var(--ui-ink);
+}
+.tree [data-node][data-state="locked"] [data-pick] {
+  border-style: dashed;
+  color: var(--ui-ink-muted);
+}
+
+.name {
+  overflow: hidden;
+  font-size: 13px;
+  font-weight: 600;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.rank {
+  color: var(--ui-ink-muted);
+  font-family: var(--ui-font-num);
+  font-size: 11px;
+  font-variant-numeric: tabular-nums;
+}
+/* The next price on the tile's corner: the accent when it can be paid now. */
+.price {
+  position: absolute;
+  right: 14px;
+  bottom: 10px;
+  color: var(--ui-ink-muted);
+  font-family: var(--ui-font-num);
+  font-size: 11px;
+  font-variant-numeric: tabular-nums;
+}
+.price[data-affordable] {
+  color: var(--ui-accent);
+  font-weight: 600;
+}
+
+/* The chosen node's detail: a rail beside the graph on a wide page, a drawer under it on a phone. */
+.detail {
+  display: grid;
+  gap: 8px;
+  padding: 16px;
+  border: 1px solid var(--ui-line);
+  border-radius: var(--ui-radius);
+  background: var(--ui-surface);
+}
+.detailName {
+  font-family: var(--ui-font-display);
+  font-size: 18px;
+  font-weight: 700;
+}
+.effect {
+  font-weight: 600;
+}
+.action {
+  padding-top: 4px;
+}

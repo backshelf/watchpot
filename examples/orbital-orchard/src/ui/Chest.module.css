@@ -1,0 +1,171 @@
+/* The box beside its odds, under them on a narrow page. */
+.set {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-start;
+  gap: 24px;
+}
+
+/* A ruled case: a 2-unit frame on the grey block's shade, the edge in ink. `--chest-size` is the caller's hook. */
+.chest {
+  --chest-body: var(--ui-sunken-press);
+  --chest-edge: var(--ui-ink);
+  width: var(--chest-size, 140px);
+  margin: 0;
+}
+.art {
+  position: relative;
+  display: block;
+  width: 100%;
+  aspect-ratio: 1;
+}
+.art > svg,
+.shadow,
+.light {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  overflow: visible;
+}
+/* The card shadow sits on a box the size of the case, behind the drawing. */
+.shadow {
+  inset: 24.3% 7.1% 7.1% 7.1%;
+  width: auto;
+  height: auto;
+  box-shadow: var(--ui-shadow);
+}
+/* Lit from below: a lamp in the rung's colour under the foot, and a dot screen up the wall that thins as it climbs. */
+.lamp {
+  position: absolute;
+  left: 6%;
+  right: 6%;
+  top: 93.5%;
+  height: 3px;
+  background: var(--glow);
+}
+.uplight {
+  position: absolute;
+  left: -25%;
+  right: -25%;
+  top: -70%;
+  bottom: 7%;
+  clip-path: polygon(20% 100%, 80% 100%, 100% 0, 0 0);
+  background: radial-gradient(circle, var(--glow) 0 1.2px, transparent 1.6px) 0 0 / 4px 4px;
+  mask: linear-gradient(
+    to top,
+    currentColor,
+    color-mix(in srgb, currentColor 50%, transparent) 30%,
+    transparent 85%
+  );
+}
+
+.fill {
+  fill: var(--chest-body);
+}
+.edge {
+  fill: var(--chest-edge);
+}
+/* The grip slot: the case's one lit part, in its glow's rung; the edge's ink when unlit. */
+.grip {
+  fill: var(--glow, var(--chest-edge));
+}
+.line {
+  fill: none;
+  stroke: var(--chest-edge);
+  stroke-width: 3;
+  stroke-linejoin: miter;
+}
+.frame {
+  fill: none;
+  stroke: var(--chest-edge);
+  stroke-width: 2;
+}
+
+/* Opening: the lid lifts off flat and the foil light leaks from the seam behind it, in four straight slats. */
+.light {
+  animation-name: light-in;
+  animation-duration: var(--ui-duration-reveal);
+  animation-timing-function: var(--ui-ease-out);
+  animation-fill-mode: both;
+}
+.beam {
+  position: absolute;
+  inset: 0;
+  clip-path: polygon(
+    14% 51.5%,
+    14% -14%,
+    24% -14%,
+    24% 51.5%,
+    32% 51.5%,
+    32% -14%,
+    42% -14%,
+    42% 51.5%,
+    58% 51.5%,
+    58% -14%,
+    68% -14%,
+    68% 51.5%,
+    76% 51.5%,
+    76% -14%,
+    86% -14%,
+    86% 51.5%
+  );
+}
+.beamFoil {
+  opacity: 0.9;
+}
+.chest[data-state="opening"] .lid {
+  transform: translateY(-20px);
+  animation-name: lid-lift;
+  animation-duration: var(--ui-duration-reveal);
+  animation-timing-function: var(--ui-ease-snap);
+  animation-fill-mode: both;
+}
+@keyframes lid-lift {
+  from {
+    transform: translateY(0);
+  }
+  to {
+    transform: translateY(-20px);
+  }
+}
+@keyframes light-in {
+  from {
+    opacity: 0;
+  }
+}
+
+/* The odds: the box's name over a ruled list of rungs and shares. */
+.odds {
+  display: grid;
+  gap: 8px;
+  width: 260px;
+}
+.oddsLabel {
+  margin: 0;
+  font-size: 12px;
+  font-weight: 600;
+  line-height: 1.2;
+  letter-spacing: 0.02em;
+}
+.odds dl {
+  display: grid;
+  margin: 0;
+  font-size: 13px;
+  line-height: 1.4;
+}
+.oddsRow {
+  display: flex;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 4px 0;
+  border-top: 1px solid var(--ui-line);
+}
+.oddsRow dt,
+.oddsRow dd {
+  margin: 0;
+}
+.oddsRow dd {
+  font-family: var(--ui-font-num);
+  font-variant-numeric: tabular-nums;
+}

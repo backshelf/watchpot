@@ -1,0 +1,48 @@
+/* The segmented bar: a grey track cut into blocks with the terminal's gutter, the lit share in ink. */
+.bar {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.row {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 16px;
+}
+.label {
+  color: var(--ui-ink);
+  font-size: 12px;
+  font-weight: 600;
+  line-height: 1.2;
+  letter-spacing: 0.02em;
+}
+.value {
+  color: var(--ui-ink-muted);
+  font-family: var(--ui-font-num);
+  font-size: 12px;
+  font-weight: 500;
+  font-variant-numeric: tabular-nums;
+  line-height: 1;
+}
+.bar[data-complete] .value {
+  color: var(--ui-ok);
+}
+
+/* `Progress` sets `--steps` and draws one `[data-step]` per block, the lit ones `[data-lit]`. */
+.track {
+  display: grid;
+  grid-template-columns: repeat(var(--steps), minmax(0, 1fr));
+  gap: var(--ui-gutter);
+  height: 8px;
+}
+.bar[data-thin] .track {
+  height: 4px;
+}
+.track > [data-step] {
+  background: var(--ui-sunken);
+  transition: background-color var(--ui-duration) var(--ui-ease-out);
+}
+.track > [data-lit] {
+  background: var(--ui-ink);
+}

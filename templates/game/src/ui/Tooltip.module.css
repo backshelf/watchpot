@@ -1,0 +1,20 @@
+/* Placed by the primitive (`position` and its offsets inline); `data-side` says where it landed. */
+.tip {
+  z-index: 50;
+  max-width: 260px;
+  padding: 8px 10px;
+  border-radius: var(--ui-radius);
+  background: var(--ui-ink);
+  color: var(--ui-ground);
+  font-size: 13px;
+  line-height: 1.35;
+  pointer-events: none;
+}
+.tip[data-state="open"] {
+  animation: appear var(--ui-duration) ease-out;
+}
+@keyframes appear {
+  from {
+    opacity: 0;
+  }
+}

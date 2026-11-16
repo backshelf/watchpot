@@ -1,0 +1,32 @@
+import { currencies, type Decimal, defineGame, fmtWait, streak } from "watchpot/core";
+import { TOY } from "./vocab";
+
+type State = { wallet: { gold: Decimal; gems: Decimal } };
+
+const wallet = currencies({ key: "wallet", vocab: TOY });
+
+/** A week that repeats: gold rising each day, gems on the seventh. */
+export const daily = streak({
+  key: "daily",
+  rewards: (day) => (day % 7 === 0 ? { gold: 0, gems: 5 } : { gold: 100 * (day % 7), gems: 0 }),
+  onClaim: (draft: State, reward) => {
+    wallet.credit(draft, "gold", reward.gold); // a credit of 0 does nothing
+    wallet.credit(draft, "gems", reward.gems);
+  },
+  grace: 1, // one missed day is forgiven
+  keep: (draft, missed) => wallet.debit(draft, "gems", missed * 10), // past that, gems save the run
+});
+
+export const game = defineGame({
+  id: "daily",
+  save: { key: "daily.save", version: 1 },
+  features: [wallet, daily],
+  vocab: TOY,
+});
+
+/** The banner's line. */
+export function dailyLine(s: { daily: Parameters<typeof daily.status>[0] }, now: number): string {
+  const status = daily.status(s.daily, now);
+  if (status.canClaim) return status.broken ? "Start a new streak" : `Claim day ${status.count + 1}`;
+  return `Day ${status.count} claimed · next in ${fmtWait(status.msUntilNext)}`;
+}

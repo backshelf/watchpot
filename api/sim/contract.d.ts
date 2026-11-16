@@ -1,0 +1,110 @@
+/**
+ * The contract DSL: a game's pacing targets as data, and the checks that read a timeline against them. A table is
+ * bands (a metric's range at a position on an axis: hour 8 of play, the end of day 3) over the game's metrics; `judge`
+ * reads each band off the latest row at or before its position. The other checks are verdicts built from the
+ * combinators (`at`, `pairs`, `perRun`) and `check`. `tally` and `failing` read the same checks over several seeds.
+ */
+/** One check on one run. */
+export interface Verdict {
+    name: string;
+    value: number;
+    /** "2–3", "at most 35", or the rule in words. */
+    target: string;
+    ok: boolean;
+    /** Reported but never failing a gate: the task that will make it hold. */
+    todo?: string;
+}
+/** A verdict from its parts. */
+export declare const check: (name: string, value: number, target: string, ok: boolean, todo?: string) => Verdict;
+/** In at or above `min`. */
+export declare const atLeast: (name: string, value: number, min: number) => Verdict;
+/** In at or below `max`. */
+export declare const atMost: (name: string, value: number, max: number) => Verdict;
+/** One quantity of a row, with the name a verdict gives it. */
+export interface Metric<R> {
+    readonly name: string;
+    read(row: R): number;
+}
+/** Where on a run a band is read. */
+export interface Axis<R> {
+    /** The band's position in its verdict's name: `hour 8`, `day 3`. */
+    label(at: number): string;
+    /** Whether a row was taken at or before the position. */
+    covers(row: R, at: number): boolean;
+    /** Whether the run's last row got far enough for the band to be read at all. */
+    reached(last: R, at: number): boolean;
+}
+/** Hours since a start (`hours` reads them off a row): a band at hour `h` reads the last row by then, once reached. */
+export declare const byHour: <R>(hours: (row: R) => number) => Axis<R>;
+/**
+ * Calendar days since the first morning: a band at day `d` reads the last row by the end of that day, and is read
+ * once the run got into the day.
+ */
+export declare const byDay: <R>(hours: (row: R) => number) => Axis<R>;
+/** A metric's range at one position. */
+export interface Band<M extends string = string> {
+    readonly metric: M;
+    readonly at: number;
+    readonly min: number;
+    readonly max: number;
+    /** Where the band is today's economy, not the target: the task that will tune it. Never fails a gate. */
+    readonly todo?: string;
+}
+/**
+ * A band, written as the p10 to p90 of the seeds it was measured on (or any floor and ceiling): `band("chapter",
+ * { at: 3, p10: 5, p90: 6 })`.
+ */
+export declare function band<M extends string>(metric: M, { at, p10, p90, todo }: {
+    at: number;
+    p10: number;
+    p90: number;
+    todo?: string;
+}): Band<M>;
+/** A metric's bands at a table's columns, each `[p10, p90]` or `[p10, p90, todo]`. */
+export type BandRow<M extends string> = readonly [M, readonly (readonly [number, number, string?])[]];
+/** Bands as a grid: one row per metric, one range per column, in column order. */
+export declare function grid<M extends string>(columns: readonly number[], rows: readonly BandRow<M>[]): Band<M>[];
+/** A table: bands on one axis over the game's metrics. */
+export interface Table<R, M extends string = string> {
+    readonly axis: Axis<R>;
+    readonly metrics: {
+        readonly [K in M]: Metric<R>;
+    };
+    readonly bands: readonly Band<M>[];
+}
+/** Builds a pacing contract: bands on an axis over named metrics. */
+export declare const table: <R, M extends string>(axis: Axis<R>, metrics: { readonly [K in M]: Metric<R>; }, bands: readonly Band<M>[]) => Table<R, M>;
+/** The latest row at or before a position on an axis; undefined before the first. Rows in time order. */
+export declare const at: <R>(rows: readonly R[], axis: Axis<R>, position: number) => R | undefined;
+/**
+ * Every band the run reached, judged on the latest row at or before it (rows in time order). With `ceiling` a band
+ * is an upper bound alone: under its floor is in.
+ */
+export declare function judge<R, M extends string>(rows: readonly R[], t: Table<R, M>, { ceiling }?: {
+    ceiling?: boolean;
+}): Verdict[];
+/** A check on each row and the one before it (a day's close against the day before's): the first row has none. */
+export declare const pairs: <R>(rows: readonly R[], each: (row: R, before: R | undefined) => Verdict[]) => Verdict[];
+/** A check on each run's rows, in run order (`run` reads a row's run). */
+export declare function perRun<R>(rows: readonly R[], run: (row: R) => number, each: (rows: R[], run: number) => Verdict[]): Verdict[];
+/** One check across several runs (seeds): how many of them it was out on. */
+export interface Tally {
+    name: string;
+    out: number;
+    of: number;
+    /** Every run's value, in run order. */
+    values: number[];
+    /** Carried from the verdicts: reported, never failing (`Verdict.todo`). */
+    todo?: string;
+}
+/**
+ * The same checks over several runs, by name. A check fails when it is out on more than half of them: one seed is
+ * one draw, and a band one unlucky draw misses is noise, not a regression.
+ */
+export declare function tally(runs: readonly (readonly Verdict[])[]): Tally[];
+/** The checks a majority of runs miss, but those marked `todo`. */
+export declare const failing: (tallies: readonly Tally[]) => Tally[];
+/** The 10th and 90th percentiles of a check's values (nearest rank): how a band is written from a few seeds. */
+export declare function p10p90(values: readonly number[]): [number, number];
+/** The verdicts as a count and a markdown table. */
+export declare function formatVerdicts(verdicts: readonly Verdict[]): string;

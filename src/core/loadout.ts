@@ -1,0 +1,309 @@
+import type { Draft } from "immer";
+import { type Feature, type FeatureApi, feature, type ResetRule } from "./feature";
+
+/**
+ * Loadouts: a few slots, the items a player holds, and what the items in the slots do together. An item fits a slot
+ * of its `kind`; every slotted item gives its own effects, and a `LoadoutSet` gives more once enough slotted items
+ * carry its tag. `loadout({ id, slots, items, sets })` is the rules over a slots record the game keeps wherever it
+ * saves it; `loadoutFeature({ key, …, owns })` is a feature that owns the record. The effects are the game's own
+ * type: with the stat bus's `Effect`, `contributions` feeds `busOf` as a tree's do.
+ */
+
+/** One slot. With a `kind` it takes only items of that kind; without one it takes anything. */
+export interface LoadoutSlot {
+  readonly id: string;
+  readonly kind?: string;
+}
+
+/** One item that can be slotted: its kind (which slots take it), its tags (which sets count it) and its effects. */
+export interface LoadoutItem<E> {
+  readonly id: string;
+  readonly kind?: string;
+  readonly tags?: readonly string[];
+  readonly effects?: readonly E[];
+}
+
+/** A set: slotted items carrying `tag` are counted, and the highest tier whose `count` is reached gives its effects. */
+export interface LoadoutSet<E> {
+  readonly id: string;
+  readonly tag: string;
+  /** Lowest count first. */
+  readonly tiers: readonly { readonly count: number; readonly effects: readonly E[] }[];
+}
+
+/** What sits in each slot: an item id, or null for an empty slot. A slot absent is empty. */
+export type Slotted = Readonly<Record<string, string | null>>;
+
+/** Why an item cannot go in a slot. */
+export type LoadoutFailure = "unknown-slot" | "unknown-item" | "wrong-kind" | "not-owned";
+
+/** A set as it stands: how many slotted items carry its tag, the tier reached (-1 for none) and the next count. */
+export interface SetStanding<E> {
+  readonly set: LoadoutSet<E>;
+  readonly count: number;
+  /** The index of the tier reached, or -1. */
+  readonly tier: number;
+  /** The count the next tier needs, or null at the last. */
+  readonly next: number | null;
+}
+
+/** The definition `loadout` takes. */
+export interface LoadoutDef<E> {
+  /** The source prefix on the stat bus: `<id>:<item>` for an item, `<id>:set:<set>` for a set. */
+  readonly id: string;
+  readonly slots: readonly LoadoutSlot[];
+  readonly items: readonly LoadoutItem<E>[];
+  readonly sets?: readonly LoadoutSet<E>[];
+}
+
+/** A loadout's rules. */
+export interface Loadout<E> {
+  readonly id: string;
+  readonly slots: readonly LoadoutSlot[];
+  readonly items: readonly LoadoutItem<E>[];
+  readonly sets: readonly LoadoutSet<E>[];
+  item(id: string): LoadoutItem<E> | undefined;
+  /** Whether the item's kind suits the slot. */
+  fits(slot: string, item: string): boolean;
+  /** Why `item` cannot go in `slot`, or null when it can. `owns` is the game's answer to "does the player hold it". */
+  check(slot: string, item: string, owns: (item: string) => boolean): LoadoutFailure | null;
+  /** Puts `item` in `slot`; an item already in another slot moves. Returns the failure, or null when it went in. */
+  equip(
+    slotted: Record<string, string | null>,
+    slot: string,
+    item: string,
+    owns: (item: string) => boolean,
+  ): LoadoutFailure | null;
+  /** Empties a slot. False for a slot the loadout lacks. */
+  clear(slotted: Record<string, string | null>, slot: string): boolean;
+  /** The slotted items, in slot order. An id the loadout no longer knows is skipped. */
+  equipped(slotted: Slotted): LoadoutItem<E>[];
+  /** Every set as it stands. */
+  standings(slotted: Slotted): SetStanding<E>[];
+  /** Every effect in play: each slotted item's, then each reached set tier's. */
+  contributions(slotted: Slotted): { source: string; effect: E }[];
+}
+
+/** A loadout's rules over a slots record the game keeps. Throws on a repeated slot, item or set id. */
+export function loadout<E>(def: LoadoutDef<E>): Loadout<E> {
+  const unique = (what: string, ids: readonly string[]) => {
+    const seen = new Set<string>();
+    for (const id of ids) {
+      if (seen.has(id)) throw new Error(`loadout "${def.id}": the ${what} "${id}" appears twice`);
+      seen.add(id);
+    }
+  };
+  const sets = def.sets ?? [];
+  unique(
+    "slot",
+    def.slots.map((s) => s.id),
+  );
+  unique(
+    "item",
+    def.items.map((i) => i.id),
+  );
+  unique(
+    "set",
+    sets.map((s) => s.id),
+  );
+  const slotById = new Map(def.slots.map((s) => [s.id, s]));
+  const itemById = new Map(def.items.map((i) => [i.id, i]));
+
+  const fits = (slot: string, item: string) => {
+    const s = slotById.get(slot);
+    const i = itemById.get(item);
+    return s !== undefined && i !== undefined && (s.kind === undefined || s.kind === i.kind);
+  };
+  const check = (slot: string, item: string, owns: (item: string) => boolean): LoadoutFailure | null => {
+    if (!slotById.has(slot)) return "unknown-slot";
+    if (!itemById.has(item)) return "unknown-item";
+    if (!fits(slot, item)) return "wrong-kind";
+    return owns(item) ? null : "not-owned";
+  };
+  const equipped = (slotted: Slotted) =>
+    def.slots.flatMap((s) => {
+      const item = itemById.get(slotted[s.id] ?? "");
+      return item ? [item] : [];
+    });
+  const standings = (slotted: Slotted): SetStanding<E>[] => {
+    const held = equipped(slotted);
+    return sets.map((set) => {
+      const count = held.filter((i) => i.tags?.includes(set.tag)).length;
+      let tier = -1;
+      set.tiers.forEach((t, n) => {
+        if (count >= t.count) tier = n;
+      });
+      return { set, count, tier, next: set.tiers[tier + 1]?.count ?? null };
+    });
+  };
+
+  return {
+    id: def.id,
+    slots: def.slots,
+    items: def.items,
+    sets,
+    item: (id) => itemById.get(id),
+    fits,
+    check,
+    equip: (slotted, slot, item, owns) => {
+      const failure = check(slot, item, owns);
+      if (failure) return failure;
+      for (const s of def.slots) if (slotted[s.id] === item) slotted[s.id] = null;
+      slotted[slot] = item;
+      return null;
+    },
+    clear: (slotted, slot) => {
+      if (!slotById.has(slot)) return false;
+      slotted[slot] = null;
+      return true;
+    },
+    equipped,
+    standings,
+    contributions: (slotted) => {
+      const out: { source: string; effect: E }[] = [];
+      for (const item of equipped(slotted))
+        for (const effect of item.effects ?? []) out.push({ source: `${def.id}:${item.id}`, effect });
+      for (const { set, tier } of standings(slotted))
+        for (const effect of set.tiers[tier]?.effects ?? [])
+          out.push({ source: `${def.id}:set:${set.id}`, effect });
+      return out;
+    },
+  };
+}
+
+/**
+ * A good loadout for `score` (higher is better, read over a whole slots record): from `start` (default empty), the
+ * best exchange of up to `depth` slots at once (default 3) for items the player owns and has not slotted, again and
+ * again until none scores higher. A single exchange fills and upgrades; a pair or a triple finds a set that pays only
+ * once two or three of it are in. `slots` limits it to the slots that are open (default all). The cost is a scoring
+ * per exchange tried, which grows with the depth's power of the items owned: tens of items and a handful of slots
+ * take milliseconds, so call it on a press or a change, never every tick.
+ */
+export function fillLoadout<E>(
+  rules: Loadout<E>,
+  options: {
+    owns: (item: string) => boolean;
+    score: (slotted: Slotted) => number;
+    slots?: readonly string[];
+    start?: Slotted;
+    depth?: number;
+  },
+): Record<string, string | null> {
+  const { owns, score, depth = 3 } = options;
+  const open = options.slots ?? rules.slots.map((s) => s.id);
+  const candidates = rules.items.filter((i) => owns(i.id)).map((i) => i.id);
+  const slotted: Record<string, string | null> = {};
+  for (const slot of open) {
+    const id = options.start?.[slot] ?? null;
+    slotted[slot] = id !== null && rules.check(slot, id, owns) === null ? id : null;
+  }
+  let best = score(slotted);
+  const chosen = (k: number, from: readonly string[] | readonly (string | null)[], at = 0): unknown[][] => {
+    if (k === 0) return [[]];
+    const out: unknown[][] = [];
+    for (let i = at; i <= from.length - k; i++)
+      for (const rest of chosen(k - 1, from, i + 1)) out.push([from[i], ...rest]);
+    return out;
+  };
+
+  // With kinds, which slot takes which item matters: an exchange tries every order. Without, one order is enough.
+  const kinds = rules.slots.some((s) => s.kind !== undefined);
+  const orders = <T>(xs: readonly T[]): T[][] =>
+    !kinds || xs.length <= 1
+      ? [[...xs]]
+      : xs.flatMap((x, i) => orders([...xs.slice(0, i), ...xs.slice(i + 1)]).map((rest) => [x, ...rest]));
+
+  for (let guard = 0; guard < 1000; guard++) {
+    let improved = false;
+    for (let k = 1; k <= Math.min(depth, open.length) && !improved; k++) {
+      const idle = new Set(Object.values(slotted));
+      const spare = [...candidates.filter((id) => !idle.has(id)), ...Array<null>(k).fill(null)];
+      let pick: { slots: string[]; items: (string | null)[]; value: number } | null = null;
+      for (const slots of chosen(k, open) as string[][]) {
+        const was = slots.map((s) => slotted[s] ?? null);
+        for (const items of (chosen(k, spare) as (string | null)[][]).flatMap(orders)) {
+          // Every slot changes, and each takes what it fits.
+          if (items.some((id, i) => id === was[i] || (id !== null && !rules.fits(slots[i] as string, id))))
+            continue;
+          slots.forEach((s, i) => {
+            slotted[s] = items[i] ?? null;
+          });
+          const value = score(slotted);
+          if (value > best + 1e-12 && (!pick || value > pick.value)) pick = { slots, items, value };
+          slots.forEach((s, i) => {
+            slotted[s] = was[i] ?? null;
+          });
+        }
+      }
+      if (pick) {
+        const { slots, items, value } = pick;
+        slots.forEach((s, i) => {
+          slotted[s] = items[i] ?? null;
+        });
+        best = value;
+        improved = true;
+      }
+    }
+    if (!improved) break;
+  }
+  return slotted;
+}
+
+/** A loadout feature's state: what sits in each slot. */
+export interface LoadoutState {
+  slotted: Record<string, string | null>;
+}
+
+/** The loadout feature's actions. */
+export interface LoadoutActions {
+  /** Puts an item the player holds in a slot. Returns the failure, or null when it went in. */
+  equip(slot: string, item: string): LoadoutFailure | null;
+  /** Empties a slot. */
+  clear(slot: string): boolean;
+}
+
+/** A `loadoutFeature`, carrying its rules as `.loadout`. */
+export type LoadoutFeature<K extends string, E> = Feature<K, LoadoutState, LoadoutActions> & {
+  readonly loadout: Loadout<E>;
+};
+
+/**
+ * A loadout as a feature: it saves `{ slotted }` under `key` (the stat bus's source prefix too). `owns(state, item)`
+ * is the game's rule for what the player holds, read off the whole game state. A prestige reset keeps the slots
+ * unless `reset` says otherwise.
+ */
+export function loadoutFeature<const K extends string, E, G extends object = object>(def: {
+  readonly key: K;
+  readonly slots: readonly LoadoutSlot[];
+  readonly items: readonly LoadoutItem<E>[];
+  readonly sets?: readonly LoadoutSet<E>[];
+  readonly owns: (state: G, item: string) => boolean;
+  readonly reset?: ResetRule<LoadoutState>;
+}): LoadoutFeature<K, E> {
+  const rules = loadout<E>({ id: def.key, slots: def.slots, items: def.items, sets: def.sets });
+  type Own = Record<K, LoadoutState>;
+  const slice = (draft: Draft<Own>): LoadoutState => (draft as Own)[def.key];
+  const made = feature({
+    key: def.key,
+    initial: (): LoadoutState => ({ slotted: Object.fromEntries(def.slots.map((s) => [s.id, null])) }),
+    reset: def.reset ?? "never",
+    actions: (api: FeatureApi<Own>): LoadoutActions => ({
+      equip: (slot, item) => {
+        let result: LoadoutFailure | null = "unknown-slot";
+        const state = api.get() as unknown as G;
+        api.set((d) => {
+          result = rules.equip(slice(d).slotted, slot, item, (id) => def.owns(state, id));
+        });
+        return result;
+      },
+      clear: (slot) => {
+        let cleared = false;
+        api.set((d) => {
+          cleared = rules.clear(slice(d).slotted, slot);
+        });
+        return cleared;
+      },
+    }),
+  });
+  return Object.assign(made, { loadout: rules });
+}

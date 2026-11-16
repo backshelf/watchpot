@@ -1,0 +1,43 @@
+/* @feature clicker */
+.target {
+  position: relative;
+  display: inline-grid;
+}
+.press {
+  display: grid;
+  place-items: center;
+  min-width: 120px;
+  min-height: 120px;
+  padding: 16px;
+  border: 1px solid var(--ui-line);
+  border-radius: var(--ui-radius);
+  background: var(--ui-surface);
+  cursor: pointer;
+  touch-action: manipulation;
+  user-select: none;
+  transition: scale var(--ui-duration) ease-out;
+}
+.press[data-pressed] {
+  scale: 0.96;
+}
+
+/* Each float is placed at its press (`left`/`top` inline) and rises as it fades; it goes when this ends. */
+.floats {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+}
+.floats > [data-float] {
+  translate: -50% -50%;
+  color: var(--ui-accent);
+  font-family: var(--ui-font-num);
+  font-weight: 700;
+  white-space: nowrap;
+  animation: float 900ms ease-out forwards;
+}
+@keyframes float {
+  to {
+    opacity: 0;
+    transform: translateY(-48px);
+  }
+}

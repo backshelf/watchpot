@@ -1,0 +1,4 @@
+[test]
+preload = ["./test/happydom.ts", "./test/testing-library.ts"]
+# The slow tier (`*.slow.test.ts`, over about a second) runs only at a checkpoint: `bun run test:slow`.
+pathIgnorePatterns = ["**/*.slow.test.*"]

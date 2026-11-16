@@ -1,0 +1,253 @@
+import { describe, expect, test } from "bun:test";
+import {
+  busOf,
+  createGameStorage,
+  createIdleStore,
+  createMemoryBackend,
+  currencies,
+  D,
+  type Decimal,
+  defineGame,
+  type Effect,
+  type GraphNode,
+  type Purse,
+  statTotals,
+  tree,
+  treeMoves,
+  upgradeTree,
+  vocab,
+  withMoves,
+} from "watchpot/core";
+import { autoPlayer } from "watchpot/sim";
+
+const T0 = Date.UTC(2026, 9, 29, 12);
+
+const TOY = vocab({ currencies: ["gold", "gems"], stats: ["toy.speed"], rarities: ["common"] } as const);
+type Node = GraphNode<Effect, "gold" | "gems">;
+
+const NODES: readonly Node[] = [
+  {
+    id: "drill",
+    name: "Drill",
+    line: "",
+    cost: [{ currency: "gold", amount: 10 }],
+    costGrowth: 2,
+    maxLevel: 3,
+    requires: [],
+    effects: [{ stat: "toy.speed", add: 1 }],
+  },
+  {
+    id: "laser",
+    name: "Laser",
+    line: "",
+    cost: [
+      { currency: "gold", amount: 5 },
+      { currency: "gems", amount: 1 },
+    ],
+    maxLevel: 20,
+    requires: ["drill"],
+    effects: [{ stat: "toy.speed", mult: 1.5 }],
+  },
+];
+
+/** A purse over plain numbers, for the rules on their own. */
+function memoryPurse(
+  start: Record<"gold" | "gems", number>,
+): Purse<"gold" | "gems"> & { held: typeof start } {
+  const held = { ...start };
+  return {
+    held,
+    balance: (c): Decimal => D(held[c]),
+    debit: (c, amount) => {
+      if (held[c] < D(amount).toNumber()) return false;
+      held[c] -= D(amount).toNumber();
+      return true;
+    },
+  };
+}
+
+describe("tree", () => {
+  const rules = tree({ id: "mine", nodes: NODES });
+
+  test("a rank checks its requirements, pays every currency of its price, and raises the next price", () => {
+    const ranks: Record<string, number> = {};
+    const purse = memoryPurse({ gold: 100, gems: 5 });
+    expect(rules.buy(ranks, "laser", purse)).toEqual({ ok: false, code: "requires", node: "drill" });
+    expect(rules.buy(ranks, "drill", purse)).toEqual({ ok: true, id: "drill", level: 1 });
+    expect(rules.buy(ranks, "laser", purse)).toEqual({ ok: true, id: "laser", level: 1 });
+    expect(purse.held).toEqual({ gold: 85, gems: 4 });
+    const next = rules.price(NODES[0] as Node, 1)?.[0]?.amount;
+    expect(next?.gt(10)).toBe(true);
+  });
+
+  test("it refuses an unknown node, a maxed one and one the purse cannot cover, and pays nothing for them", () => {
+    const purse = memoryPurse({ gold: 100, gems: 0 });
+    expect(rules.buy({}, "nope", purse)).toEqual({ ok: false, code: "unknown" });
+    expect(rules.buy({ drill: 3 }, "drill", purse)).toEqual({ ok: false, code: "maxed" });
+    expect(rules.price(NODES[0] as Node, 3)).toBeNull();
+    const short = rules.buy({ drill: 1 }, "laser", purse);
+    expect(short.ok === false && short.code).toBe("cannot-afford");
+    expect(purse.held).toEqual({ gold: 100, gems: 0 });
+  });
+
+  test("two price lines in one currency are summed: a purse short of the sum gets no rank and pays nothing", () => {
+    const twice = tree({
+      id: "twice",
+      nodes: [
+        {
+          ...(NODES[0] as Node),
+          id: "twin",
+          cost: [
+            { currency: "gold", amount: 60 },
+            { currency: "gold", amount: 60 },
+          ],
+        },
+      ],
+    });
+    const ranks: Record<string, number> = {};
+    const purse = memoryPurse({ gold: 100, gems: 0 });
+    const short = twice.buy(ranks, "twin", purse);
+    expect(short.ok === false && short.code).toBe("cannot-afford");
+    expect(ranks.twin).toBeUndefined();
+    expect(purse.held.gold).toBe(100);
+  });
+
+  test("buying max is buying one at a time until a buy fails, on any price, and stops at the last rank", () => {
+    const base = NODES[0] as Node;
+    const shop = tree<Node>({
+      id: "shop",
+      nodes: [
+        ...NODES,
+        { ...base, id: "steep", cost: [{ currency: "gold", amount: 7 }], costGrowth: 1.37, maxLevel: 400 },
+        {
+          ...base,
+          id: "pair",
+          cost: [
+            { currency: "gold", amount: 3 },
+            { currency: "gold", amount: 4.5 },
+          ],
+          costGrowth: 1.2,
+          maxLevel: 400,
+        },
+        { ...base, id: "flat", cost: [{ currency: "gold", amount: 2 }], costGrowth: 1, maxLevel: 25 },
+      ],
+    });
+    for (const id of ["steep", "pair", "flat", "laser"])
+      for (const gold of [0, 9, 250, 1e4, 3e6]) {
+        const start = { gold, gems: 7 };
+        const one = memoryPurse(start);
+        const many = memoryPurse(start);
+        const ranksOne: Record<string, number> = { drill: 1, [id]: 2 };
+        const ranksMany: Record<string, number> = { drill: 1, [id]: 2 };
+        let bought = 0;
+        while (bought < 500 && shop.buy(ranksOne, id, one).ok) bought += 1;
+        expect(shop.affordable(id, ranksMany, (c) => many.balance(c))).toBe(bought);
+        expect(shop.buyMax(ranksMany, id, many)).toBe(bought);
+        expect(ranksMany).toEqual(ranksOne);
+        expect(many.held).toEqual(one.held);
+      }
+    const rich = memoryPurse({ gold: 1e9, gems: 0 });
+    const ranks: Record<string, number> = {};
+    expect(shop.buyMax(ranks, "flat", rich, 10)).toBe(10);
+    expect(shop.buyMax(ranks, "flat", rich)).toBe(15);
+    expect(shop.buyMax(ranks, "flat", rich)).toBe(0);
+    expect(shop.buyMax(ranks, "laser", rich)).toBe(0); // its requirement is not held
+  });
+
+  test("every rank held lands on the stat bus, sourced by the tree and node", () => {
+    const c = rules.contributions({ drill: 2, laser: 1 });
+    expect(c.every((x) => x.source.startsWith("mine:"))).toBe(true);
+    const totals = statTotals(busOf(c), "toy.speed");
+    expect(totals.add).toBe(2);
+    expect(totals.mult).toBeCloseTo(1.5);
+  });
+
+  test("a milestone rank adds its extra effects on top, and only at every nth rank", () => {
+    const jumpy = tree({
+      id: "mine",
+      nodes: NODES,
+      milestone: {
+        every: 2,
+        effect: (e) => (e.add === undefined ? null : { stat: e.stat, add: e.add * 10 }),
+      },
+    });
+    const add = (n: number) => statTotals(busOf(jumpy.contributions({ drill: n })), "toy.speed").add;
+    expect(add(1)).toBe(1);
+    expect(add(2) - add(1)).toBeGreaterThan(add(1));
+    expect(add(3) - add(2)).toBe(1);
+  });
+
+  test("it refuses a repeated node or a requirement outside the tree", () => {
+    expect(() => tree({ id: "t", nodes: [NODES[0] as Node, NODES[0] as Node] })).toThrow(/drill/);
+    expect(() => tree({ id: "t", nodes: [NODES[1] as Node] })).toThrow(/drill/);
+  });
+});
+
+describe("upgradeTree", () => {
+  const wallet = currencies({ key: "wallet", vocab: TOY, start: { gold: 12 } });
+  const mine = upgradeTree({ key: "mine", nodes: NODES, wallet });
+  const game = defineGame({
+    id: "toy",
+    save: { key: "toy.save", version: 1 },
+    features: [wallet, mine],
+    vocab: TOY,
+  });
+  const storeOf = (backend = createMemoryBackend()) =>
+    createIdleStore(game, { storage: createGameStorage(backend, { debounceMs: 0 }), now: () => T0 });
+
+  test("buys from its wallet, saves its ranks, and a run reset clears them", () => {
+    const backend = createMemoryBackend();
+    const store = storeOf(backend);
+    expect(store.getState().mine.buy("drill")).toEqual({ ok: true, id: "drill", level: 1 });
+    expect(store.getState().mine.buy("drill").ok).toBe(false);
+    expect(store.getState().wallet.gold.eq(2)).toBe(true);
+    expect(storeOf(backend).getState().mine.ranks).toEqual({ drill: 1 });
+    expect(mine.tree.contributions(store.getState().mine.ranks)).toHaveLength(1);
+    store.getState().resetRun();
+    expect(store.getState().mine.ranks).toEqual({});
+  });
+
+  test("buys max from its wallet, and a closed node buys none", () => {
+    const store = storeOf();
+    store.getState().wallet.credit("gold", 100); // 112: ranks of 10, 20 and 40 cost 70, and the last rank is 3
+    expect(store.getState().mine.buyMax("drill")).toBe(3);
+    expect(store.getState().wallet.gold.eq(42)).toBe(true);
+    const shut = upgradeTree({ key: "mine", nodes: NODES, wallet, open: () => false });
+    const closed = createIdleStore(
+      defineGame({ id: "toy", save: { key: "toy.save", version: 1 }, features: [wallet, shut], vocab: TOY }),
+      { storage: createGameStorage(createMemoryBackend(), { debounceMs: 0 }), now: () => T0 },
+    );
+    expect(closed.getState().mine.buyMax("drill")).toBe(0);
+    expect(closed.getState().wallet.gold.eq(12)).toBe(true);
+  });
+});
+
+describe("treeMoves", () => {
+  test("offers each buyable rank at its price, and the auto-player buys through them", () => {
+    const wallet = currencies({ key: "wallet", vocab: TOY, start: { gold: 40, gems: 3 } });
+    const mine = withMoves(
+      upgradeTree({ key: "mine", nodes: NODES, wallet }),
+      treeMoves("mine", NODES, (node) => (node.id === "drill" ? 2 : 1)),
+    );
+    const game = defineGame({
+      id: "moves",
+      save: { key: "moves", version: 1 },
+      features: [wallet, mine],
+      vocab: TOY,
+    });
+    const store = createIdleStore(game, {
+      storage: createGameStorage(createMemoryBackend(), { debounceMs: 0 }),
+      now: () => T0,
+    });
+    const offered = (mine.moves?.(store.getState() as never) ?? []).map((m) => m.id);
+    // The laser needs the drill first, so only the drill is on offer.
+    expect(offered).toEqual(["mine:drill"]);
+    const player = autoPlayer(game, {
+      balance: (s, c) => (s as unknown as { wallet: Record<string, Decimal> }).wallet[c] ?? D(0),
+    });
+    const look = player.look(store as never);
+    expect(look.bought).toBeGreaterThan(0);
+    expect(store.getState().mine.ranks.drill).toBeGreaterThan(0);
+    expect(store.getState().mine.ranks.laser).toBeGreaterThan(0);
+  });
+});

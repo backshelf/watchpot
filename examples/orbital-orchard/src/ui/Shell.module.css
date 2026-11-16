@@ -1,0 +1,68 @@
+/*
+ * The page fills the window and never scrolls: the open screen scrolls inside the stage. A phone stacks header,
+ * stage and the tab bar on the flat ground with the gutter between them; a wide page (`data-wide`, measured by
+ * `PageShell`) runs the tabs down a 120px rail on the left, beside the header and the stage.
+ */
+.shell {
+  isolation: isolate;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  grid-template-rows: auto minmax(0, 1fr) auto;
+  grid-template-areas: "header" "stage" "nav";
+  gap: var(--ui-gutter);
+  box-sizing: border-box;
+  height: 100dvh;
+  overflow: clip;
+  background: var(--ui-ground);
+  color: var(--ui-ink);
+}
+.shell[data-wide] {
+  grid-template-columns: 120px minmax(0, 1fr);
+  grid-template-rows: auto minmax(0, 1fr);
+  grid-template-areas:
+    "nav header"
+    "nav stage";
+}
+
+.header {
+  grid-area: header;
+}
+.stage {
+  position: relative;
+  grid-area: stage;
+  min-height: 0;
+}
+.under {
+  height: 100%;
+}
+/* The screen's column: the grid's own gutter at its sides, room under its last block, no scrollbar drawn. */
+.scroll {
+  box-sizing: border-box;
+  height: 100%;
+  overflow-x: hidden;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  padding: 0 var(--ui-gutter) 64px;
+  scrollbar-width: none;
+  /* A new tab fades and rises in: the column is keyed by tab, so this plays on every switch. */
+  animation-name: tab-in;
+  animation-duration: var(--ui-duration);
+  animation-timing-function: var(--ui-ease-out);
+}
+.scroll::-webkit-scrollbar {
+  display: none;
+}
+@keyframes tab-in {
+  from {
+    opacity: 0;
+    translate: 0 12px;
+  }
+}
+.nav {
+  grid-area: nav;
+  min-height: 0;
+}
+/* The sheets portal to the body; their outlet takes no room in the grid. */
+.sheets {
+  display: contents;
+}

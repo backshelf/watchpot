@@ -1,0 +1,99 @@
+{
+  "name": "Lantern Stall",
+  "premise": "A folding table, one burner and a paper lantern at the edge of the night market. By dawn the queue goes round the block.",
+  "voice": "Brisk, warm, a hawker's patter. Prices shouted, compliments to the chef taken personally.",
+  "player": "Someone with a tab open at a desk, checking in between tasks.",
+  "core": "generators",
+  "features": ["clicker", "tree", "gacha", "prestige", "achievements", "visitor"],
+  "currencies": {
+    "main": { "name": "Copper", "plural": "Coppers", "glyph": "coin" },
+    "premium": { "name": "Jade chip", "plural": "Jade chips", "glyph": "gem" }
+  },
+  "stats": { "output": "Bustle", "offline": "Simmer", "gain": "Reputation" },
+  "generators": [
+    { "name": "Ladle", "line": "Dip, pour, next." },
+    { "name": "Second burner", "line": "Twice the steam." },
+    { "name": "Hired cousin", "line": "Family rates. Mostly." },
+    { "name": "Corner stand", "line": "Prime spot by the gate." },
+    { "name": "Delivery bike", "line": "Bell, basket, no brakes." },
+    { "name": "Neon sign", "line": "Visible from the river." }
+  ],
+  "clicker": { "name": "The wok", "verb": "Toss", "line": "Flames lick the rim." },
+  "tree": {
+    "name": "The menu board",
+    "nodes": [
+      { "name": "House broth", "line": "Bones simmered since Tuesday.", "stat": "output" },
+      { "name": "Lidded pots", "line": "Keeps warm while you nap.", "stat": "offline" },
+      { "name": "Chilli oil", "line": "A spoonful, then another.", "stat": "output" },
+      { "name": "Loyalty stamps", "line": "Ten bowls, one free.", "stat": "gain" },
+      { "name": "Night shift", "line": "Someone stays to stir.", "stat": "offline" },
+      { "name": "Secret recipe", "line": "Written on rice paper. Eaten.", "stat": "output" },
+      { "name": "Word of mouth", "line": "Everyone's aunt has heard.", "stat": "gain" },
+      { "name": "Wok hei", "line": "The breath of the pan.", "stat": "output" }
+    ]
+  },
+  "gacha": {
+    "name": "Spice crates",
+    "box": "Crate",
+    "rarities": [{ "name": "Pantry" }, { "name": "Fragrant" }, { "name": "Fabled" }],
+    "items": [
+      { "name": "Star anise", "rarity": "pantry", "stat": "output" },
+      { "name": "Dried shrimp", "rarity": "pantry", "stat": "offline" },
+      { "name": "Black vinegar", "rarity": "pantry", "stat": "output" },
+      { "name": "Sichuan pepper", "rarity": "fragrant", "stat": "output" },
+      { "name": "Aged soy", "rarity": "fragrant", "stat": "gain" },
+      { "name": "Saffron thread", "rarity": "fabled", "stat": "output" }
+    ]
+  },
+  "prestige": {
+    "name": "Move stalls",
+    "verb": "Pack up",
+    "currency": { "name": "Regular", "plural": "Regulars", "glyph": "star" }
+  },
+  "achievements": {
+    "name": "The wall of fame",
+    "items": [
+      { "name": "Open for business", "line": "The lantern is lit.", "when": { "own": 0, "count": 10 } },
+      { "name": "Two flames", "line": "Double the hiss.", "when": { "own": 1, "count": 10 } },
+      { "name": "Family business", "line": "Grandma approves. Barely.", "when": { "own": 2, "count": 10 } },
+      { "name": "Location, location", "line": "Right by the gate.", "when": { "own": 3, "count": 5 } },
+      { "name": "Out for delivery", "line": "Mind the puddles.", "when": { "own": 4, "count": 5 } },
+      { "name": "Lit up", "line": "Moths for miles.", "when": { "own": 5, "count": 1 } },
+      { "name": "Pocket change", "line": "It jingles.", "when": { "earned": 1000 } },
+      { "name": "Takings", "line": "Count it twice.", "when": { "earned": 1000000 } },
+      { "name": "Strongbox", "line": "Bolted to the table.", "when": { "earned": 1000000000 } },
+      { "name": "Sore wrist", "line": "Toss, toss, toss.", "when": { "clicks": 50 } },
+      { "name": "Iron forearm", "line": "The wok is light now.", "when": { "clicks": 500 } },
+      { "name": "New pitch", "line": "Same lantern, new corner.", "when": { "runs": 1 } },
+      { "name": "Nomad", "line": "Every market knows you.", "when": { "runs": 5 } },
+      { "name": "Full menu", "line": "Chalk on every line.", "when": { "nodes": 6 } },
+      { "name": "Crate digger", "line": "Sawdust everywhere.", "when": { "pulls": 20 } },
+      { "name": "Dawn queue", "line": "They waited all night.", "when": { "earned": 1000000000000 }, "secret": true }
+    ]
+  },
+  "visitor": {
+    "name": "A food critic",
+    "line": "Notebook out, napkin tucked.",
+    "buff": { "name": "Rave review", "mult": 5, "seconds": 45 }
+  },
+  "tabs": { "make": "Stall", "tree": "Menu", "gacha": "Crates", "prestige": "Move", "achievements": "Fame" },
+  "session": "short",
+  "look": {
+    "palette": {
+      "ground": "#f5eedf",
+      "ink": "#231a14",
+      "signal": "#c8322a",
+      "rarities": ["#8c8173", "#2f7d6d", "#d99a1e"]
+    },
+    "type": {
+      "display": { "family": "Fraunces", "spec": "Fraunces:ital,opsz,wght@0,9..144,100..900;1,9..144,100..900", "fallback": "Georgia, serif" },
+      "ui": { "family": "Work Sans", "spec": "Work+Sans:ital,wght@0,100..900;1,100..900", "fallback": "Arial, sans-serif" },
+      "num": { "family": "JetBrains Mono", "spec": "JetBrains+Mono:wght@100..800", "fallback": "Menlo, monospace" }
+    },
+    "surface": {
+      "base": "print",
+      "line": "A hand-printed menu card: red and black inks on cheap stock, the dots fattening as the queue grows."
+    },
+    "moment": "The first fabled crate: the lantern flares, the menu card bleeds red to the edges, and a saffron thread drifts down."
+  }
+}

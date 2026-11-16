@@ -1,0 +1,309 @@
+/*
+ * The reveal: a room over the whole page, the dark moment. Its light is `--tone` (a registered colour, so a change of
+ * rung fades across): a pool behind the centre that runs hotter with the rung's step (`data-step`, 0..4), rays from
+ * step 3, and on the top rung every pane of the station's glass catching it. Type stands on blocks, never on the
+ * light. Every pull is drawn at `--w`, the card's width for this window, and placed in card units from the stage's
+ * centre.
+ */
+@property --tone {
+  syntax: "<color>";
+  inherits: true;
+  initial-value: transparent;
+}
+
+.room {
+  --w: min(300px, calc((100dvh - 56px) * 0.34), 60vw);
+  --pool: 10%;
+  position: fixed;
+  inset: 0;
+  z-index: 30;
+  isolation: isolate;
+  overflow: hidden;
+  background: var(--ui-ground);
+  color: var(--ui-ink);
+  outline: none;
+  transition: --tone var(--ui-duration-reveal) var(--ui-ease-out);
+}
+.room[data-phase="summary"] {
+  overflow-y: auto;
+}
+.room[data-step="1"] {
+  --pool: 18%;
+}
+.room[data-step="2"] {
+  --pool: 28%;
+}
+.room[data-step="3"] {
+  --pool: 38%;
+}
+.room[data-step="4"] {
+  --pool: 48%;
+}
+
+/* The light: behind everything in the room, which is its own stacking context. */
+.pool,
+.rays,
+.glass {
+  position: absolute;
+  z-index: -1;
+  pointer-events: none;
+}
+.pool {
+  inset: 0;
+  background: radial-gradient(
+    circle at 50% 44%,
+    color-mix(in srgb, var(--tone) var(--pool), transparent) 0,
+    transparent min(60vh, 60vw)
+  );
+  transition: opacity var(--ui-duration) var(--ui-ease-out);
+}
+/* Charging: the pool breathes in the coming rung's colour until the face turns. */
+.room[data-charging] .pool {
+  animation: breathe 520ms ease-in-out infinite alternate;
+}
+@keyframes breathe {
+  to {
+    opacity: 0.55;
+  }
+}
+/* Rays from step 3: thin slats of the light turning slowly round the centre. */
+.rays {
+  inset: -50%;
+  opacity: 0;
+  background: repeating-conic-gradient(
+    from 0deg at 50% 47%,
+    color-mix(in srgb, var(--tone) 18%, transparent) 0deg 4deg,
+    transparent 4deg 15deg
+  );
+  mask: radial-gradient(circle at 50% 47%, currentColor 0, transparent 40%);
+  transform-origin: 50% 47%;
+  transition: opacity var(--ui-duration-reveal) var(--ui-ease-out);
+  animation: turn 90s linear infinite;
+}
+.room[data-step="3"] .rays,
+.room[data-step="4"] .rays {
+  opacity: 1;
+}
+@keyframes turn {
+  to {
+    rotate: 1turn;
+  }
+}
+/* The top rung: every pane of the station's glass catches it, brightest near the bloom. */
+.glass {
+  inset: 0;
+  opacity: 0;
+  background-image:
+    linear-gradient(to right, color-mix(in srgb, var(--tone) 40%, transparent) 1px, transparent 1px),
+    linear-gradient(to bottom, color-mix(in srgb, var(--tone) 40%, transparent) 1px, transparent 1px);
+  background-position: center;
+  background-size: 120px 120px;
+  mask: radial-gradient(ellipse at 50% 44%, currentColor 0, transparent 75%);
+  transition: opacity 1400ms var(--ui-ease-out);
+}
+.room[data-top] .glass {
+  opacity: 1;
+}
+
+.confetti {
+  position: absolute;
+  inset: 0;
+  z-index: 4;
+  width: 100%;
+  height: 100%;
+  pointer-events: none;
+}
+/* The flash's colour and place; its opacity is the engine's `Flash`. */
+.flash {
+  z-index: 4;
+  background: var(--tone);
+}
+
+/* The head: the title and Skip, each on its own ground block. */
+.top {
+  position: relative;
+  z-index: 7;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  box-sizing: border-box;
+  height: 56px;
+  padding: 0 16px 0 8px;
+}
+.title {
+  margin: 0;
+  padding: 4px 8px;
+  background: var(--ui-ground);
+  font-size: 12px;
+  font-weight: 600;
+  line-height: 1.2;
+  letter-spacing: 0.02em;
+}
+.count {
+  color: var(--ui-ink-muted);
+  font-family: var(--ui-font-num);
+  font-variant-numeric: tabular-nums;
+}
+.skip {
+  display: inline-flex;
+  background: var(--ui-ground);
+}
+
+/* The stage: the tap target, and the origin of every pose (its centre). */
+.stage {
+  position: absolute;
+  inset: 56px 0 0;
+  z-index: 2;
+  cursor: pointer;
+}
+.poses {
+  position: absolute;
+  inset: 0;
+  z-index: 1;
+  isolation: isolate;
+}
+
+/* The box, half as big again: on this screen it is the one object. */
+.box {
+  position: absolute;
+  left: 50%;
+  top: 44%;
+  z-index: 2;
+  transform: translate(-50%, -50%) scale(1.5);
+}
+
+/* A pull: one box at the card's size, its centre on the stage's, placed by motion in card units from there. */
+.card {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  width: var(--w);
+  height: calc(var(--w) * 1.4);
+  margin: calc(var(--w) * -0.7) 0 0 calc(var(--w) * -0.5);
+}
+.card[data-role="shelf"] {
+  pointer-events: none;
+}
+/*
+ * The lift, between the posed box and the flipper (motion owns both of their transforms): the turned face rises a
+ * little through the turn and settles; from a big step (`data-pop`) it pops as it lands.
+ */
+.lift {
+  position: relative;
+  width: 100%;
+  height: 100%;
+  perspective: 900px;
+}
+.card[data-role="stage"][data-turned] .lift {
+  animation-name: lift-turn;
+  animation-duration: 600ms;
+  animation-timing-function: var(--ui-ease-out);
+}
+.card[data-role="stage"][data-turned][data-pop] .lift {
+  animation-name: lift-pop;
+  animation-duration: 1100ms;
+  animation-timing-function: linear;
+}
+@keyframes lift-turn {
+  50% {
+    scale: 1.06;
+  }
+}
+@keyframes lift-pop {
+  27% {
+    scale: 1.08;
+  }
+  36% {
+    scale: 1.16;
+  }
+  52% {
+    scale: 0.97;
+  }
+  68% {
+    scale: 1.03;
+  }
+  84% {
+    scale: 0.995;
+  }
+}
+.flipper {
+  position: relative;
+  width: 100%;
+  height: 100%;
+  transform-style: preserve-3d;
+}
+.face {
+  position: absolute;
+  inset: 0;
+  backface-visibility: hidden;
+}
+.front {
+  transform: rotateY(180deg);
+}
+/* Reduced motion: no turn, no lift; the faces cross-fade. */
+.room[data-reduced] .face {
+  backface-visibility: visible;
+  transition: opacity 200ms linear;
+}
+.room[data-reduced] .front {
+  transform: none;
+}
+.room[data-reduced] .card[data-role="stage"] .lift {
+  animation-name: none;
+}
+
+/* What the face in the centre does: under it on a narrow page, beside it on a wide one. */
+.panel {
+  position: absolute;
+  left: 16px;
+  right: 16px;
+  top: calc(50% + var(--w) * 0.56 + 12px);
+  z-index: 2;
+  display: grid;
+  justify-items: center;
+  text-align: center;
+  pointer-events: none;
+}
+.room[data-wide] .panel {
+  left: calc(50% + var(--w) * 0.5 + 24px);
+  right: auto;
+  top: calc(50% - var(--w) * 0.84);
+  width: 320px;
+  justify-items: start;
+  text-align: start;
+}
+
+/* The line at the foot of the stage: the way on, on its own ground block. */
+.foot {
+  position: absolute;
+  left: 50%;
+  bottom: calc(24px + env(safe-area-inset-bottom, 0px));
+  z-index: 2;
+  margin: 0;
+  padding: 4px 12px;
+  translate: -50% 0;
+  background: var(--ui-ground);
+  color: var(--ui-ink-muted);
+  font-size: 13px;
+  line-height: 1.4;
+  white-space: nowrap;
+  pointer-events: none;
+}
+
+/* The closing lot: a raised block at the foot of the room, over the shelf of every face. */
+.summary {
+  position: absolute;
+  left: 16px;
+  right: 16px;
+  bottom: calc(16px + env(safe-area-inset-bottom, 0px));
+  z-index: 5;
+  box-sizing: border-box;
+  max-height: 60%;
+  overflow-y: auto;
+  padding: 16px;
+  background: var(--ui-surface);
+}
+.room[data-wide] .summary {
+  max-width: 560px;
+  margin-inline: auto;
+}

@@ -1,0 +1,36 @@
+## Records
+
+The statistics screen: named running values, each folded by its kind and kept at the scopes it names (this run, the
+whole life of the profile), with the best of every finished run and a short list of past runs beside them. A run reset
+pushes the ending run onto that list with its length in game time and starts the run scope over; the life scope never
+clears. The game notes what it counts where it happens, from a recipe, a step or an action.
+
+```ts
+import { records } from "watchpot/core";
+
+export const stats = records({
+  key: "stats",
+  track: {
+    presses: { kind: "sum", scope: ["run", "life"] },
+    gold: { kind: "sum", scope: ["run", "life"], decimal: true },
+    richest: { kind: "max", scope: ["run", "life"], decimal: true },
+    gemsHeld: { kind: "last", scope: ["life"] },
+  },
+});
+// in a step or recipe: stats.add(draft, "gold", earned); from outside: store.getState().stats.add("presses", 1)
+// reads: s.stats.run("gold"), s.stats.life("presses"), s.stats.best("richest"), s.stats.runs, s.stats.bestRunMs
+```
+
+Example: [`examples/records.ts`](examples/records.ts).
+
+- **Kinds:** `sum` adds, `max` keeps the highest, `min` the lowest, `last` the latest. A `sum` starts at zero at every
+  scope it keeps; the others have no value (undefined) until noted. `decimal: true` keeps a record as a Decimal, else
+  a number; the names and their value types are read off `track`.
+- **`records({ key, track, keepRuns? })`** saves `{ values: { run, life, best }, runs, runStart, bestRunMs }`. Actions:
+  `add(name, n)` (for a sum; on another kind the same as `note`), `note(name, value)` (folds by the kind at every scope
+  the record keeps), `run(name)`, `life(name)`, `best(name)`. The draft helpers `.add(draft, name, n)` and
+  `.note(draft, name, value)` do the same inside a recipe or step, and `.value(state, scope, name)` reads the slice
+  for a selector. No steps.
+- **A run reset** pushes `{ endedAt, lengthMs, values }` (the run scope) onto `runs`, oldest first, `keepRuns`
+  (default 10) at most; folds each run value into `best` (higher is better, lower for a `min`, or the track's
+  `best: "high" | "low"`); keeps the shortest run as `bestRunMs`; then clears the run scope. The life scope stays.

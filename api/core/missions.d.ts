@@ -1,0 +1,92 @@
+import type { Draft } from "immer";
+import { type Feature, type ResetRule } from "./feature";
+import { type RngState } from "./rng";
+/**
+ * Missions: timed tasks in slots. Send something away, collect when it is back: an expedition, a delivery, a
+ * research job. A mission costs what the game's `pay` hook takes at the start, and its reward is rolled at the start
+ * too, on the feature's own saved rng, and stored with it: a reload cannot reroll it, and a screen can show it before
+ * it lands. Missions run on game time, so they finish during an absence like any other time.
+ *
+ * `missionLeftMs` and `missionReady` read one entry; `missions({ key, slots, list })` is the feature.
+ */
+/** One mission: how long it takes, when it can be sent, its cost (the game's own shape) and its reward roll. */
+export interface MissionDef<G, R, X = never> {
+    readonly id: string;
+    /** How long it takes, read when it starts. */
+    readonly durationMs: (state: G) => number;
+    /** Whether it can be started now. Default: always. */
+    readonly available?: (state: G) => boolean;
+    /** What it costs, in the game's own shape: `pay` takes it at the start. */
+    readonly cost?: X;
+    /**
+     * The reward, rolled at the start from `rng` (a stream of its own for this start, drawn from the feature's saved
+     * one) and stored with the entry. Plain data or Decimals: it is saved.
+     */
+    readonly reward: (state: G, rng: RngState) => R;
+}
+/** A mission under way: its own id, the mission it runs, its times and the reward it will pay. */
+export interface ActiveMission<R> {
+    /** Unique among the entries: `<mission>#<n>`. */
+    id: string;
+    mission: string;
+    startedAt: number;
+    endsAt: number;
+    reward: R;
+}
+/** The feature's saved state. */
+export interface MissionsState<R> {
+    active: ActiveMission<R>[];
+    /** Claims per mission id. */
+    done: Record<string, number>;
+    /** The stream every reward is drawn from. */
+    rng: RngState;
+    /** Missions started so far: the next entry's number. */
+    serial: number;
+}
+/** Why a mission cannot start. */
+export type MissionFailure = "unknown" | "unavailable" | "no-slot" | "cannot-pay";
+/** Ms until the entry is back at game time `now`, never negative. */
+export declare function missionLeftMs(entry: Pick<ActiveMission<unknown>, "endsAt">, now: number): number;
+/** Whether the entry is back at game time `now`, ready to claim. */
+export declare function missionReady(entry: Pick<ActiveMission<unknown>, "endsAt">, now: number): boolean;
+/** The feature's actions. */
+export interface MissionActions {
+    /** Starts a mission: pays, rolls its reward, takes a slot. Returns why not, or null when it went. */
+    start(missionId: string): MissionFailure | null;
+    /** Claims an entry that is back: pays its reward through `onClaim` and frees its slot. False when it is not back. */
+    claim(activeId: string): boolean;
+    /** Recalls an entry, back or not, with no reward and no refund. False for an unknown id. */
+    cancel(activeId: string): boolean;
+}
+/** A mission list's rules. */
+export interface MissionRules<G, R, X> {
+    readonly list: readonly MissionDef<G, R, X>[];
+    mission(id: string): MissionDef<G, R, X> | undefined;
+    /** The slots now. */
+    slots(state: G): number;
+    /** Slots not taken. */
+    freeSlots(state: G): number;
+    /** The entries back at `now`. */
+    ready(state: G, now: number): ActiveMission<R>[];
+}
+/** A `missions` feature, carrying its rules as `.rules`. */
+export type MissionsFeature<K extends string, G, R, X> = Feature<K, MissionsState<R>, MissionActions> & {
+    readonly rules: MissionRules<G, R, X>;
+};
+/**
+ * Missions as a feature. It saves `{ active, done, rng, serial }` under `key` and needs no step: an entry is back once
+ * game time passes its `endsAt`, tab open or not. `start` checks the mission is known and `available`, that a slot is
+ * free (`slots(state)`) and that `pay(draft, mission)` takes the cost (a mission with no `cost` never calls it; `pay`
+ * must write nothing when it refuses), then rolls and stores the reward. `claim` runs `onClaim(draft, reward,
+ * mission)` in its recipe. Auto-player moves: claim every entry back, start every mission that fits. A prestige reset
+ * clears the entries unless `reset` says otherwise. The callbacks read the whole game state, so annotate one of them
+ * with the game's state type.
+ */
+export declare function missions<const K extends string, R, X = never, G extends object = object>(def: {
+    readonly key: K;
+    readonly slots: (state: G) => number;
+    readonly list: readonly MissionDef<G, R, X>[];
+    readonly pay?: (draft: Draft<G>, mission: MissionDef<G, R, X>) => boolean;
+    readonly onClaim?: (draft: Draft<G>, reward: R, mission: string) => void;
+    readonly reset?: ResetRule<MissionsState<R>>;
+}): MissionsFeature<K, G, R, X>;

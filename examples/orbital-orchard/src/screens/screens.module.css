@@ -1,0 +1,168 @@
+/* A screen: one centred column, its title, then its panels. */
+.screen {
+  display: grid;
+  gap: var(--space-4);
+  box-sizing: border-box;
+  width: 100%;
+  max-width: 880px;
+  margin-inline: auto;
+  padding: var(--space-5) var(--space-4) var(--space-4);
+}
+/* The screen's name in the display voice: Fraunces, the one size above a panel's heading. */
+.title {
+  margin: 0 0 var(--space-1);
+  font-family: var(--font-display);
+  font-size: 32px;
+  font-weight: 650;
+  font-variation-settings: "opsz" 72;
+  line-height: 1;
+  letter-spacing: -0.02em;
+}
+.list {
+  display: grid;
+  gap: var(--space-3);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+/* The register: the rung, the name over what it does, how many; the columns line up down the list. */
+.register {
+  display: grid;
+  grid-template-columns: max-content minmax(0, 1fr) auto;
+  align-items: center;
+  gap: var(--space-3) var(--space-4);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+.register > li {
+  display: contents;
+}
+.entry {
+  display: grid;
+  min-width: 0;
+}
+/* The top rung's name, wherever a line says it, in its rose. */
+.top {
+  color: var(--rarity-heirloom);
+  font-weight: 600;
+}
+.muted {
+  color: var(--ink-muted);
+}
+.actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+}
+
+/* The orchard: the counter, then the rows, each a ruled line of the panel. */
+.hero {
+  display: grid;
+  gap: var(--space-1);
+}
+.rows {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+.tree {
+  display: grid;
+  grid-template-columns: 3ch 1fr auto;
+  align-items: center;
+  gap: var(--space-3);
+  padding: var(--space-3) 0;
+  border-top: 1px solid var(--hairline);
+}
+.tree:first-child {
+  border-top: 0;
+  padding-top: 0;
+}
+.count {
+  font-size: 22px;
+  color: var(--ink-muted);
+  text-align: right;
+}
+.tree[data-planted] .count {
+  color: var(--signal);
+}
+.treeText {
+  display: grid;
+  gap: 2px;
+  min-width: 0;
+}
+.treeText > p {
+  margin: 0;
+}
+.treeName {
+  font-family: var(--font-display);
+  font-size: 18px;
+  font-weight: 600;
+  line-height: 1.2;
+}
+.dark {
+  grid-template-columns: 3ch 1fr;
+}
+@media (max-width: 480px) {
+  .tree {
+    grid-template-columns: 3ch 1fr;
+  }
+  .tree > :last-child:not(.treeText) {
+    grid-column: 2;
+    justify-self: start;
+  }
+}
+
+/* The graft bench: the kit beside its words, under them on a narrow page. */
+.bench {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-start;
+  gap: var(--space-4);
+}
+.benchText {
+  flex: 1 1 260px;
+  display: grid;
+  gap: var(--space-3);
+}
+
+/* The orbit: the burn's figure, the bar toward the next, the words and the burn; the orbits held under it. */
+.burn {
+  display: grid;
+  gap: var(--space-4);
+}
+.gainLine {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: var(--space-1) var(--space-3);
+  margin: 0;
+  color: var(--ink-muted);
+}
+.gain {
+  font-size: 56px;
+  font-weight: 500;
+  line-height: 1;
+  letter-spacing: -0.03em;
+}
+.gainLine[data-ready] .gain {
+  color: var(--ink);
+}
+/* The burn: a large button, but a phone's width at most, so it never runs the page's breadth. */
+.burnAction {
+  display: grid;
+  max-width: 360px;
+}
+.figures {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: var(--space-3);
+  margin: 0;
+  padding: 0 var(--space-4);
+}
+.figures dt {
+  color: var(--ink-muted);
+}
+.figures dd {
+  margin: var(--space-1) 0 0;
+}

@@ -1,0 +1,271 @@
+/*
+ * `TreeGraph` places each node at `--col`/`--row` (both from 0) and its tier heading at `--col`; the section carries
+ * `--cols`/`--rows` and `data-cols`. Tiers run across as columns of at least 168px (a tile and its gutter), the
+ * headings on the first row, every node row the height of the tallest so the edges' view box of one unit a cell
+ * lands on the cells' centres; the tiles keep the gutter as margin inside their cells, never a grid gap.
+ *
+ * The rail (280px: the widest buy fits) stands beside the graph once the tree's own box (an unnamed query box) holds
+ * every column and the rail, under it otherwise, where the graph scrolls across. A query cannot read a custom
+ * property, so the thresholds are written per tier count: n x 168 + 24 + 280.
+ */
+.tree {
+  container-type: inline-size;
+}
+.layout {
+  display: grid;
+  gap: 16px;
+}
+@container (min-width: 640px) {
+  .layout:is([data-cols="1"], [data-cols="2"]) {
+    grid-template-columns: minmax(0, 1fr) 280px;
+    column-gap: 24px;
+    align-items: start;
+  }
+}
+@container (min-width: 808px) {
+  .layout[data-cols="3"] {
+    grid-template-columns: minmax(0, 1fr) 280px;
+    column-gap: 24px;
+    align-items: start;
+  }
+}
+@container (min-width: 976px) {
+  .layout[data-cols="4"] {
+    grid-template-columns: minmax(0, 1fr) 280px;
+    column-gap: 24px;
+    align-items: start;
+  }
+}
+
+/* The graph: scrolls across when its columns outgrow it, reaching a gutter past the tree's box on each side. */
+.layout > [data-graph] {
+  position: relative;
+  display: grid;
+  grid-template-columns: repeat(var(--cols), minmax(168px, 1fr));
+  grid-template-rows: auto repeat(var(--rows), 1fr);
+  min-width: 0;
+  margin: -8px -12px;
+  padding: 8px 0;
+  overflow-x: auto;
+  overscroll-behavior-x: contain;
+  scrollbar-width: thin;
+  scroll-snap-type: x proximity;
+  scroll-padding-inline: 12px;
+}
+.layout [data-tier-head] {
+  grid-row: 1;
+  grid-column: calc(var(--col) + 1);
+  margin: 0 12px 4px;
+  color: var(--ui-ink-muted);
+  font-size: 12px;
+  font-weight: 600;
+  line-height: 1.2;
+  letter-spacing: 0.02em;
+  scroll-snap-align: start;
+}
+
+/* The elbows, behind the tiles over their rows only. Unbuilt: a hairline. Built: ink. */
+.layout [data-edges] {
+  position: absolute;
+  grid-column: 1 / -1;
+  grid-row: 2 / -1;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  overflow: visible;
+  pointer-events: none;
+}
+.layout [data-edges] line {
+  stroke: var(--ui-line);
+  stroke-width: 2px;
+  stroke-linecap: square;
+  transition: stroke var(--ui-duration) var(--ui-ease-out);
+}
+.layout [data-edges] line[data-lit] {
+  stroke: var(--ui-ink);
+}
+
+/*
+ * A node: a flat block at tile size. Unbuilt, the grey block; built, the raised block on an ink base line; maxed,
+ * the raised block on a hairline (done, so it steps back); locked, the grey block with its words muted. Chosen, it
+ * wears a 2px ink ring. The parts are custom properties, so the states compose in one shadow.
+ */
+.layout [data-node] {
+  --node-face: var(--ui-sunken);
+  --node-base: 0 0 0 0 transparent;
+  --node-ring: 0 0 0 0 transparent;
+  position: relative;
+  z-index: 1;
+  grid-row: calc(var(--row) + 2);
+  grid-column: calc(var(--col) + 1);
+  box-sizing: border-box;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  min-width: 0;
+  margin: 8px 12px;
+  padding: 12px;
+  border-radius: var(--ui-radius);
+  background: var(--node-face);
+  color: var(--ui-ink);
+  box-shadow: var(--node-ring), var(--node-base);
+  scroll-snap-align: start;
+  transition:
+    box-shadow var(--ui-duration) var(--ui-ease-out),
+    background-color var(--ui-duration) var(--ui-ease-out);
+}
+.layout [data-node]:not([data-lit]):hover {
+  --node-face: var(--ui-sunken-press);
+}
+.layout [data-node][data-lit] {
+  --node-face: var(--ui-surface);
+  --node-base: inset 0 -2px 0 var(--ui-ink);
+}
+.layout [data-node][data-state="maxed"] {
+  --node-face: var(--ui-surface);
+  --node-base: inset 0 -2px 0 var(--ui-line);
+}
+.layout [data-node][data-chosen] {
+  --node-ring: inset 0 0 0 2px var(--ui-ink);
+}
+/* The keyboard's ring goes round the whole tile, not the press inside it that holds the focus */
+.layout [data-node]:has([data-pick]:focus-visible) {
+  outline: 2px solid var(--ui-focus);
+  outline-offset: 2px;
+}
+
+/* The choosing press: the tile's words, its hit area stretched over the whole tile */
+.layout [data-pick] {
+  appearance: none;
+  display: grid;
+  gap: 4px;
+  min-width: 0;
+  margin: 0;
+  padding: 0;
+  border: 0;
+  background: none;
+  color: inherit;
+  font: inherit;
+  text-align: start;
+  cursor: pointer;
+}
+.layout [data-pick]:focus-visible {
+  outline: none;
+}
+.layout [data-pick]::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+}
+.name {
+  font-size: 14px;
+  font-weight: 600;
+  line-height: 1.45;
+  overflow-wrap: anywhere;
+}
+.layout [data-node][data-state="locked"] .name {
+  color: var(--ui-ink-muted);
+}
+.rank {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  color: var(--ui-ink-muted);
+  font-family: var(--ui-font-num);
+  font-size: 12px;
+  font-weight: 500;
+  font-variant-numeric: tabular-nums;
+  line-height: 1;
+  white-space: nowrap;
+}
+.mark {
+  flex: none;
+  width: 12px;
+  height: 12px;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 1.5;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+/* The next price at the tile's foot: muted while it cannot be paid; the signal block the moment it can. */
+.price {
+  align-self: flex-start;
+  box-sizing: border-box;
+  margin-top: auto;
+  margin-inline-start: -4px;
+  padding: 3px 4px;
+  color: var(--ui-ink-muted);
+  font-family: var(--ui-font-num);
+  font-size: 12px;
+  font-weight: 500;
+  font-variant-numeric: tabular-nums;
+  line-height: 1;
+  white-space: nowrap;
+}
+.price[data-affordable] {
+  margin-inline-start: 0;
+  padding-inline: 8px;
+  background: var(--ui-accent);
+  color: var(--ui-on-accent);
+  font-weight: 700;
+}
+
+/* The rail: the grey block, the chosen node's name, its whole text, and its action at the foot */
+.rail {
+  min-width: 0;
+  border-radius: var(--ui-radius);
+  background: var(--ui-sunken);
+  color: var(--ui-ink);
+}
+.railInner {
+  display: grid;
+  gap: 12px;
+  padding: 16px;
+  animation-name: rail-in;
+  animation-duration: var(--ui-duration);
+  animation-timing-function: var(--ui-ease-out);
+}
+/* The display voice a step under the panel's heading */
+.railName {
+  margin: 0;
+  font-family: var(--ui-font-display);
+  font-size: 20px;
+  font-weight: 650;
+  font-variation-settings: "opsz" 48;
+  line-height: 1;
+  letter-spacing: -0.01em;
+  text-wrap: balance;
+}
+.railBody {
+  display: grid;
+  gap: 8px;
+}
+.railLine {
+  margin: 0;
+  color: var(--ui-ink-muted);
+  font-size: 14px;
+  line-height: 1.45;
+  text-wrap: pretty;
+}
+/* What the next rank does: the one bold line in the rail */
+.effect {
+  margin: 0;
+  font-size: 14px;
+  font-weight: 600;
+  line-height: 1.45;
+}
+.foot {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  min-height: 40px;
+  padding-top: 4px;
+}
+@keyframes rail-in {
+  from {
+    opacity: 0;
+    translate: 0 6px;
+  }
+}

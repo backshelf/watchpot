@@ -1,0 +1,38 @@
+/* @feature visitor */
+.chip {
+  position: relative;
+  display: inline-flex;
+  align-items: baseline;
+  gap: 8px;
+  justify-self: start;
+  padding: 6px 12px 8px;
+  overflow: hidden;
+  border: 1px solid var(--ui-accent);
+  border-radius: var(--ui-radius);
+  background: var(--ui-surface);
+  font-size: 13px;
+}
+/* The time left, as a bar along the foot that drains toward the start. */
+.chip::after {
+  position: absolute;
+  inset: auto 0 0;
+  height: 3px;
+  background: var(--ui-accent);
+  content: "";
+  transform-origin: left;
+  scale: var(--left) 1;
+  transition: scale 250ms linear;
+}
+.name {
+  font-weight: 700;
+}
+.effect {
+  color: var(--ui-ink-muted);
+}
+.time {
+  font-family: var(--ui-font-num);
+  font-variant-numeric: tabular-nums;
+}
+.chip[data-low] .time {
+  color: var(--ui-danger);
+}

@@ -1,0 +1,34 @@
+/* The rarity word on its plate: a flat dark block, the word in the rung's hue (`--tier`, from `--rarity-<id>`). */
+.chip {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 4px 8px;
+  overflow: hidden;
+  isolation: isolate;
+  border-radius: var(--ui-radius);
+  background: var(--ui-plate);
+  color: var(--tier, var(--ui-ink));
+  font-size: 12px;
+  font-weight: 600;
+  line-height: 1.2;
+  letter-spacing: 0.02em;
+  white-space: nowrap;
+}
+.word {
+  position: relative;
+  z-index: 1;
+}
+/* The top rung's foil: a 3px dithered rule round the plate, so the word keeps its plain ground. */
+.frame {
+  z-index: 0;
+  box-sizing: border-box;
+  padding: 3px;
+  mask:
+    linear-gradient(currentColor 0 0) content-box exclude,
+    linear-gradient(currentColor 0 0);
+  -webkit-mask:
+    linear-gradient(currentColor 0 0) content-box xor,
+    linear-gradient(currentColor 0 0);
+}

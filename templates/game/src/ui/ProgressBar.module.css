@@ -1,0 +1,50 @@
+.bar {
+  display: grid;
+  gap: 6px;
+}
+.row {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 12px;
+  font-size: 12px;
+}
+.label {
+  font-weight: 600;
+}
+.value {
+  color: var(--ui-ink-muted);
+  font-family: var(--ui-font-num);
+  font-variant-numeric: tabular-nums;
+}
+
+/* `Progress` sets `--value` (0..1) and `data-state`; stepped, `--steps` and one `[data-step]` per block. */
+.track {
+  position: relative;
+  height: 8px;
+  overflow: hidden;
+  border-radius: var(--ui-radius);
+  background: var(--ui-sunken);
+}
+.bar[data-thin] .track {
+  height: 4px;
+}
+.fill {
+  position: absolute;
+  inset: 0 auto 0 0;
+  width: calc(var(--value) * 100%);
+  background: var(--ui-accent);
+  transition: width var(--ui-duration) ease-out;
+}
+.track[data-stepped] {
+  display: grid;
+  grid-template-columns: repeat(var(--steps), 1fr);
+  gap: 2px;
+  background: transparent;
+}
+.track[data-stepped] > [data-step] {
+  background: var(--ui-sunken);
+}
+.track[data-stepped] > [data-lit] {
+  background: var(--ui-accent);
+}

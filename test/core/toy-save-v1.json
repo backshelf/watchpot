@@ -1,0 +1,38 @@
+{
+  "version": 1,
+  "savedAt": 1793235661000,
+  "state": {
+    "wallet": {
+      "gold": {
+        "$d": "27"
+      },
+      "lifetime": {
+        "$d": "27"
+      }
+    },
+    "generator": {
+      "owned": 2,
+      "perSecond": {
+        "$d": "2"
+      },
+      "unlocked": {
+        "bronze": true,
+        "silver": false
+      },
+      "auto": false,
+      "since": 1793235660000,
+      "rng": [3534850269, 3230905996, 3690446131, 3395832513]
+    },
+    "prestige": {
+      "runs": 1,
+      "shards": {
+        "$d": "6"
+      }
+    },
+    "clock": {
+      "lastSeen": 1793235661000,
+      "createdAt": 1793235660000,
+      "offsetMs": 0
+    }
+  }
+}

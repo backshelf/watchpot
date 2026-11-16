@@ -1,0 +1,75 @@
+.scrim {
+  position: fixed;
+  inset: 0;
+  z-index: 40;
+  background: var(--ui-scrim);
+  animation: fade var(--ui-duration) ease-out;
+}
+
+/* A short window scrolls the sheet, never the page behind it. */
+.sheet {
+  position: fixed;
+  z-index: 41;
+  top: 50%;
+  left: 50%;
+  translate: -50% -50%;
+  display: grid;
+  gap: 16px;
+  box-sizing: border-box;
+  width: min(480px, calc(100% - 32px));
+  max-height: calc(100dvh - 32px);
+  overflow-y: auto;
+  padding: 20px;
+  border: 1px solid var(--ui-line);
+  border-radius: var(--ui-radius);
+  background: var(--ui-surface);
+  color: var(--ui-ink);
+  outline: none;
+  animation: rise calc(var(--ui-duration) * 1.5) ease-out;
+}
+.sheet[data-placement="bottom"] {
+  top: auto;
+  bottom: 0;
+  translate: -50% 0;
+  width: min(640px, 100%);
+  max-height: 85dvh;
+  padding-bottom: calc(20px + env(safe-area-inset-bottom, 0px));
+  border-bottom: 0;
+}
+
+.head {
+  display: grid;
+  gap: 4px;
+}
+.title {
+  margin: 0;
+  font-family: var(--ui-font-display);
+  font-size: 22px;
+  font-weight: 700;
+  line-height: 1.15;
+}
+.description {
+  color: var(--ui-ink-muted);
+}
+.body {
+  display: grid;
+  gap: 12px;
+}
+.actions {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 8px;
+}
+
+@keyframes fade {
+  from {
+    opacity: 0;
+  }
+}
+@keyframes rise {
+  from {
+    opacity: 0;
+    transform: translateY(12px);
+  }
+}

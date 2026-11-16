@@ -1,0 +1,258 @@
+/*
+ * The graft reveal's own blocks: a graft's face and back, the words under the face, the closing lot. The game's
+ * `Reveal` (src/ui) draws the room, the stage, the poses and the slots these sit in. Every size on a face scales
+ * with the card's width, `--w`, which the reveal sets for the window.
+ */
+
+.face {
+  --hue: var(--rarity-common);
+  box-sizing: border-box;
+  display: grid;
+  grid-template-rows: auto 1fr auto;
+  width: var(--w);
+  height: calc(var(--w) * 1.4);
+  padding: calc(var(--w) * 0.07);
+  border: 1px solid var(--hue);
+  background: var(--ground-raised);
+  color: var(--ink);
+}
+.face[data-rarity="rare"] {
+  --hue: var(--rarity-rare);
+}
+.face[data-rarity="exotic"] {
+  --hue: var(--rarity-exotic);
+}
+.face[data-rarity="heirloom"] {
+  --hue: var(--rarity-heirloom);
+  border-width: 2px;
+  box-shadow: 0 calc(var(--w) * 0.04) calc(var(--w) * 0.2) color-mix(in srgb, var(--hue) 45%, transparent);
+}
+
+.rung {
+  margin: 0;
+  font-family: var(--font-ui);
+  font-size: calc(var(--w) * 0.055);
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--hue);
+}
+.art {
+  align-self: center;
+  justify-self: center;
+  width: 78%;
+  height: auto;
+}
+.halo {
+  fill: var(--hue);
+  opacity: 0;
+}
+.face[data-rarity="exotic"] .halo {
+  opacity: 0.12;
+}
+.face[data-rarity="heirloom"] .halo {
+  opacity: 0.22;
+}
+.scion {
+  fill: none;
+  stroke: var(--ink-muted);
+  stroke-width: 3;
+  stroke-linecap: round;
+}
+.fruit {
+  fill: var(--hue);
+}
+.leaf {
+  fill: color-mix(in srgb, var(--rarity-rare) 70%, var(--ink));
+}
+/*
+ * The first heirloom blooms: once its face has turned, the bud swells from a bead to the fruit, its halo opens past
+ * the fruit and settles, and a ring of rose goes out to the glass and fades. Each runs once; the rest state is the
+ * plain heirloom face, which is what reduced motion shows.
+ */
+.ring {
+  fill: none;
+  stroke: var(--rarity-heirloom);
+  stroke-width: 1.5;
+  opacity: 0;
+}
+.face[data-first] {
+  box-shadow:
+    0 calc(var(--w) * 0.04) calc(var(--w) * 0.2) color-mix(in srgb, var(--hue) 45%, transparent),
+    0 0 calc(var(--w) * 0.5) color-mix(in srgb, var(--hue) 30%, transparent);
+}
+.face[data-first][data-turned] .fruit,
+.face[data-first][data-turned] .halo,
+.face[data-first][data-turned] .ring {
+  transform-box: fill-box;
+  transform-origin: center;
+  animation-fill-mode: both;
+  animation-iteration-count: 1;
+}
+.face[data-first][data-turned] .fruit {
+  animation-name: swell;
+  animation-duration: 1400ms;
+  animation-delay: 200ms;
+  animation-timing-function: var(--ui-ease-out);
+}
+.face[data-first][data-turned] .halo {
+  animation-name: bloom;
+  animation-duration: 2200ms;
+  animation-delay: 300ms;
+  animation-timing-function: var(--ui-ease-out);
+}
+.face[data-first][data-turned] .ring {
+  animation-name: ring-out;
+  animation-duration: 1800ms;
+  animation-delay: 900ms;
+  animation-timing-function: var(--ui-ease-out);
+}
+@keyframes swell {
+  from {
+    transform: scale(0.3);
+  }
+  60% {
+    transform: scale(1.08);
+  }
+  to {
+    transform: scale(1);
+  }
+}
+@keyframes bloom {
+  from {
+    opacity: 0;
+    transform: scale(0.4);
+  }
+  55% {
+    opacity: 0.4;
+    transform: scale(1.15);
+  }
+  to {
+    opacity: 0.22;
+    transform: scale(1);
+  }
+}
+@keyframes ring-out {
+  from {
+    opacity: 0;
+    transform: scale(0.6);
+  }
+  12% {
+    opacity: 0.9;
+  }
+  to {
+    opacity: 0;
+    transform: scale(1.7);
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .face[data-first][data-turned] .fruit,
+  .face[data-first][data-turned] .halo,
+  .face[data-first][data-turned] .ring {
+    animation-name: none;
+  }
+}
+[data-reduced] .face[data-first][data-turned] .fruit,
+[data-reduced] .face[data-first][data-turned] .halo,
+[data-reduced] .face[data-first][data-turned] .ring {
+  animation-name: none;
+}
+
+.name {
+  margin: 0;
+  font-family: var(--font-display);
+  font-size: calc(var(--w) * 0.1);
+  font-weight: 600;
+  line-height: 1.05;
+  overflow-wrap: anywhere;
+}
+
+.back {
+  box-sizing: border-box;
+  display: grid;
+  grid-template-rows: 1fr auto;
+  place-items: center;
+  width: var(--w);
+  height: calc(var(--w) * 1.4);
+  padding: calc(var(--w) * 0.08);
+  border: 1px solid var(--hairline);
+  background: var(--ground);
+  color: var(--signal);
+  transition: border-color var(--ui-duration) var(--ui-ease-out);
+}
+.back[data-charging] {
+  border-color: var(--hue);
+}
+.back svg {
+  width: 56%;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 2;
+}
+.backName {
+  margin: 0;
+  font-family: var(--font-display);
+  font-size: calc(var(--w) * 0.07);
+  font-style: italic;
+  color: var(--ink-muted);
+}
+
+/* Under the face on a narrow page, beside it on a wide one (the reveal places the slot): each line on a block. */
+.panelBody {
+  display: grid;
+  justify-items: center;
+  gap: var(--space-1);
+  text-align: center;
+}
+[data-wide] .panelBody {
+  justify-items: start;
+  text-align: left;
+}
+.panelBody > p {
+  margin: 0;
+  padding: var(--space-2) var(--space-3);
+  background: var(--ground-raised);
+}
+/* The first heirloom's line: the display voice, a size up, in its rose. */
+.first {
+  font-family: var(--font-display);
+  font-size: 22px;
+  font-weight: 650;
+  font-variation-settings: "opsz" 48;
+  line-height: 1.1;
+  letter-spacing: -0.01em;
+  color: var(--rarity-heirloom);
+}
+.summaryFirst {
+  margin: 0;
+  color: var(--rarity-heirloom);
+}
+
+/* The closing lot, in the reveal's block at the foot of the room: what came out and the ways on. */
+.summary {
+  display: grid;
+  gap: var(--space-3);
+}
+.summaryTitle {
+  margin: 0;
+}
+.rows {
+  display: grid;
+  gap: var(--space-2);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+.row {
+  display: grid;
+  grid-template-columns: auto 1fr auto;
+  align-items: center;
+  gap: var(--space-3);
+}
+.rowMeta {
+  color: var(--ink-muted);
+}
+.actions {
+  display: grid;
+  gap: var(--space-2);
+}

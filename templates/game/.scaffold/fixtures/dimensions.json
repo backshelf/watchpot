@@ -1,0 +1,46 @@
+{
+  "name": "Rumour Mill",
+  "premise": "A small town and one good piece of gossip. Each teller recruits the next, and the story only ever grows.",
+  "voice": "Conspiratorial, delighted, behind a raised hand. Everyone is 'apparently' something.",
+  "core": "dimensions",
+  "features": ["clicker", "achievements"],
+  "currencies": { "main": { "name": "Whisper", "plural": "Whispers", "glyph": "moon" } },
+  "stats": { "output": "Hearsay", "offline": "Echo" },
+  "generators": [
+    { "name": "Gossip", "line": "Did you hear?" },
+    { "name": "Busybody", "line": "Knows a gossip or two." },
+    { "name": "Town crier", "line": "Hires busybodies by the bell." },
+    { "name": "Pamphleteer", "line": "Prints criers into being." },
+    { "name": "Printing press", "line": "Pamphleteers, by the ream." }
+  ],
+  "clicker": { "name": "The fence", "verb": "Lean on", "line": "Neighbours talk over it." },
+  "achievements": {
+    "name": "The grapevine",
+    "items": [
+      { "name": "Psst", "line": "It starts small.", "when": { "own": 0, "count": 10 } },
+      { "name": "Nosy", "line": "Curtains twitch.", "when": { "own": 1, "count": 10 } },
+      { "name": "Oyez", "line": "Hear ye, hear ye.", "when": { "own": 2, "count": 1 } },
+      { "name": "Broadsheet", "line": "Ink still wet.", "when": { "own": 3, "count": 1 } },
+      { "name": "Mass production", "line": "The press never sleeps.", "when": { "own": 4, "count": 1 } },
+      { "name": "Murmur", "line": "A low hum in the square.", "when": { "earned": 10000 } },
+      { "name": "Common knowledge", "line": "Everyone knows. Nobody knows how.", "when": { "earned": 1e12 } },
+      { "name": "Over the fence", "line": "Elbows on the rail.", "when": { "clicks": 100 } },
+      { "name": "Fence post", "line": "Worn smooth.", "when": { "clicks": 1000 } },
+      { "name": "Legend", "line": "Nobody remembers the truth.", "when": { "earned": 1e30 }, "secret": true }
+    ]
+  },
+  "session": "glance",
+  "look": {
+    "palette": { "ground": "#14121c", "ink": "#ece6d8", "signal": "#e0a83a" },
+    "type": {
+      "display": { "family": "Fraunces", "spec": "Fraunces:ital,opsz,wght@0,9..144,100..900;1,9..144,100..900", "fallback": "Georgia, serif" },
+      "ui": { "family": "Work Sans", "spec": "Work+Sans:ital,wght@0,100..900;1,100..900", "fallback": "Arial, sans-serif" },
+      "num": { "family": "JetBrains Mono", "spec": "JetBrains+Mono:wght@100..800", "fallback": "Menlo, monospace" }
+    },
+    "surface": {
+      "base": "signal",
+      "line": "A party line at night: a warm amber hum on a dark receiver, crackling brighter as the story spreads."
+    },
+    "moment": "The first printing press: the line crackles, every tier lights in turn, and the whole town glows amber."
+  }
+}

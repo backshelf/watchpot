@@ -1,0 +1,49 @@
+/*
+ * The page fills the window and never scrolls: the open screen scrolls inside the stage. A phone stacks header,
+ * stage and the tab bar; a wide page (`data-wide`, measured by `PageShell`) puts the tabs in a rail on the left.
+ * The shell is its own stacking context, so a backdrop at z-index -1 sits behind everything in it.
+ */
+.shell {
+  isolation: isolate;
+  display: grid;
+  grid-template-rows: auto minmax(0, 1fr) auto;
+  grid-template-areas: "header" "stage" "nav";
+  height: 100dvh;
+}
+.shell[data-wide] {
+  grid-template-columns: 200px minmax(0, 1fr);
+  grid-template-rows: auto minmax(0, 1fr);
+  grid-template-areas: "header header" "nav stage";
+}
+
+.header {
+  grid-area: header;
+}
+.stage {
+  position: relative;
+  grid-area: stage;
+  min-height: 0;
+}
+.under {
+  height: 100%;
+}
+/* Positioned, so anything absolute inside a screen (a visually hidden label) is clipped by this scroll instead of
+ * escaping to the stage and stretching the document below the window. */
+.scroll {
+  position: relative;
+  height: 100%;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+}
+.nav {
+  grid-area: nav;
+  min-height: 0;
+}
+.shell[data-wide] .nav > * {
+  height: 100%;
+  box-sizing: border-box;
+}
+/* The sheets portal to the body; their outlet takes no room in the grid. */
+.sheets {
+  display: contents;
+}

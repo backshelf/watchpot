@@ -1,0 +1,82 @@
+/*
+ * The registry's token contract: every colour, face, radius and duration the components in src/ui read. The values
+ * here map the generated design tokens (src/tokens.css, from design/tokens.json) onto the contract; change the mapping
+ * or a value to make the look your own. README.md beside this file lists every token and what reads it.
+ */
+
+:root {
+  /* Colour */
+  --ui-ground: var(--ground);
+  --ui-surface: var(--ground-raised);
+  --ui-sunken: var(--paper);
+  --ui-ink: var(--ink);
+  --ui-ink-muted: var(--ink-muted);
+  --ui-line: var(--edge);
+  --ui-accent: var(--signal);
+  --ui-on-accent: var(--on-signal);
+  --ui-focus: var(--focus);
+  --ui-scrim: var(--overlay);
+  --ui-danger: var(--danger);
+
+  /* Type */
+  --ui-font: var(--font-ui);
+  --ui-font-display: var(--font-display);
+  --ui-font-num: var(--font-num);
+
+  /* Shape and time */
+  --ui-radius: var(--radius-md);
+  --ui-duration: 160ms;
+}
+
+/* The page: one ground, one face, a scroll the shell owns. */
+html {
+  background: var(--ui-ground);
+  color: var(--ui-ink);
+  -webkit-font-smoothing: antialiased;
+}
+body {
+  margin: 0;
+  font-family: var(--ui-font);
+  font-size: 15px;
+  line-height: 1.4;
+}
+#root {
+  height: 100dvh;
+}
+p {
+  margin: 0;
+}
+button,
+input,
+select,
+textarea {
+  font: inherit;
+  color: inherit;
+}
+:focus-visible {
+  outline: 2px solid var(--ui-focus);
+  outline-offset: 2px;
+}
+
+/*
+ * Reduced motion, from the OS or the in-game setting (`data-motion` on <html>): every transition and loop ends at
+ * once. The repeated attribute lifts these over any component's own state rules, which carry two selectors at most.
+ */
+:root[data-motion="reduced"][data-motion][data-motion][data-motion] *,
+:root[data-motion="reduced"][data-motion][data-motion][data-motion] *::before,
+:root[data-motion="reduced"][data-motion][data-motion][data-motion] *::after {
+  animation-duration: 0.01ms;
+  animation-iteration-count: 1;
+  transition-duration: 0.01ms;
+  scroll-behavior: auto;
+}
+@media (prefers-reduced-motion: reduce) {
+  :root[data-theme][data-theme][data-theme][data-theme] *,
+  :root[data-theme][data-theme][data-theme][data-theme] *::before,
+  :root[data-theme][data-theme][data-theme][data-theme] *::after {
+    animation-duration: 0.01ms;
+    animation-iteration-count: 1;
+    transition-duration: 0.01ms;
+    scroll-behavior: auto;
+  }
+}

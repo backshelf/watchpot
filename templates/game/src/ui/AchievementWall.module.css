@@ -1,0 +1,58 @@
+/* @feature achievements */
+/* `AchievementGrid` is a grid of rows of cells: `[role="row"]` (`data-complete`), `[role="gridcell"]` tiles. */
+.wall {
+  display: grid;
+  gap: 6px;
+  max-width: calc(var(--columns) * 72px);
+}
+.wall > [role="row"] {
+  display: grid;
+  grid-template-columns: repeat(var(--columns), minmax(0, 1fr));
+  gap: 6px;
+  padding: 4px;
+  border-radius: var(--ui-radius);
+}
+.wall > [data-complete] {
+  background: color-mix(in srgb, var(--ui-accent) 14%, transparent);
+}
+.wall [role="gridcell"] {
+  display: grid;
+  place-items: center;
+  aspect-ratio: 1;
+  border: 1px solid var(--ui-line);
+  border-radius: var(--ui-radius);
+  background: var(--ui-sunken);
+  color: var(--ui-ink-muted);
+  cursor: default;
+}
+.wall [role="gridcell"][data-earned] {
+  border-color: var(--ui-accent);
+  background: var(--ui-surface);
+  color: var(--ui-ink);
+}
+.wall [role="gridcell"][data-hidden] {
+  border-style: dashed;
+}
+
+/* The detail bubble: placed by the primitive, `data-earned` when its tile is. */
+.detail {
+  z-index: 50;
+  display: grid;
+  gap: 4px;
+  max-width: 260px;
+  padding: 10px 12px;
+  border-radius: var(--ui-radius);
+  background: var(--ui-ink);
+  color: var(--ui-ground);
+  font-size: 13px;
+}
+/* Closed, the primitive marks it `hidden`; the `display` above would otherwise keep an empty bubble on screen. */
+.detail[hidden] {
+  display: none;
+}
+.detail [data-name] {
+  font-weight: 700;
+}
+.detail [data-reward] {
+  color: var(--ui-accent);
+}

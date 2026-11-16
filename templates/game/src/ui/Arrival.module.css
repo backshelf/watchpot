@@ -1,0 +1,55 @@
+/* @feature visitor */
+/* The layer covers the page and lets presses through; only the arrival itself takes them. */
+.layer {
+  position: fixed;
+  inset: 0;
+  z-index: 20;
+  pointer-events: none;
+}
+.arrival {
+  position: absolute;
+  left: calc(var(--x) * 100%);
+  top: calc(var(--y) * 100%);
+  display: grid;
+  place-items: center;
+  width: 64px;
+  height: 64px;
+  margin: -32px 0 0 -32px;
+  padding: 0;
+  border: 1px solid var(--ui-line);
+  border-radius: 50%;
+  background: var(--ui-surface);
+  color: var(--ui-ink);
+  cursor: pointer;
+  pointer-events: auto;
+  touch-action: manipulation;
+  animation:
+    arrive var(--ui-duration) ease-out,
+    bob 2.4s ease-in-out infinite;
+}
+.arrival[data-pressed] {
+  scale: 0.92;
+}
+/* The stay left, as a ring of the accent that empties clockwise. */
+.ring {
+  position: absolute;
+  inset: -5px;
+  border-radius: 50%;
+  background: conic-gradient(var(--ui-accent) calc(var(--life) * 360deg), transparent 0);
+  mask: radial-gradient(farthest-side, transparent calc(100% - 3px), #000 calc(100% - 2px));
+}
+.picture {
+  display: grid;
+  place-items: center;
+}
+@keyframes arrive {
+  from {
+    opacity: 0;
+    scale: 0.6;
+  }
+}
+@keyframes bob {
+  50% {
+    translate: 0 -6px;
+  }
+}

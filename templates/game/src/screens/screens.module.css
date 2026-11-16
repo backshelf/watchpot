@@ -1,0 +1,57 @@
+.screen {
+  display: grid;
+  gap: 16px;
+  box-sizing: border-box;
+  width: 100%;
+  max-width: 1080px;
+  margin-inline: auto;
+  padding: 20px 16px 32px;
+}
+.grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+  gap: 8px;
+}
+.row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  margin-top: 4px;
+}
+.list {
+  display: grid;
+  gap: 8px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+.item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+.muted {
+  color: var(--ui-ink-muted);
+}
+.num {
+  font-family: var(--ui-font-num);
+  font-variant-numeric: tabular-nums;
+}
+
+/* @if clicker */
+/* The thing pressed and its words beside it, stacking on a narrow page. */
+.press {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 16px;
+}
+.pressWords {
+  display: grid;
+  flex: 1 1 12em;
+  gap: 4px;
+}
+/* @end */

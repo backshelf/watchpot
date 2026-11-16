@@ -1,0 +1,151 @@
+/*
+ * The token contract of the game's components (src/ui): every colour, face, corner and duration their CSS modules
+ * read, mapped here from the generated design tokens (src/tokens.css, from design/tokens.json). Nothing in src/ui
+ * hard-codes a colour, a font family or a corner. Then the page's base: one ground, one face, the focus ring, the
+ * figures, and reduced motion. Loaded after tokens.css.
+ *
+ * The look is the station's terminal: flat blocks on the night ground, no radius, no lip, no shadow; rules in the
+ * hairline, a control's edge in `edge`, the signal for the one thing to press.
+ */
+
+:root {
+  /* Colour: the ground, the raised block (panels, the header, tabs), the grey block (secondary buttons, tracks) */
+  --ui-ground: var(--ground);
+  --ui-surface: var(--ground-raised);
+  --ui-sunken: var(--paper);
+  --ui-sunken-press: var(--paper-shade);
+  --ui-ink: var(--ink);
+  --ui-ink-muted: var(--ink-muted);
+  /* Rules (a panel's heading rule, the header's foot, unbuilt tree edges) */
+  --ui-line: var(--hairline);
+  /* A control's edge: the ghost button's box, an idle tab's ring (3:1 on the ground and the block) */
+  --ui-edge: var(--edge);
+  --ui-accent: var(--signal);
+  --ui-on-accent: var(--on-signal);
+  --ui-focus: var(--focus);
+  --ui-scrim: var(--overlay);
+  --ui-danger: var(--danger);
+  --ui-warn: var(--warn);
+  --ui-ok: var(--ok);
+  /* A rarity's word stands on the plate; the top rung's frame is foil */
+  --ui-plate: var(--rarity-plate);
+  --ui-foil-1: var(--foil-1);
+  --ui-foil-2: var(--foil-2);
+  --ui-foil-3: var(--foil-3);
+  --ui-foil-4: var(--foil-4);
+  --ui-foil-5: var(--foil-5);
+  --ui-shadow: var(--shadow-card);
+
+  /* Type */
+  --ui-font: var(--font-ui);
+  --ui-font-display: var(--font-display);
+  --ui-font-num: var(--font-num);
+
+  /* Shape: no corner anywhere, and the terminal's 2px gutter between blocks */
+  --ui-radius: var(--radius-md);
+  --ui-gutter: var(--gutter);
+
+  /* Time */
+  --ui-duration: 240ms;
+  --ui-duration-tap: 120ms;
+  --ui-duration-spring: 480ms;
+  --ui-duration-reveal: 600ms;
+  --ui-ease-out: cubic-bezier(0.2, 0.8, 0.2, 1);
+  --ui-ease-snap: cubic-bezier(0.3, 1.4, 0.4, 1);
+  /* a damped spring (damping ratio 0.5): what a press springs back on */
+  --ui-ease-spring: linear(
+    0,
+    0.122 5%,
+    0.388 10%,
+    0.679 15%,
+    0.919 20%,
+    1.077 25%,
+    1.151 30%,
+    1.161 35%,
+    1.13 40%,
+    1.084 45%,
+    1.038 50%,
+    1.003 55%,
+    0.982 60%,
+    0.974 65%,
+    0.975 70%,
+    0.981 75%,
+    0.989 80%,
+    0.996 85%,
+    1.001 90%,
+    1.004 95%,
+    1
+  );
+}
+
+/* One palette, night on the station: the browser's own surfaces (scrollbars, controls) draw dark to match. */
+:where(:root, [data-theme="game"]) {
+  color-scheme: dark;
+}
+[data-theme="game"] {
+  scrollbar-color: var(--ui-edge) var(--ui-ground);
+}
+::selection {
+  background: var(--ui-accent);
+  color: var(--ui-on-accent);
+}
+
+/* The page: one ground, one face, a scroll the shell owns. */
+html {
+  background: var(--ui-ground);
+  color: var(--ui-ink);
+  -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
+}
+body {
+  margin: 0;
+  font-family: var(--ui-font);
+  font-size: 15px;
+  line-height: 1.4;
+}
+#root {
+  height: 100dvh;
+}
+p {
+  margin: 0;
+}
+button,
+input,
+select,
+textarea {
+  font: inherit;
+  color: inherit;
+}
+:focus-visible {
+  outline: 2px solid var(--ui-focus);
+  outline-offset: 2px;
+}
+
+/* A figure inside a line of words: the number face, its digits all one width. */
+.num {
+  font-family: var(--ui-font-num);
+  font-variant-numeric: tabular-nums;
+}
+
+/*
+ * Reduced motion, from the OS or the in-game setting (`data-motion` on <html>): every transition and loop ends at
+ * once. The repeated attribute lifts these over any component's own state rules, which carry two selectors at most.
+ */
+:root[data-motion="reduced"][data-motion][data-motion][data-motion] *,
+:root[data-motion="reduced"][data-motion][data-motion][data-motion] *::before,
+:root[data-motion="reduced"][data-motion][data-motion][data-motion] *::after {
+  animation-duration: 0.01ms;
+  animation-iteration-count: 1;
+  transition-duration: 0.01ms;
+  scroll-behavior: auto;
+}
+@media (prefers-reduced-motion: reduce) {
+  :root[data-theme][data-theme][data-theme][data-theme] *,
+  :root[data-theme][data-theme][data-theme][data-theme] *::before,
+  :root[data-theme][data-theme][data-theme][data-theme] *::after {
+    animation-duration: 0.01ms;
+    animation-iteration-count: 1;
+    transition-duration: 0.01ms;
+    scroll-behavior: auto;
+  }
+}

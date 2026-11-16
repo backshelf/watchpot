@@ -1,0 +1,17 @@
+/* Behind the whole page: the shell is its own stacking context, so -1 sits over the ground and under everything. */
+.backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: -1;
+  pointer-events: none;
+}
+.canvas {
+  display: block;
+  width: 100%;
+  height: 100%;
+}
+/* The shader's idea without a GPU: its `background` comes from the surface's `still`, inline. */
+.still {
+  width: 100%;
+  height: 100%;
+}

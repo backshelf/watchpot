@@ -1,0 +1,19 @@
+/** Types for zzfx 1.4.0, which ships none. Only the surface `sound.ts` uses. */
+declare module "zzfx" {
+  export const ZZFX: {
+    volume: number;
+    sampleRate: number;
+    audioContext: AudioContext;
+    play(...parameters: (number | undefined)[]): AudioBufferSourceNode;
+    playSamples(
+      sampleChannels: Float32Array[],
+      volumeScale?: number,
+      rate?: number,
+      pan?: number,
+      loop?: boolean,
+    ): AudioBufferSourceNode;
+    buildSamples(...parameters: (number | undefined)[]): Float32Array;
+    getNote(semitoneOffset?: number, rootNoteFrequency?: number): number;
+  };
+  export function zzfx(...parameters: (number | undefined)[]): AudioBufferSourceNode;
+}

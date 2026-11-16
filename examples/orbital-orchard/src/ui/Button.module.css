@@ -1,0 +1,112 @@
+/*
+ * A flat block: a fill, the words, nothing else. No radius, no edge, no gradient, no shadow. The press is the block
+ * dropping one pixel and its fill going a step darker; the release springs it back. The parts are custom
+ * properties, so each variant only names its fill, its pressed fill and its ink.
+ */
+.button {
+  --btn-fill: transparent;
+  --btn-fill-press: var(--ui-sunken);
+  --btn-ink: var(--ui-ink);
+  appearance: none;
+  box-sizing: border-box;
+  display: inline-flex;
+  flex-wrap: wrap;
+  align-items: center;
+  column-gap: 16px;
+  row-gap: 2px;
+  min-height: 36px;
+  margin: 0;
+  padding: 4px 16px;
+  border: 0;
+  border-radius: var(--ui-radius);
+  background: var(--btn-fill);
+  color: var(--btn-ink);
+  font-family: var(--ui-font);
+  font-size: 14px;
+  font-weight: 600;
+  line-height: 1;
+  white-space: nowrap;
+  cursor: pointer;
+  /* The release: back up on the spring. The press below goes down quickly. */
+  transition: transform var(--ui-duration-spring) var(--ui-ease-spring);
+}
+/* A finger needs 44px: on a touch screen the regular block grows to it. */
+@media (pointer: coarse) {
+  .button {
+    min-height: 44px;
+  }
+}
+
+/* The one signal block on the screen, its words bold */
+.button[data-variant="primary"] {
+  --btn-fill: var(--ui-accent);
+  --btn-fill-press: color-mix(in srgb, var(--ui-accent) 85%, var(--ui-ink));
+  --btn-ink: var(--ui-on-accent);
+  font-weight: 700;
+}
+/* The grey block: every secondary action */
+.button[data-variant="paper"] {
+  --btn-fill: var(--ui-sunken);
+  --btn-fill-press: var(--ui-sunken-press);
+}
+/* Words in a box ruled in the control's edge, so it reads as a press and not as words */
+.button[data-variant="ghost"] {
+  box-shadow: inset 0 0 0 1px var(--ui-edge);
+}
+.button[data-variant="danger"] {
+  --btn-ink: var(--ui-danger);
+}
+@media (hover: hover) {
+  .button[data-variant="ghost"]:hover:not(:disabled),
+  .button[data-variant="danger"]:hover:not(:disabled) {
+    background: color-mix(in srgb, var(--ui-ink) 6%, transparent);
+  }
+}
+
+/* A large button fills its row: the words at the start, the price at the end. */
+.button[data-size="large"] {
+  display: flex;
+  justify-content: space-between;
+  width: 100%;
+  min-height: 48px;
+}
+
+/* Pressed: one pixel down and a step darker, in a tap; back up on the spring when released. */
+.button:active:not(:disabled) {
+  background: var(--btn-fill-press);
+  transform: translateY(1px);
+  transition-duration: var(--ui-duration-tap);
+  transition-timing-function: var(--ui-ease-out);
+}
+.button:disabled {
+  opacity: 0.4;
+  pointer-events: none;
+  cursor: default;
+}
+
+/* A priced button too narrow for its words and its price breaks between the two, never inside either. */
+.label {
+  white-space: nowrap;
+}
+.button[data-priced]:not([data-size="large"]) .label {
+  line-height: 1.3;
+}
+.cost {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  white-space: nowrap;
+}
+.glyph {
+  display: inline-flex;
+  flex: none;
+}
+.figure {
+  font-family: var(--ui-font-num);
+  font-size: 16px;
+  font-weight: 500;
+  font-variant-numeric: tabular-nums;
+}
+.unit {
+  white-space: pre;
+}

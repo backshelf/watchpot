@@ -1,0 +1,1181 @@
+/**
+ * The template's half of `/watchpot`: turns an answers file into a game. It lives with the template, so the content it
+ * writes always matches the code it writes into, at whatever engine tag the template came from.
+ *
+ *   bun .scaffold/generate.ts --answers <answers.json> --out <dir> [--engine v0.3.1] [--mode full|content]
+ *
+ * `full` (default) runs in a copy of the template: it writes the content, drops the files and blocks of the flags not
+ * chosen, and renders every `*.tmpl` into its file. `content` only rewrites the content files, for every core and
+ * feature at once: that is how the template's own example (the union of everything, which the engine's checks
+ * compile and test) is made from `answers.example.json`.
+ *
+ * Flags: the features chosen, the core (`generators` or `dimensions`) and the backdrop's base (`weather`, `print`,
+ * `signal` or `cells`). A file whose first line is `// @feature <flag>` is kept only when the flag is chosen (the line
+ * is removed). Lines between `// @if <flag>` (or `// @if !<flag>`) and `// @end` are kept only when the condition
+ * holds; blocks nest, and the marker lines go. `@if a|b` holds when any of them is chosen, `@if !a|b` when none is. In
+ * JSX the markers are `{/* @if <f> *\/}` and `{/* @end *\/}`; in CSS, `/* @if <f> *\/` and `/* @end *\/`.
+ */
+import { mkdir, readdir, rm } from "node:fs/promises";
+import { dirname, join, resolve } from "node:path";
+
+// ---------------------------------------------------------------------------------------------- the answers
+
+export const FEATURES = ["clicker", "tree", "gacha", "prestige", "achievements", "visitor"] as const;
+export type FeatureId = (typeof FEATURES)[number];
+export const CORES = ["generators", "dimensions"] as const;
+export type CoreId = (typeof CORES)[number];
+export const SURFACES = ["weather", "print", "signal", "cells"] as const;
+export type SurfaceId = (typeof SURFACES)[number];
+export const SESSIONS = ["glance", "short", "long"] as const;
+export type SessionId = (typeof SESSIONS)[number];
+export const STATS = ["output", "offline", "gain"] as const;
+export type StatId = (typeof STATS)[number];
+export const GLYPHS = ["coin", "drop", "gem", "leaf", "star", "moon", "bolt", "shell", "flame", "key", "sun", "seed"] as const;
+export type GlyphId = (typeof GLYPHS)[number];
+/** What an achievement's `when` may ask, and the feature each kind needs (null: always there). */
+export const WHEN_KINDS = {
+  own: null,
+  earned: null,
+  clicks: "clicker",
+  runs: "prestige",
+  nodes: "tree",
+  pulls: "gacha",
+} as const satisfies Record<string, FeatureId | null>;
+export type WhenKind = keyof typeof WHEN_KINDS;
+
+interface WordIn {
+  name: string;
+  plural?: string;
+  glyph?: string;
+  id?: string;
+}
+interface FontIn {
+  family: string;
+  /** The Google Fonts css2 `family=` value, exactly (`Work+Sans:wght@100..900`). */
+  spec: string;
+  fallback?: string;
+}
+/** An achievement's condition: exactly one of these keys (`own` takes `count` beside it). */
+export interface WhenIn {
+  own?: number;
+  count?: number;
+  earned?: number;
+  clicks?: number;
+  runs?: number;
+  nodes?: number;
+  pulls?: number;
+}
+export interface Answers {
+  name: string;
+  slug?: string;
+  premise: string;
+  voice: string;
+  player?: string;
+  core?: string;
+  features?: string[];
+  currencies: { main: WordIn; premium?: WordIn };
+  stats: { output: string; offline: string; gain?: string };
+  generators: { name: string; line: string }[];
+  clicker?: { name: string; verb: string; line: string };
+  tree?: { name: string; nodes: { name: string; line: string; stat: string }[] };
+  gacha?: {
+    name: string;
+    box: string;
+    rarities: WordIn[];
+    items: { name: string; rarity: string; stat: string }[];
+  };
+  prestige?: { name: string; verb: string; currency: WordIn };
+  achievements?: { name: string; items: { name: string; line: string; when: WhenIn; secret?: boolean }[] };
+  visitor?: { name: string; line: string; buff: { name: string; mult: number; seconds: number } };
+  tabs?: Partial<Record<"make" | "tree" | "gacha" | "prestige" | "achievements", string>>;
+  session: string;
+  look: {
+    palette: { ground: string; ink: string; signal: string; rarities?: string[] };
+    type: { display: FontIn; ui: FontIn; num: FontIn };
+    surface: { base: string; line: string };
+    moment: string;
+  };
+}
+
+/** A CSS-ident-safe id: lowercase letters, digits and hyphens. */
+export const slugify = (s: string) =>
+  s
+    .normalize("NFKD")
+    .replace(/[̀-ͯ]/g, "")
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/^-+|-+$/g, "");
+
+const RESERVED = new Set(["earned", "credit", "debit"]);
+const HEX = /^#[0-9a-fA-F]{6}$/;
+
+interface Word {
+  id: string;
+  name: string;
+  plural: string;
+  glyph: GlyphId;
+}
+
+function word(w: WordIn, fallbackGlyph: GlyphId, where: string, problems: string[]): Word {
+  const plural = w.plural ?? `${w.name}s`;
+  const id = w.id ?? slugify(plural);
+  if (!w.name) problems.push(`${where}: a name is required`);
+  if (!id) problems.push(`${where}: "${w.name}" makes an empty id`);
+  if (RESERVED.has(id)) problems.push(`${where}: the id "${id}" is reserved (earned, credit, debit)`);
+  if (w.glyph !== undefined && !(GLYPHS as readonly string[]).includes(w.glyph))
+    problems.push(`${where}: unknown glyph "${w.glyph}" (one of ${GLYPHS.join(", ")})`);
+  const glyph = (GLYPHS as readonly string[]).includes(w.glyph ?? "") ? (w.glyph as GlyphId) : fallbackGlyph;
+  return { id, name: w.name, plural, glyph };
+}
+
+/** An achievement's condition, read: its kind and its numbers. */
+export interface When {
+  kind: WhenKind;
+  /** The generator's index, for `own`. */
+  index?: number;
+  n: number;
+}
+
+/** Reads one `when`, pushing what is wrong with it. */
+function readWhen(w: WhenIn | undefined, where: string, pl: { features: Set<FeatureId>; size: number }, problems: string[]): When {
+  const keys = Object.keys(w ?? {}).filter((k) => k !== "count") as WhenKind[];
+  const kind = keys[0];
+  if (!w || keys.length !== 1 || !kind || !(kind in WHEN_KINDS)) {
+    problems.push(`${where}.when: exactly one of ${Object.keys(WHEN_KINDS).join(", ")}`);
+    return { kind: "earned", n: 1 };
+  }
+  const needs = WHEN_KINDS[kind];
+  if (needs && !pl.features.has(needs)) problems.push(`${where}.when: "${kind}" needs the ${needs} feature`);
+  if (kind === "own") {
+    const index = w.own ?? -1;
+    const count = w.count ?? 0;
+    if (!Number.isInteger(index) || index < 0 || index >= pl.size)
+      problems.push(`${where}.when.own: a generator's index, 0 to ${pl.size - 1}`);
+    if (!(count >= 1)) problems.push(`${where}.when.count: how many to own, 1 or more`);
+    return { kind, index, n: count };
+  }
+  const n = w[kind] ?? 0;
+  if (!(n > 0)) problems.push(`${where}.when.${kind}: a number above zero`);
+  return { kind, n };
+}
+
+export interface Plan {
+  answers: Answers;
+  name: string;
+  slug: string;
+  core: CoreId;
+  features: Set<FeatureId>;
+  surface: SurfaceId;
+  main: Word;
+  premium: Word | null;
+  session: SessionId;
+  /** Each achievement's condition, in the answers' order. */
+  whens: When[];
+}
+
+/** Reads and checks an answers file; throws one error listing every problem. */
+export function plan(answers: Answers): Plan {
+  const problems: string[] = [];
+  const features = new Set<FeatureId>();
+  for (const f of answers.features ?? []) {
+    if ((FEATURES as readonly string[]).includes(f)) features.add(f as FeatureId);
+    else problems.push(`features: unknown "${f}" (known: ${FEATURES.join(", ")})`);
+  }
+  const core = (answers.core ?? "generators") as CoreId;
+  if (!(CORES as readonly string[]).includes(core)) problems.push(`core: one of ${CORES.join(", ")}`);
+  const slug = answers.slug ? slugify(answers.slug) : slugify(answers.name ?? "");
+  if (!slug) problems.push("name: a name is required");
+  if (!answers.premise) problems.push("premise: one or two sentences");
+  if (!answers.voice) problems.push("voice: a sentence or two");
+  const main = word(answers.currencies?.main ?? { name: "" }, "coin", "currencies.main", problems);
+  let premium: Word | null = null;
+  if (features.has("gacha")) {
+    if (!answers.currencies?.premium) problems.push("currencies.premium: a gacha needs a premium currency");
+    else premium = word(answers.currencies.premium, "gem", "currencies.premium", problems);
+    if (premium && premium.id === main.id) problems.push("currencies: main and premium share an id");
+  }
+  if (!answers.stats?.output || !answers.stats?.offline) problems.push("stats: name the output and offline stats");
+  const n = answers.generators?.length ?? 0;
+  const [low, high] = core === "dimensions" ? [4, 8] : [3, 8];
+  if (n < low || n > high)
+    problems.push(`generators: ${low} to ${high} with core "${core}", ${core === "dimensions" ? "lowest tier" : "cheapest"} first (got ${n})`);
+  const ids = (answers.generators ?? []).map((g) => slugify(g.name));
+  if (new Set(ids).size !== ids.length) problems.push("generators: two share an id (their names slugged)");
+  const statOk = (s: string, where: string) => {
+    if (!(STATS as readonly string[]).includes(s)) problems.push(`${where}: stat "${s}" (one of ${STATS.join(", ")})`);
+    if (s === "gain" && !features.has("prestige")) problems.push(`${where}: "gain" needs the prestige feature`);
+  };
+  if (features.has("clicker")) {
+    const c = answers.clicker;
+    if (!c?.name || !c.verb || !c.line) problems.push("clicker: { name, verb, line } with the clicker feature");
+  }
+  if (features.has("tree")) {
+    const nodes = answers.tree?.nodes ?? [];
+    if (!answers.tree?.name) problems.push("tree.name: required with the tree feature");
+    if (nodes.length < 2 || nodes.length > 12) problems.push(`tree.nodes: 2 to 12 (got ${nodes.length})`);
+    nodes.forEach((node, i) => statOk(node.stat, `tree.nodes[${i}]`));
+  }
+  if (features.has("gacha")) {
+    const g = answers.gacha;
+    if (!g) problems.push("gacha: required with the gacha feature");
+    else {
+      if (g.rarities.length < 2 || g.rarities.length > 5) problems.push("gacha.rarities: 2 to 5, lowest first");
+      const rungs = g.rarities.map((r) => r.id ?? slugify(r.name));
+      if (new Set(rungs).size !== rungs.length) problems.push("gacha.rarities: two rungs share an id");
+      for (const id of rungs)
+        if (!g.items.some((it) => slugify(it.rarity) === id))
+          problems.push(`gacha.items: no item of rarity "${id}" (every rung needs one)`);
+      g.items.forEach((it, i) => {
+        if (!rungs.includes(slugify(it.rarity))) problems.push(`gacha.items[${i}]: unknown rarity "${it.rarity}"`);
+        statOk(it.stat, `gacha.items[${i}]`);
+      });
+    }
+  }
+  if (features.has("prestige")) {
+    if (!answers.prestige) problems.push("prestige: required with the prestige feature");
+    if (!answers.stats?.gain) problems.push("stats.gain: name the prestige stat");
+  }
+  const whens: When[] = [];
+  if (features.has("achievements")) {
+    const a = answers.achievements;
+    const items = a?.items ?? [];
+    if (!a?.name) problems.push("achievements.name: required with the achievements feature");
+    if (items.length < 8 || items.length > 48) problems.push(`achievements.items: 8 to 48 (got ${items.length})`);
+    const seen = new Set<string>();
+    items.forEach((it, i) => {
+      const where = `achievements.items[${i}]`;
+      if (!it.name || !it.line) problems.push(`${where}: a name and a line`);
+      const id = slugify(it.name ?? "");
+      if (seen.has(id)) problems.push(`${where}: "${it.name}" shares an id with another`);
+      seen.add(id);
+      whens.push(readWhen(it.when, where, { features, size: n }, problems));
+    });
+  }
+  if (features.has("visitor")) {
+    const v = answers.visitor;
+    if (!v?.name || !v.line || !v.buff?.name) problems.push("visitor: { name, line, buff: { name, mult, seconds } }");
+    else {
+      if (!(v.buff.mult > 1)) problems.push("visitor.buff.mult: above 1 (it multiplies output)");
+      if (!(v.buff.seconds > 0)) problems.push("visitor.buff.seconds: above zero");
+    }
+  }
+  const session = (SESSIONS as readonly string[]).includes(answers.session)
+    ? (answers.session as SessionId)
+    : (problems.push(`session: one of ${SESSIONS.join(", ")}`), "short");
+  const p = answers.look?.palette;
+  for (const k of ["ground", "ink", "signal"] as const)
+    if (!HEX.test(p?.[k] ?? "")) problems.push(`look.palette.${k}: a #rrggbb colour`);
+  for (const [i, c] of (p?.rarities ?? []).entries())
+    if (!HEX.test(c)) problems.push(`look.palette.rarities[${i}]: a #rrggbb colour`);
+  for (const k of ["display", "ui", "num"] as const)
+    if (!answers.look?.type?.[k]?.family || !answers.look.type[k].spec)
+      problems.push(`look.type.${k}: a Google font's family and css2 spec`);
+  const surface = (answers.look?.surface?.base ?? "") as SurfaceId;
+  if (!(SURFACES as readonly string[]).includes(surface)) problems.push(`look.surface.base: one of ${SURFACES.join(", ")}`);
+  if (!answers.look?.surface?.line) problems.push("look.surface.line: the sentence every shader answers to");
+  if (!answers.look?.moment) problems.push("look.moment: one sentence");
+  if (problems.length) throw new Error(`The answers have problems:\n- ${problems.join("\n- ")}`);
+  return { answers, name: answers.name, slug, core, features, surface, main, premium, session, whens };
+}
+
+/** Every flag the gating reads: the features, the core and the backdrop's base. */
+export const flagsOf = (pl: Plan): Set<string> => new Set<string>([...pl.features, pl.core, pl.surface]);
+/** Every flag there is: the template's own state, the union of every core, feature and base. */
+export const ALL_FLAGS: ReadonlySet<string> = new Set<string>([...FEATURES, ...CORES, ...SURFACES]);
+
+// ---------------------------------------------------------------------------------------------- the content
+
+const ts = (v: unknown) => JSON.stringify(v);
+const HEAD = "// Written by /watchpot from .claude/specs/answers.json. It is the game's now: edit it freely.";
+
+/** Each tier's number for a ladder of `size` rungs, read off five stops (the lowest and the highest always land). */
+const spread = (stops: readonly number[], size: number, i: number) =>
+  stops[Math.round((i * (stops.length - 1)) / Math.max(1, size - 1))] ?? 0;
+
+const ODDS: Record<number, number[]> = {
+  2: [90, 10],
+  3: [80, 17, 3],
+  4: [70, 22, 6.5, 1.5],
+  5: [60, 27, 9, 3, 1],
+};
+
+/** The dimensions ladder: each tier's first price and how far the price steps every ten bought (eight at most). */
+const TIER_BASE = [10, 100, 1e4, 1e6, 1e9, 1e13, 1e18, 1e24];
+const TIER_STEP = [1e3, 1e4, 1e5, 1e6, 1e8, 1e10, 1e12, 1e15];
+
+/** The pacing presets: how a session-length answer plays in the sim, and the bands it is held to. */
+export const PACING: Record<
+  SessionId,
+  {
+    label: string;
+    sessionsPerDay: [number, number];
+    sessionMin: [median: number, min: number, max: number];
+    lookEveryMin: [number, number];
+    tabLeftOpen: number;
+  }
+> = {
+  glance: {
+    label: "a glance: many short check-ins, a minute or two each",
+    sessionsPerDay: [8, 12],
+    sessionMin: [2, 1, 5],
+    lookEveryMin: [1, 1],
+    tabLeftOpen: 0.1,
+  },
+  short: {
+    label: "short sessions: a handful a day, about ten minutes each",
+    sessionsPerDay: [4, 6],
+    sessionMin: [10, 3, 25],
+    lookEveryMin: [1, 3],
+    tabLeftOpen: 0.3,
+  },
+  long: {
+    label: "long sittings: two or three a day, most of an hour each, the tab often left open",
+    sessionsPerDay: [2, 3],
+    sessionMin: [45, 20, 90],
+    lookEveryMin: [3, 6],
+    tabLeftOpen: 0.6,
+  },
+};
+
+/** The tabs' names: the answers', else the main plural and each feature's own name. */
+function tabsOf(pl: Plan) {
+  const a = pl.answers;
+  return {
+    make: a.tabs?.make ?? pl.main.plural,
+    tree: a.tabs?.tree ?? a.tree?.name ?? "Upgrades",
+    gacha: a.tabs?.gacha ?? a.gacha?.name ?? "Pulls",
+    prestige: a.tabs?.prestige ?? a.prestige?.name ?? "Prestige",
+    achievements: a.tabs?.achievements ?? a.achievements?.name ?? "Achievements",
+  };
+}
+
+/**
+ * The content files. `union` writes every core's and every feature's file (the template's own example): the files
+ * of what was not chosen are dropped by the gating afterwards anyway.
+ */
+export function contentFiles(pl: Plan, union = false): Record<string, string> {
+  const a = pl.answers;
+  const has = (x: FeatureId | CoreId) => union || pl.features.has(x as FeatureId) || pl.core === x;
+  const out: Record<string, string> = {};
+  const rarities = has("gacha") && a.gacha ? a.gacha.rarities.map((r) => r.id ?? slugify(r.name)) : [];
+  const currencies = [pl.main, ...(pl.premium ? [pl.premium] : [])];
+  const tabs = tabsOf(pl);
+  const n = a.generators.length;
+
+  out["src/content/words.ts"] = [
+    HEAD,
+    'import { type CurrencyOf, type RarityOf, vocab } from "watchpot/core";',
+    'import type { GlyphId } from "../app/icons";',
+    "",
+    `export const NAME = ${ts(pl.name)};`,
+    "/** The save key's and the game id's stem. */",
+    `export const SLUG = ${ts(pl.slug)};`,
+    `export const PREMISE = ${ts(a.premise)};`,
+    "",
+    "/** The currency the core makes and every upgrade costs. */",
+    `export const MAIN = ${ts(pl.main.id)};`,
+    ...(pl.premium
+      ? ["/** The currency the pulls cost: it drips in slowly, online and away. */", `export const PREMIUM = ${ts(pl.premium.id)};`]
+      : []),
+    "",
+    "/** The game's words: its currencies, the stats its upgrades raise, its rarity ladder (lowest first). */",
+    "export const WORDS = vocab({",
+    `  currencies: [${["MAIN", ...(pl.premium ? ["PREMIUM"] : [])].join(", ")}],`,
+    '  stats: ["output", "offline", "gain"],',
+    // The engine's vocabulary needs one rung at least: a game with no pulls gets one it never draws.
+    `  rarities: ${ts(rarities.length ? rarities : ["common"])},`,
+    "} as const);",
+    "",
+    "export type Currency = CurrencyOf<typeof WORDS>;",
+    "export type Rarity = RarityOf<typeof WORDS>;",
+    'export type StatId = "output" | "offline" | "gain";',
+    "",
+    "export interface CurrencyWords {",
+    "  name: string;",
+    "  plural: string;",
+    "  glyph: GlyphId;",
+    "}",
+    "",
+    "export const CURRENCY: Record<Currency, CurrencyWords> = {",
+    ...currencies.map((c) => `  ${ts(c.id)}: { name: ${ts(c.name)}, plural: ${ts(c.plural)}, glyph: ${ts(c.glyph)} },`),
+    "};",
+    "",
+    "/** What each stat is called in the fiction. */",
+    "export const STAT: Record<StatId, string> = {",
+    `  output: ${ts(a.stats.output)},`,
+    `  offline: ${ts(a.stats.offline)},`,
+    `  gain: ${ts(a.stats.gain ?? "Gain")},`,
+    "};",
+    "",
+    "/** The tabs' names, one per screen. */",
+    `export const TAB_NAMES = ${ts(Object.fromEntries(Object.entries(tabs).filter(([k]) => k === "make" || has(k as FeatureId))))};`,
+    "",
+    "/** The starter backdrop this game was scaffolded with (`src/shaders/`); the build writes its own. */",
+    `export const SURFACE = ${ts(pl.surface)};`,
+    "/** The sentence every shader in the game answers to. */",
+    `export const SURFACE_LINE = ${ts(a.look.surface.line)};`,
+    "",
+  ].join("\n");
+
+  out["src/content/economy.ts"] = [
+    HEAD,
+    "",
+    "/** What a new profile starts with. */",
+    `export const START = { main: ${pl.core === "dimensions" && !union ? 10 : 15}${pl.premium ? ", premium: 20" : ""} };`,
+    "/** Away, the core makes this share of its rate (before the offline stat), for at most `OFFLINE_CAP_MS`. */",
+    "export const OFFLINE_BASE = 0.5;",
+    "export const OFFLINE_CAP_MS = 8 * 3_600_000;",
+    "/** The income a late game makes a second: where the backdrop's heat reaches 1 (log scale from 1). */",
+    `export const LATE_RATE = ${pl.core === "dimensions" && !union ? "1e30" : `${Number((10 * 12 ** (n - 1)).toPrecision(3))} * 100`};`,
+    "",
+  ].join("\n");
+
+  if (has("generators")) {
+    out["src/content/generators.ts"] = [
+      "// @feature generators",
+      HEAD,
+      'import type { CostCurve } from "watchpot/core";',
+      "",
+      "export interface GeneratorDef {",
+      "  id: string;",
+      "  name: string;",
+      "  line: string;",
+      "  /** The price of the next one, by how many are owned. */",
+      "  cost: CostCurve;",
+      "  /** What one makes a second, before the stats. */",
+      "  rate: number;",
+      "}",
+      "",
+      "/** Each one owned raises the next one's price by this share. */",
+      "export const COST_GROWTH = 1.15;",
+      "",
+      "/** Cheapest first. Each costs twelve times the last; one pays itself back in a minute, the next in two, and so on. */",
+      "export const GENERATORS: readonly GeneratorDef[] = [",
+      ...a.generators.map(
+        (g, i) =>
+          `  { id: ${ts(slugify(g.name))}, name: ${ts(g.name)}, line: ${ts(g.line)}, cost: { base: ${10 * 12 ** i}, growth: COST_GROWTH, round: "floor" }, rate: ${Number(((10 * 12 ** i) / (60 * 2 ** i)).toPrecision(3))} },`,
+      ),
+      "];",
+      "",
+    ].join("\n");
+  }
+
+  if (has("dimensions")) {
+    const tiers = a.generators.slice(0, 8);
+    out["src/content/dimensions.ts"] = [
+      "// @feature dimensions",
+      HEAD,
+      'import type { CostCurve, DimensionSet } from "watchpot/core";',
+      "",
+      "export interface TierDef {",
+      "  id: string;",
+      "  name: string;",
+      "  line: string;",
+      "  /** Ten at one price, then the price steps (`every: 10`). */",
+      "  cost: CostCurve;",
+      "}",
+      "",
+      "/** Every ten bought of a tier doubles it. */",
+      "export const SET: DimensionSet = { size: 10, mult: 2 };",
+      "",
+      "/** Lowest first: the first makes the main currency, each other makes the tier below it. */",
+      "export const TIERS: readonly TierDef[] = [",
+      ...tiers.map(
+        (g, i) =>
+          `  { id: ${ts(slugify(g.name))}, name: ${ts(g.name)}, line: ${ts(g.line)}, cost: { base: ${TIER_BASE[i]}, growth: ${TIER_STEP[i]}, every: 10 } },`,
+      ),
+      "];",
+      "",
+    ].join("\n");
+  }
+
+  if (has("clicker") && a.clicker) {
+    const c = a.clicker;
+    out["src/content/clicker.ts"] = [
+      "// @feature clicker",
+      HEAD,
+      'import type { ClickCombo, ClickCrit } from "watchpot/core";',
+      "",
+      "/** The thing pressed, the press's verb, and its line. */",
+      `export const CLICKER = { name: ${ts(c.name)}, verb: ${ts(c.verb)}, line: ${ts(c.line)} };`,
+      "/** One press pays `BASE` plus `SHARE` of the income a second. */",
+      "export const BASE = 1;",
+      "export const SHARE = 0.05;",
+      "export const CRIT: ClickCrit = { chance: 0.04, mult: 8 };",
+      "/** Presses close together climb to ×2. */",
+      "export const COMBO: ClickCombo = { windowMs: 800, step: 0.1, max: 2 };",
+      "/** Past this many presses a second, the rest pay nothing. */",
+      "export const MAX_PER_SECOND = 20;",
+      "",
+    ].join("\n");
+  }
+
+  if (has("tree") && a.tree) {
+    const EFFECT: Record<StatId, string> = {
+      output: '{ stat: "output", mult: 1.1 }',
+      offline: '{ stat: "offline", add: 0.05 }',
+      gain: '{ stat: "gain", mult: 1.15 }',
+    };
+    const MAX: Record<StatId, number> = { output: 10, offline: 5, gain: 5 };
+    out["src/content/tree.ts"] = [
+      "// @feature tree",
+      HEAD,
+      'import type { Effect, GraphNode } from "watchpot/core";',
+      'import { type Currency, MAIN } from "./words";',
+      "",
+      "/** A node, placed on the tree's grid: `col` its tier (left to right), `row` its place in the tier. */",
+      "export interface UpgradeNode extends GraphNode<Effect, Currency> {",
+      "  col: number;",
+      "  row: number;",
+      "}",
+      "",
+      `export const TREE_NAME = ${ts(a.tree.name)};`,
+      "",
+      "/** Two to a tier; each node after the first tier needs the one before it in its row. */",
+      "export const NODES: readonly UpgradeNode[] = [",
+      ...a.tree.nodes.map((node, j) => {
+        const stat = node.stat as StatId;
+        const requires = j >= 2 ? [slugify(a.tree?.nodes[j - 2]?.name ?? "")] : [];
+        return [
+          "  {",
+          `    id: ${ts(slugify(node.name))},`,
+          `    name: ${ts(node.name)},`,
+          `    line: ${ts(node.line)},`,
+          `    cost: [{ currency: MAIN, amount: ${100 * 8 ** j} }],`,
+          "    costGrowth: 2.5,",
+          `    maxLevel: ${MAX[stat]},`,
+          `    requires: ${ts(requires)},`,
+          `    effects: [${EFFECT[stat]}],`,
+          `    col: ${Math.floor(j / 2)},`,
+          `    row: ${j % 2},`,
+          "  },",
+        ].join("\n");
+      }),
+      "];",
+      "",
+    ].join("\n");
+  }
+
+  if (has("gacha") && a.gacha && pl.premium) {
+    const g = a.gacha;
+    const size = rarities.length;
+    const odds = ODDS[size] ?? [];
+    const effect = (stat: StatId, rung: number) => {
+      if (stat === "offline") return `{ stat: "offline", add: ${spread([0.01, 0.02, 0.04, 0.07, 0.1], size, rung)} }`;
+      if (stat === "gain") return `{ stat: "gain", mult: ${spread([1.02, 1.05, 1.1, 1.2, 1.35], size, rung)} }`;
+      return `{ stat: "output", mult: ${spread([1.01, 1.03, 1.06, 1.12, 1.25], size, rung)} }`;
+    };
+    const top = rarities[size - 1];
+    const second = rarities[size - 2];
+    out["src/content/gacha.ts"] = [
+      "// @feature gacha",
+      HEAD,
+      'import type { Effect, OddsTable, PityRule } from "watchpot/core";',
+      'import type { Rarity } from "./words";',
+      "",
+      `export const GACHA_NAME = ${ts(g.name)};`,
+      "/** The one box the pulls open; its id is the gacha's box key. */",
+      `export const BOX = ${ts(slugify(g.box))};`,
+      `export const BOX_NAME = ${ts(g.box)};`,
+      "/** Premium per pull. */",
+      "export const PULL_PRICE = 10;",
+      "/** One premium drips in this often while the game runs (away, at the offline share). */",
+      "export const DRIP_MS = 6 * 60_000;",
+      "",
+      "export const RARITY_NAME: Record<Rarity, string> = {",
+      ...g.rarities.map((r, i) => `  ${ts(rarities[i])}: ${ts(r.name)},`),
+      "};",
+      "",
+      "/** Weights per rung, lowest first. */",
+      "export const ODDS: OddsTable<Rarity> = {",
+      ...rarities.map((r, i) => `  ${ts(r)}: ${odds[i]},`),
+      "};",
+      "",
+      "/** The guarantees: the second-best rung within 10 pulls, the best within 50 (its chance ramping from 41). */",
+      "export const PITY: PityRule<Rarity> = [",
+      ...(size > 2 ? [`  { rarity: ${ts(second)}, within: 10 },`] : []),
+      `  { rarity: ${ts(top)}, within: 50, softFrom: 40 },`,
+      "];",
+      "",
+      "export interface ItemDef {",
+      "  id: string;",
+      "  name: string;",
+      "  rarity: Rarity;",
+      "  /** What each copy owned adds. */",
+      "  effect: Effect;",
+      "}",
+      "",
+      "export const ITEMS: readonly ItemDef[] = [",
+      ...g.items.map((it) => {
+        const rid = slugify(it.rarity);
+        return `  { id: ${ts(slugify(it.name))}, name: ${ts(it.name)}, rarity: ${ts(rid)}, effect: ${effect(it.stat as StatId, rarities.indexOf(rid))} },`;
+      }),
+      "];",
+      "",
+    ].join("\n");
+  }
+
+  if (has("prestige") && a.prestige) {
+    const p = a.prestige;
+    const cur = word(p.currency, "star", "prestige.currency", []);
+    // A run pays once it has earned what a thousand of the top producer would cost (dimensions: its third set).
+    const per =
+      pl.core === "dimensions" && !union
+        ? (TIER_BASE[Math.min(n, 8) - 1] ?? 1e6) * 1e3
+        : 10 * 12 ** (n - 1) * 1000;
+    out["src/content/prestige.ts"] = [
+      "// @feature prestige",
+      HEAD,
+      'import type { CurrencyWords } from "./words";',
+      "",
+      `export const PRESTIGE_NAME = ${ts(p.name)};`,
+      "/** The button's word. */",
+      `export const PRESTIGE_VERB = ${ts(p.verb)};`,
+      `export const PRESTIGE_CURRENCY: CurrencyWords = { name: ${ts(cur.name)}, plural: ${ts(cur.plural)}, glyph: ${ts(cur.glyph)} };`,
+      "",
+      "/** The gain: `floor(k × (earned this run / per) ^ exp)`, times the gain stat. */",
+      `export const GAIN = { k: 1, exp: ${pl.core === "dimensions" && !union ? 0.25 : 0.5}, per: ${per} };`,
+      "/** Each unit held raises output by this share. */",
+      "export const BONUS_PER_UNIT = 0.1;",
+      "",
+    ].join("\n");
+  }
+
+  if (has("achievements") && a.achievements) {
+    const kinds = (Object.keys(WHEN_KINDS) as WhenKind[]).filter((k) => {
+      const needs = WHEN_KINDS[k];
+      return needs === null || has(needs);
+    });
+    const TYPE: Record<WhenKind, string> = {
+      own: "  /** Own `count` of a producer (by id). */\n  | { own: string; count: number }",
+      earned: "  /** Earn this much of the main currency in one run. */\n  | { earned: number }",
+      clicks: "  /** Press this many times, ever. */\n  | { clicks: number }",
+      runs: "  /** Reset this many times. */\n  | { runs: number }",
+      nodes: "  /** Hold a rank in this many of the tree's nodes. */\n  | { nodes: number }",
+      pulls: "  /** Pull this many times, ever. */\n  | { pulls: number }",
+    };
+    const whenText = (w: When): string => {
+      if (w.kind === "own") return `{ own: ${ts(slugify(a.generators[w.index ?? 0]?.name ?? ""))}, count: ${w.n} }`;
+      return `{ ${w.kind}: ${w.n} }`;
+    };
+    out["src/content/achievements.ts"] = [
+      "// @feature achievements",
+      HEAD,
+      "",
+      `export const WALL_NAME = ${ts(a.achievements.name)};`,
+      "",
+      "/** What earns one. Anything subtler is the game's to write in `src/game/achievements.ts`. */",
+      "export type When =",
+      ...kinds.map((k) => TYPE[k]),
+      "  ;",
+      "",
+      "export interface AchievementDef {",
+      "  id: string;",
+      "  name: string;",
+      "  /** Its flavour line. */",
+      "  line: string;",
+      "  when: When;",
+      "  /** Hidden until earned. */",
+      "  secret?: boolean;",
+      "}",
+      "",
+      "/** Tiles to a row. */",
+      "export const COLUMNS = 8;",
+      "/** Output ×`each` per achievement earned, and ×`row` per full row. */",
+      "export const POWER = { each: 1.03, row: 1.25 };",
+      "",
+      "export const ACHIEVEMENTS: readonly AchievementDef[] = [",
+      ...a.achievements.items.map(
+        (it, i) =>
+          `  { id: ${ts(slugify(it.name))}, name: ${ts(it.name)}, line: ${ts(it.line)}, when: ${whenText(pl.whens[i] ?? { kind: "earned", n: 1 })}${it.secret ? ", secret: true" : ""} },`,
+      ),
+      "];",
+      "",
+    ].join("\n");
+  }
+
+  if (has("visitor") && a.visitor) {
+    const v = a.visitor;
+    out["src/content/visitor.ts"] = [
+      "// @feature visitor",
+      HEAD,
+      'import { MINUTE_MS, type SpawnWait } from "watchpot/core";',
+      "",
+      "/** What turns up, and its line. */",
+      `export const VISITOR = { name: ${ts(v.name)}, line: ${ts(v.line)} };`,
+      "/** What catching it starts: output ×`mult` for `seconds`. */",
+      `export const BUFF = { id: ${ts(slugify(v.buff.name) || "buff")}, name: ${ts(v.buff.name)}, mult: ${v.buff.mult}, seconds: ${v.buff.seconds} };`,
+      "/** At least three minutes apart, at most nine; most come late. */",
+      "export const WAIT: SpawnWait = { minMs: 3 * MINUTE_MS, maxMs: 9 * MINUTE_MS, ramp: { power: 4, stepMs: 1000 / 30 } };",
+      "/** How long one stays to be caught. */",
+      "export const LIFE_MS = 12_000;",
+      "",
+    ].join("\n");
+  }
+
+  const pc = PACING[pl.session];
+  // The rank bands were set for a six-node tree: a longer tree has more ranks to buy by the same day.
+  const rankHigh = (six: number) => Math.ceil((six * Math.max(6, a.tree?.nodes.length ?? 6)) / 6);
+  // The template's own example plays both cores at once (two incomes into one wallet), so it runs far faster than
+  // any real shape: its rank and reset bands are held wide, and only the real shapes are held to the design's bands.
+  // A dimensions chain compounds faster than a list of producers: the same day holds more ranks and more resets.
+  const quick = pl.core === "dimensions" && !union ? 3 : 1;
+  const bandRows: string[] = [
+    `  ["kinds", [[${Math.min(3, n)}, ${n}], [${n - 1}, ${n}], [${n}, ${n}]]],`,
+    ...(has("tree")
+      ? [
+          union
+            ? `  ["ranks", [[1, ${rankHigh(90)}], [5, ${rankHigh(120)}], [10, ${rankHigh(300)}]]],`
+            : `  ["ranks", [[1, ${rankHigh(30) * quick}], [5, ${rankHigh(60) * quick}], [10, ${rankHigh(200) * quick}]]],`,
+        ]
+      : []),
+    ...(has("gacha") ? ['  ["pulls", [[2, 40], [5, 120], [10, 400]]],'] : []),
+    ...(has("prestige")
+      ? [union ? '  ["runs", [[0, 30], [1, 60], [2, 120]]],' : `  ["runs", [[0, ${3 * quick}], [1, ${8 * quick}], [2, ${24 * quick}]]],`]
+      : []),
+  ];
+  out["src/content/pacing.ts"] = [
+    HEAD,
+    'import type { BandRow, SessionSchedule } from "watchpot/sim";',
+    "",
+    `/** The session the game is built for: ${pc.label}. */`,
+    `export const SESSION = ${ts(pl.session)};`,
+    "",
+    "/** How the sim's player comes and goes. */",
+    "export const SCHEDULE: SessionSchedule = {",
+    '  kind: "sessions",',
+    "  wakeHour: { min: 7, max: 9 },",
+    "  sleepHour: { min: 22, max: 24 },",
+    `  sessionsPerDay: { min: ${pc.sessionsPerDay[0]}, max: ${pc.sessionsPerDay[1]} },`,
+    `  sessionMin: { median: ${pc.sessionMin[0]}, spread: 0.5, min: ${pc.sessionMin[1]}, max: ${pc.sessionMin[2]} },`,
+    `  lookEveryMin: { min: ${pc.lookEveryMin[0]}, max: ${pc.lookEveryMin[1]} },`,
+    `  tabLeftOpen: ${pc.tabLeftOpen},`,
+    "  skipDay: 0,",
+    "  skipWeekendDay: 0,",
+    "  decay: [1],",
+    "  lengthDecay: [1],",
+    "  pressesPerSession: { min: 0, max: 0 },",
+    "  firstDayBonusSessions: 1,",
+    "};",
+    "",
+    "/** The days the contract reads, and how many the sim plays by default. */",
+    "export const CONTRACT_DAYS = [1, 3, 7] as const;",
+    "export const SIM_DAYS = 7;",
+    "",
+    "/**",
+    " * The pacing contract: per metric, the [low, high] it should sit in by the end of each contract day. These are the",
+    " * design's intent, not a measurement: tune the content until `bun run sim -- --contract` holds them, or move a band",
+    " * on purpose and say why in the commit.",
+    " */",
+    "export const BANDS = [",
+    ...bandRows,
+    "] as const satisfies readonly BandRow<string>[];",
+    "",
+  ].join("\n");
+
+  out["design/tokens.json"] = `${JSON.stringify(tokens(pl, rarities), null, 2)}\n`;
+  out[".claude/specs/answers.json"] = `${JSON.stringify(a, null, 2)}\n`;
+  out[".claude/specs/concept.md"] = concept(pl, tabs);
+  return out;
+}
+
+// ---------------------------------------------------------------------------------------------- the look
+
+const rgb = (hex: string) => [1, 3, 5].map((i) => Number.parseInt(hex.slice(i, i + 2), 16));
+const toHex = (c: number[]) => `#${c.map((v) => Math.round(v).toString(16).padStart(2, "0")).join("")}`;
+/** `t` of the way from `a` to `b`. */
+export const mix = (a: string, b: string, t: number) => {
+  const x = rgb(a);
+  const y = rgb(b);
+  return toHex(x.map((v, i) => v + ((y[i] ?? 0) - v) * t));
+};
+export const luminance = (hex: string) => {
+  const [r = 0, g = 0, b = 0] = rgb(hex).map((v) => {
+    const s = v / 255;
+    return s <= 0.03928 ? s / 12.92 : ((s + 0.055) / 1.055) ** 2.4;
+  });
+  return 0.2126 * r + 0.7152 * g + 0.0722 * b;
+};
+export const contrast = (a: string, b: string) => {
+  const [hi, lo] = [luminance(a), luminance(b)].sort((x, y) => y - x) as [number, number];
+  return (hi + 0.05) / (lo + 0.05);
+};
+
+/** The colour tokens the kit reads, derived from a ground, an ink and a signal. */
+function surface(ground: string, ink: string, signal: string, dark: boolean) {
+  const onSignal = contrast(signal, "#121214") >= contrast(signal, "#ffffff") ? "#121214" : "#ffffff";
+  return {
+    ground,
+    "ground-raised": dark ? mix(ground, ink, 0.06) : mix(ground, "#ffffff", 0.75),
+    paper: mix(ground, ink, dark ? 0.12 : 0.06),
+    "paper-shade": mix(ground, ink, dark ? 0.17 : 0.11),
+    ink,
+    "ink-muted": mix(ink, ground, 0.35),
+    "on-paper": ink,
+    "on-paper-muted": mix(ink, ground, 0.35),
+    hairline: mix(ground, ink, dark ? 0.12 : 0.14),
+    "hairline-paper": mix(ground, ink, dark ? 0.18 : 0.2),
+    edge: mix(ground, ink, 0.5),
+    signal,
+    "on-signal": onSignal,
+    focus: ink,
+    "scene-base": dark ? mix(ground, ink, 0.06) : mix(ground, "#ffffff", 0.75),
+    "scene-ink": ink,
+    "scene-tint": "{signal}",
+    overlay: dark ? "#000000b3" : `${ink}80`,
+    ok: dark ? "#5fd39a" : "#1c7044",
+    warn: dark ? "#f0b23c" : "#8a5a12",
+    danger: dark ? "#ff7a7a" : "#ad1b24",
+    "ok-paper": "{ok}",
+    "warn-paper": "{warn}",
+    "danger-paper": "{danger}",
+    "rarity-plate": dark ? "#000000" : "{ink}",
+    glare: dark ? "#ffffff66" : "#ffffff99",
+  };
+}
+
+function tokens(pl: Plan, rarities: string[]) {
+  const { ground, ink, signal } = pl.answers.look.palette;
+  const hues = pl.answers.look.palette.rarities ?? [];
+  const dark = luminance(ground) < 0.4;
+  const base: Record<string, string> = surface(ground, ink, signal, dark);
+  rarities.forEach((id, i) => {
+    base[`rarity-${id}`] = hues[i] ?? mix(ink, signal, i / Math.max(1, rarities.length - 1));
+  });
+  base["rarity-top"] = rarities.length ? `{rarity-${rarities[rarities.length - 1]}}` : "{signal}";
+  const foil = [...hues, signal, mix(signal, "#ffffff", 0.4), mix(signal, ink, 0.3)];
+  for (let i = 0; i < 5; i++) base[`foil-${i + 1}`] = foil[i % foil.length] ?? signal;
+  // A light palette gets a dark scheme (Settings › Appearance, or the OS): the same hues on the ink's night side.
+  const night = dark ? null : surface(mix(ink, "#000000", 0.25), mix(ground, "#ffffff", 0.3), signal, true);
+  const t = pl.answers.look.type;
+  const fam = (f: FontIn) => `"${f.family}", ${f.fallback ?? "sans-serif"}`;
+  return {
+    name: pl.name,
+    version: 1,
+    color: {
+      themes: [{ id: "game", name: pl.name }],
+      tokens: Object.entries(base).map(([name, value]) => ({ name, value })),
+      ...(night
+        ? {
+            schemes: {
+              dark: {
+                colorScheme: "dark",
+                name: "Dark",
+                tokens: Object.fromEntries(
+                  Object.entries(night).filter(([k]) => !["signal", "on-signal", "scene-tint"].includes(k)),
+                ),
+              },
+            },
+          }
+        : {}),
+    },
+    type: {
+      fonts: [],
+      families: { display: fam(t.display), ui: fam(t.ui), num: fam(t.num) },
+      groups: [
+        {
+          name: "Display",
+          family: "display",
+          styles: [
+            { name: "headline", fontSize: "44px", lineHeight: 0.95, fontWeight: 700, letterSpacing: "-0.02em" },
+            { name: "title", fontSize: "24px", lineHeight: 1, fontWeight: 700, letterSpacing: "-0.005em" },
+            {
+              name: "title-italic",
+              fontSize: "28px",
+              lineHeight: 1.05,
+              fontWeight: 400,
+              fontStyle: "italic",
+            },
+          ],
+        },
+        {
+          name: "Interface",
+          family: "ui",
+          styles: [
+            { name: "body", fontSize: "14px", lineHeight: 1.45, fontWeight: 400 },
+            { name: "body-strong", fontSize: "14px", lineHeight: 1.45, fontWeight: 600 },
+            { name: "small", fontSize: "13px", lineHeight: 1.4, fontWeight: 400 },
+            { name: "label", fontSize: "12px", lineHeight: 1.2, fontWeight: 600, letterSpacing: "0.02em" },
+            {
+              name: "code",
+              fontSize: "11px",
+              lineHeight: 1,
+              fontWeight: 600,
+              letterSpacing: "0.1em",
+              textTransform: "uppercase",
+            },
+            {
+              name: "lot-number",
+              fontSize: "11px",
+              lineHeight: 1,
+              fontWeight: 600,
+              letterSpacing: "0.1em",
+              textTransform: "uppercase",
+            },
+            { name: "button", fontSize: "14px", lineHeight: 1, fontWeight: 600 },
+          ],
+        },
+        {
+          name: "Numbers",
+          family: "num",
+          styles: [
+            { name: "counter", fontSize: "40px", lineHeight: 1, fontWeight: 500, letterSpacing: "-0.02em" },
+            { name: "number", fontSize: "16px", lineHeight: 1, fontWeight: 500 },
+            { name: "number-small", fontSize: "12px", lineHeight: 1, fontWeight: 500 },
+          ],
+        },
+      ],
+    },
+    spacing: {
+      tokens: [4, 8, 12, 16, 24, 32, 48, 64].map((v, i) => ({ name: `space-${i + 1}`, value: `${v}px` })),
+    },
+    grid: { tokens: [{ name: "gutter", value: "2px" }] },
+    radius: {
+      tokens: ["radius-0", "radius-sm", "radius-md", "radius-card", "radius-pill"].map((name) => ({
+        name,
+        value: "0px",
+      })),
+    },
+    shadow: {
+      tokens: [
+        { name: "shadow-card", value: dark ? "0 6px 16px #000000a6" : `0 6px 16px ${ink}33` },
+        { name: "shadow-sheet", value: dark ? "0 -16px 48px #000000b3" : `0 -16px 48px ${ink}40` },
+      ],
+    },
+  };
+}
+
+/** Warnings for colour pairs below the reading line; the scaffold prints them. */
+export function lookWarnings(pl: Plan): string[] {
+  const { ground, ink, signal } = pl.answers.look.palette;
+  const out: string[] = [];
+  const c1 = contrast(ground, ink);
+  if (c1 < 7) out.push(`ink on ground is ${c1.toFixed(1)}:1 (aim for 7:1 or more)`);
+  const on = contrast(signal, "#121214") >= contrast(signal, "#ffffff") ? "#121214" : "#ffffff";
+  const c2 = contrast(signal, on);
+  if (c2 < 4.5) out.push(`text on the signal is ${c2.toFixed(1)}:1 (needs 4.5:1)`);
+  return out;
+}
+
+export function fontLinks(pl: Plan): string {
+  const t = pl.answers.look.type;
+  const specs = [...new Set([t.display.spec, t.ui.spec, t.num.spec])];
+  return [
+    '<link rel="preconnect" href="https://fonts.googleapis.com" />',
+    '    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />',
+    ...specs.map(
+      (s) => `    <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=${s}&display=swap" />`,
+    ),
+  ].join("\n");
+}
+
+function concept(pl: Plan, tabs: ReturnType<typeof tabsOf>): string {
+  const a = pl.answers;
+  const f = pl.features;
+  const lower = (s: string) => s.toLowerCase();
+  const core =
+    pl.core === "dimensions"
+      ? `- **${tabs.make}.** A chain of ${a.generators.length} tiers: ${a.generators.map((g) => g.name).join(", ")}. The first makes ${lower(pl.main.plural)}, each other makes the tier below it, and every ten bought of a tier doubles it.`
+      : `- **${tabs.make}.** ${a.generators.length} generators make ${lower(pl.main.plural)}: ${a.generators.map((g) => g.name).join(", ")}.`;
+  const lines = [
+    `# ${pl.name}`,
+    "",
+    "The game's concept as `/watchpot` took it down. The answers themselves are in `answers.json` beside this file.",
+    "",
+    "## Fiction",
+    "",
+    a.premise,
+    "",
+    `**Voice.** ${a.voice}`,
+    ...(a.player ? ["", `**Who plays.** ${a.player}`] : []),
+    "",
+    "## Loop",
+    "",
+    core,
+    ...(f.has("clicker") && a.clicker
+      ? [`- **${a.clicker.name}.** ${a.clicker.verb} it for ${lower(pl.main.plural)}: a share of the income a press, a crit now and then, a combo for presses close together.`]
+      : []),
+    ...(f.has("tree") ? [`- **${tabs.tree}.** An upgrade tree (${a.tree?.name}) of ${a.tree?.nodes.length} nodes, bought with ${lower(pl.main.plural)}.`] : []),
+    ...(f.has("gacha") && a.gacha
+      ? [
+          `- **${tabs.gacha}.** ${a.gacha.box} pulls for ${pl.premium?.plural.toLowerCase()}, a ladder of ${a.gacha.rarities.map((r) => r.name).join(" < ")}, ${a.gacha.items.length} things to find; every copy owned adds its bonus.`,
+        ]
+      : []),
+    ...(f.has("prestige") && a.prestige
+      ? [
+          `- **${tabs.prestige}.** ${a.prestige.verb} resets the run for ${a.prestige.currency.plural ?? `${a.prestige.currency.name}s`}, each one raising ${lower(a.stats.output)} for good.`,
+        ]
+      : []),
+    ...(f.has("achievements") && a.achievements
+      ? [`- **${tabs.achievements}.** A wall of ${a.achievements.items.length} (${a.achievements.name}), eight to a row; each earned raises ${lower(a.stats.output)}, a full row more.`]
+      : []),
+    ...(f.has("visitor") && a.visitor
+      ? [`- **${a.visitor.name}.** Turns up every few minutes and stays a few seconds; caught, it starts ${a.visitor.buff.name}: ${lower(a.stats.output)} ×${a.visitor.buff.mult} for ${a.visitor.buff.seconds} seconds.`]
+      : []),
+    "",
+    `Stats: ${a.stats.output} (output), ${a.stats.offline} (offline share)${f.has("prestige") ? `, ${a.stats.gain} (prestige gain)` : ""}.`,
+    "",
+    "## Session",
+    "",
+    `Built for ${PACING[pl.session].label}. The pacing contract is \`src/content/pacing.ts\`.`,
+    "",
+    "## Look",
+    "",
+    `- Palette: ground \`${a.look.palette.ground}\`, ink \`${a.look.palette.ink}\`, signal \`${a.look.palette.signal}\`${a.look.palette.rarities?.length ? `, rarities ${a.look.palette.rarities.map((c) => `\`${c}\``).join(" ")}` : ""}.`,
+    `- Type: ${a.look.type.display.family} (display), ${a.look.type.ui.family} (interface), ${a.look.type.num.family} (numbers), from Google Fonts.`,
+    `- **The surface.** ${a.look.surface.line} (scaffolded on the \`${pl.surface}\` starter in \`src/shaders/\`, to be replaced.)`,
+    `- **The moment.** ${a.look.moment}`,
+    "",
+  ];
+  return lines.join("\n");
+}
+
+// ---------------------------------------------------------------------------------------------- gating
+
+const FEATURE_LINE = /^\s*(?:\/\/|\/\*|#|<!--)\s*@feature\s+(\w+)/;
+const IF_LINE = /^\s*(?:\/\/|\/\*|#|\{\/\*)\s*@if\s+(!?)([\w|]+)/;
+const END_LINE = /^\s*(?:\/\/|\/\*|#|\{\/\*)\s*@end\b/;
+
+/** The file's text with its gated blocks resolved, or null when the whole file belongs to a flag not chosen. */
+export function gate(text: string, chosen: ReadonlySet<string>, path: string): string | null {
+  const lines = text.split("\n");
+  const head = lines[0]?.match(FEATURE_LINE);
+  if (head) {
+    if (!chosen.has(head[1] ?? "")) return null;
+    lines.shift();
+  }
+  const out: string[] = [];
+  // The open blocks' conditions, innermost last: a line stays when every one holds.
+  const open: boolean[] = [];
+  for (const [i, line] of lines.entries()) {
+    const head = line.match(IF_LINE);
+    if (head) {
+      // `a|b` holds when any of them is chosen; `!a|b` when none is.
+      const any = (head[2] ?? "").split("|").some((f) => chosen.has(f));
+      open.push(any !== (head[1] === "!"));
+      continue;
+    }
+    if (END_LINE.test(line)) {
+      if (!open.length) throw new Error(`${path}:${i + 1}: @end without @if`);
+      open.pop();
+      continue;
+    }
+    if (open.every(Boolean)) out.push(line);
+  }
+  if (open.length) throw new Error(`${path}: an @if never ends`);
+  return out.join("\n");
+}
+
+/**
+ * The template's own text, ungated: the union of every block. The raw template is this (the markers are comments),
+ * so whatever a `@if !<flag>` block holds must also make sense beside everything else.
+ */
+export const union = (text: string, path: string) => gate(text, ALL_FLAGS, path);
+
+const TEXT = /\.(ts|tsx|css|json|md|html|toml|tmpl)$|^\.git(ignore|attributes)$/;
+
+async function walk(dir: string, rel = ""): Promise<string[]> {
+  const out: string[] = [];
+  for (const e of await readdir(join(dir, rel), { withFileTypes: true })) {
+    const r = rel ? `${rel}/${e.name}` : e.name;
+    if (e.isDirectory()) {
+      if (["node_modules", ".git", ".scaffold"].includes(e.name)) continue;
+      out.push(...(await walk(dir, r)));
+    } else out.push(r);
+  }
+  return out;
+}
+
+async function write(path: string, text: string) {
+  await mkdir(dirname(path), { recursive: true });
+  await Bun.write(path, text);
+}
+
+// ---------------------------------------------------------------------------------------------- main
+
+function arg(name: string): string | undefined {
+  const i = process.argv.indexOf(`--${name}`);
+  if (i > 0) return process.argv[i + 1];
+  const eq = process.argv.find((a) => a.startsWith(`--${name}=`));
+  return eq?.slice(name.length + 3);
+}
+
+/** The words the `*.tmpl` files take, by placeholder. */
+export function templateVars(pl: Plan, engine: string): Record<string, string> {
+  const f = pl.features;
+  const owes = [
+    "1. **Shape.** Add the systems the scaffold does not wire (`node_modules/watchpot/docs/`), take out what the game does not want, build the invention, re-pace with `bun run sim -- --player=auto --contract`. Done when the loop in the concept is the loop the sim plays and nothing in `src/game/` re-implements an engine export.",
+    "2. **Content.** Depth, in the voice, all in `src/content/`: eight to twelve producers, upgrades with a reason to pick an order" +
+      (f.has("achievements") ? ", an achievement wall of four full rows or more with a few secret ones" : "") +
+      ", flavour that changes as the game goes on. Done when `src/content/` alone says what the game is about and the late game has things the first ten minutes do not hint at.",
+    "3. **Identity.** Restyle every component in `src/ui/` (tokens first, then each module), compose the main screen around the hero surface and the moment, draw the game's own icons and glyphs, phone and desktop as two compositions. Done when no screenshot could be mistaken for the template or another watchpot game.",
+    "4. **Shaders.** The floor below, each surface with a `still`, a reduced-motion frame and a budget, each fed by the game's numbers. Done when no `still` shows in a normal browser, the console is free of shader logs, the palette follows a scheme change, and turning the shaders off would make this a worse game.",
+    "5. **Feel.** A sound for every deliberate action (retune the zzfx voices, or build packs of recordings with `buildPack` and give each cue `takes`, the voice kept as the fallback; `node_modules/watchpot/docs/sound-packs.md`), every press and buy answered where it happened (a `placed` cue played `at` the element), the mix on buses with a reverb send, big events bigger, time away reported, reduced motion honoured. Done when two minutes of play with the sound on is pleasant and nothing is met with silence.",
+    "6. **The moment.** Build it for real (mechanics, shader, sound, words) with a way to replay it in development, and watch it play. Done when it is better than the sentence that described it.",
+    "7. **Proof.** `bun run gates:full`; every screen in the Browser pane at desktop and phone width with a clean console, the save surviving a reload, the main loop by keyboard alone; the engine sweep (anything generic moves to the engine, released as a tag).",
+  ].join("\n");
+  const features = [
+    pl.core,
+    ...[...f].map((x) => (x === "visitor" ? "visitor (spawns + buffs)" : x === "tree" ? "tree (upgradeTree)" : x)),
+  ];
+  return {
+    name: pl.name,
+    slug: pl.slug,
+    engine,
+    premise: pl.answers.premise,
+    voice: pl.answers.voice,
+    moment: pl.answers.look.moment,
+    session: PACING[pl.session].label,
+    core: pl.core,
+    features: features.join(", "),
+    surface: pl.surface,
+    surfaceLine: pl.answers.look.surface.line,
+    owes,
+    fontLinks: fontLinks(pl),
+  };
+}
+
+export async function generate(opts: { answers: string; out: string; engine: string; mode: "full" | "content" }) {
+  // An absolute folder: Bun on Windows refuses `mkdir(".", { recursive: true })`.
+  opts = { ...opts, out: resolve(opts.out) };
+  const pl = plan(await Bun.file(opts.answers).json());
+  const files = contentFiles(pl, opts.mode === "content");
+  for (const [rel, text] of Object.entries(files)) await write(join(opts.out, rel), text);
+  if (opts.mode === "content") return pl;
+  const chosen = flagsOf(pl);
+  const vars = templateVars(pl, opts.engine);
+  for (const rel of await walk(opts.out)) {
+    const base = rel.split("/").pop() ?? rel;
+    if (!TEXT.test(base)) continue;
+    const path = join(opts.out, rel);
+    const text = await Bun.file(path).text();
+    const gated = gate(text, chosen, rel);
+    if (gated === null) {
+      await rm(path);
+      continue;
+    }
+    if (rel.endsWith(".tmpl")) {
+      const rendered = gated.replace(/\{\{(\w+)\}\}/g, (m, k: string) => {
+        const v = vars[k];
+        if (v === undefined) throw new Error(`${rel}: unknown placeholder ${m}`);
+        return v;
+      });
+      await write(path.slice(0, -".tmpl".length), rendered);
+      await rm(path);
+    } else if (gated !== text) await Bun.write(path, gated);
+  }
+  return pl;
+}
+
+if (import.meta.main) {
+  const answers = arg("answers");
+  const out = arg("out");
+  if (!answers || !out) {
+    console.error("usage: bun .scaffold/generate.ts --answers <file> --out <dir> [--engine <tag>] [--mode full|content]");
+    process.exit(2);
+  }
+  const mode = arg("mode") === "content" ? "content" : "full";
+  const pl = await generate({ answers, out, engine: arg("engine") ?? "v0.3.1", mode });
+  for (const w of lookWarnings(pl)) console.warn(`look: ${w}`);
+  console.log(`generated ${pl.name} (${mode}): ${pl.core}${[...pl.features].map((f) => `, ${f}`).join("")}, ${pl.surface} backdrop`);
+}

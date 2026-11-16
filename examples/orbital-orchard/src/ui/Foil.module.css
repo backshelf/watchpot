@@ -1,0 +1,29 @@
+/* The foil's own box: over its positioned parent. A caller frames it (padding, mask) or fades it from its own class. */
+.foil {
+  --foil-band: 8px;
+  --foil-cells: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='4' height='4' shape-rendering='crispEdges'%3E%3Cpath d='M0 0h4v1H0zM1 1h1v1H1zM3 1h1v1H3zM0 2h1v1H0zM2 2h2v1H2zM1 3h1v1H1zM3 3h1v1H3z'/%3E%3C/svg%3E");
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  border-radius: inherit;
+}
+/* The stripes, cut by the dither cells so the foil reads as print, not gradient. */
+.foil::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  background-image: repeating-linear-gradient(
+    calc(122deg + var(--foil-ang, 0deg)),
+    var(--ui-foil-1) 0 var(--foil-band),
+    var(--ui-foil-2) var(--foil-band) calc(var(--foil-band) * 2),
+    var(--ui-foil-3) calc(var(--foil-band) * 2) calc(var(--foil-band) * 3),
+    var(--ui-foil-4) calc(var(--foil-band) * 3) calc(var(--foil-band) * 4),
+    var(--ui-foil-5) calc(var(--foil-band) * 4) calc(var(--foil-band) * 5)
+  );
+  background-size: 200% 200%;
+  -webkit-mask-image: var(--foil-cells);
+  mask-image: var(--foil-cells);
+  -webkit-mask-size: 4px 4px;
+  mask-size: 4px 4px;
+}

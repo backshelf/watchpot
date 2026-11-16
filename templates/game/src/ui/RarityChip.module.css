@@ -1,0 +1,25 @@
+/* @feature gacha */
+/* The rung's hue (`--tier`, from `--rarity-<id>`) marks the chip; the words stay in ink so every hue reads. */
+.chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 3px 8px;
+  border: 1px solid var(--tier, var(--ui-line));
+  border-radius: var(--ui-radius);
+  font-size: 12px;
+  font-weight: 600;
+  line-height: 1.2;
+  white-space: nowrap;
+}
+.chip::before {
+  content: "";
+  flex: none;
+  width: 8px;
+  height: 8px;
+  border-radius: var(--ui-radius);
+  background: var(--tier, var(--ui-ink-muted));
+}
+.chip[data-top] {
+  background: color-mix(in srgb, var(--tier) 16%, transparent);
+}

@@ -1,0 +1,193 @@
+{
+  "name": "Orbital Orchard",
+  "slug": "orbital-orchard",
+  "premise": "A lone caretaker on a derelict space station grows fruit trees in orbit for a planet that stopped answering. The fruit keeps coming. Somebody should be there to pick it.",
+  "voice": "Quiet, dry, a little hopeful. Short lines, said to nobody in particular. No exclamation marks; the jokes are deadpan and the hope is understated.",
+  "player": "Someone with a desk and a spare ten minutes, a handful of times a day: checks the orchard, plants, grafts, and leaves it to grow.",
+  "features": [
+    "tree",
+    "gacha",
+    "prestige"
+  ],
+  "currencies": {
+    "main": {
+      "name": "Sunlight",
+      "plural": "Sunlight",
+      "glyph": "sun"
+    },
+    "premium": {
+      "name": "Seed",
+      "plural": "Seeds",
+      "glyph": "seed"
+    }
+  },
+  "stats": {
+    "output": "Yield",
+    "offline": "Night shift",
+    "gain": "Delta-v"
+  },
+  "generators": [
+    {
+      "name": "Dwarf apple",
+      "line": "Grows sideways. Nobody mentioned down."
+    },
+    {
+      "name": "Pressure plum",
+      "line": "Ripens at one atmosphere. Same as me."
+    },
+    {
+      "name": "Hull fig",
+      "line": "Rooted in the insulation. Don't tell anyone."
+    },
+    {
+      "name": "Vacuum cherry",
+      "line": "Blossoms on the wrong side of the glass."
+    },
+    {
+      "name": "Lagrange pear",
+      "line": "Hangs where gravity can't make up its mind."
+    }
+  ],
+  "tree": {
+    "name": "Station modules",
+    "nodes": [
+      {
+        "name": "Mirror array",
+        "line": "Bends a little more sun our way.",
+        "stat": "output"
+      },
+      {
+        "name": "Drip line",
+        "line": "Waters the rows while I sleep.",
+        "stat": "offline"
+      },
+      {
+        "name": "Spectral lamps",
+        "line": "The light the leaves actually like.",
+        "stat": "output"
+      },
+      {
+        "name": "Seed vault",
+        "line": "Something to carry to the next orbit.",
+        "stat": "gain"
+      },
+      {
+        "name": "Pollinator drones",
+        "line": "Three of them. They argue.",
+        "stat": "output"
+      },
+      {
+        "name": "Night-side heater",
+        "line": "The dark half stays warm now.",
+        "stat": "offline"
+      }
+    ]
+  },
+  "gacha": {
+    "name": "Graft bench",
+    "box": "Graft kit",
+    "rarities": [
+      {
+        "name": "Common"
+      },
+      {
+        "name": "Rare"
+      },
+      {
+        "name": "Exotic"
+      },
+      {
+        "name": "Heirloom"
+      }
+    ],
+    "items": [
+      {
+        "name": "Crab apple scion",
+        "rarity": "common",
+        "stat": "output"
+      },
+      {
+        "name": "Quince bud",
+        "rarity": "common",
+        "stat": "offline"
+      },
+      {
+        "name": "Damson twig",
+        "rarity": "common",
+        "stat": "output"
+      },
+      {
+        "name": "Blood orange scion",
+        "rarity": "rare",
+        "stat": "output"
+      },
+      {
+        "name": "Medlar bud",
+        "rarity": "rare",
+        "stat": "offline"
+      },
+      {
+        "name": "Moon peach",
+        "rarity": "exotic",
+        "stat": "output"
+      },
+      {
+        "name": "Glass persimmon",
+        "rarity": "exotic",
+        "stat": "gain"
+      },
+      {
+        "name": "Old Earth Bramley",
+        "rarity": "heirloom",
+        "stat": "output"
+      }
+    ]
+  },
+  "prestige": {
+    "name": "Change orbit",
+    "verb": "Change orbit",
+    "currency": {
+      "name": "Orbit",
+      "plural": "Orbits",
+      "glyph": "moon"
+    }
+  },
+  "tabs": {
+    "make": "Orchard",
+    "tree": "Modules",
+    "gacha": "Grafts",
+    "prestige": "Orbit"
+  },
+  "session": "short",
+  "look": {
+    "palette": {
+      "ground": "#0b1426",
+      "ink": "#d9ecd6",
+      "signal": "#f2a93b",
+      "rarities": [
+        "#7d8a9c",
+        "#4cc4a0",
+        "#a98bff",
+        "#ff7c8f"
+      ]
+    },
+    "type": {
+      "display": {
+        "family": "Fraunces",
+        "spec": "Fraunces:ital,opsz,wght@0,9..144,100..900;1,9..144,100..900",
+        "fallback": "Georgia, serif"
+      },
+      "ui": {
+        "family": "Work Sans",
+        "spec": "Work+Sans:ital,wght@0,100..900;1,100..900",
+        "fallback": "\"Helvetica Neue\", Arial, sans-serif"
+      },
+      "num": {
+        "family": "JetBrains Mono",
+        "spec": "JetBrains+Mono:wght@100..800",
+        "fallback": "Menlo, monospace"
+      }
+    },
+    "moment": "The first heirloom graft blooms: the bench goes dark, one bud swells in rose light on the stage, and every pane of the station's glass catches it."
+  }
+}

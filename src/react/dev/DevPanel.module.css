@@ -1,0 +1,196 @@
+/*
+ * The dev panel: a developer's tool, quiet and dense. A slip docked at the window's bottom right (the full width on a
+ * phone), above everything the game draws, ruled in hairlines, small type, figures in a monospace face. It scrolls on
+ * its own when the sections are open. Self-contained: its colours are its own (`--dp-*`, set here, light and dark),
+ * so it reads no game token and needs no global the game must define.
+ */
+.panel {
+  --dp-ground: #f4f4f2;
+  --dp-well: #ffffff;
+  --dp-ink: #1c1c1e;
+  --dp-muted: #6b6b70;
+  --dp-line: #d4d4d8;
+  --dp-focus: #2563eb;
+  --dp-bad: #c62828;
+  --dp-ui: system-ui, -apple-system, "Segoe UI", sans-serif;
+  --dp-num: ui-monospace, "Cascadia Mono", Menlo, Consolas, monospace;
+
+  position: fixed;
+  right: 12px;
+  bottom: 12px;
+  z-index: 1000;
+  box-sizing: border-box;
+  width: min(360px, calc(100vw - 24px));
+  max-height: min(70vh, 640px);
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  padding: 8px 12px 12px;
+  border: 1px solid var(--dp-line);
+  border-radius: 6px;
+  background: var(--dp-ground);
+  color: var(--dp-ink);
+  box-shadow: 0 6px 24px #0000002e;
+  font-family: var(--dp-ui);
+  font-size: 12px;
+  line-height: 1.4;
+}
+@media (prefers-color-scheme: dark) {
+  .panel {
+    --dp-ground: #1f1f22;
+    --dp-well: #151517;
+    --dp-ink: #ededf0;
+    --dp-muted: #9a9aa2;
+    --dp-line: #3a3a40;
+    --dp-focus: #7aa2ff;
+    --dp-bad: #ff7a7a;
+  }
+}
+.panel ::selection {
+  background: var(--dp-ink);
+  color: var(--dp-ground);
+}
+
+.head {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding-bottom: 8px;
+}
+.title {
+  margin: 0;
+  font-size: 13px;
+  font-weight: 700;
+}
+.clock {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  margin: 0;
+  min-width: 0;
+  color: var(--dp-muted);
+  white-space: nowrap;
+}
+.sep {
+  width: 1px;
+  height: 10px;
+  margin: 0 4px;
+  background: var(--dp-line);
+}
+.num {
+  font-family: var(--dp-num);
+  font-size: 11px;
+  font-variant-numeric: tabular-nums;
+}
+
+.section {
+  display: grid;
+  gap: 8px;
+  padding: 8px 0;
+  border-top: 1px solid var(--dp-line);
+}
+.label {
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  color: var(--dp-muted);
+}
+h3.label {
+  margin: 0;
+}
+summary.label {
+  cursor: pointer;
+}
+summary.label::marker {
+  color: var(--dp-muted);
+}
+
+.row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 4px;
+}
+
+.button {
+  min-height: 28px;
+  padding: 0 8px;
+  border: 1px solid var(--dp-line);
+  border-radius: 4px;
+  background: transparent;
+  color: var(--dp-ink);
+  font: inherit;
+  font-weight: 600;
+  cursor: pointer;
+}
+.button:hover:not(:disabled) {
+  border-color: var(--dp-muted);
+}
+.button:disabled {
+  color: var(--dp-muted);
+  cursor: default;
+}
+.button:focus-visible,
+.field:focus-visible,
+.text:focus-visible,
+.panel summary:focus-visible {
+  outline: 2px solid var(--dp-focus);
+  outline-offset: 1px;
+}
+
+.field {
+  width: 5em;
+  min-height: 28px;
+  box-sizing: border-box;
+  padding: 0 8px;
+  border: 1px solid var(--dp-line);
+  border-radius: 4px;
+  background: transparent;
+  color: var(--dp-ink);
+  font-family: var(--dp-num);
+  font-size: 11px;
+}
+
+.features {
+  display: grid;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+.key {
+  padding: 2px 0;
+  font-family: var(--dp-num);
+  font-size: 11px;
+  cursor: pointer;
+}
+.json,
+.text {
+  box-sizing: border-box;
+  width: 100%;
+  margin: 4px 0 0;
+  padding: 8px;
+  border: 1px solid var(--dp-line);
+  border-radius: 4px;
+  background: var(--dp-well);
+  color: var(--dp-ink);
+  font-family: var(--dp-num);
+  font-size: 10px;
+  line-height: 1.5;
+}
+.json {
+  max-height: 240px;
+  overflow: auto;
+  white-space: pre;
+}
+.text {
+  resize: vertical;
+}
+
+.note {
+  margin: 0;
+  min-height: 1.4em;
+  color: var(--dp-muted);
+}
+.note[data-tone="bad"] {
+  color: var(--dp-bad);
+}

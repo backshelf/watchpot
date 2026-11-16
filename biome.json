@@ -1,0 +1,29 @@
+{
+  "$schema": "https://biomejs.dev/schemas/2.6.4/schema.json",
+  "vcs": { "enabled": true, "clientKind": "git", "useIgnoreFile": true },
+  "files": {
+    "includes": [
+      "src/**",
+      "test/**",
+      "scripts/**",
+      "codemods/**",
+      "docs/examples/**",
+      "examples/**",
+      "*.json",
+      "!api",
+      "!src/sound/core.gen.ts",
+      "!templates"
+    ]
+  },
+  "formatter": { "indentStyle": "space", "indentWidth": 2, "lineWidth": 110 },
+  "linter": {
+    "enabled": true,
+    "rules": {
+      "preset": "recommended",
+      "suspicious": { "noArrayIndexKey": "off" },
+      "a11y": { "useKeyWithClickEvents": "off", "noStaticElementInteractions": "off" }
+    }
+  },
+  "css": { "parser": { "cssModules": true } },
+  "assist": { "actions": { "source": { "organizeImports": "on" } } }
+}

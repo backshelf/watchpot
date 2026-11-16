@@ -1,0 +1,67 @@
+/*
+ * A flat block on the ground: raised or grey, no radius, no edge, no shadow. One inset on every side; the heading
+ * row is the display voice over a hairline rule; the body is a column the panel paces.
+ */
+.panel {
+  box-sizing: border-box;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  min-width: 0;
+  padding: 16px;
+  border-radius: var(--ui-radius);
+  background: var(--ui-surface);
+  color: var(--ui-ink);
+}
+.panel[data-tone="paper"] {
+  background: var(--ui-sunken);
+}
+
+.head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  column-gap: 8px;
+  row-gap: 4px;
+  padding-bottom: 8px;
+  border-bottom: 1px solid var(--ui-line);
+}
+/* No body: the heading row alone, with no rule ruling off nothing */
+.head:last-child {
+  padding-bottom: 0;
+  border-bottom: 0;
+}
+/* The game's display voice: Fraunces, upright, at its own width, a size under a screen's title */
+.heading {
+  margin: 0;
+  min-width: 0;
+  font-family: var(--ui-font-display);
+  font-size: 20px;
+  font-weight: 650;
+  font-variation-settings: "opsz" 48;
+  line-height: 1;
+  letter-spacing: -0.01em;
+  text-wrap: balance;
+}
+.panel[data-level="3"] .heading {
+  font-size: 17px;
+}
+.aside {
+  margin-inline-start: auto;
+  color: var(--ui-ink-muted);
+  font-size: 13px;
+  line-height: 1.4;
+  text-align: end;
+  white-space: nowrap;
+}
+
+.body {
+  flex-grow: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+/* The panel owns the rhythm: its gap, never a paragraph's own margins */
+.body > * {
+  margin: 0;
+}

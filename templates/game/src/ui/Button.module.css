@@ -1,0 +1,66 @@
+.button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5em;
+  min-height: 40px;
+  padding: 0 14px;
+  border: 1px solid var(--ui-line);
+  border-radius: var(--ui-radius);
+  background: var(--ui-surface);
+  color: var(--ui-ink);
+  font-weight: 600;
+  line-height: 1;
+  cursor: pointer;
+  transition:
+    background-color var(--ui-duration) ease-out,
+    border-color var(--ui-duration) ease-out;
+}
+.button:hover:not(:disabled) {
+  border-color: var(--ui-ink-muted);
+}
+.button:active:not(:disabled) {
+  background: var(--ui-sunken);
+}
+.button:disabled {
+  cursor: not-allowed;
+  opacity: 0.5;
+}
+
+.button[data-variant="primary"] {
+  border-color: var(--ui-accent);
+  background: var(--ui-accent);
+  color: var(--ui-on-accent);
+}
+.button[data-variant="primary"]:active:not(:disabled) {
+  filter: brightness(0.92);
+}
+.button[data-variant="ghost"] {
+  border-color: transparent;
+  background: transparent;
+}
+.button[data-variant="danger"] {
+  border-color: var(--ui-danger);
+  color: var(--ui-danger);
+}
+
+/* A large button fills its row: the words at the start, the price at the end. */
+.button[data-size="large"] {
+  justify-content: space-between;
+  width: 100%;
+  min-height: 48px;
+  padding: 0 16px;
+}
+
+.label {
+  white-space: nowrap;
+}
+.cost {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+.figure {
+  font-family: var(--ui-font-num);
+  font-variant-numeric: tabular-nums;
+}

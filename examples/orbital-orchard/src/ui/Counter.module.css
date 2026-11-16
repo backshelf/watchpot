@@ -1,0 +1,40 @@
+.counter {
+  display: grid;
+  justify-items: start;
+  gap: 12px;
+  margin: 0;
+}
+.value {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin: 0;
+  white-space: nowrap;
+}
+/* The mono's figures sit low in their box: the glyph drops onto their optical centre. */
+.glyph {
+  display: inline-flex;
+  flex: none;
+  translate: 0 3px;
+}
+.glyph svg {
+  width: 28px;
+  height: 28px;
+}
+.figure {
+  font-family: var(--ui-font-num);
+  font-size: 40px;
+  font-weight: 500;
+  font-variant-numeric: tabular-nums;
+  line-height: 1;
+  letter-spacing: -0.02em;
+}
+.rate {
+  margin: 0;
+  color: var(--ui-ink-muted);
+  font-family: var(--ui-font-num);
+  font-size: 12px;
+  font-weight: 500;
+  font-variant-numeric: tabular-nums;
+  line-height: 1;
+}

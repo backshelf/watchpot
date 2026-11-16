@@ -1,0 +1,19 @@
+[package]
+name = "watchpot-dsp"
+version = "0.0.0"
+edition = "2024"
+publish = false
+description = "The DSP core of watchpot/sound: every voice, bus and effect, built for wasm32-unknown-unknown."
+
+[lib]
+crate-type = ["cdylib", "rlib"]
+
+# No dependencies, by decision: the core is this crate and the standard library.
+
+[profile.release]
+opt-level = 3
+lto = true
+codegen-units = 1
+panic = "abort"
+strip = true
+debug = false

@@ -1,0 +1,32 @@
+.pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  min-height: 32px;
+  padding: 0 10px;
+  box-sizing: border-box;
+  border: 1px solid var(--ui-line);
+  border-radius: var(--ui-radius);
+  background: var(--ui-surface);
+  white-space: nowrap;
+}
+/* The currency flight's landing: a quick swell as its glyphs arrive. */
+.pill[data-bump] {
+  animation: bump 160ms ease-out;
+}
+@keyframes bump {
+  35% {
+    scale: 1.1;
+  }
+}
+
+.glyph {
+  display: inline-flex;
+  color: var(--ui-ink-muted);
+}
+.amount {
+  font-family: var(--ui-font-num);
+  font-size: 14px;
+  font-weight: 500;
+  font-variant-numeric: tabular-nums;
+}

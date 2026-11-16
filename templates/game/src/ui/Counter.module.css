@@ -1,0 +1,34 @@
+.counter {
+  display: grid;
+  gap: 4px;
+  margin: 0;
+}
+.value {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+.glyph {
+  display: inline-flex;
+  color: var(--ui-ink-muted);
+}
+.glyph svg {
+  width: 28px;
+  height: 28px;
+}
+.figure {
+  font-family: var(--ui-font-num);
+  font-size: clamp(32px, 6vw, 44px);
+  /* One line at the longest figure the game prints: size it down before letting it wrap. */
+  white-space: nowrap;
+  font-weight: 500;
+  font-variant-numeric: tabular-nums;
+  line-height: 1;
+  letter-spacing: -0.02em;
+}
+.rate {
+  color: var(--ui-ink-muted);
+  font-family: var(--ui-font-num);
+  font-size: 13px;
+  font-variant-numeric: tabular-nums;
+}

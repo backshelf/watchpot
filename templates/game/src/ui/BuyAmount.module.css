@@ -1,0 +1,25 @@
+.modes {
+  display: inline-flex;
+  padding: 2px;
+  gap: 2px;
+  border: 1px solid var(--ui-line);
+  border-radius: var(--ui-radius);
+  background: var(--ui-sunken);
+}
+.option {
+  min-width: 44px;
+  min-height: 32px;
+  padding: 0 10px;
+  border: 0;
+  border-radius: var(--ui-radius);
+  background: transparent;
+  color: var(--ui-ink-muted);
+  font-family: var(--ui-font-num);
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+}
+.option[data-state="checked"] {
+  background: var(--ui-surface);
+  color: var(--ui-ink);
+}

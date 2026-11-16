@@ -1,0 +1,23 @@
+{
+  "name": "Pebble Pile",
+  "premise": "A pile of pebbles on a beach that you keep adding to.",
+  "voice": "Plain and patient.",
+  "currencies": { "main": { "name": "Pebble" } },
+  "stats": { "output": "Heap", "offline": "Tide" },
+  "generators": [
+    { "name": "Bucket", "line": "Holds a few." },
+    { "name": "Wheelbarrow", "line": "Holds more." },
+    { "name": "Dump truck", "line": "Holds a lot." }
+  ],
+  "session": "long",
+  "look": {
+    "palette": { "ground": "#e9eef1", "ink": "#11181d", "signal": "#2c6e9b" },
+    "type": {
+      "display": { "family": "Work Sans", "spec": "Work+Sans:ital,wght@0,100..900;1,100..900" },
+      "ui": { "family": "Work Sans", "spec": "Work+Sans:ital,wght@0,100..900;1,100..900" },
+      "num": { "family": "JetBrains Mono", "spec": "JetBrains+Mono:wght@100..800" }
+    },
+    "surface": { "base": "weather", "line": "Grey sea spray drifting over the stones, thicker as the pile grows." },
+    "moment": "The first dump truck: the spray parts and the pile throws a long shadow."
+  }
+}

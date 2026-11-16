@@ -1,0 +1,73 @@
+/* Orbital Orchard — generated from tokens.json */
+:root, [data-theme="game"] {
+  --ground: #0b1426;
+  --ground-raised: #172131;
+  --paper: #242e3b;
+  --paper-shade: #2e3944;
+  --ink: #d9ecd6;
+  --ink-muted: #91a098;
+  --on-paper: #d9ecd6;
+  --on-paper-muted: #91a098;
+  --hairline: #242e3b;
+  --hairline-paper: #303b46;
+  --edge: #72807e;
+  --signal: #f2a93b;
+  --on-signal: #121214;
+  --focus: #d9ecd6;
+  --scene-base: #172131;
+  --scene-ink: #d9ecd6;
+  --scene-tint: var(--signal);
+  --overlay: #000000b3;
+  --ok: #5fd39a;
+  --warn: #f0b23c;
+  --danger: #ff7a7a;
+  --ok-paper: var(--ok);
+  --warn-paper: var(--warn);
+  --danger-paper: var(--danger);
+  --rarity-plate: #000000;
+  --glare: #ffffff66;
+  --rarity-common: #7d8a9c;
+  --rarity-rare: #4cc4a0;
+  --rarity-exotic: #a98bff;
+  --rarity-heirloom: #ff7c8f;
+  --rarity-top: var(--rarity-heirloom);
+  --foil-1: #5c2433;
+  --foil-2: #a9455a;
+  --foil-3: #ff7c8f;
+  --foil-4: #ffb2bc;
+  --foil-5: #ffe3e6;
+  --shadow-card: 0 6px 16px #000000a6;
+  --shadow-sheet: 0 -16px 48px #000000b3;
+}
+:root {
+  --space-1: 4px;
+  --space-2: 8px;
+  --space-3: 12px;
+  --space-4: 16px;
+  --space-5: 24px;
+  --space-6: 32px;
+  --space-7: 48px;
+  --space-8: 64px;
+  --gutter: 2px;
+  --radius-0: 0px;
+  --radius-sm: 0px;
+  --radius-md: 0px;
+  --radius-card: 0px;
+  --radius-pill: 0px;
+  --font-display: "Fraunces", Georgia, serif;
+  --font-ui: "Work Sans", "Helvetica Neue", Arial, sans-serif;
+  --font-num: "JetBrains Mono", Menlo, monospace;
+}
+.headline { font-family: var(--font-display); font-size: 44px; line-height: 0.95; font-weight: 700; letter-spacing: -0.02em; }
+.title { font-family: var(--font-display); font-size: 24px; line-height: 1; font-weight: 700; letter-spacing: -0.005em; }
+.title-italic { font-family: var(--font-display); font-size: 28px; line-height: 1.05; font-weight: 400; font-style: italic; }
+.body { font-family: var(--font-ui); font-size: 14px; line-height: 1.45; font-weight: 400; }
+.body-strong { font-family: var(--font-ui); font-size: 14px; line-height: 1.45; font-weight: 600; }
+.small { font-family: var(--font-ui); font-size: 13px; line-height: 1.4; font-weight: 400; }
+.label { font-family: var(--font-ui); font-size: 12px; line-height: 1.2; font-weight: 600; letter-spacing: 0.02em; }
+.code { font-family: var(--font-ui); font-size: 11px; line-height: 1; font-weight: 600; letter-spacing: 0.1em; text-transform: uppercase; }
+.lot-number { font-family: var(--font-ui); font-size: 11px; line-height: 1; font-weight: 600; letter-spacing: 0.1em; text-transform: uppercase; }
+.button { font-family: var(--font-ui); font-size: 14px; line-height: 1; font-weight: 600; }
+.counter { font-family: var(--font-num); font-size: 40px; line-height: 1; font-weight: 500; letter-spacing: -0.02em; }
+.number { font-family: var(--font-num); font-size: 16px; line-height: 1; font-weight: 500; }
+.number-small { font-family: var(--font-num); font-size: 12px; line-height: 1; font-weight: 500; }
