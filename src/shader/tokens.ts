@@ -2,6 +2,18 @@
 // read again when that scope's theme, scheme or classes change.
 import { type RefObject, useLayoutEffect, useRef, useState } from "react";
 
+/**
+ * Whether this is a development build. A bundler replaces `process.env.NODE_ENV` with a string; a browser bundle
+ * has no `process` object at all, so asking `typeof process` first would switch every development check off there.
+ */
+function isDev(): boolean {
+  try {
+    return process.env.NODE_ENV !== "production";
+  } catch {
+    return false;
+  }
+}
+
 const HEX = /^#([0-9a-f]{3,4}|[0-9a-f]{6}|[0-9a-f]{8})$/i;
 
 let probe: CanvasRenderingContext2D | null | undefined;
@@ -96,13 +108,7 @@ export function useShaderTokens<N extends string>(
     if (!el) return;
     const read = () => {
       const next = readTokens(el, names);
-      if (
-        next === null &&
-        !warned.current &&
-        typeof process !== "undefined" &&
-        process.env.NODE_ENV !== "production"
-      )
-        warned.current = warnMissing(el, names);
+      if (next === null && !warned.current && isDev()) warned.current = warnMissing(el, names);
       setValue((was) => (same(was, next) ? was : next));
     };
     read();

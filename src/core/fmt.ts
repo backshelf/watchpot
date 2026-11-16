@@ -184,13 +184,28 @@ function beyondPlain(
   return out(m, suffix, `${m.toFixed(placesFor(m))}${suffix}`);
 }
 
-/** Full digits with separators, never a suffix: 12345678.9 -> "12,345,678". Floors toward zero. */
+/** The most digits `fmtFull` writes out; past it a number is a suffix's job. */
+const FULL_DIGITS = 3_000;
+
+/**
+ * Full digits with separators, never a suffix: 12345678.9 -> "12,345,678". Floors toward zero. A Decimal carries
+ * about fourteen digits it can be sure of, so a larger number is those digits and then zeros ("1,529,000,000,000,000,000"). Past
+ * 3,000 digits it gives up and prints as `fmt` does.
+ */
 export function fmtFull(value: DecimalSource): string {
   const d = D(value);
   if (d.isNan()) return "0";
   if (!d.isFinite()) return d.sign < 0 ? "-∞" : "∞";
   const negative = d.lt(0);
-  const whole = d.abs().floor().toFixed(0);
+  const size = d.abs().floor();
+  if (size.gte(`1e${FULL_DIGITS}`)) return fmt(d).text;
+  let whole: string;
+  if (size.lt(1e15)) whole = size.toFixed(0);
+  else {
+    // The digits it really holds, then zeros: `toFixed` rounds a number this size to one digit.
+    const digits = size.mantissa.toPrecision(14).replace(".", "");
+    whole = digits + "0".repeat(Math.max(0, size.exponent + 1 - digits.length));
+  }
   return (negative && whole !== "0" ? "-" : "") + groupDigits(whole);
 }
 

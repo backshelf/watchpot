@@ -1,6 +1,18 @@
 import { useSyncExternalStore } from "react";
 
 /**
+ * Whether this is a development build. A bundler replaces `process.env.NODE_ENV` with a string; a browser bundle
+ * has no `process` object at all, so asking `typeof process` first would switch every development check off there.
+ */
+function isDev(): boolean {
+  try {
+    return process.env.NODE_ENV !== "production";
+  } catch {
+    return false;
+  }
+}
+
+/**
  * A paced view of a store's whole state. A screen that reads much of the state would render on every tick if it
  * selected all of it; this hands the state on at once while the player is pressing things (their own doing is
  * never late), a few times a second while the game runs by itself, and not at all while the tab is hidden (it
@@ -131,13 +143,7 @@ const samePace = (a: PacedViewOptions = {}, b: PacedViewOptions = {}) =>
 export function pacedView<S>(store: PaceableStore<S>, options?: PacedViewOptions): PacedView<S> {
   const had = views.get(store);
   if (had) {
-    if (
-      typeof process !== "undefined" &&
-      process.env.NODE_ENV !== "production" &&
-      options !== undefined &&
-      !warned.has(store) &&
-      !samePace(had.options, options)
-    ) {
+    if (isDev() && options !== undefined && !warned.has(store) && !samePace(had.options, options)) {
       warned.add(store);
       console.warn(
         `watchpot: this store's paced view was made with ${JSON.stringify(had.options ?? {})}; a later call's ${JSON.stringify(options)} is dropped. Pass the same pace everywhere (createRuntimeHooks({ view }) sets it once), or make a view of its own with createPacedView.`,

@@ -64,7 +64,11 @@ export interface FmtOptions {
 export declare function fmt(value: DecimalSource, options?: FmtOptions): Formatted;
 /** The letters of group `n` (1 is "a"): bijective base 26, so z is followed by aa. */
 export declare function letterSuffix(n: number): string;
-/** Full digits with separators, never a suffix: 12345678.9 -> "12,345,678". Floors toward zero. */
+/**
+ * Full digits with separators, never a suffix: 12345678.9 -> "12,345,678". Floors toward zero. A Decimal carries
+ * about fourteen digits it can be sure of, so a larger number is those digits and then zeros ("1,529,000,000,000,000,000"). Past
+ * 3,000 digits it gives up and prints as `fmt` does.
+ */
 export declare function fmtFull(value: DecimalSource): string;
 /** A multiplier: two decimals below 100, none from there: "×3.20", "×1.23e45". */
 export declare function fmtTimes(value: DecimalSource, options?: FmtOptions): string;

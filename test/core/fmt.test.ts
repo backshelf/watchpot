@@ -1,6 +1,7 @@
 import { describe, expect, test } from "bun:test";
 import {
   bonusPercent,
+  D,
   Decimal,
   fmt,
   fmtCents,
@@ -137,5 +138,18 @@ describe("the printers", () => {
     expect(f.counted(1, ["a", "b"])).toBe("1 a");
     expect(f.full(2.5e9)).toBe(fmtFull(2.5e9));
     expect(formatter().num(1.52e6)).toBe("1.52M");
+  });
+});
+
+describe("fmtFull past what a number holds exactly", () => {
+  test("writes the digits it holds, then zeros", () => {
+    expect(fmtFull(D("1.23e16"))).toBe("12,300,000,000,000,000");
+    expect(fmtFull(D("1.529e30"))).toBe(`1,529${",000".repeat(9)}`);
+    expect(fmtFull(D("-4e20"))).toBe(`-400${",000".repeat(6)}`);
+    expect(fmtFull(D("1e300")).replaceAll(",", "")).toBe(`1${"0".repeat(300)}`);
+  });
+  test("agrees with the short form below it, and gives up past 3,000 digits", () => {
+    expect(fmtFull(D(999_999_999_999_999))).toBe("999,999,999,999,999");
+    expect(fmtFull(D("1e5000"))).toBe(fmt(D("1e5000")).text);
   });
 });

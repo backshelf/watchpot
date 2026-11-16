@@ -6,6 +6,18 @@ import type { RootActions } from "../core/store";
 import { type PacedViewOptions, usePacedState } from "./paced";
 
 /**
+ * Whether this is a development build. A bundler replaces `process.env.NODE_ENV` with a string; a browser bundle
+ * has no `process` object at all, so asking `typeof process` first would switch every development check off there.
+ */
+function isDev(): boolean {
+  try {
+    return process.env.NODE_ENV !== "production";
+  } catch {
+    return false;
+  }
+}
+
+/**
  * Any store `createIdleStore` made, as the generic hooks read it: its state (the root actions on it), a
  * subscription and an immer `setState`. Methods, so a game's store, typed over its whole state, is one.
  */
@@ -111,7 +123,7 @@ function checkSelector(store: RuntimeStore, selector: (state: never) => unknown)
 /** `useStore(selector)` against the store in context, untyped; `createRuntimeHooks` gives it the game's type. */
 function useStoreState<T>(selector: (state: never) => T): T {
   const store = useIdleStore("useGameState");
-  if (typeof process !== "undefined" && process.env.NODE_ENV !== "production") checkSelector(store, selector);
+  if (isDev()) checkSelector(store, selector);
   return useStore(store as never, selector);
 }
 
