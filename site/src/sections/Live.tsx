@@ -150,9 +150,9 @@ export function Live() {
             </div>
             <ul className="live__list">
               {HEAT.map((g) => {
-                const owned = heat.rules.owned(s, g.id);
-                const affordable = heat.rules.affordable(s, g.id);
-                const untilNext = heat.rules.untilMilestone(s, g.id) ?? 0;
+                const owned = heat.select.owned(s, g.id);
+                const affordable = heat.select.affordable(s, g.id);
+                const untilNext = heat.select.untilMilestone(s, g.id) ?? 0;
                 const count = buyCount(mode, { affordable, untilNext });
                 const priced = Math.max(1, mode === "max" ? count : mode === "next" ? untilNext || 1 : mode);
                 const can = count > 0 && (mode === "max" || mode === "next" ? true : affordable >= mode);
@@ -171,7 +171,7 @@ export function Live() {
                     </span>
                     <div className="source__what">
                       <strong>{g.name}</strong>
-                      <span>{owned > 0 ? f.rate(heat.rules.rate(s, g.id)) : g.line}</span>
+                      <span>{owned > 0 ? f.rate(heat.select.rate(s, g.id)) : g.line}</span>
                       {span ? (
                         <Progress
                           className="bar"
@@ -189,7 +189,7 @@ export function Live() {
                       onClick={can ? buy : undefined}
                     >
                       <span className="num">×{priced}</span>
-                      <span className="num">{f.num(heat.rules.price(s, g.id, priced))}</span>
+                      <span className="num">{f.num(heat.select.price(s, g.id, priced))}</span>
                     </button>
                   </li>
                 );

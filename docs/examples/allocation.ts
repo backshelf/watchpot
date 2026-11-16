@@ -1,13 +1,13 @@
 import { allocation, defineGame, type Effect, feature, stats } from "watchpot/core";
 import { TOY } from "./vocab";
 
-type State = { crew: { size: number } };
 const crew = feature({ key: "crew", initial: () => ({ size: 12 }) });
 
 /** Twelve workers across three sinks: one that only counts, two bars that level up as they fill. */
 export const jobs = allocation({
   key: "jobs",
-  pool: (s: State) => s.crew.size, // the game's number; shrink it and the newest assignments give way
+  reach: [crew], // what the callbacks read, typed with no annotation
+  pool: (s) => s.crew.size, // the game's number; shrink it and the newest assignments give way
   sinks: [
     { id: "haul", cap: () => 5 }, // counts: the game reads s.jobs.assigned.haul as a rate
     {
@@ -26,7 +26,7 @@ export const boosts = stats({
   vocab: TOY,
   reach: () => [jobs],
   stats: { "toy.speed": { base: 1 } },
-  contributions: (s) => jobs.rules.contributions(s.jobs),
+  contributions: (s) => jobs.select.contributions(s),
 });
 
 export const game = defineGame({
@@ -36,4 +36,4 @@ export const game = defineGame({
   features: [crew, jobs, boosts],
 });
 // store.getState().jobs.assign("forge", 4) · .unassign("forge", 1) · .fill("study") · .clear()
-// jobs.rules.bar(state, "forge") → { level, into, need, share } · jobs.rules.free(state)
+// jobs.select.bar(state, "forge") → { level, into, need, share } · jobs.select.free(state)

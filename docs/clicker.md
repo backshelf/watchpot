@@ -30,7 +30,12 @@ Example: [`examples/clicker.ts`](examples/clicker.ts).
   earned, best, crits, runClicks, runEarned, combo, lastAt, rng, windowAt, windowCount }` and has no steps. One action,
   `click()`, pays `power(state) × combo × (crit ? mult : 1)` into `wallet` and returns `{ amount, crit, combo }`, or
   null when the cap dropped it (a dropped press pays nothing and moves no combo). `onClick(draft, result, now)` runs in
-  the same recipe; `.press(draft, now)` is the same press inside a recipe of the game's.
+  the same recipe; `tap.draft.click(draft, now)` is the same press inside a recipe of the game's. `reach` names the
+  features `power`, `crit` and `onClick` read, as on `feature`, so their state is typed with no annotation (the
+  wallet is reached already).
+- **`select` and `def`:** `tap.select.power(state, now?)` is what one press pays before the combo and a crit,
+  `tap.select.comboAt(state, now)` and `tap.select.comboShown(state, now)` read the combo off the state, and
+  `tap.def.combo` is the rule.
 - **`clickShare(base, perSecond, share)`** is `base + perSecond × share`.
 - **The moment:** `power` and `crit` are handed a last argument `{ now }` in game time (`CallbackContext`), so a
   running buff can raise a press where it applies:
@@ -39,7 +44,8 @@ Example: [`examples/clicker.ts`](examples/clicker.ts).
   the key), saved, so a reload replays the same rolls.
 - **Combo:** `{ windowMs, step, max }`. A press within `windowMs` of the last paid one pays at the last's multiplier
   plus `step`, up to `max`; a press after a longer pause pays at 1. `comboAt(state, now, combo)` is what the next
-  press would pay at and `comboShown(state, now, combo)` what a screen shows; the feature carries the rule as `.combo`.
+  press would pay at and `comboShown(state, now, combo)` what a screen shows (the pure kernels over the slice; the
+  feature's `select.comboAt` and `select.comboShown` take the game state and use its own rule).
 - **`maxPerSecond`** counts presses in fixed one-second windows of game time and drops the rest.
 - **Reset:** a run reset clears `runClicks`, `runEarned` and the combo, and keeps the lifetime totals (`clicks`,
   `earned`, `best`, `crits`) and the stream, unless `reset` says otherwise.

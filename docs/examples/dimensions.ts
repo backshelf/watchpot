@@ -32,7 +32,7 @@ export const boost = prestige({
   key: "boost",
   reach: [chain],
   gain: (s) => {
-    const top = chain.chain.tiers[Math.min(1 + s.boost.runs, chain.chain.tiers.length - 1)];
+    const top = chain.def.tiers[Math.min(1 + s.boost.runs, chain.def.tiers.length - 1)];
     return D(s.chain.amount[top?.id ?? ""]?.gte(20) ? 1 : 0);
   },
 });

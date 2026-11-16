@@ -3,7 +3,15 @@ import { offlineCredit } from "./clock";
 import { type CostCurve, costAt, costOfMany, maxAffordable } from "./cost";
 import { D, type Decimal, type DecimalSource, ZERO } from "./decimal";
 import type { DimensionAway } from "./dimensions";
-import { type Feature, type FeatureApi, feature, type ResetRule } from "./feature";
+import {
+  type Feature,
+  type FeatureApi,
+  feature,
+  type NeedsOf,
+  type ReachOf,
+  type ReachShape,
+  type ResetRule,
+} from "./feature";
 
 /**
  * Allocation: a capped pool split between sinks. Workers across jobs, energy across bars, crew across stations: the
@@ -82,7 +90,7 @@ interface SinkBase<G, E> {
   readonly id: string;
   /** The most it can hold, read off the whole game state (default: no cap). */
   readonly cap?: (state: G) => number;
-  /** What its level gives, for the stat bus (a bar's level; a counting sink stays at level 0). */
+  /** What its level gives, as `{ stat, add }` / `{ stat, mul }` effects (a bar's level; a counting sink stays at level 0). */
   readonly effects?: (level: number) => readonly E[];
 }
 
@@ -127,10 +135,8 @@ export interface AllocationActions {
   fill(id: string): number;
 }
 
-/** An allocation's rules, read off the game state. */
-export interface AllocationRules<G, E> {
-  readonly sinks: readonly SinkDef<G, E>[];
-  sink(id: string): SinkDef<G, E> | undefined;
+/** An allocation's read-only questions over state. */
+export interface AllocationSelect<K extends string, G, E> {
   /** The pool now. */
   pool(state: G): number;
   /** What is free now. */
@@ -141,29 +147,65 @@ export interface AllocationRules<G, E> {
   perSecond(state: G, id: string): Decimal;
   /** A bar's level, the work into it, the work it needs and the share filled. */
   bar(state: G, id: string): { level: number; into: Decimal; need: Decimal; share: number };
-  /** Every sink's effects at its level, sourced `<key>:<id>`. */
+  /** Every sink's effects at its level, sourced `<key>:<id>`: what the `stats` feature's `contributions` takes. */
+  contributions(
+    state: { readonly [P in K]: Pick<AllocationState, "level"> },
+  ): { source: string; effect: E }[];
+}
+
+/** The fixed configuration of an allocation feature: the sinks as given, a sink by id, and the pure contributions. */
+export interface AllocationFixed<G, E> {
+  readonly sinks: readonly SinkDef<G, E>[];
+  /** A sink by id. */
+  sink(id: string): SinkDef<G, E> | undefined;
+  /** `select.contributions` over the saved slice alone (`{ level }`), for a screen that holds only that. */
   contributions(slice: Pick<AllocationState, "level">): { source: string; effect: E }[];
 }
 
-/** An `allocation` feature, carrying its rules as `.rules`. */
-export type AllocationFeature<K extends string, G, E> = Feature<K, AllocationState, AllocationActions> & {
-  readonly rules: AllocationRules<G, E>;
-};
+/** The helpers that take a draft first and change it, named like the actions they mirror. Each returns the units moved. */
+export interface AllocationDraftHelpers {
+  /** Moves `n` free units into a sink inside a recipe, clamped to what is free and to its cap. */
+  assign(draft: object, id: string, n: number): number;
+  /** Takes `n` units back out of a sink inside a recipe. */
+  unassign(draft: object, id: string, n: number): number;
+  /** Takes every unit back inside a recipe. */
+  clear(draft: object): number;
+  /** Moves everything free into one sink inside a recipe. */
+  fill(draft: object, id: string): number;
+}
+
+/** The three namespaces of an allocation feature. */
+export interface AllocationHelpers<K extends string, G, E> {
+  readonly select: AllocationSelect<K, G, E>;
+  readonly def: AllocationFixed<G, E>;
+  readonly draft: AllocationDraftHelpers;
+}
+
+/** An `allocation` feature: the feature plus `select`, `def` and `draft`. */
+export type AllocationFeature<K extends string, G, E> = Feature<K, AllocationState, AllocationActions> &
+  AllocationHelpers<K, G, E>;
 
 /**
- * A pool split between sinks, as a feature. It saves `{ assigned, order, progress, level }` under `key` (the stat bus's
- * source prefix too). `<key>.sync.pool` trims the record when the pool or a cap shrinks; `<key>.produce.fill` fills the
- * bars over a tick, and over an absence through `away` (default: all of it), several levels in one step when the work
- * covers them. A run reset clears it unless `reset` says otherwise. The callbacks read the whole game state, so
- * annotate one of them with the game's state type.
+ * A pool split between sinks, as a feature. It saves `{ assigned, order, progress, level }` under `key` (the
+ * contributions' source prefix too). `<key>.sync.pool` trims the record when the pool or a cap shrinks;
+ * `<key>.produce.fill` fills the bars over a tick, and over an absence through `away` (default: all of it), several
+ * levels in one step when the work covers them. A run reset clears it unless `reset` says otherwise. The callbacks
+ * read the whole game state (the feature's own slice and what `reach` names), typed with no annotation.
  */
-export function allocation<const K extends string, E = never, G extends object = object>(def: {
+export function allocation<
+  const K extends string,
+  E = never,
+  const R extends ReachShape = readonly [],
+  G extends object = Record<K, AllocationState> & ReachOf<R>,
+>(def: {
   readonly key: K;
+  /** The features the callbacks read, as `feature`'s `reach`. */
+  readonly reach?: R | (() => R);
   readonly pool: (state: G) => number;
   readonly sinks: readonly SinkDef<G, E>[];
   readonly away?: (state: G) => DimensionAway;
   readonly reset?: ResetRule<AllocationState>;
-}): AllocationFeature<K, G, E> {
+}): AllocationFeature<K, G, E> & { readonly needs?: NeedsOf<R> } {
   const byId = new Map<string, SinkDef<G, E>>();
   for (const s of def.sinks) {
     if (byId.has(s.id)) throw new Error(`allocation "${def.key}": the sink "${s.id}" appears twice`);
@@ -179,9 +221,15 @@ export function allocation<const K extends string, E = never, G extends object =
   const perSecond = (state: G, s: SinkDef<G, E>): Decimal =>
     s.speed ? D(s.speed(state)).mul(own(state).assigned[s.id] ?? 0) : ZERO;
 
-  const rules: AllocationRules<G, E> = {
-    sinks: def.sinks,
-    sink: (id) => byId.get(id),
+  const contributionsOf = (slice: Pick<AllocationState, "level">): { source: string; effect: E }[] => {
+    const out: { source: string; effect: E }[] = [];
+    for (const s of def.sinks)
+      for (const effect of s.effects?.(slice.level[s.id] ?? 0) ?? [])
+        out.push({ source: `${def.key}:${s.id}`, effect });
+    return out;
+  };
+
+  const select: AllocationSelect<K, G, E> = {
     pool,
     free: (state) => freeUnits(own(state).assigned, pool(state)),
     cap: (state, id) => {
@@ -201,13 +249,7 @@ export function allocation<const K extends string, E = never, G extends object =
       const share = need.gt(0) ? Math.min(1, into.div(need).toNumber()) : 1;
       return { level, into, need, share };
     },
-    contributions: (slice) => {
-      const out: { source: string; effect: E }[] = [];
-      for (const s of def.sinks)
-        for (const effect of s.effects?.(slice.level[s.id] ?? 0) ?? [])
-          out.push({ source: `${def.key}:${s.id}`, effect });
-      return out;
-    },
+    contributions: (state) => contributionsOf(state[def.key]),
   };
 
   /** Moves `n` (signed) into a sink inside a recipe; the sink goes to the end of the order when it gains. */
@@ -247,7 +289,16 @@ export function allocation<const K extends string, E = never, G extends object =
     }
   };
 
-  const made = feature<K, AllocationState, AllocationActions, readonly [], Record<never, never>, Own>({
+  const clearDraft = (draft: Draft<Own>): number => {
+    const s = own(draft);
+    const total = allocatedUnits(s.assigned);
+    s.assigned = Object.fromEntries(Object.keys(s.assigned).map((id) => [id, 0]));
+    s.order = [];
+    return total;
+  };
+
+  const made = feature<K, AllocationState, AllocationActions, ReachShape, Record<never, never>, Own>({
+    reach: def.reach,
     key: def.key,
     initial: (): AllocationState => ({
       assigned: Object.fromEntries(def.sinks.map((s) => [s.id, 0])),
@@ -267,14 +318,7 @@ export function allocation<const K extends string, E = never, G extends object =
       return {
         assign: (id, n) => run((d) => move(d, id, Math.max(0, n))),
         unassign: (id, n) => run((d) => move(d, id, -Math.max(0, n))),
-        clear: () =>
-          run((d) => {
-            const s = own(d);
-            const total = allocatedUnits(s.assigned);
-            s.assigned = Object.fromEntries(Object.keys(s.assigned).map((id) => [id, 0]));
-            s.order = [];
-            return total;
-          }),
+        clear: () => run(clearDraft),
         fill: (id) => run((d) => move(d, id, Number.MAX_SAFE_INTEGER)),
       };
     },
@@ -304,5 +348,15 @@ export function allocation<const K extends string, E = never, G extends object =
       },
     },
   });
-  return Object.assign(made, { rules });
+  const helpers: AllocationHelpers<K, G, E> = {
+    select,
+    def: { sinks: def.sinks, sink: (id) => byId.get(id), contributions: contributionsOf },
+    draft: {
+      assign: (draft, id, n) => move(draft as Draft<Own>, id, Math.max(0, n)),
+      unassign: (draft, id, n) => move(draft as Draft<Own>, id, -Math.max(0, n)),
+      clear: (draft) => clearDraft(draft as Draft<Own>),
+      fill: (draft, id) => move(draft as Draft<Own>, id, Number.MAX_SAFE_INTEGER),
+    },
+  };
+  return Object.assign(made, helpers) as AllocationFeature<K, G, E> & { readonly needs?: NeedsOf<R> };
 }

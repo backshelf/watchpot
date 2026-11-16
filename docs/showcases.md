@@ -40,7 +40,7 @@ export const pace = feature({
 export const auto = autobuyers({
   key: "auto",
   list: [
-    { id: "stall", unlocked: () => true, intervalMs: () => 1000, run: (d) => stalls.buy(d, "stall") },
+    { id: "stall", unlocked: () => true, intervalMs: () => 1000, run: (d) => stalls.draft.buy(d, "stall") },
     {
       // An autobuyer that buys nothing: it presses the reset for the player once the run is past its best.
       id: "rebirth",

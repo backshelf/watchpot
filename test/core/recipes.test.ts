@@ -8,6 +8,7 @@ import {
   D,
   type Decimal,
   defineGame,
+  feature,
   HOUR_MS,
   maxCraftable,
   type Recipe,
@@ -117,8 +118,8 @@ describe("crafting", () => {
     const short = play(250, 100);
     expect(long.wallet.gems.toNumber()).toBe(6);
     expect(short.wallet.gems.toNumber()).toBe(6);
-    expect(forge.rules.job(long, "slow")).toMatchObject({ times: 3, done: 2 });
-    expect(forge.rules.nextInMs(long, "slow", T0 + 25_000)).toBe(5000);
+    expect(forge.select.job(long, "slow")).toMatchObject({ times: 3, done: 2 });
+    expect(forge.select.nextInMs(long, "slow", T0 + 25_000)).toBe(5000);
   });
 
   test("a second craft extends the job; a queue finishes during an absence", () => {
@@ -161,10 +162,10 @@ describe("crafting", () => {
     );
     expect(store.getState().forge.craft("spin", 3)).toBe(true);
     store.getState().tick(5000, T0 + 5000);
-    expect(quick.rules.nextInMs(store.getState(), "spin", T0 + 5000)).toBe(5000);
+    expect(quick.select.nextInMs(store.getState(), "spin", T0 + 5000)).toBe(5000);
     store.getState().wallet.credit("gems", 100); // the pace doubles: half a craft at the old pace is half at the new
     store.getState().tick(1, T0 + 5000);
-    expect(quick.rules.nextInMs(store.getState(), "spin", T0 + 5000)).toBe(2500);
+    expect(quick.select.nextInMs(store.getState(), "spin", T0 + 5000)).toBe(2500);
     store.getState().tick(12_500, T0 + 17_500);
     expect(store.getState().forge.made.spin?.toNumber()).toBe(3);
     expect(store.getState().forge.queue).toEqual([]);
@@ -172,7 +173,7 @@ describe("crafting", () => {
 
     store.getState().forge.craft("cut", 4);
     store.setState((d) => {
-      quick.craftDraft(d, "cut", 2, T0);
+      quick.draft.craft(d, "cut", 2, T0);
     });
     expect(heard).toEqual([
       ["spin", 3],
@@ -185,5 +186,48 @@ describe("crafting", () => {
     const one = { id: "a", inputs: {}, outputs: {} };
     expect(() => crafting({ key: "x", wallet, list: [one, one] })).toThrow(/twice/);
     expect(() => crafting({ key: "x", wallet, list: [{ ...one, takesMs: 0 }] })).toThrow(/above zero/);
+  });
+});
+
+describe("reach", () => {
+  test("a callback reads a reached feature with no annotation, and not one that was not reached", () => {
+    const door = feature({ key: "door", initial: () => ({ open: true }) });
+    const gated = crafting({
+      key: "gated",
+      wallet,
+      reach: [door],
+      list: [
+        {
+          id: "a",
+          inputs: { gold: 1 },
+          outputs: { gems: 1 },
+          unlocked: (s) => s.door.open && s.wallet.gold.gte(0),
+          yield: (s) => {
+            // @ts-expect-error `lid` was never reached
+            s.lid;
+            return 1;
+          },
+        },
+      ],
+    });
+    expect(gated.def.list).toHaveLength(1);
+    expect(gated.needs).toBeUndefined();
+  });
+});
+
+describe("crafting draft helpers", () => {
+  test("craft and craftMax inside a recipe do what the actions do", () => {
+    const { store } = freshStore(game);
+    store.getState().wallet.credit("gold", 100);
+    let ok = false;
+    let n = 0;
+    store.setState((d) => {
+      ok = forge.draft.craft(d, "cut", 2, T0);
+      n = forge.draft.craftMax(d, "cut", T0);
+    });
+    expect(ok).toBe(true);
+    expect(n).toBeGreaterThan(0);
+    expect(store.getState().forge.made.cut?.toNumber()).toBe(2 + n);
+    expect(forge.def.recipe("cut")?.id).toBe("cut");
   });
 });

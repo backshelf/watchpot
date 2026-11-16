@@ -1,7 +1,7 @@
 import { type CostCurve } from "./cost";
 import { type Decimal, type DecimalSource } from "./decimal";
 import type { DimensionAway } from "./dimensions";
-import { type Feature, type ResetRule } from "./feature";
+import { type Feature, type NeedsOf, type ReachOf, type ReachShape, type ResetRule } from "./feature";
 /** The units assigned across every sink. */
 export declare function allocatedUnits(assigned: Readonly<Record<string, number>>): number;
 /** What is left of the pool: `pool - allocated`, never negative. */
@@ -21,7 +21,7 @@ interface SinkBase<G, E> {
     readonly id: string;
     /** The most it can hold, read off the whole game state (default: no cap). */
     readonly cap?: (state: G) => number;
-    /** What its level gives, for the stat bus (a bar's level; a counting sink stays at level 0). */
+    /** What its level gives, as `{ stat, add }` / `{ stat, mul }` effects (a bar's level; a counting sink stays at level 0). */
     readonly effects?: (level: number) => readonly E[];
 }
 /**
@@ -62,10 +62,8 @@ export interface AllocationActions {
     /** Moves everything free into one sink. */
     fill(id: string): number;
 }
-/** An allocation's rules, read off the game state. */
-export interface AllocationRules<G, E> {
-    readonly sinks: readonly SinkDef<G, E>[];
-    sink(id: string): SinkDef<G, E> | undefined;
+/** An allocation's read-only questions over state. */
+export interface AllocationSelect<K extends string, G, E> {
     /** The pool now. */
     pool(state: G): number;
     /** What is free now. */
@@ -81,28 +79,60 @@ export interface AllocationRules<G, E> {
         need: Decimal;
         share: number;
     };
-    /** Every sink's effects at its level, sourced `<key>:<id>`. */
+    /** Every sink's effects at its level, sourced `<key>:<id>`: what the `stats` feature's `contributions` takes. */
+    contributions(state: {
+        readonly [P in K]: Pick<AllocationState, "level">;
+    }): {
+        source: string;
+        effect: E;
+    }[];
+}
+/** The fixed configuration of an allocation feature: the sinks as given, a sink by id, and the pure contributions. */
+export interface AllocationFixed<G, E> {
+    readonly sinks: readonly SinkDef<G, E>[];
+    /** A sink by id. */
+    sink(id: string): SinkDef<G, E> | undefined;
+    /** `select.contributions` over the saved slice alone (`{ level }`), for a screen that holds only that. */
     contributions(slice: Pick<AllocationState, "level">): {
         source: string;
         effect: E;
     }[];
 }
-/** An `allocation` feature, carrying its rules as `.rules`. */
-export type AllocationFeature<K extends string, G, E> = Feature<K, AllocationState, AllocationActions> & {
-    readonly rules: AllocationRules<G, E>;
-};
+/** The helpers that take a draft first and change it, named like the actions they mirror. Each returns the units moved. */
+export interface AllocationDraftHelpers {
+    /** Moves `n` free units into a sink inside a recipe, clamped to what is free and to its cap. */
+    assign(draft: object, id: string, n: number): number;
+    /** Takes `n` units back out of a sink inside a recipe. */
+    unassign(draft: object, id: string, n: number): number;
+    /** Takes every unit back inside a recipe. */
+    clear(draft: object): number;
+    /** Moves everything free into one sink inside a recipe. */
+    fill(draft: object, id: string): number;
+}
+/** The three namespaces of an allocation feature. */
+export interface AllocationHelpers<K extends string, G, E> {
+    readonly select: AllocationSelect<K, G, E>;
+    readonly def: AllocationFixed<G, E>;
+    readonly draft: AllocationDraftHelpers;
+}
+/** An `allocation` feature: the feature plus `select`, `def` and `draft`. */
+export type AllocationFeature<K extends string, G, E> = Feature<K, AllocationState, AllocationActions> & AllocationHelpers<K, G, E>;
 /**
- * A pool split between sinks, as a feature. It saves `{ assigned, order, progress, level }` under `key` (the stat bus's
- * source prefix too). `<key>.sync.pool` trims the record when the pool or a cap shrinks; `<key>.produce.fill` fills the
- * bars over a tick, and over an absence through `away` (default: all of it), several levels in one step when the work
- * covers them. A run reset clears it unless `reset` says otherwise. The callbacks read the whole game state, so
- * annotate one of them with the game's state type.
+ * A pool split between sinks, as a feature. It saves `{ assigned, order, progress, level }` under `key` (the
+ * contributions' source prefix too). `<key>.sync.pool` trims the record when the pool or a cap shrinks;
+ * `<key>.produce.fill` fills the bars over a tick, and over an absence through `away` (default: all of it), several
+ * levels in one step when the work covers them. A run reset clears it unless `reset` says otherwise. The callbacks
+ * read the whole game state (the feature's own slice and what `reach` names), typed with no annotation.
  */
-export declare function allocation<const K extends string, E = never, G extends object = object>(def: {
+export declare function allocation<const K extends string, E = never, const R extends ReachShape = readonly [], G extends object = Record<K, AllocationState> & ReachOf<R>>(def: {
     readonly key: K;
+    /** The features the callbacks read, as `feature`'s `reach`. */
+    readonly reach?: R | (() => R);
     readonly pool: (state: G) => number;
     readonly sinks: readonly SinkDef<G, E>[];
     readonly away?: (state: G) => DimensionAway;
     readonly reset?: ResetRule<AllocationState>;
-}): AllocationFeature<K, G, E>;
+}): AllocationFeature<K, G, E> & {
+    readonly needs?: NeedsOf<R>;
+};
 export {};

@@ -13,12 +13,12 @@ import s from "./screens.module.css";
 
 /**
  * The generators: a panel each (the next shows once the one before it is owned) with what it makes and the price of
- * the chosen amount, every number read off the engine's `producers.rules`.
+ * the chosen amount, every number read off the engine's `producers.select`.
  */
 export function GeneratorList({ mode }: { mode: BuyMode }) {
   const st = useGameState((x) => x);
   const words = CURRENCY[MAIN];
-  const rules = producers.rules;
+  const rules = producers.select;
   const visible = GENERATORS.filter((_, i) => i === 0 || rules.owned(st, GENERATORS[i - 1]?.id ?? "") > 0);
   return (
     <div className={s.grid}>

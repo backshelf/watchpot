@@ -9,13 +9,13 @@ the pool shrinks, the most recently assigned sink gives way first.
 import { allocation, defineGame, type Effect, feature, stats } from "watchpot/core";
 import { TOY } from "./vocab";
 
-type State = { crew: { size: number } };
 const crew = feature({ key: "crew", initial: () => ({ size: 12 }) });
 
 /** Twelve workers across three sinks: one that only counts, two bars that level up as they fill. */
 export const jobs = allocation({
   key: "jobs",
-  pool: (s: State) => s.crew.size, // the game's number; shrink it and the newest assignments give way
+  reach: [crew], // what the callbacks read, typed with no annotation
+  pool: (s) => s.crew.size, // the game's number; shrink it and the newest assignments give way
   sinks: [
     { id: "haul", cap: () => 5 }, // counts: the game reads s.jobs.assigned.haul as a rate
     {
@@ -34,7 +34,7 @@ export const boosts = stats({
   vocab: TOY,
   reach: () => [jobs],
   stats: { "toy.speed": { base: 1 } },
-  contributions: (s) => jobs.rules.contributions(s.jobs),
+  contributions: (s) => jobs.select.contributions(s),
 });
 
 export const game = defineGame({
@@ -44,7 +44,7 @@ export const game = defineGame({
   features: [crew, jobs, boosts],
 });
 // store.getState().jobs.assign("forge", 4) · .unassign("forge", 1) · .fill("study") · .clear()
-// jobs.rules.bar(state, "forge") → { level, into, need, share } · jobs.rules.free(state)
+// jobs.select.bar(state, "forge") → { level, into, need, share } · jobs.select.free(state)
 ```
 
 - **Pure rules:** `assignUnits(assigned, id, n, pool, cap?)` moves `n` units in (no more than is free or than the cap leaves
@@ -60,5 +60,12 @@ export const game = defineGame({
   stops and holds no progress.
 - **Actions** (each returns the units moved): `assign(id, n)`, `unassign(id, n)`, `clear()`, `fill(id)` (everything
   free into one sink). A sink that gains goes to the end of `order`.
-- **Rules (`.rules`):** `pool`, `free`, `cap`, `perSecond(state, id)` (a bar's work a second), `bar(state, id)` →
-  `{ level, into, need, share }`, and `contributions(slice)` sourced `<key>:<id>`.
+- **`select`** (questions over state): `pool`, `free`, `cap`, `perSecond(state, id)` (a bar's work a second),
+  `bar(state, id)` → `{ level, into, need, share }`, and `contributions(state)` sourced `<key>:<id>`, which is what
+  the `stats` feature's `contributions` takes.
+- **`def`** (what it was given): `sinks`, `sink(id)`, and `contributions(slice)`, the same contributions from the
+  saved slice alone (`{ level }`).
+- **`draft`** (inside a recipe or a step, named like the actions): `assign(draft, id, n)`, `unassign(draft, id, n)`,
+  `clear(draft)` and `fill(draft, id)`, each returning the units moved.
+- **`reach`**: the features the callbacks (`pool`, `cap`, `speed`, `away`) read, as on `feature`; their state is then
+  typed with no annotation (`pool: (s) => s.crew.size`).

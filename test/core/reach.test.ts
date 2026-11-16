@@ -145,5 +145,5 @@ test("a factory's callbacks reach a feature that reaches the factory", () => {
   expect(store.getState().burners.buy("burner")).toBe(true);
   store.getState().tick(1000);
   expect(store.getState().kitchen.hot).toBe(true);
-  expect(burners.rules.rate(store.getState(), "burner").toNumber()).toBe(2);
+  expect(burners.select.rate(store.getState(), "burner").toNumber()).toBe(2);
 });

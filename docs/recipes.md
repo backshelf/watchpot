@@ -40,7 +40,7 @@ export const game = defineGame({
   features: [wallet, forge],
   vocab: TOY,
 });
-// store.getState().forge.craft("polish", 5) · .craftMax("set") · forge.rules.nextInMs(state, "cast", now)
+// store.getState().forge.craft("polish", 5) · .craftMax("set") · forge.select.nextInMs(state, "cast", now)
 // Pure, over any purse that can be credited: craft(recipe, purse, times, yieldMult) → what was made, or null.
 ```
 
@@ -65,6 +65,9 @@ export const game = defineGame({
   instant craft, or what one pass hands off the queue (three crafts finished over an absence are one call with 3).
   Experience for what was made, a counter of the game's own, a cue: one place, whichever way the craft came.
 - **Actions:** `craft(id, times = 1)` (all or nothing; false when locked or short) and `craftMax(id)` (returns how
-  many). **In a recipe:** `forge.craftDraft(draft, id, times, now)`, the same craft for a step or a game's own action
-  (an automatic crafter), counted and heard like the action's. **Rules (`.rules`):** `open`, `craftable(state, id)`,
-  `job(state, id)` and `nextInMs(state, id, now)`.
+  many). **`draft`** (in a recipe, named like the actions): `forge.draft.craft(draft, id, times?, now?)` and
+  `forge.draft.craftMax(draft, id, now?)`, the same craft for a step or a game's own action (an automatic crafter),
+  counted and heard like the action's. **`select`** (questions over state): `open`, `craftable(state, id)`,
+  `job(state, id)` and `nextInMs(state, id, now)`. **`def`:** `list` and `recipe(id)`. `reach` names the features
+  the callbacks (`unlocked`, `yield`, `takesMs`, `onCraft`) read, as on `feature`, so their state is typed with no
+  annotation (the wallet is reached already).

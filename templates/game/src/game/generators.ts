@@ -14,7 +14,7 @@ interface Reads {
 /**
  * The generators on the engine's `generators`: each makes the main currency a second and is bought with it, the
  * first one owned from the start of every run. `output` multiplies them all; away, they pay the `offline` share for
- * at most `OFFLINE_CAP_MS`. Buy with `buy(id, count)` and `buyMax(id)`; read prices and rates off `producers.rules`.
+ * at most `OFFLINE_CAP_MS`. Buy with `buy(id, count)` and `buyMax(id)`; read prices and rates off `producers.select`.
  */
 export const producers = generators({
   key: "generators",

@@ -1,6 +1,6 @@
 /**
  * Chapter 12 of the guide, "Proving the pacing": two small things the main sim (guide-pacing.ts) does not need. An
- * upgrade tree has no moves of its own, so the auto-player never buys from it until you attach some; and a sitting
+ * upgrade tree needs a `worth` for a node that moves no number the sim can see; and a sitting
  * can stop the moment something first happens, which answers "when does the player first get X?". The game is the
  * main sim's playable Simmer, plus a kitchen shop with one upgrade in it.
  *
@@ -13,9 +13,7 @@ import {
   type GraphNode,
   HOUR_MS,
   type TreeState,
-  treeMoves,
   upgradeTree,
-  withMoves,
 } from "watchpot/core";
 import { autoPlayer, createSimWorld, fmtClock, playStraight, simStore } from "watchpot/sim";
 import { playablePot } from "./guide-pacing";
@@ -32,12 +30,10 @@ const COPPER: GraphNode<Effect, "bubbles"> = {
   effects: [],
 };
 
-// The tree the store runs, plus the moves the sim buys from. `worth` is in the unit the burners' moves use, bubbles
-// a second; it gets no state, so it is a fair guess: the copper base is worth about five burners.
-const kitchen = withMoves(
-  upgradeTree({ key: "kitchen", nodes: [COPPER], wallet }),
-  treeMoves("kitchen", [COPPER], () => 5),
-);
+// The tree declares the moves the sim buys from. `worth` is in the unit the burners' moves use, bubbles a second; the
+// copper base changes no number the sim can see until the `copper` feature below reads it, so it is a fair guess:
+// about five burners.
+const kitchen = upgradeTree({ key: "kitchen", nodes: [COPPER], wallet, worth: () => 5 });
 
 const hasCopper = (s: { kitchen: TreeState }) => (s.kitchen.ranks.copper ?? 0) > 0;
 

@@ -88,29 +88,28 @@ something. It never saves up for something better. It is a greedy, tireless play
 the first hours of a person who is paying attention.
 
 Several of the engine's ready-made systems carry their moves already: a `generators` list offers one purchase per
-generator, valued at the income it adds, and a `clicker` offers one press per look. Others need you to say what a
-move is worth, because only your game knows. An `upgradeTree` gets its moves from `treeMoves(key, nodes, worth)`, and
-you attach them, like any moves for a feature a factory made (`prestige`, say), with `withMoves(feature, moves)`.
-Until you do, the auto-player never buys from that feature, and nothing at run time tells you so. The second example
-file adds a kitchen to the playable Simmer: an `upgradeTree` with one upgrade, a copper base that doubles the stove
-(a small `copper` feature reads its rank in a `rates` step after the lid's). Here is the tree with its moves attached:
+generator, valued at the income it adds, an `upgradeTree` offers one purchase per node whose next rank can be bought,
+and a `clicker` offers one press per look. A move with no `worth` is worth what buying it adds to the auto-player's
+`objective`; a node that moves no number the sim can see at once (an unlock, an offline cap) needs you to say what it
+is worth, because only your game knows: the tree takes a `worth(state, node)` for that. Moves for a feature you wrote
+yourself, or for one a factory made without any (`prestige`, say), are attached with `withMoves(feature, moves)`. The
+second example file adds a kitchen to the playable Simmer: an `upgradeTree` with one upgrade, a copper base that
+doubles the stove (a small `copper` feature reads its rank in a `rates` step after the lid's). Here is the tree with
+its worth stated:
 
 <!-- example-code: guide-pacing-tree.ts -->
 
 ```ts
-// The tree the store runs, plus the moves the sim buys from. `worth` is in the unit the burners' moves use, bubbles
-// a second; it gets no state, so it is a fair guess: the copper base is worth about five burners.
-const kitchen = withMoves(
-  upgradeTree({ key: "kitchen", nodes: [COPPER], wallet }),
-  treeMoves("kitchen", [COPPER], () => 5),
-);
+// The tree declares the moves the sim buys from. `worth` is in the unit the burners' moves use, bubbles a second; the
+// copper base changes no number the sim can see until the `copper` feature below reads it, so it is a fair guess:
+// about five burners.
+const kitchen = upgradeTree({ key: "kitchen", nodes: [COPPER], wallet, worth: () => 5 });
 ```
 
 `docs/examples/guide-pacing-tree.ts`
 
-`withMoves` and `treeMoves` both come from `watchpot/core`. The first argument to `treeMoves` is the tree's `key`,
-and the list is the same nodes the tree was built from. You put the wrapped tree in the game's feature list, and
-since nothing reaches it yet, there is no identity to keep.
+`worth` gets the state and the node, so a game that can work the number out says so there. You put the tree in the
+game's feature list as it is, and since nothing wraps it, there is no identity to keep.
 
 Notice that tapping the pot is not a move. That is deliberate, and the reason is the first thing that bites in
 [Things that bite](#things-that-bite).
@@ -553,4 +552,4 @@ contract and its first tests already wired.
 - `api/sim/world.d.ts`, `api/sim/auto.d.ts`, `api/sim/schedule.d.ts`, `api/sim/timeline.d.ts`,
   `api/sim/contract.d.ts`, `api/sim/gate.d.ts`, `api/sim/bare.d.ts`, `api/sim/fit.d.ts`, `api/sim/print.d.ts`
 - `api/test/store.d.ts`, `api/test/clock.d.ts`, `api/test/render.d.ts`
-- `api/core/tree.d.ts` (`treeMoves`) and `api/core/feature.d.ts` (`withMoves`)
+- `api/core/tree.d.ts` (`upgradeTree`, `treeMoves`) and `api/core/feature.d.ts` (`withMoves`)

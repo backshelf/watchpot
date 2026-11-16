@@ -10,6 +10,7 @@ import {
   D,
   type Decimal,
   defineGame,
+  feature,
   vocab,
 } from "watchpot/core";
 import { autoPlayer, createSimWorld, simStore } from "watchpot/sim";
@@ -160,5 +161,42 @@ describe("clicker", () => {
     expect(timers.contributions(store.getState().timers, clock.now())).toEqual([]);
     clock.advance(10_000);
     expect(store.getState().rushed.click()?.amount.toNumber()).toBe(1);
+  });
+});
+
+describe("reach", () => {
+  test("a callback reads a reached feature with no annotation, and not one that was not reached", () => {
+    const door = feature({ key: "door", initial: () => ({ open: true }) });
+    const gated = clicker({
+      key: "gated",
+      wallet,
+      currency: "gold",
+      reach: [door],
+      power: (s) => (s.door.open && s.wallet.gold.gte(0) ? 2 : 1),
+      crit: (s) => {
+        // @ts-expect-error `lid` was never reached
+        s.lid;
+        return { chance: 0, mult: 1 };
+      },
+    });
+    expect(gated.def.combo).toBeUndefined();
+    expect(gated.needs).toBeUndefined();
+  });
+});
+
+describe("clicker select and draft", () => {
+  test("a press inside a recipe pays as the action does, and select reads the combo off the state", () => {
+    const { store } = freshStore(game);
+    let first: ReturnType<typeof tap.draft.click> = null;
+    store.setState((d) => {
+      first = tap.draft.click(d, T0);
+    });
+    expect(first).toMatchObject({ crit: false, combo: 1 });
+    expect(store.getState().tap.clicks).toBe(1);
+    expect(tap.select.comboAt(store.getState(), T0 + 500)).toBe(1.5);
+    expect(tap.select.comboShown(store.getState(), T0 + 500)).toBe(1);
+    expect(tap.select.comboShown(store.getState(), T0 + 5000)).toBe(1);
+    expect(tap.def.combo?.max).toBe(2);
+    expect(tap.select.power(store.getState(), T0).toNumber()).toBe(1);
   });
 });

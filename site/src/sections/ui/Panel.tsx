@@ -27,11 +27,11 @@ const notices = createToasts({ max: 2, duration: 7000 });
 /** The cheapest heat source the pot cannot pay for yet: what the steam is saving towards. */
 function savingFor(s: ToyState) {
   for (const g of HEAT) {
-    const price = heat.rules.price(s, g.id, 1);
+    const price = heat.select.price(s, g.id, 1);
     if (s.wallet.steam.lt(price)) return { name: g.name, price };
   }
   const last = HEAT[HEAT.length - 1] ?? HEAT[0];
-  return { name: last.name, price: heat.rules.price(s, last.id, 1) };
+  return { name: last.name, price: heat.select.price(s, last.id, 1) };
 }
 
 const share = (part: Decimal, whole: Decimal) => (whole.lte(0) ? 1 : Math.min(1, part.div(whole).toNumber()));

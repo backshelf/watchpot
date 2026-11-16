@@ -1,6 +1,6 @@
 import type { CurrenciesFeature } from "./currencies";
 import { type Decimal, type DecimalSource } from "./decimal";
-import { type Feature, type ResetRule } from "./feature";
+import { type Feature, type NeedsOf, type ReachOf, type ReachShape, type ResetRule } from "./feature";
 /**
  * Markets: things with a price that wanders on its own, to buy low and sell high. A ticker's price is a pure function
  * of game time and the market's saved seed (smooth noise around a base, never outside its band), so it needs no
@@ -62,10 +62,8 @@ export interface MarketPosition {
     /** `worth - paid`: the profit a sale now would take (negative for a loss). */
     readonly profit: Decimal;
 }
-/** The market's rules, read off the game state at a game time. */
-export interface MarketRules<G, T extends TickerDef> {
-    readonly tickers: readonly T[];
-    ticker(id: string): T | undefined;
+/** The market's read-only questions over state, at a game time. */
+export interface MarketSelect<G> {
     /** Whether the ticker trades now. */
     open(state: G, id: string): boolean;
     /** The price now, before any fee. */
@@ -100,10 +98,35 @@ export interface MarketActions {
     /** Sells the whole holding. */
     sellAll(id: string): Decimal;
 }
-/** A `market` feature, carrying its rules as `.market`. */
-export type MarketFeature<K extends string, G, T extends TickerDef> = Feature<K, MarketState, MarketActions> & {
-    readonly market: MarketRules<G, T>;
-};
+/** The fixed configuration of a market feature: the tickers as given, and a ticker by id. */
+export interface MarketFixed<T extends TickerDef> {
+    readonly tickers: readonly T[];
+    /** A ticker by id. */
+    ticker(id: string): T | undefined;
+}
+/**
+ * The helpers that take a draft first and change it, named like the actions they mirror, for a recipe or a step. A
+ * price is read at game time, so each takes `now` last (default the state's `gameNow()` when it carries one, else
+ * 0; a step passes its `ctx.now`). Each returns the units traded (zero when it refused).
+ */
+export interface MarketDraftHelpers {
+    /** Buys exactly `units` inside a recipe, or nothing when the balance does not cover them. */
+    buy(draft: object, id: string, units: DecimalSource, now?: number): Decimal;
+    /** Buys what `share` of the balance covers (default all of it) inside a recipe. */
+    buyMax(draft: object, id: string, share?: number, now?: number): Decimal;
+    /** Sells `units` inside a recipe, or all that is held when fewer are. */
+    sell(draft: object, id: string, units: DecimalSource, now?: number): Decimal;
+    /** Sells the whole holding inside a recipe. */
+    sellAll(draft: object, id: string, now?: number): Decimal;
+}
+/** The three namespaces of a market feature. */
+export interface MarketHelpers<G, T extends TickerDef> {
+    readonly select: MarketSelect<G>;
+    readonly def: MarketFixed<T>;
+    readonly draft: MarketDraftHelpers;
+}
+/** A `market` feature: the feature plus `select`, `def` and `draft`. */
+export type MarketFeature<K extends string, G, T extends TickerDef> = Feature<K, MarketState, MarketActions> & MarketHelpers<G, T>;
 /** How the auto-player trades: it buys in the lower part of the band and sells in the upper. */
 export interface MarketPlayer {
     /** Buy while the level is under this (default 0.3). */
@@ -136,11 +159,14 @@ export interface MarketTrader<G> extends Omit<MarketPlayer, "spend"> {
  * A market as a feature. It saves `MarketState` under `key`, trades in the currency `pays` through `wallet`, and pays
  * every holding's `yield` in the step `<key>.produce.yield` (over an absence too: `away`, default all of it). `fee`
  * is the share of each trade the market keeps, `yieldMult` the game's multiplier on every yield, `open` which
- * tickers trade, `trader` a trader that works the market by itself (`MarketTrader`). A prestige reset clears the holdings and draws a new seed unless `reset` says otherwise. The
- * callbacks read the whole game state, so annotate one of them with the game's state type.
+ * tickers trade, `trader` a trader that works the market by itself (`MarketTrader`). A prestige reset clears the
+ * holdings and draws a new seed unless `reset` says otherwise. The callbacks read the whole game state (the
+ * feature's own slice, the wallet's and what `reach` names), typed with no annotation.
  */
-export declare function market<const K extends string, T extends TickerDef, WK extends string, C extends string, WS extends object, WA extends object, G extends object = object>(def: {
+export declare function market<const K extends string, T extends TickerDef, WK extends string, C extends string, WS extends object, WA extends object, const R extends ReachShape = readonly [], G extends object = Record<K, MarketState> & Record<WK, WS> & ReachOf<R>>(def: {
     readonly key: K;
+    /** The features the callbacks read, as `feature`'s `reach`; the wallet is reached already. */
+    readonly reach?: R | (() => R);
     readonly tickers: readonly T[];
     /** The currencies feature trades are paid from and into. */
     readonly wallet: CurrenciesFeature<WK, C, WS, WA>;
@@ -157,4 +183,6 @@ export declare function market<const K extends string, T extends TickerDef, WK e
     readonly player?: MarketPlayer;
     readonly trader?: MarketTrader<G>;
     readonly reset?: ResetRule<MarketState>;
-}): MarketFeature<K, G, T>;
+}): MarketFeature<K, G, T> & {
+    readonly needs?: NeedsOf<R>;
+};

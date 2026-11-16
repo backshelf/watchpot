@@ -14,7 +14,7 @@ export function PressPanel() {
   const store = useGameStore();
   const clicker = useGameState((st) => st.clicker);
   const now = useClockNow(250);
-  const combo = comboShown(clicker, now, press.combo);
+  const combo = comboShown(clicker, now, press.def.combo);
   return (
     <Panel heading={CLICKER.name} level={2}>
       <div className={s.press}>

@@ -19,16 +19,17 @@ A system has three layers.
    actions (`buy`, `click`, `catch`), and adds the [steps](../glossary.md#step) that move it on every tick and over a
    [catch-up](../glossary.md#catch-up). You list it in `defineGame` like any feature you wrote yourself.
 3. **Something the screen reads.** The factory hangs its read-only questions on the feature it returns, so a screen
-   can ask "what does the next one cost" without repeating the formula. On `generators` this object is called
-   `.rules`.
+   can ask "what does the next one cost" without repeating the formula. Every factory returns the same three
+   namespaces: `select` for the questions over state, `def` for what it was given, and `draft` for the helpers that
+   change a draft inside a recipe.
 
 The reason for the split is that the screen, the sim and the store all need the same answers. If the price formula
 lived in a button's click handler, the sim would need its own copy, and the two would drift. With the split, the
 feature's action and the screen's label both call the same kernel.
 
-You will meet this shape five times below. The third layer is the least regular: `generators` puts its questions on
-`.rules`, the upgrade tree puts them on the feature itself, and the others carry what the screen needs as free
-functions you import. The chapter points out each one as it comes.
+You will meet this shape five times below. The third layer is the same everywhere: `generators` and the upgrade tree
+put their questions on `.select`, their list or nodes on `.def`, and a clicker or a gauge keeps its pure helpers
+(`comboAt`, `comboShown`) beside them as free functions you import. The chapter points out each one as it comes.
 
 ### Where this chapter's Simmer starts
 
@@ -196,9 +197,9 @@ Line by line:
   press (raising the foam here) lands in the same state change. `Draft` comes from `watchpot/core`.
 
 The clicker's screen-side pieces are the action's return value (to flash "crit!") and two free functions,
-`comboAt` and `comboShown`, for a combo meter. There is no `.rules` object. The feature also carries `.press(draft,
-now)`, the same press for use inside another recipe: a [draft helper](../glossary.md#draft-helper), like the
-wallet's `credit` in chapter 4.
+`comboAt` and `comboShown`, for a combo meter (`tap.select.comboShown(state, now)` reads them off the state). The
+feature also carries `.draft.click(draft, now)`, the same press for use inside another recipe: a [draft
+helper](../glossary.md#draft-helper), like the wallet's `draft.credit` in chapter 4.
 
 The rest of the clicker, including the combo and the reset rule, is on the shelf in [Clicker](../clicker.md).
 
@@ -311,34 +312,35 @@ which reads the game's stat bus, and `open`. That is the whole station system: t
 engine does the prices, the doubling, the floor-wide tripling, the per-second rate, the payout every tick and the
 half-rate payout while the player is away.
 
-The factory's questions about the state live on `.rules`, and the game's list reads them for every row:
+The factory's questions about the state live on `.select` (the list itself on `.def`), and the game's list reads
+them for every row:
 
 ```tsx
   const [mode, setMode] = useState<BuyMode>(1);
   const balance = st.wallet[MAIN];
-  const list = stations.rules.list;
+  const list = stations.def.list;
   // Everything owned, and the first one that is not: the floor grows a station at a time.
   const firstUnowned = list.findIndex((def) => (st.stations.owned[def.id] ?? 0) === 0);
   const shown = firstUnowned < 0 ? list : list.slice(0, firstUnowned + 1);
   // ...
         {shown.map((def) => {
           const owned = st.stations.owned[def.id] ?? 0;
-          const open = stations.rules.open(st, def.id);
-          const affordable = stations.rules.affordable(st, def.id);
-          const until = stations.rules.untilMilestone(st, def.id) ?? 1;
+          const open = stations.select.open(st, def.id);
+          const affordable = stations.select.affordable(st, def.id);
+          const until = stations.select.untilMilestone(st, def.id) ?? 1;
           const count = Math.max(1, buyCount(mode, { affordable, untilNext: until }));
-          const price: Decimal = stations.rules.price(st, def.id, count);
+          const price: Decimal = stations.select.price(st, def.id, count);
           const can = open && price.lte(balance);
-          const rate = owned > 0 ? stations.rules.rate(st, def.id) : ZERO;
+          const rate = owned > 0 ? stations.select.rate(st, def.id) : ZERO;
 ```
 
 VOID IF REMOVED, `src/screens/Feed.tsx`
 
 The buy modes come from `watchpot/ui`. `BuyMode` is `number | "max" | "next"`, the `BuyAmount` component is the
 switch, and `buyCount(mode, { affordable, untilNext })` turns the chosen mode into a count, 0 when you can afford none
-(hence the `Math.max(1, ...)`, so a row still shows the price of one). The count goes to `rules.price` for the label
+(hence the `Math.max(1, ...)`, so a row still shows the price of one). The count goes to `select.price` for the label
 and to `stations.buy(def.id, count)` on the click. On the current engine those five lines are one call,
-`rules.row(state, id, mode)`, which Simmer uses below. The blacked-out rows are the game's own idea: it slices the list
+`select.row(state, id, mode)`, which Simmer uses below. The blacked-out rows are the game's own idea: it slices the list
 after the first station you do not own.
 
 **Simmer's version.** The stove from chapter 3 was written by hand, and it stays. Beside it Simmer puts a shelf of
@@ -353,6 +355,7 @@ const DOUBLINGS = [10, 25, 50, 100].map((at) => ({ at, gives: { mult: 2 } }));
 export const kettles = generators({
   key: "kettles",
   wallet,
+  reach: () => [kitchen, boosts],
   list: [
     {
       id: "kettle",
@@ -375,7 +378,7 @@ export const kettles = generators({
   ],
   global: [{ at: 25, gives: { mult: 3 } }], // once every kettle and cauldron reaches 25
   // The copper, and three times over while a rolling boil runs.
-  mult: (s: Page, _def, { now }) =>
+  mult: (s, _def, { now }) =>
     statOf(s, "kettle") * (buffActive(s.boosts, "rolling-boil", now) ? ROLLING_BOIL.mult : 1),
   away: () => ({ rate: 0.5, capMs: 8 * HOUR_MS }), // half pay while you are gone, for up to 8 hours
 });
@@ -393,12 +396,12 @@ And the row a screen would draw, as a plain function with no React in it, so you
 
 ```ts
 /** One kettle row: what it shows and what its button would buy, for the chosen buy mode. */
-export function kettleRow(s: Page, id: string, mode: BuyMode, now: number) {
-  const { count, price, canBuy } = kettles.rules.row(s, id, mode, now);
+export function kettleRow(s: StateOf<typeof game.features>, id: string, mode: BuyMode, now: number) {
+  const { count, price, canBuy } = kettles.select.row(s, id, mode, now);
   return {
-    owned: kettles.rules.owned(s, id),
-    perSecond: fmt(kettles.rules.rate(s, id, now)).text,
-    untilNext: kettles.rules.untilMilestone(s, id),
+    owned: kettles.select.owned(s, id),
+    perSecond: fmt(kettles.select.rate(s, id, now)).text,
+    untilNext: kettles.select.untilMilestone(s, id),
     count,
     price: fmt(price).text,
     canBuy,
@@ -408,16 +411,16 @@ export function kettleRow(s: Page, id: string, mode: BuyMode, now: number) {
 
 `docs/examples/guide-first-page.ts`
 
-`rules.row` does the buy-mode arithmetic: `count` is what the mode buys, never less than 1 so the row always has a
+`select.row` does the buy-mode arithmetic: `count` is what the mode buys, never less than 1 so the row always has a
 price to show; `price` is the price of that many; `canBuy` is false when the generator is not open, when the balance
 falls short, or for `"next"` past the last milestone. `untilMilestone` returns `null` past the last milestone.
 
-The rules that read a callback take the `now` to hand it as a last argument. A rule called on the store's own state
+The questions that read a callback take the `now` to hand it as a last argument. A question asked of the store's own state
 without one uses the store's current game time, so you can leave it out on a screen; the script passes it because its
 clock is a variable.
 
 One inconsistency to know about: the callbacks you pass in (`mult`, `open`, `automated`) receive the generator's whole
-definition, `(state, def, ctx)`, but the `.rules` functions you call take its id, `(state, id)`. Inside `mult` you
+definition, `(state, def, ctx)`, but the `.select` functions you call take its id, `(state, id)`. Inside `mult` you
 write `def.id`; on a screen you pass `def.id`.
 
 How time away is reported to the player, and why the half rate matters, is chapter 9. The rest of the factory,
@@ -528,27 +531,28 @@ over (the ranks held), and `over(s).stat("stir")` gives `(1 + adds) × muls` as 
 `statOf(s, "stir")` and the kettles' `statOf(s, "kettle")` came from. A graph per call is fine for four upgrades;
 chapter 8 declares the stats once as a feature the whole game reads.
 
-The screen asks the feature itself. `kitchen.open(state, id)` says whether a node is on offer by your `open`,
-`kitchen.check(state, id)` says why `buy(id)` would refuse it now (`"closed"` first, then the price or a missing
-requirement), or `null` when it would buy, and `kitchen.affordable(state, id)` counts the ranks the wallet covers. The
-tree's own rules live on `.tree`: the nodes, `price(node, owned)` and `contributions`.
+The screen asks the feature itself. `kitchen.select.open(state, id)` says whether a node is on offer by your `open`,
+`kitchen.select.check(state, id)` says why `buy(id)` would refuse it now (`"closed"` first, then the price or a missing
+requirement), or `null` when it would buy, and `kitchen.select.affordable(state, id)` counts the ranks the wallet
+covers. The nodes are `kitchen.def.nodes`, and the tree's own pure rules live on `kitchen.def.tree`: `price(node,
+owned)` and its `contributions`.
 
 <!-- example-code: guide-first-page.ts -->
 
 ```ts
 /** The kitchen shelf: what is on offer, what the next rank costs, and whether it can be bought now. */
 export function shelf(s: Page) {
-  return kitchen.tree.nodes
-    .filter((node) => kitchen.open(s, node.id))
+  return kitchen.def.nodes
+    .filter((node) => kitchen.select.open(s, node.id))
     .map((node) => {
       const owned = s.kitchen.ranks[node.id] ?? 0;
-      const next = kitchen.tree.price(node, owned)?.[0];
+      const next = kitchen.def.tree.price(node, owned)?.[0];
       return {
         id: node.id,
         name: node.name,
         owned,
         price: next ? fmt(next.amount).text : null, // null: bought out
-        canBuy: kitchen.check(s, node.id) === null,
+        canBuy: kitchen.select.check(s, node.id) === null,
       };
     });
 }
@@ -756,12 +760,12 @@ same on every run; with this seed none of the thirty stirs crits.
 
 ## Things that bite
 
-- **The tree's own rules ignore `open`.** `kitchen.tree.check` and `kitchen.tree.affordable` will happily say yes to a
-  node your `open` hides; they know only ranks and balances. Ask the feature (`kitchen.check`, `kitchen.affordable`,
-  `kitchen.open`) on a screen.
+- **The tree's own rules ignore `open`.** `kitchen.def.tree.check` and `kitchen.def.tree.affordable` will happily say
+  yes to a node your `open` hides; they know only ranks and balances. Ask the feature (`kitchen.select.check`,
+  `kitchen.select.affordable`, `kitchen.select.open`) on a screen.
 - **A buff read in a callback counts at the end of the pass.** Fine over a tick; over a long absence a buff that ran
   out partway pays nothing for the part it covered. Use `overlapMs` in a step when that matters.
-- **`buyCount` can return 0.** It means "you can afford none". `rules.row` already takes care of it; if you call
+- **`buyCount` can return 0.** It means "you can afford none". `select.row` already takes care of it; if you call
   `buyCount` yourself, use `Math.max(1, ...)` for the label, or the row shows the price of nothing.
 - **Feature order is behaviour.** Steps in the same phase run in the order the features are listed. A step that reads
   another feature's derived values in the same phase has to come after it (or be named first in `defineGame`'s

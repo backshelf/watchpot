@@ -99,13 +99,13 @@ describe("market", () => {
   test("a buy is all or nothing, in whole units, and keeps what it cost", () => {
     const { store } = freshStore(game);
     const now = store.getState().gameNow();
-    const price = exchange.market.price(store.getState(), "oats", now);
+    const price = exchange.select.price(store.getState(), "oats", now);
     expect(store.getState().exchange.buy("oats", 1e9).toNumber()).toBe(0);
     expect(store.getState().exchange.buy("tin", 1).toNumber()).toBe(0); // closed
     expect(store.getState().exchange.buy("oats", 10.9).toNumber()).toBe(10);
     const s = store.getState();
     expect(s.wallet.cash.toNumber()).toBeCloseTo(1000 - 10 * price, 6);
-    const pos = exchange.market.position(s, "oats", now);
+    const pos = exchange.select.position(s, "oats", now);
     expect(pos.held.toNumber()).toBe(10);
     expect(pos.average).toBeCloseTo(price, 6);
     expect(pos.profit.toNumber()).toBeCloseTo(0, 6);
@@ -118,7 +118,7 @@ describe("market", () => {
     const start = clock.now();
     const paid = store.getState().exchange.paid.oats?.toNumber() ?? 0;
     expect(paid).toBeLessThanOrEqual(500);
-    expect(paid).toBeGreaterThan(500 - exchange.market.price(store.getState(), "oats", start));
+    expect(paid).toBeGreaterThan(500 - exchange.select.price(store.getState(), "oats", start));
     // Find a later minute with a different price, and sell half there.
     let at = start;
     const first = priceAt(store.getState().exchange.seed, OATS, start);
@@ -142,7 +142,7 @@ describe("market", () => {
       s.flags.fee = 0.1;
     });
     const now = store.getState().gameNow();
-    const price = exchange.market.price(store.getState(), "oats", now);
+    const price = exchange.select.price(store.getState(), "oats", now);
     store.getState().exchange.buy("oats", 10);
     expect(store.getState().wallet.cash.toNumber()).toBeCloseTo(1000 - 11 * price, 6);
     store.getState().exchange.sellAll("oats");
@@ -154,7 +154,7 @@ describe("market", () => {
     const { store, clock } = freshStore(game);
     store.getState().exchange.buy("oats", 50);
     const cash = store.getState().wallet.cash.toNumber();
-    const perSecond = exchange.market.yieldPerSecond(store.getState()).toNumber();
+    const perSecond = exchange.select.yieldPerSecond(store.getState()).toNumber();
     expect(perSecond).toBeCloseTo(50 * 10 * 0.001, 9);
     clock.advance(1000);
     store.getState().tick(1000, clock.now());
@@ -186,7 +186,7 @@ describe("market", () => {
     const s = world.store.getState() as unknown as State & { exchange: { realised: Decimal } };
     expect(trades).toBeGreaterThan(10);
     expect(s.exchange.realised.toNumber()).toBeGreaterThan(0);
-    expect(s.wallet.cash.add(exchange.market.worth(s as never, world.gameNow())).toNumber()).toBeGreaterThan(
+    expect(s.wallet.cash.add(exchange.select.worth(s as never, world.gameNow())).toNumber()).toBeGreaterThan(
       1000,
     );
   });
@@ -226,7 +226,7 @@ describe("market trader", () => {
       store.getState().tick(5 * MINUTE_MS, clock.now());
       const s = store.getState() as unknown as BotState & { bot: { trades: number } };
       if (s.bot.trades > lastTrades) {
-        const level = bot.market.level(s as never, "oats", store.getState().gameNow());
+        const level = bot.select.level(s as never, "oats", store.getState().gameNow());
         if (s.bot.held.oats?.gt(0)) {
           expect(level).toBeLessThan(0.3);
           boughtLow++;
@@ -241,7 +241,7 @@ describe("market trader", () => {
     expect(boughtLow).toBeGreaterThan(3);
     expect(soldHigh).toBeGreaterThan(3);
     expect(s.bot.realised.toNumber()).toBeGreaterThan(0);
-    expect(bot.market.trading(s as never)).toBe(true);
+    expect(bot.select.trading(s as never)).toBe(true);
   });
 
   test("keeps a share of the balance back, and trades nothing while switched off", () => {
@@ -253,7 +253,7 @@ describe("market trader", () => {
     }
     const off = store.getState() as unknown as BotState & { bot: { trades: number } };
     expect(off.bot.trades).toBe(0);
-    expect(bot.market.trading(off as never)).toBe(false);
+    expect(bot.select.trading(off as never)).toBe(false);
     store.setState((s: BotState) => ({ ...s, flags: { ...s.flags, bot: true } }) as never);
     for (
       let i = 0;
@@ -335,5 +335,42 @@ describe("market trader", () => {
     expect(slow).toBeGreaterThan(0);
     expect(slow).toBeLessThanOrEqual(2 * 24 * 6 * 2);
     expect(trades(fastGame)).toBeGreaterThanOrEqual(slow);
+  });
+});
+
+describe("reach", () => {
+  test("a callback reads a reached feature with no annotation, and not one that was not reached", () => {
+    const door = feature({ key: "door", initial: () => ({ open: true }) });
+    const gated = market({
+      key: "gated",
+      wallet,
+      pays: "cash",
+      reach: [door],
+      tickers: [OATS],
+      open: (s) => s.door.open && s.wallet.cash.gte(0),
+      fee: (s) => {
+        // @ts-expect-error `lid` was never reached
+        s.lid;
+        return 0;
+      },
+    });
+    expect(gated.def.tickers).toHaveLength(1);
+    expect(gated.needs).toBeUndefined();
+  });
+});
+
+describe("market draft helpers", () => {
+  test("buy, buyMax, sell and sellAll inside a recipe trade as the actions do", () => {
+    const { store } = freshStore(game);
+    const traded: number[] = [];
+    store.setState((d) => {
+      traded.push(exchange.draft.buy(d, "oats", 3, T0).toNumber());
+      traded.push(exchange.draft.sell(d, "oats", 1, T0).toNumber());
+      traded.push(exchange.draft.sellAll(d, "oats", T0).toNumber());
+      traded.push(exchange.draft.buyMax(d, "oats", 0.5, T0).toNumber() > 0 ? 1 : 0);
+    });
+    expect(traded).toEqual([3, 1, 2, 1]);
+    expect(store.getState().exchange.trades).toBe(4);
+    expect(exchange.def.ticker("oats")?.id).toBe("oats");
   });
 });

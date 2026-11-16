@@ -19,7 +19,7 @@ import s from "./screens.module.css";
 export function TierList({ mode }: { mode: BuyMode }) {
   const st = useGameState((x) => x);
   const words = CURRENCY[MAIN];
-  const rules = chain.chain;
+  const rules = chain.select;
   const open = TIERS.filter((t) => rules.open(st, t.id));
   return (
     <>

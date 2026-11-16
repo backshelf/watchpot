@@ -57,7 +57,7 @@ export const game = defineGame({
   vocab: TOY,
 });
 // store.getState().buildings.buy("stall", 10) · .buyMax("press") · .buyNext("stall") · .run("press")
-// buildings.rules.perSecond(state).gold · buildings.rules.untilMilestone(state, "stall")
+// buildings.select.perSecond(state).gold · buildings.select.untilMilestone(state, "stall")
 
 if (import.meta.main) {
   const wall = Date.UTC(2026, 0, 1);
@@ -67,8 +67,8 @@ if (import.meta.main) {
   const s = store.getState();
   // One buy row per mode, for a screen: how many it buys, their price, and whether the player can.
   for (const mode of [1, 10, "max", "next"] as const) {
-    const row = buildings.rules.row(s, "stall", mode);
+    const row = buildings.select.row(s, "stall", mode);
     console.log(`stall ×${mode}:`, row.count, row.price.toFixed(0), row.canBuy);
   }
-  console.log("away:", buildings.rules.away(s)); // what the catch-up credits of an absence
+  console.log("away:", buildings.select.away(s)); // what the catch-up credits of an absence
 }

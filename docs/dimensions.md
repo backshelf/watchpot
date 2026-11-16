@@ -25,7 +25,7 @@ export const chain = dimensions({
   speed: (s: State) => s.tick.speed, // one multiplier on every tier
 });
 // store.getState().chain.buy("first"), .buySet("first"), .buyMax("second"), .maxAll()
-// chain.chain.perSecond(state, "first"), .price(state, "second", 10), .untilSet(state, "first")
+// chain.select.perSecond(state, "first"), .price(state, "second", 10), .untilSet(state, "first")
 ```
 
 - **Held and bought are two numbers.** `amount` is what a tier holds: what was bought plus what the tier above made,
@@ -44,9 +44,14 @@ export const chain = dimensions({
 - **The layers above are the game's.** A reset that starts the chain over and multiplies it (a boost, a galaxy) is a
   `prestige` feature whose count `mult` or `speed` reads; a sacrifice is an action that zeroes the lower amounts and
   raises a multiplier. A run reset starts the chain over unless `reset` says otherwise.
-- **Draft helpers** for a recipe or a step (an autobuyer's `run`): `chain.buy(draft, id, count?)`,
-  `chain.buyMax(draft, id, limit?)` and `chain.maxAll(draft)`, each returning how many it bought, and
-  `chain.produce(draft, seconds)`, which advances the chain at the rates the draft holds. A game whose autobuyers
+- **`select`** answers questions over state: `open`, `price`, `affordable`, `untilSet`, `setBonus`, `rate` and
+  `perSecond` (`chain.select.price(state, id, count?)`). **`def`** holds what the chain was given: `tiers`, `set`,
+  `tier(id)` and `indexOf(id)`. `reach` names the features `mult`, `speed`, `open` and `away` read, as on `feature`, so
+  their state is typed with no annotation (the wallet is reached already).
+- **`draft`** helpers for a recipe or a step (an autobuyer's `run`), named like the actions: `chain.draft.buy(draft,
+  id, count?)`, `chain.draft.buySet(draft, id)`, `chain.draft.buyMax(draft, id, limit?)` and `chain.draft.maxAll(draft)`,
+  each returning how many it bought, and `chain.draft.produce(draft, seconds)`, which advances the chain at the rates
+  the draft holds. A game whose autobuyers
   should keep working while the tab is closed gives the chain `away: () => ({ rate: 0 })` and replays the absence in
   its own catch-up step (`offlineSteps`): produce a stretch, buy, produce the next.
 - **The auto-player** buys through the chain's `moves`, one per open tier, each worth what one more of that tier adds

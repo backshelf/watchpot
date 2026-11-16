@@ -1,7 +1,7 @@
 import type { Draft } from "immer";
 import type { CurrenciesFeature, Purse } from "./currencies";
 import { type Decimal, type DecimalSource } from "./decimal";
-import { type Feature, type ResetRule } from "./feature";
+import { type Feature, type NeedsOf, type ReachOf, type ReachShape, type ResetRule } from "./feature";
 /**
  * Recipes: crafting, inputs to outputs. A recipe takes amounts of some currencies and gives amounts of others, all
  * or nothing, as many times over as asked; a yield multiplier scales what it gives. The pure rules work over a
@@ -83,10 +83,8 @@ export interface CraftingActions {
     /** Crafts as many as the wallet covers. Returns how many. */
     craftMax(id: string): number;
 }
-/** A crafting list's rules. */
-export interface CraftingRules<C extends string, G> {
-    readonly list: readonly RecipeDef<C, G>[];
-    recipe(id: string): RecipeDef<C, G> | undefined;
+/** A crafting list's read-only questions over state. */
+export interface CraftingSelect<G> {
     /** Whether it is unlocked now. */
     open(state: G, id: string): boolean;
     /** How many the wallet covers now (0 when locked). */
@@ -96,27 +94,47 @@ export interface CraftingRules<C extends string, G> {
     /** Ms until a timed recipe's next craft is given, or null when none is under way. */
     nextInMs(state: G, id: string, now: number): number | null;
 }
-/** A `crafting` feature, carrying its rules as `.rules` and the craft inside a recipe as `.craftDraft`. */
-export type CraftingFeature<K extends string, C extends string, G> = Feature<K, CraftingState, CraftingActions> & {
-    readonly rules: CraftingRules<C, G>;
-    /**
-     * Crafts `times` inside a recipe (a step or a game's own action) at `now`, all or nothing, the same as the action:
-     * false when locked or short.
-     */
-    craftDraft(draft: object, id: string, times: number, now: number): boolean;
-};
+/** The fixed configuration of a crafting feature: the recipes as given, and a recipe by id. */
+export interface CraftingFixed<C extends string, G> {
+    readonly list: readonly RecipeDef<C, G>[];
+    /** A recipe by id. */
+    recipe(id: string): RecipeDef<C, G> | undefined;
+}
+/**
+ * The helpers that take a draft first and change it, named like the actions they mirror, for a step or a game's own
+ * action. A timed craft starts at `now` (default the state's `gameNow()` when it carries one, else 0).
+ */
+export interface CraftingDraftHelpers {
+    /** Crafts `times` (default 1) inside a recipe, all or nothing, as the action: false when locked or short. */
+    craft(draft: object, id: string, times?: number, now?: number): boolean;
+    /** Crafts as many as the wallet covers inside a recipe. Returns how many. */
+    craftMax(draft: object, id: string, now?: number): number;
+}
+/** The three namespaces of a crafting feature. */
+export interface CraftingHelpers<C extends string, G> {
+    readonly select: CraftingSelect<G>;
+    readonly def: CraftingFixed<C, G>;
+    readonly draft: CraftingDraftHelpers;
+}
+/** A `crafting` feature: the feature plus `select`, `def` and `draft`. */
+export type CraftingFeature<K extends string, C extends string, G> = Feature<K, CraftingState, CraftingActions> & CraftingHelpers<C, G>;
 /**
  * Crafting as a feature over a currencies feature. It saves `{ made, queue }` under `key`. An instant recipe takes and
  * gives in the action's recipe. A timed recipe (`takesMs`) takes its inputs at once and joins its recipe's job (a
  * second craft of it extends the job); the step `<key>.produce.queue` gives each craft as its time passes, one at a
  * time, over a tick and over an absence alike. `onCraft` hears every batch given. A prestige reset clears it unless
- * `reset` says otherwise. The callbacks read the whole game state, so annotate one of them with the game's state type.
+ * `reset` says otherwise. The callbacks read the whole game state (the feature's own slice, the wallet's and what
+ * `reach` names), typed with no annotation.
  */
-export declare function crafting<const K extends string, WK extends string, C extends string, WS extends object, WA extends object, G extends object = object>(def: {
+export declare function crafting<const K extends string, WK extends string, C extends string, WS extends object, WA extends object, const R extends ReachShape = readonly [], G extends object = Record<K, CraftingState> & Record<WK, WS> & ReachOf<R>>(def: {
     readonly key: K;
+    /** The features the callbacks read, as `feature`'s `reach`; the wallet is reached already. */
+    readonly reach?: R | (() => R);
     readonly wallet: CurrenciesFeature<WK, C, WS, WA>;
     readonly list: readonly RecipeDef<C, G>[];
     readonly reset?: ResetRule<CraftingState>;
     /** Called once per batch of crafts given, instant or off the queue, inside the recipe that gives them. */
     readonly onCraft?: OnCraft<C, G>;
-}): CraftingFeature<K, C, G>;
+}): CraftingFeature<K, C, G> & {
+    readonly needs?: NeedsOf<R>;
+};

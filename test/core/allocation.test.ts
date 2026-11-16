@@ -85,7 +85,7 @@ describe("allocation", () => {
     const { store } = freshStore(game);
     expect(store.getState().jobs.assign("haul", 9)).toBe(4);
     expect(store.getState().jobs.assign("forge", 3)).toBe(3);
-    expect(jobs.rules.free(store.getState())).toBe(3);
+    expect(jobs.select.free(store.getState())).toBe(3);
     expect(store.getState().jobs.fill("study")).toBe(3);
     expect(store.getState().jobs.assign("forge", 1)).toBe(0);
     expect(store.getState().jobs.unassign("haul", 1)).toBe(1);
@@ -125,7 +125,7 @@ describe("allocation", () => {
     const { store } = freshStore(game);
     store.getState().jobs.assign("study", 1);
     store.getState().tick(1000, T0 + 1000); // 2 work: none of the 5
-    expect(jobs.rules.bar(store.getState(), "study")).toMatchObject({ level: 0, share: 0.4 });
+    expect(jobs.select.bar(store.getState(), "study")).toMatchObject({ level: 0, share: 0.4 });
     store.getState().tick(100_000, T0 + 101_000);
     expect(store.getState().jobs.level.study).toBe(3);
     expect(store.getState().jobs.progress.study?.toNumber()).toBe(0);
@@ -138,13 +138,50 @@ describe("allocation", () => {
     store.getState().catchUp();
     // One hour of 1 work a second: 3600 covers 10 x (2^8 - 1) = 2550, not 5110.
     expect(store.getState().jobs.level.forge).toBe(8);
-    const fed = jobs.rules.contributions(store.getState().jobs);
+    const fed = jobs.select.contributions(store.getState());
     expect(totals(fed, "speed").add).toBe(8);
-    expect(jobs.rules.perSecond(store.getState(), "forge").toNumber()).toBe(1);
-    expect(jobs.rules.perSecond(store.getState(), "haul")).toEqual(D(0));
+    expect(jobs.select.perSecond(store.getState(), "forge").toNumber()).toBe(1);
+    expect(jobs.select.perSecond(store.getState(), "haul")).toEqual(D(0));
   });
 
   test("a repeated sink throws", () => {
     expect(() => allocation({ key: "x", pool: () => 1, sinks: [{ id: "a" }, { id: "a" }] })).toThrow(/twice/);
+  });
+});
+
+describe("reach", () => {
+  test("a callback reads a reached feature with no annotation, and not one that was not reached", () => {
+    const gated = allocation({
+      key: "gated",
+      reach: [crew],
+      pool: (s) => s.crew.size,
+      sinks: [
+        {
+          id: "a",
+          cap: (s) => {
+            // @ts-expect-error `lid` was never reached
+            s.lid;
+            return s.crew.size;
+          },
+        },
+      ],
+    });
+    expect(gated.def.sinks).toHaveLength(1);
+    expect(gated.needs).toBeUndefined();
+  });
+});
+
+describe("allocation draft helpers", () => {
+  test("assign, unassign, fill and clear work inside a recipe as the actions do", () => {
+    const { store } = freshStore(game);
+    const moved: number[] = [];
+    store.setState((d) => {
+      moved.push(jobs.draft.assign(d, "forge", 4));
+      moved.push(jobs.draft.unassign(d, "forge", 1));
+      moved.push(jobs.draft.fill(d, "study"));
+      moved.push(jobs.draft.clear(d));
+    });
+    expect(moved).toEqual([4, 1, 7, 10]);
+    expect(jobs.select.free(store.getState())).toBe(10);
   });
 });
