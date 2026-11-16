@@ -1,4 +1,4 @@
-// Public API report for watchpot: declarations of the ten entries, normalised, in api/.
+// Public API report for watchpot: declarations of the twelve entries, normalised, in api/.
 // `bun run api` writes it; `bun run api:check` regenerates to a temp folder and fails on any difference.
 import { mkdirSync, mkdtempSync, readdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
@@ -7,7 +7,21 @@ import { join, relative } from "node:path";
 const ROOT = join(import.meta.dir, "..");
 const PKG = ROOT;
 const REPORT = process.env.WATCHPOT_API_DIR ?? join(ROOT, "api");
-const ENTRIES = ["core", "sim", "test", "react", "hooks", "kit", "sound", "three", "ui", "shader"];
+// Each entry's source under src/, as package.json exports it.
+const ENTRIES = [
+  "core/index.ts",
+  "sim/index.ts",
+  "test/index.ts",
+  "react/index.ts",
+  "hooks/index.ts",
+  "kit/index.ts",
+  "kit/theme/build.ts",
+  "sound/index.ts",
+  "sound/pack/index.ts",
+  "three/index.ts",
+  "ui/index.ts",
+  "shader/index.ts",
+];
 
 function walk(dir: string): string[] {
   return readdirSync(dir, { withFileTypes: true }).flatMap((e) =>
@@ -36,7 +50,7 @@ async function generate(out: string): Promise<Map<string, string>> {
           typeRoots: [join(ROOT, "node_modules", "@types")],
         },
         include: [join(ROOT, "env.d.ts"), join(ROOT, "src", "css-vars.d.ts")],
-        files: ENTRIES.map((e) => join(PKG, "src", e, "index.ts")),
+        files: ENTRIES.map((e) => join(PKG, "src", e)),
       }),
     );
     const tsc = join(ROOT, "node_modules", ".bin", process.platform === "win32" ? "tsc.exe" : "tsc");
