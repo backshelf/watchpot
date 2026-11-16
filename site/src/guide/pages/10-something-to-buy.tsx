@@ -5,10 +5,12 @@ import type * as Simmer from "../../../../docs/examples/simmer/game";
 import {
   Act,
   Actions,
+  Code,
   Controls,
   definePage,
   Note,
   Panel,
+  PriceCurve,
   Readout,
   Readouts,
   StartOver,
@@ -19,7 +21,6 @@ import {
   useView,
   Value,
 } from "../kit";
-import { Listing, PriceCurve } from "../kit/more";
 
 type S = StateOf<typeof Simmer.game.features>;
 type Example = typeof Simmer;
@@ -108,12 +109,12 @@ export default definePage({
 
       <h2>The price</h2>
       <p>Two numbers decide what every burner costs:</p>
-      <Listing id="cost" />
+      <Code id="cost" />
       <p>
         <code>base</code> is the price of the first. <code>growth</code> is how much dearer each one makes the
         next: 1.15 means 15% more. One small function turns them into a price:
       </p>
-      <Listing id="price" />
+      <Code id="price" />
       <p>
         <code>burnerPrice(owned)</code> is the price of the next burner when <code>owned</code> are already
         lit. <code>costAt</code> is the engine's: base times growth, once for every one owned, rounded up to a
@@ -143,7 +144,7 @@ export default definePage({
         number (nobody owns a billion burners, so a JavaScript number is enough). Its <code>steps</code> pay a
         bubble a second per burner, as the pot's simmer does; they are folded away here.
       </p>
-      <Listing id="stove" />
+      <Code id="stove" />
       <p>
         Buying touches two slices at once: the pot's bubbles go down, the stove's burners go up. A feature
         sees its own slice, and the slices of the features it names in <code>reach</code>. The stove says{" "}
@@ -164,5 +165,4 @@ export default definePage({
       </Note>
     </>
   ),
-  prev: { href: "09-printing-a-number.html", title: "Printing a number for a player" },
 });

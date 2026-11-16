@@ -435,7 +435,7 @@ planned and judged in played hours. Taught in [chapter 12](guide/12-proving-the-
 
 A reset that pays: the player gives up the run for a currency that lasts and makes the next run faster.
 `definePrestige` pays and resets in one update. Taught in
-[chapter 7](guide/07-the-first-reset.md#prestige-a-reset-that-pays). Reference: [a prestige layer](prestige-layer.md).
+[chapter 7](guide/07-the-first-reset.md#defineprestige-a-reset-that-pays). Reference: [a prestige layer](prestige-layer.md).
 
 ## Primitive
 

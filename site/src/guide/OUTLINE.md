@@ -16,10 +16,10 @@ Each entry says: the one idea; what the reader does; what they see change; the g
 gets its popup on first use; a word not introduced yet is not used); and which example it teaches, named by file and
 exported symbol (never by line: the examples are edited in place).
 
-The running example is Simmer (`docs/examples/simmer/*` and the `guide-*.ts` files built on it). Note for the
-writers of pages 9 to 13: the examples are being reworked (a stats feature with one `heat` stat from the mental-model
-step on, the stove's rate a derived value that reads it, the lid a source on the stat). The symbols named below for
-those pages are the ones the rework is expected to export; check the files before writing.
+The running example is Simmer (`docs/examples/simmer/*` and the `guide-*` files built on it): `simmer/game.ts` for
+pages 1 to 10, `simmer/main.tsx` (its page) for 5 and 7, `guide-words-and-numbers.ts` for 8 and 9,
+`simmer/game-wallet.ts` (the wallet, derived values, the `heat` stat and the lid) for 11 to 15, `guide-first-page.ts`
+(chapter 6's game on it) for 16 and 17, and `guide-first-game.tsx` (that game's page) for 18.
 
 ## 1. What an idle game is
 
@@ -133,8 +133,8 @@ those pages are the ones the rework is expected to export; check the files befor
 - **The reader does.** Slides the bubbles across forty orders of magnitude (a slider over powers of ten, so it also
   lands on counts like `1.529e6`); picks a notation.
 - **They see.** The printed text with its suffix set smaller, its parts (mantissa, suffix) and every digit
-  (`fmtFull`, up to about 9e15); `1.529e6` printed `1.52M` (it rounds down); plain digits under 100,000, a power of
-  ten past the last suffix; the same value in each notation, the picked one marked.
+  (`fmtFull`: about fourteen digits the Decimal keeps, then zeros); `1.529e6` printed `1.52M` (it rounds down); plain
+  digits under 100,000, a power of ten past the last suffix; the same value in each notation, the picked one marked.
 - **Words.** notation, formatter.
 - **Teaches.** `guide-words-and-numbers.ts`: `BUBBLES`, `NOTATION`, `onScreen`, `everyNotation` (written for this
   page), and `printing` (the formatter and the small printers).
@@ -161,8 +161,7 @@ those pages are the ones the rework is expected to export; check the files befor
 - **Teaches.** `simmer/game-wallet.ts`: `WORDS`, `wallet`, `pot` (crediting through `wallet.draft`), `stove > actions >
   buyBurner` (debiting `s.stove.nextPrice`, the hook into the next page).
 - **Moved here from 15** while the pages were built: every later step runs `simmer/game-wallet.ts` (the Simmer chapter
-  6 builds on), whose stove reads `s.wallet.bubbles`, so the wallet comes before the code that reads it. The kit
-  cannot run `guide-mental-model.ts` (see 16), which was the other way to keep the pot's bubbles until 15.
+  6 builds on), whose stove reads `s.wallet.bubbles`, so the wallet comes before the code that reads it.
 
 ## 12. A number worked out from the state: a derived value
 
@@ -172,7 +171,9 @@ those pages are the ones the rework is expected to export; check the files befor
 - **The reader does.** Buys burners; slides the growth (the kind of change a game's update makes).
 - **They see.** `nextPrice` follow every change at once, beside a copy the panel writes at each purchase (what a
   stored price would be), which goes stale (ruled through) when the growth moves and catches up only on a buy; the
-  stove's slice with each field marked "saved" or "worked out", read off the save itself.
+  stove's slice with each field marked "saved" or "worked out", read off the save itself. A note: inside an action a
+  derived value is as of the action's start (after `s.stove.burners += 1`, `nextPrice` is still the old price until
+  the action returns), so read it before changing what it reads; the site's test proves it.
 - **Words.** derived value.
 - **Teaches.** `simmer/game-wallet.ts`: `stove > initial`, `stove > derived` (whole, `nextPrice` the subject),
   `BURNER_COST`.
@@ -188,7 +189,7 @@ those pages are the ones the rework is expected to export; check the files befor
   still running. The words say what TypeScript would say about a same-layer read (the box strips types unchecked, so
   it runs there).
 - **Words.** layer (plain).
-- **Code box.** The second. Typing a layer is the lesson. Both snippets are run by `site/test/guide-later.test.ts`.
+- **Code box.** The second. Typing a layer is the lesson. Every snippet it shows is run by `site/test/guide.test.ts`.
 - **Teaches.** `simmer/game-wallet.ts`: `stove > derived`, edited.
 
 ## 14. One place for every multiplier: the stat
@@ -219,27 +220,23 @@ those pages are the ones the rework is expected to export; check the files befor
 - **Idea.** The engine writes the generator for you: a list of what you can buy, and it does the prices, buying many,
   milestones and paying while you are away.
 - **The reader does.** Adds bubbles (the wallet's `credit`); picks a buy mode (one, ten, to the next milestone, as
-  many as you can); buys kettles and a cauldron.
+  many as you can: the panel's own choice, not code); buys kettles and a cauldron; slides a kettle's `rate` and what a
+  milestone multiplies by (`mult`).
 - **They see.** Each row's count, price, rate and the count to the next milestone follow the mode; the output double
-  at 10.
+  at 10 (or by the milestone's multiplier); the row's rate follow the rate slider for the kettles already bought.
 - **Words.** factory, milestone.
 - **Teaches.** `guide-first-page.ts`: `kettles` (`mult` folded), `DOUBLINGS`, `kettleRow`.
-- **No code controls.** The kit cannot run `guide-first-page.ts` from its source (an `import.meta.main` block), so the
-  panel runs it as bundled with the page (`kit/bundled.tsx`) and the buy mode is the panel's own choice. Once the kit
-  runs such files, sliders on a kettle's `rate` and the milestone's `mult` are the natural controls.
 
 ## 17. A shop: the upgrade tree
 
 - **Idea.** Things you buy once that change a number: an upgrade tree with one rank each is a shop, and each upgrade
   is an effect on a stat.
 - **The reader does.** Adds bubbles; finds the whisk held back by the salt; buys the salt and two ranks of whisk;
-  stirs.
+  stirs; switches the salt's effect between `mul: 2` and `add: 2`.
 - **They see.** The stir stat's breakdown gain a row per upgrade (the whisk's ranks counted in one row), (1 + 2) × 2 =
-  6; the stir pay more.
+  6, or 1 + 2 + 2 = 5 with the salt adding; the stir pay more.
 - **Words.** upgrade tree.
 - **Teaches.** `guide-first-page.ts`: `UPGRADES`, `kitchen`, `statOf`.
-- **No code controls,** for the reason on 16. Once the kit can, a switch of salt's effect between `mul: 2` and
-  `add: 2` belongs here.
 
 ## 18. Your first page
 
@@ -247,8 +244,8 @@ those pages are the ones the rework is expected to export; check the files befor
   ticking and saving. This is the game you would ship first.
 - **The reader does.** Plays it in the panel; reloads it (a new store from the save); leaves for a chosen time and
   comes back; starts over.
-- **They see.** Their game as a player would, the example's own React components in the panel, with its own welcome
-  back after time away.
+- **They see.** Their game as a player would, the example's own React components in the panel (its `start()` makes
+  the store and mounts `App`, as pages 5 and 7 run `main.tsx`), with its own welcome back after time away.
 - **Words.** none new; a list of the words learned, each a glossary popup, and where each part was taught.
 - **Teaches.** `guide-first-game.tsx` (new, typechecked, run headless by the slow examples test and linked from
   chapter 6): `makeStore`, `Count`, `App`, `start`, over chapter 6's game (`guide-first-page.ts`) without the foam

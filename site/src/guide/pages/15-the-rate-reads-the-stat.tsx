@@ -7,9 +7,12 @@ import type * as Simmer from "../../../../docs/examples/simmer/game-wallet";
 import {
   Act,
   Actions,
+  Code,
+  CodeName,
   Controls,
   choice,
   definePage,
+  figure,
   Note,
   Panel,
   Readout,
@@ -20,7 +23,6 @@ import {
   useExample,
   useView,
 } from "../kit";
-import { CodeName, figure, Listing } from "../kit/more";
 
 type S = StateOf<typeof Simmer.game.features>;
 type Example = typeof Simmer;
@@ -38,20 +40,13 @@ function Product() {
     </div>
   );
   const op = (sign: string, said: string) => (
-    <span className="num" style={{ alignSelf: "end", fontSize: "1.25rem", color: "var(--ink-soft)" }}>
+    <span className="num product__op">
       <span aria-hidden="true">{sign}</span>
       <span className="visually-hidden">{said}</span>
     </span>
   );
   return (
-    <div
-      style={{
-        display: "grid",
-        gridTemplateColumns: "1fr auto 1fr auto 1.2fr",
-        gap: "0.6rem",
-        alignItems: "end",
-      }}
-    >
+    <div className="product">
       {cell("Flame", flame)}
       {op("×", "times")}
       {cell("Heat", heat)}
@@ -132,12 +127,12 @@ export default definePage({
         Heat is ready. Now the stove reads it. Its rate is one more derived value, in the same first layer as
         the price:
       </p>
-      <Listing id="rate" />
+      <Code id="rate" />
       <p>
         <code>flameOf(burners)</code> is the stove's own rate before anything changes it, a bubble a second
         for each burner:
       </p>
-      <Listing id="flame" />
+      <Code id="flame" />
       <p>
         Times <code>s.stats.heat</code>, it is the rate the stove pays. <code>s.stats</code> is another
         feature's slice, so the stove names the stats in its reach, as it named the wallet. Heat is the stats'
@@ -145,8 +140,8 @@ export default definePage({
         layer between them.
       </p>
       <p>The burners the stove starts with, and the lid's multiplier, are yours to set:</p>
-      <Listing id="initial" />
-      <Listing id="lid" />
+      <Code id="initial" />
+      <Code id="lid" />
       <Controls />
       <Try>
         <li>
@@ -162,7 +157,7 @@ export default definePage({
       </Try>
 
       <h2>Where the rate is spent</h2>
-      <Listing id="burn" />
+      <Code id="burn" />
       <p>
         The stove's burn step pays the rate times the time that passed, as the pot's simmer pays its own.
         Because it reads <code>s.stove.perSecond</code>, it pays whatever heat says now, and it will pay

@@ -5,7 +5,7 @@ import { describe, expect, test } from "bun:test";
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
 import { transform } from "sucrase";
-import { createGameStorage, createIdleStore, createMemoryBackend, D } from "watchpot/core";
+import { createGameStorage, createIdleStore, createMemoryBackend, D, isDecimal } from "watchpot/core";
 import {
   defaultsFor,
   editFor,
@@ -111,29 +111,21 @@ function runEdited(page: PageDef, piece: string) {
     production: true,
   }).code;
   const made: unknown[] = [];
+  const storage = () => createGameStorage(createMemoryBackend());
   const modules = modulesFor(files, main, {});
   const exports = runModules(
     { main, js: { ...modules.js, [main]: code } },
-    harness(
-      made,
-      () => 0,
-      () => createGameStorage(createMemoryBackend()),
-    ),
+    harness(made, () => 0, storage),
   );
-  // As the worker does: the store the example made, or one made from its `game` when it made none.
-  const store =
-    made[0] ??
-    (exports.game
-      ? createIdleStore(exports.game as never, {
-          now: () => 0,
-          storage: createGameStorage(createMemoryBackend()),
-        })
-      : undefined);
-  return store as { getState(): Record<string, Record<string, unknown>> } | undefined;
+  // As the worker does: the store the example made, or one made from its `game` (game-wallet.ts makes none).
+  const store = made[0] ?? createIdleStore(exports.game as never, { now: () => 0, storage: storage() });
+  return store as Store;
 }
 
+type Store = { getState(): Record<string, Record<string, unknown>> };
+
 /** Calls one of the pot's actions, failing the test when there is none. */
-function press(store: { getState(): Record<string, Record<string, unknown>> }, action: string) {
+function press(store: Store, action: string) {
   const fn = store.getState().pot?.[action];
   if (typeof fn !== "function") throw new Error(`no pot.${action}`);
   fn();
@@ -151,7 +143,6 @@ describe("the button page's suggested edits", () => {
     const at = original.lastIndexOf("})");
     const edited = `${original.slice(0, at)}${(typed ?? "").replace(/^/gm, "  ")}\n${original.slice(at)}`;
     const store = runEdited(button, edited);
-    if (!store) throw new Error("no store");
     press(store, "tapTen");
     expect(String(store?.getState().pot?.bubbles)).toBe("10");
   });
@@ -163,9 +154,69 @@ describe("the button page's suggested edits", () => {
       button,
       original.replace("s.pot.bubbles = s.pot.bubbles.add(1);", "s.pot.bubbles.add(5);"),
     );
-    if (!store) throw new Error("no store");
     press(store, "tap");
-    expect(D(store?.getState().pot?.bubbles as never).eq(0)).toBe(true);
+    expect(D(store.getState().pot?.bubbles as never).eq(0)).toBe(true);
+  });
+});
+
+describe("the layer page's code box", () => {
+  const entry = pages.find((p) => p.slug.startsWith("13-"));
+  const words = entry ? readFileSync(entry.path, "utf8") : "";
+  const layer = (piece: string) => {
+    if (!entry) throw new Error("no page 13");
+    return runEdited(entry.page, piece);
+  };
+  const original = () => (entry ? (editFor(files, entry.page, "worker.js")?.piece ?? "") : "");
+  /** The box's second layer: its comment and its line. */
+  const SECOND = /\n\s*\/\/ A second layer[^\n]*\n\s*\{ canBuy:[^\n]*\n/;
+
+  test("holds a second layer the page can tell the reader to delete", () => {
+    expect(SECOND.test(original())).toBe(true);
+  });
+
+  test("without the second layer, canBuy is not there", () => {
+    expect(layer(original().replace(SECOND, "\n")).getState().stove?.canBuy).toBeUndefined();
+  });
+
+  test("typed back as the page shows it, canBuy answers again", () => {
+    const typed = /<code>\{"(\{ canBuy: \(s\) =>[^"]+)"\}<\/code>/.exec(words)?.[1];
+    expect(typed).toBeDefined();
+    expect(layer(original().replace(SECOND, `\n  ${typed}\n`)).getState().stove?.canBuy).toBe(false);
+  });
+
+  test("grown with shortBy as the page shows it, shortBy is the next price while the wallet is empty", () => {
+    const typed = /\{`(\{\n {2}canBuy:[\s\S]*?)`\}/.exec(words)?.[1];
+    expect(typed).toBeDefined();
+    const store = layer(original().replace(SECOND, `\n${(typed ?? "").replace(/^/gm, "  ")}\n`));
+    const shortBy = store.getState().stove?.shortBy;
+    expect(isDecimal(shortBy)).toBe(true);
+    expect(String(shortBy)).toBe(String(store.getState().stove?.nextPrice));
+  });
+
+  test("a canBuy that reads itself is refused, the loop named", () => {
+    const loop = "{ canBuy: (s) => s.stove.canBuy || s.wallet.bubbles.gte(s.stove.nextPrice) },";
+    expect(words).toContain("canBuy: (s) => s.stove.canBuy || s.wallet.bubbles.gte(s.stove.nextPrice),");
+    expect(() => layer(original().replace(SECOND, `\n  ${loop}\n`))).toThrow(/loop: stove\.canBuy/);
+  });
+});
+
+describe("the derived value page's note", () => {
+  test("inside an action, a derived value is as of the action's start, and current after it", () => {
+    type Stove = { stove: { burners: number; nextPrice: unknown } };
+    const { game } = runPage("12-").exports as { game: unknown };
+    const store = createIdleStore(game as never, {
+      now: () => 1,
+      storage: createGameStorage(createMemoryBackend()),
+    }) as unknown as { setState(recipe: (s: Stove) => void): void; getState(): Stove };
+    const seen: string[] = [];
+    // The note's snippet, as an action's recipe.
+    store.setState((s) => {
+      seen.push(String(s.stove.nextPrice));
+      s.stove.burners += 1;
+      seen.push(String(s.stove.nextPrice));
+    });
+    expect(seen[1]).toBe(seen[0]);
+    expect(String(store.getState().stove.nextPrice)).not.toBe(seen[0]);
   });
 });
 
@@ -205,6 +256,7 @@ describe("what the pages show still holds", () => {
 
   test("the page that runs main.tsx mounts its App, and leaving the clock hook out still mounts it", () => {
     for (const clock of [0, 1]) expect(runPage("05-", { clock }).mount).not.toBeNull();
+    expect(runPage("18-").mount).not.toBeNull();
   });
 });
 

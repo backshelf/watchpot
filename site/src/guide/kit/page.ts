@@ -89,6 +89,11 @@ export interface GameDef {
    * An example that calls `mountGame` is drawn by `<ExamplePage>`; one that calls `useGameClock` runs its own clock.
    */
   externals?: Record<string, unknown>;
+  /**
+   * An exported function to call once the example has run, for an example that makes its store and mounts its page
+   * in a function rather than as it loads (`start` in `guide-first-game.tsx`, the last line of a game's `main.tsx`).
+   */
+  start?: string;
   /** Where the game is kept between visits (default "local": in this browser, under the page's own name). */
   keep?: Keep;
   /**

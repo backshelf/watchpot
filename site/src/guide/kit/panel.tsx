@@ -236,10 +236,10 @@ export function SaveText({ open = false }: { open?: boolean }) {
  * Reloads the game as the browser would: the store writes its save as the page goes, and a new store reads it.
  * `measure` reads a figure to compare before and after.
  */
-export function Reload<S = Record<string, unknown>>({ measure }: { measure: (state: S) => number }) {
+export function Reload<S = Record<string, unknown>>({ measure }: { measure?: (state: S) => number }) {
   const { host } = useGuide();
   const { build } = useSnapshot();
-  const now = useView(measure as (state: Record<string, unknown>) => number);
+  const now = useView((measure ?? (() => 0)) as (state: Record<string, unknown>) => number);
   const [before, setBefore] = useState<{ value: number; build: number } | null>(null);
   const came = before && build > before.build ? before : null;
   return (
@@ -258,7 +258,8 @@ export function Reload<S = Record<string, unknown>>({ measure }: { measure: (sta
       </div>
       {came ? (
         <p className="away__note" role="status">
-          A new store read the save: {fmt(came.value).text} before the reload, {fmt(now).text} now.
+          A new store read the save
+          {measure ? `: ${fmt(came.value).text} before the reload, ${fmt(now).text} now.` : "."}
         </p>
       ) : null}
     </div>
@@ -332,5 +333,82 @@ export function StartOver() {
     <button type="button" className="button button--small" onClick={() => host.reset()}>
       Start over
     </button>
+  );
+}
+
+/**
+ * A small figure with its fraction: `fmt` prints whole numbers below a thousand (it rounds down, so a screen never
+ * promises more than there is), which hides the 0.5 of a stat; a multiplier or a heat needs its decimals.
+ */
+export function figure(value: unknown): string {
+  const d = D(value as never);
+  if (d.abs().gte(1000)) return fmt(d).text;
+  return String(Number(d.toNumber().toFixed(2)));
+}
+
+/**
+ * A name from the code as a readout's label: in the code's own face and case, where a label is otherwise lettering
+ * (small capitals would print `nextPrice` as NEXTPRICE).
+ */
+export function CodeName({ children }: { children: string }) {
+  return <code className="codename">{children}</code>;
+}
+
+/**
+ * A small press that calls one of the game's actions as a convenience of the page, not a move in the game ("Add
+ * 1,000 bubbles"): set small and apart from the game's own buttons, with a line saying what it does.
+ */
+export function Shortcut({
+  call,
+  args = [],
+  children,
+  note,
+}: {
+  call: string;
+  args?: unknown[];
+  children: ReactNode;
+  note: ReactNode;
+}) {
+  const { host } = useGuide();
+  return (
+    <div className="panel__row">
+      <button type="button" className="button button--small" onClick={() => host.call(call, ...args)}>
+        {children}
+      </button>
+      <span className="shortcut__note">{note}</span>
+    </div>
+  );
+}
+
+/** A choice the panel keeps to itself, not a token in the code (a buy mode): ruled cells, the chosen one inked. */
+export function PanelChoice<T extends string | number>({
+  title,
+  options,
+  value,
+  onChange,
+}: {
+  title: ReactNode;
+  options: readonly { value: T; label: ReactNode }[];
+  value: T;
+  onChange: (value: T) => void;
+}) {
+  const name = useId();
+  return (
+    <fieldset className="panelchoice">
+      <legend className="panel__label">{title}</legend>
+      <span className="control__choices">
+        {options.map((option) => (
+          <label key={String(option.value)} className="control__choice">
+            <input
+              type="radio"
+              name={name}
+              checked={value === option.value}
+              onChange={() => onChange(option.value)}
+            />
+            <span className="control__face">{option.label}</span>
+          </label>
+        ))}
+      </span>
+    </fieldset>
   );
 }
