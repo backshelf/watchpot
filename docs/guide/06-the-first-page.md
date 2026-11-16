@@ -36,6 +36,8 @@ Every Simmer example from here on starts from chapter 4's game, `docs/examples/s
 the pot you tap, the stove with its burners, and the lid. This chapter adds six features beside them and lists all of
 them in one `defineGame`:
 
+<!-- example-code: guide-first-page.ts -->
+
 ```ts
 export const game = defineGame({
   id: "simmer",
@@ -56,6 +58,8 @@ Several factories take callbacks such as `power`, `mult` or `open` that read the
 with the store's state, typed as whatever you annotate the first parameter with. The new features read each other
 (the spoon reads the kettles, the kettles read the kitchen), so no one of them can see the finished game's type, and
 Simmer writes the shape down once:
+
+<!-- example-code: guide-first-page.ts -->
 
 ```ts
 /** What the callbacks below read: chapter 4's Simmer, plus the slices this page adds. Written by hand: they read each other. */
@@ -155,6 +159,8 @@ presses at a fixed rate. It is a good example of a game adding a mechanic beside
 **Simmer's version.** Chapter 2's tap still pays its one bubble. Beside it the page gets a spoon: a stir pays a bubble
 plus 2% of everything the pot makes a second, more on a full head of foam (the foam is the next section):
 
+<!-- example-code: guide-first-page.ts -->
+
 ```ts
 export const spoon = clicker({
   key: "spoon",
@@ -250,6 +256,8 @@ VOID IF REMOVED, `src/game/bus.ts`
 top spills: it drops to nothing and stays flat for ten seconds, and while it is spilled the spoon's `power` pays
 without it. So stirring hard pays, up to a point.
 
+<!-- example-code: guide-first-page.ts -->
+
 ```ts
 export const FOAM = { max: 100, perStir: 4, settle: 6, spillMs: 10_000 };
 
@@ -337,6 +345,8 @@ after the first station you do not own.
 kettles on the factory: a kettle and a cauldron, each doubling at 10, 25, 50 and 100, tripling together once both
 reach 25, and boiling three times as fast while a rolling boil runs:
 
+<!-- example-code: guide-first-page.ts -->
+
 ```ts
 const DOUBLINGS = [10, 25, 50, 100].map((at) => ({ at, gives: { mult: 2 } }));
 
@@ -378,6 +388,8 @@ export const kettles = generators({
 each kettle's base rate, its owned count and its milestones by the answer.
 
 And the row a screen would draw, as a plain function with no React in it, so you can see every question the row asks:
+
+<!-- example-code: guide-first-page.ts -->
 
 ```ts
 /** One kettle row: what it shows and what its button would buy, for the chosen buy mode. */
@@ -459,6 +471,8 @@ the stage the item's hour falls in, the item's `needs`, and the station it is fo
 **Simmer's version.** Four things for the kitchen: salt doubles a stir, a whisk adds a bubble a stir for five ranks,
 copper kettles double the kettles once you own one, and a ladle lets big bubbles rise. Two of them, and the feature:
 
+<!-- example-code: guide-first-page.ts -->
+
 ```ts
 type Upgrade = GraphNode<Effect, "bubbles">;
 
@@ -511,6 +525,8 @@ The screen asks the feature itself. `kitchen.open(state, id)` says whether a nod
 `kitchen.check(state, id)` says why `buy(id)` would refuse it now (`"closed"` first, then the price or a missing
 requirement), or `null` when it would buy, and `kitchen.affordable(state, id)` counts the ranks the wallet covers. The
 tree's own rules live on `.tree`: the nodes, `price(node, owned)` and `contributions`.
+
+<!-- example-code: guide-first-page.ts -->
 
 ```ts
 /** The kitchen shelf: what is on offer, what the next rank costs, and whether it can be bought now. */
@@ -642,6 +658,8 @@ VOID IF REMOVED, `src/screens/Feed.tsx`
 everything the pot makes, at least 25 bubbles) or a rolling boil (thirty seconds of the kettles boiling three times
 as fast). The rolling boil is a timer, with no `effects`:
 
+<!-- example-code: guide-first-page.ts -->
+
 ```ts
 export const ROLLING_BOIL = { seconds: 30, mult: 3 };
 
@@ -655,6 +673,8 @@ export const boosts = buffs({
 `docs/examples/guide-first-page.ts`
 
 and the big bubble:
+
+<!-- example-code: guide-first-page.ts -->
 
 ```ts
 export const surface = spawns({
@@ -714,6 +734,8 @@ bubbles rise, the rolling boil speeding the kettles.
 
 Run the file to watch it work. `bun docs/examples/guide-first-page.ts` stirs thirty times, buys a burner, lets a
 minute pass on a fake clock, buys a kettle and prints the rows a screen would draw. It begins:
+
+<!-- example-output: guide-first-page.ts lines=1-4 -->
 
 ```
 after 30 stirs: 42 bubbles, foam spilled 1 time

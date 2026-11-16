@@ -26,6 +26,8 @@ everything that matters lives in the store, and the page is a view of it.
 React components need a way to reach the store. watchpot puts the store in a React context when you mount the
 game, and hands you typed hooks to read it. You make those hooks once, in one module, typed over your store:
 
+<!-- example-code: guide-the-page.tsx -->
+
 ```tsx
 export const { useGameStore, useGameState, useGameView } = createRuntimeHooks<typeof store>();
 type State = StoreState<typeof store>;
@@ -68,6 +70,8 @@ A [selector](../glossary.md#selector) is a small function that takes the whole s
 component needs. `useGameState` runs it against the store and re-renders the component when the result changes.
 
 Here is Simmer's balance:
+
+<!-- example-code: guide-the-page.tsx -->
 
 ```tsx
 export function Balance() {
@@ -114,6 +118,8 @@ the selector, or turn the result into a string, number or boolean inside it.
 
 When you do want several values from one read, wrap the selector in `useShallow`:
 
+<!-- example-code: guide-the-page.tsx -->
+
 ```tsx
 export function Summary() {
   const { burners, rate } = useGameState(
@@ -140,6 +146,8 @@ compares a Decimal by its value too, so `useShallow((s) => s.wallet.bubbles.mul(
 doubling in it) while the stove is lit. It does Decimal arithmetic inside the selector, which is fine here because
 `fmtRate` turns the result into a string before anything compares it.
 
+<!-- example-code: guide-the-page.tsx -->
+
 ```tsx
 /** Bubbles a second, all told: the pot's simmer, plus the stove's own rate (lid included) while it is lit. */
 const rateOf = (s: State) => (s.stove.off ? ZERO : s.stove.perSecond).add(SIMMER_PER_SECOND);
@@ -159,6 +167,8 @@ way for that kind of screen. `useGameView()` returns the whole state, and re-ren
 That pacing is what makes it safe. Without it, reading the whole state would re-render the screen on every tick.
 
 With the whole state in hand, a screen works its figures out in render, as plain function calls:
+
+<!-- example-code: guide-the-page.tsx -->
 
 ```tsx
 export function Stove() {
@@ -301,6 +311,8 @@ value changes.
 Something has to start the clock, and only once. That is the job of a [runtime hook](../glossary.md#runtime-hook),
 called at the top of your app:
 
+<!-- example-code: guide-the-page.tsx -->
+
 ```tsx
 export function App() {
   const game = useGameStore();
@@ -395,6 +407,8 @@ stylesheet, no class name, no colour and no English word. It tells you its state
 Simmer's pot becomes a real click target. The primitive is `Pressable`: a button that counts one press per finger,
 pen, mouse button or key (Space and Enter), tells you where the press landed, and sets `data-pressed` while it is held.
 `FloatingNumbers` is the host for the "+1" that rises from the press:
+
+<!-- example-code: guide-the-page.tsx -->
 
 ```tsx
 export function Pot() {
@@ -534,6 +548,8 @@ landed. For changes that land a moment after the press (a buy whose effect shows
 
 **Watch for changes.** The store tells you what is, not what just happened. `watchChanges` compares each state with
 the one before and turns the difference into your game's own events:
+
+<!-- example-code: guide-the-page.tsx -->
 
 ```tsx
 export function watchSimmer(on: (event: SimmerEvent) => void): () => void {

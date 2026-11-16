@@ -32,6 +32,8 @@ else: the engine ships no look.
 A shader wants small, tidy numbers. "1,240 bubbles a second" is not one; "0.6 of the way to as warm as it gets" is.
 So the first job is a function that turns the stove's income into a warmth between 0 and 1:
 
+<!-- example-code: guide-look-and-sound.tsx -->
+
 ```tsx
 /** The income at which the pot is as warm as it gets: a thousand bubbles a second. */
 const HOT_RATE = 1000;
@@ -64,6 +66,8 @@ while the switch is off: a stove that is off is a cold pot. `State` is the store
 ## The fragment
 
 Here is the pot from above: water lit from below by the burners, bubbles rising through it.
+
+<!-- example-code: guide-look-and-sound.tsx -->
 
 ```tsx
 export const POT = compose(
@@ -121,10 +125,14 @@ Notice what is missing: there is no colour in the GLSL. Every colour is a unifor
 
 ## The backdrop
 
+<!-- example-code: guide-look-and-sound.tsx -->
+
 ```tsx
 const TOKENS = ["--pot-water", "--pot-flame", "--pot-foam"] as const;
 
 const STILL = "linear-gradient(to top, var(--pot-flame), var(--pot-water) 45%)";
+
+// ...
 
 export function PotBackdrop({ warmth }: { warmth: number }) {
   const scope = useRef<HTMLDivElement>(null);
@@ -205,6 +213,8 @@ looks exactly like a machine without WebGL: you see the still and nothing else.
 Simmer's page from chapter 2 started its clock with `useGameClock(store)`. Swap that for `useGameRuntime`, which
 starts the same clock and also writes the motion and colour-scheme settings and unlocks the sound (you will need that
 in a moment). Then read the warmth and draw the backdrop first, so it sits behind everything else:
+
+<!-- example-code: guide-look-and-sound.tsx -->
 
 ```tsx
 export function App() {
@@ -419,6 +429,8 @@ Reach for `useSteppedFrame` when a surface works its uniforms out a frame at a t
 A sound is a [cue](../glossary.md#cue): a name you play, and what it sounds like. `createSound` takes a table of cues
 and returns the game's sound:
 
+<!-- example-code: guide-look-and-sound.tsx -->
+
 ```tsx
 export const sound = createSound({
   cues: {
@@ -461,6 +473,8 @@ export const playBurner = () => sound.play("burner");
 
 Then play them where the action happens:
 
+<!-- example-code: guide-look-and-sound.tsx -->
+
 ```tsx
       <button
         type="button"
@@ -476,6 +490,8 @@ Then play them where the action happens:
 
 For the burner, play the whoosh only when one was actually lit. `buyBurner` returns whether it bought, so the
 stove's button plays on that:
+
+<!-- example-code: guide-look-and-sound.tsx -->
 
 ```tsx
   const light = () => {

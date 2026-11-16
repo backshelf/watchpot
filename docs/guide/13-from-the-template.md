@@ -338,6 +338,8 @@ text. It is how you test a day away without waiting a day.
 The template mounts it already: open `http://localhost:3000/#dev`, and its close button clears the hash. A game you
 wrote by hand, like Simmer, mounts it in a few lines:
 
+<!-- example-code: guide-template.tsx -->
+
 ```tsx
 export function DevRoute() {
   const [route, go] = useHashRoute();

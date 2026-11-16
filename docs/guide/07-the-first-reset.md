@@ -50,6 +50,8 @@ stay.
 To change one feature of the core, you define a feature under the same key and list it in place of the old one.
 Chapter 4's pot was:
 
+<!-- example-code: simmer/game-wallet.ts -->
+
 ```ts
 export const pot = feature({
   key: "pot",
@@ -62,6 +64,8 @@ export const pot = feature({
 `docs/examples/simmer/game-wallet.ts`
 
 This chapter's pot is the same feature with two changes:
+
+<!-- example-code: guide-first-reset.ts -->
 
 ```ts
 export const pot = feature({
@@ -250,6 +254,8 @@ its `depth`, counts the run, then calls `afterReset`. All of that is one update.
 
 Simmer's prestige is the pot boiling over. It pays steam:
 
+<!-- example-code: guide-first-reset.ts -->
+
 ```ts
 /** What steam reads: the wallet's `earned` (this run's bubbles) and when the run began. */
 type Run = StateOf<readonly [typeof wallet, typeof pot]>;
@@ -333,6 +339,8 @@ exactly 1 before the first reset. That is the `rates.drive` step above. It works
 stove sets `perSecond` in its `rates.flame` step, the lid doubles it in `rates.trap`, and the steam multiplies it
 after both. The game pins that order:
 
+<!-- example-code: guide-first-reset.ts -->
+
 ```ts
 export const game = defineGame({
   id: "simmer",
@@ -371,6 +379,8 @@ pace rises. Once the run slows down, it falls. The best moment to reset is short
 
 So the recipe is: track the best pace this run, and call the run "past its peak" when the pace falls below a share of
 that best. Simmer's version:
+
+<!-- example-code: guide-first-reset.ts -->
 
 ```ts
 /** Seconds since this run began. */
@@ -427,6 +437,8 @@ A run reset keeps what the rules say. A profile reset keeps nothing: `store.getS
 feature back to `initial`, whatever its rule, including prestige, medals and the clock's offset. It is the "delete my
 save" button. `now` here is wall time, not game time, and defaults to the store's wall.
 
+<!-- example-code: guide-first-reset.ts -->
+
 ```ts
   store.getState().resetProfile(wall); // the "delete my save" button: everything, steam and medals too
 ```
@@ -439,6 +451,8 @@ Put it behind a confirmation. Nothing in the engine asks the player twice.
 
 A medal wall gives the player small goals between resets and a reason to look back at the run. Each medal is an
 [achievement](../glossary.md#achievement), and the engine's `achievements` factory is a feature that owns a record of what is earned and when, and checks the list for you.
+
+<!-- example-code: guide-first-reset.ts -->
 
 ```ts
 const MEDALS: Achievement<Kitchen>[] = [
@@ -568,6 +582,8 @@ the list of pages to announce.
 
 Simmer does the same in a few lines:
 
+<!-- example-code: guide-first-reset.ts -->
+
 ```ts
 const PAGES: Achievement<Kitchen>[] = [
   { id: "pot", name: "Pot", line: "", when: () => true },
@@ -585,6 +601,8 @@ The game's `features` list, quoted above under the prestige, ends with `medals` 
 
 The file ends with a short script that taps, buys burners for ten minutes of ticks, boils over and prints what
 survived. Run it with `bun docs/examples/guide-first-reset.ts`:
+
+<!-- example-output: guide-first-reset.ts -->
 
 ```
 made this run: 18481 steam on offer: 4

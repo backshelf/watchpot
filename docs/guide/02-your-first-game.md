@@ -112,6 +112,8 @@ building. `include` names your own files.
 
 ### index.html
 
+<!-- example-code: simmer/index.html -->
+
 ```html
 <!doctype html>
 <html lang="en">
@@ -277,6 +279,8 @@ steps ten times a second.
 
 In `game.ts`, add two constants above the pot, and give the pot a `steps` field after its `actions`:
 
+<!-- example-code: simmer/game.ts -->
+
 ```ts
 /** Bubbles a second the pot makes on its own, and each burner adds. */
 export const SIMMER_PER_SECOND = 1;
@@ -386,6 +390,8 @@ Paying for the time is half of it. The other half is telling the player. Add a n
 In `main.tsx`, add `fmtPlayed` to the import from `watchpot/core`, and `type AwayReturn`, `type StoreState` and
 `useAwayReport` to the import from `watchpot/react`. Then, below the line that calls `createRuntimeHooks`:
 
+<!-- example-code: simmer/main.tsx -->
+
 ```tsx
 type State = StoreState<typeof store>;
 
@@ -451,6 +457,8 @@ and each one costs more than the last.
 
 This needs a second feature, the stove, which spends the pot's bubbles. In `game.ts`, add `costAt` and `D` to the
 import from `watchpot/core`, then add this between the pot and `defineGame`:
+
+<!-- example-code: simmer/game.ts -->
 
 ```ts
 /** The first burner costs 10 bubbles; each one after costs 15% more than the last, rounded up to whole bubbles. */
@@ -527,6 +535,8 @@ What is new:
 Now the page. In `main.tsx`, add `fmtCounted` and `fmtRate` to the import from `watchpot/core`, and import
 `burnerPrice` and `perSecond` from `./game` next to `store`. Then add a `Stove` component and a rate line on the pot:
 
+<!-- example-code: simmer/main.tsx -->
+
 ```tsx
 /** The pot: the count, the rate, and the button that taps it. */
 function Pot() {
@@ -583,6 +593,8 @@ They do what the stove does here, with buy-many, buy-max and milestones on top.
 
 Here are both files as they stand at the end. They are the exact contents of `docs/examples/simmer/`, which the
 engine's own typecheck and linter cover.
+
+<!-- example-code: simmer/game.ts -->
 
 ```ts
 import { costAt, createIdleStore, D, defineGame, feature, ZERO } from "watchpot/core";
@@ -662,6 +674,8 @@ export const store = createIdleStore(game, { now: Date.now });
 ```
 
 *`docs/examples/simmer/game.ts`*
+
+<!-- example-code: simmer/main.tsx -->
 
 ```tsx
 import { fmt, fmtCounted, fmtPlayed, fmtRate } from "watchpot/core";

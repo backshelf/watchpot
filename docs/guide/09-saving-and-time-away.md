@@ -24,6 +24,8 @@ The text is ordinary JSON with one addition. A [Decimal](../glossary.md#decimal)
 (it can be far larger than any number JSON holds), so the codec writes it as a small tagged object and turns it back
 into a Decimal on the way in. Here is a Simmer save after five taps, exactly as the store wrote it:
 
+<!-- example-output: guide-saving.ts lines=3-3 -->
+
 ```json
 {"state":{"wallet":{"bubbles":{"$d":"5"},"earned":{"$d":"5"}},"pot":{"presses":5},"stove":{"burners":0,"off":false},"lid":{"on":false},"clock":{"lastSeen":1793235600000,"createdAt":1793235600000,"offsetMs":0}},"version":2}
 ```
@@ -66,6 +68,8 @@ later, and you wait for `store.hydrated` before play starts.
 `createGameStorage(backend, options)` wraps a backend in the store's storage: the codec, the one-second window, the
 flush. When you write nothing, `createIdleStore` builds it for you, over `localStorage` where there is one and over
 memory where there is not:
+
+<!-- example-code: guide-saving.ts -->
 
 ```ts
 /** The store a page builds: saved to localStorage, or held in memory (and said so) where there is none. */
@@ -114,6 +118,8 @@ own sentence:
 - `"cleared"`: `clearSave` deleted it (at the end of this chapter's save half).
 
 Here is Simmer's notice:
+
+<!-- example-code: guide-saving.ts -->
 
 ```ts
 /** Why this tab writes nothing, in the player's words. */
@@ -179,6 +185,8 @@ pot ten thousand times would find the count back at zero. That is the job of a m
 Every save carries the version of the game that wrote it. You set it in `defineGame`, and Simmer has been at 1 since
 chapter 2:
 
+<!-- example-code: simmer/game-wallet.ts -->
+
 ```ts
 save: { key: "simmer.save", version: 1 },
 ```
@@ -194,6 +202,8 @@ version. Renaming or reshaping does.
 The pot counts the player's taps in `taps`. Say the next version lets the space bar work the pot too, and the count
 should be called `presses`. Here is version 2's pot, which replaces chapter 2's under the same key, and the game that
 lists it:
+
+<!-- example-code: guide-saving.ts -->
 
 ```ts
 /** Version 2: `taps` is now `presses`. The step sees only the pot's own saved data. */
@@ -259,6 +269,8 @@ When a player with a version 1 save opens version 2, the store runs the step on 
 as above, and writes it back at version 2 at once. The player sees their five taps under the new name and never knows
 anything happened:
 
+<!-- example-code: guide-saving.ts -->
+
 ```ts
 const SAVE_V1 = fixtureSave(game, (store) => {
   for (let i = 0; i < 5; i++) store.getState().pot.tap();
@@ -273,6 +285,8 @@ console.log(backend.getItem("simmer.save"));
 ```
 
 *From [`docs/examples/guide-saving.ts`](../examples/guide-saving.ts).*
+
+<!-- example-prints: guide-saving.ts | presses: 5 bubbles: 5 -->
 
 It prints `presses: 5 bubbles: 5`, then the version 2 save you saw at the top of the chapter.
 
@@ -348,6 +362,8 @@ Three cases fall outside the steps. In each, the store copies the save, untouche
 step throws on, starts a fresh profile. The store warns on the console, naming the kept key, and
 `saveSetAside(store)` says why: `"old-version"` or `"migration-failed"`. Nothing tells the player unless you do:
 
+<!-- example-code: guide-saving.ts -->
+
 ```ts
 /** What to tell a player whose save could not be brought forward, or null when it loaded. */
 export function setAsideNotice(store: SimmerStore): string | null {
@@ -377,6 +393,8 @@ built on `saveSetAside` stays silent for this one case.
 
 Players move between machines and like a backup. The store has both directions as root actions:
 
+<!-- example-code: guide-saving.ts -->
+
 ```ts
 const text = store.getState().exportProfile();
 const copy = freshStore(simmerV2).store;
@@ -400,6 +418,8 @@ An import can fail, and unlike a load it fails loudly. It throws a `SaveError`, 
 `e.data` carries the save's `version` and, for a newer save, the version this build `reads`, so the import screen can
 say something more useful than "invalid":
 
+<!-- example-code: guide-saving.ts -->
+
 ```ts
 const newer = encodeProfile({}, 0, 3);
 try {
@@ -416,6 +436,8 @@ try {
 Sooner or later a player wants a clean slate, and so do you while building. Deleting the key by hand does not work
 while the game is open: the pending write, or the flush when the page hides, puts the save straight back.
 `clearSave(store)` blocks the store's writes first, then removes the save and its kept copy:
+
+<!-- example-code: guide-saving.ts -->
 
 ```ts
 /** The "delete my save" button: nothing pending or flushed on hide can put it back. Then a fresh page. */
@@ -448,6 +470,8 @@ watching.
 
 A step written as a bare function runs in **both** passes. Simmer's pot is one:
 
+<!-- example-code: simmer/game-wallet.ts -->
+
 ```ts
 produce: {
   // Runs on every live tick and on the catch-up after time away.
@@ -466,6 +490,8 @@ that playing is worth more than leaving.
 ### A rate and a cap
 
 To pay differently, you split the step in two and limit each to its pass. Chapter 3 did this for the stove:
+
+<!-- example-code: simmer/game-wallet.ts -->
 
 ```ts
 produce: {
@@ -535,6 +561,8 @@ The catch-up is one pass, so the page sees the whole absence as a single change 
 jumped. `watchAway(store, onReturn, options)` listens for exactly that change and hands you the state before it, the
 state after it, and `ms`, the time the player was gone:
 
+<!-- example-code: guide-saving.ts -->
+
 ```ts
 /** Calls `tell` with one line after every return worth telling. Returns the remover. */
 export function tellReturns(store: SimmerStore, tell: (line: string) => void): () => void {
@@ -560,6 +588,8 @@ export function tellReturns(store: SimmerStore, tell: (line: string) => void): (
 
 The example gives the store three burners and sends the player away for three hours. The pot pays all three hours,
 10,800 bubbles. The stove pays half of two hours at three bubbles a second, another 10,800. It prints:
+
+<!-- example-prints: guide-saving.ts | Away 180 min: +21600 bubbles (the stove stopped after two hours) -->
 
 ```text
 Away 180 min: +21600 bubbles (the stove stopped after two hours)

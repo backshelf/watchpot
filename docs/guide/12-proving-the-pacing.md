@@ -37,6 +37,8 @@ Simmer's features were written without moves, so the example imports them from
 [`simmer/game-wallet.ts`](../examples/simmer/game-wallet.ts) and adds one with `withMoves(feature, moves)`, which
 hands back the same feature with the moves attached:
 
+<!-- example-code: guide-pacing.ts -->
+
 ```ts
 /**
  * Simmer's pot, carrying what a player could do now, for the sim's auto-player: light a burner. The store never reads
@@ -93,6 +95,8 @@ Until you do, the auto-player never buys from that feature, and nothing at run t
 file adds a kitchen to the playable Simmer: an `upgradeTree` with one upgrade, a copper base that doubles the stove
 (a small `copper` feature reads its rank in a `rates` step after the lid's). Here is the tree with its moves attached:
 
+<!-- example-code: guide-pacing-tree.ts -->
+
 ```ts
 // The tree the store runs, plus the moves the sim buys from. `worth` is in the unit the burners' moves use, bubbles
 // a second; it gets no state, so it is a fair guess: the copper base is worth about five burners.
@@ -114,6 +118,8 @@ Notice that tapping the pot is not a move. That is deliberate, and the reason is
 ## A run
 
 Now the run itself. This plays one day of Simmer, around the clock:
+
+<!-- example-code: guide-pacing.ts -->
 
 ```ts
 export function playSimmer(seed = "simmer"): Run {
@@ -193,6 +199,8 @@ bun docs/examples/guide-pacing.ts
 
 It plays a whole day in well under half a second and prints this:
 
+<!-- example-output: guide-pacing.ts -->
+
 ```text
 0:00  burner 1
 0:00  burner 10
@@ -236,6 +244,8 @@ The question you will ask most often is "when does the player first get X?". `pl
 unbroken sitting with a look at a fixed cadence, and its `until` is checked before each look, so the sitting ends the
 moment the answer is yes:
 
+<!-- example-code: guide-pacing-tree.ts -->
+
 ```ts
 playStraight({
   world,
@@ -249,6 +259,8 @@ return has() ? world.now() - start : null;
 ```
 
 `docs/examples/guide-pacing-tree.ts`
+
+<!-- example-prints: guide-pacing-tree.ts | copper base at 0:01 -->
 
 `has` reads the tree's ranks from `world.store`. When `until` never holds, the sitting runs the full `ms`, which is
 why the function says `null` rather than a time. Run the file and it prints `copper base at 0:01`: one minute in.
@@ -282,6 +294,8 @@ pacing off them.
 Reading a table is fine once. After every change you want a yes or a no, so you write down what you meant as data
 and let the sim check it. That is a pacing contract: [bands](../glossary.md#band), each a floor and a ceiling for one
 number at one point in the run.
+
+<!-- example-code: guide-pacing.ts -->
 
 ```ts
 /** Burners owned at a quarter hour and at one hour of play, each a band from a floor to a ceiling. */
@@ -367,6 +381,8 @@ what it saved to, a test clock (a `testClock`), and `play(ms)`, which moves the 
 over that time in one call. Unless you pass `at`, the clock starts frozen at `T0`, local noon on a fixed day, so a
 rule about "today" sees the middle of a day. Here is the burner rule checked that way:
 
+<!-- example-code: guide-pacing.ts -->
+
 ```ts
 /** A rule checked the short way: one burner and a minute of play, in one call. */
 export function aMinuteOnOneBurner(): number {
@@ -386,6 +402,8 @@ or better, assert that a burner adds sixty a minute, so the test survives a chan
 
 **A save made by play.** `fixtureSave(game, play)` runs a fresh store through a function you write, then exports
 the save. It is seeded, so the same function makes the same save every time:
+
+<!-- example-code: guide-pacing.ts -->
 
 ```ts
 /** A save made by play: twenty taps, a burner, then an hour on the stove. The same save every time it is made. */

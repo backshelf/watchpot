@@ -29,6 +29,8 @@ four habits.
 
 ## Four habits with Decimals
 
+<!-- example-code: guide-words-and-numbers.ts -->
+
 ```ts
 const price = D(10); // from a number
 const huge = D("1e500"); // from a string: far past what a JS number holds
@@ -76,6 +78,8 @@ duration in milliseconds, a chance between 0 and 1: these grow by adding, stay s
 Simmer's stove shows both. Its `burners` count is a `number`, because you buy burners one at a time. A burner's
 price is a Decimal, because `costAt` multiplies it by 1.15 per burner:
 
+<!-- example-code: simmer/game-wallet.ts -->
+
 ```ts
 /** The first burner costs 10 bubbles; each one after costs 15% more than the last, rounded up to whole bubbles. */
 export const BURNER_COST = { base: 10, growth: 1.15 } as const;
@@ -99,6 +103,8 @@ for amounts share one rule: they floor, never round up. A balance of 9.999 print
 does not have.
 
 The main printer is `fmt`, and the first thing to know about it is that **it returns an object, not a string**:
+
+<!-- example-code: guide-words-and-numbers.ts -->
 
 ```ts
 const shown = fmt(1_520_000); // an object, not a string
@@ -141,6 +147,8 @@ printing the same values.
 Passing `{ notation }` to every call would be tiresome, so `formatter(options)` binds a set of options once and
 hands back the printers, and these return strings:
 
+<!-- example-code: guide-words-and-numbers.ts -->
+
 ```ts
 const say = formatter({ notation: "scientific" });
 console.log(say.num(1_520_000)); // "1.52e6"
@@ -167,6 +175,8 @@ a time-away report lists what each one earned.
 
 The engine itself names none. Instead a game declares its words once, in a
 [vocabulary](../glossary.md#vocabulary), and every engine type that names a currency reads it from there:
+
+<!-- example-code: simmer/game-wallet.ts -->
 
 ```ts
 /** The game's words: one currency. */
@@ -201,6 +211,8 @@ to a balance, refuse a payment that cannot be covered, and keep a running total 
 
 A [wallet](../glossary.md#wallet) is a feature that does that for every currency in a vocabulary. You make one with
 `currencies`:
+
+<!-- example-code: simmer/game-wallet.ts -->
 
 ```ts
 /** The wallet: a balance per currency, and `earned`, every bubble credited since the last reset. */
@@ -249,6 +261,8 @@ Open your `game.ts`. Five changes move the bubbles; the lid does not change at a
 
 **2. The pot.** Before, from chapter 2, it held the bubbles:
 
+<!-- example-code: simmer/game.ts -->
+
 ```ts
 export const pot = feature({
   key: "pot",
@@ -273,6 +287,8 @@ export const pot = feature({
 From `docs/examples/simmer/game.ts`.
 
 After, it reaches the wallet, keeps a count of taps, and credits every bubble it makes:
+
+<!-- example-code: simmer/game-wallet.ts -->
 
 ```ts
 /** The pot: the tap that makes a bubble, how many taps, and the simmer that makes them over time. */
@@ -306,6 +322,8 @@ declared before it.
 **3. The stove.** Its `reach` becomes `[wallet]`. Before, from chapter 3, `buyBurner` compared, subtracted and
 reassigned:
 
+<!-- example-code: guide-mental-model.ts -->
+
 ```ts
 buyBurner: () =>
   api.set((s) => {
@@ -321,6 +339,8 @@ From `docs/examples/guide-mental-model.ts`.
 
 After, one `wallet.debit` checks and pays together, and answers whether it did:
 
+<!-- example-code: simmer/game-wallet.ts -->
+
 ```ts
 buyBurner: () =>
   api.set((s) => {
@@ -333,6 +353,8 @@ buyBurner: () =>
 From `docs/examples/simmer/game-wallet.ts`.
 
 And the two payments credit the wallet instead of adding to the pot:
+
+<!-- example-code: simmer/game-wallet.ts -->
 
 ```ts
 produce: {
@@ -360,6 +382,8 @@ Everything else in the stove (`off`, `perSecond`, `derive`, `toggle`, the guard 
 it.
 
 **4. The game** takes the vocabulary and lists the wallet first:
+
+<!-- example-code: simmer/game-wallet.ts -->
 
 ```ts
 /** The game: the wallet first, then the pot, the stove and the lid. */
@@ -405,6 +429,8 @@ button from chapter 2's "Things that bite".
 The `earned` total sounds like a lifetime figure. It is not, unless you make it one. Here is the wallet in use, then
 a [reset](../glossary.md#reset):
 
+<!-- example-code: guide-words-and-numbers.ts -->
+
 ```ts
 const store = scriptStore(game, () => 0);
 const state = store.getState();
@@ -430,6 +456,8 @@ other, so the default wipes them along with the balances. Out of the box, `earne
 reset that reached the wallet", which is what a prestige formula usually wants: pay the player for this run.
 
 When you do want a total that survives, say so with the reset rule:
+
+<!-- example-code: guide-words-and-numbers.ts -->
 
 ```ts
 export const keepingWallet = currencies({
