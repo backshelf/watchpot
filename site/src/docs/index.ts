@@ -36,13 +36,23 @@ export interface DocsOptions {
   shell: string;
   /** Repository facts for links that leave the docs. */
   repo: RepoInfo;
+  /**
+   * The guide's getting-started pages (built apart, from TSX): listed first in the contents, and the markdown chapters
+   * they replace tagged as older there. `search` adds them to the finder.
+   */
+  start?: { links: NavLink[]; replaces: (docsPath: string) => boolean; search: SearchEntry[] };
 }
 
 export interface DocsResult {
   pages: number;
   examples: number;
   warnings: string[];
+  /** The contents, for pages drawn elsewhere into the same shell. */
+  nav: NavModel;
 }
+
+/** What the guide's pages are called in the contents. */
+export const START_LABEL = "Getting started";
 
 export interface SearchEntry {
   url: string;
@@ -148,7 +158,10 @@ export async function buildDocs(options: DocsOptions): Promise<DocsResult> {
   }
   const pages: Page[] = await Promise.all(
     unique.map(async (s) => {
-      const parsed = parseMarkdown(await Bun.file(join(repoRoot, s.repoPath)).text());
+      const text = await Bun.file(join(repoRoot, s.repoPath)).text();
+      // The root README is an overview for the repository; on the site its place is the map of the entries.
+      const source = s.repoPath === "README.md" ? await entryMap(repoRoot, text) : text;
+      const parsed = parseMarkdown(source);
       const fallback = deslug(posix.basename(s.repoPath).replace(/\.md$/i, ""));
       return {
         repoPath: s.repoPath,
@@ -208,15 +221,32 @@ export async function buildDocs(options: DocsOptions): Promise<DocsResult> {
     const page = pages.find((p) => p.repoPath === outside.repoPath);
     if (page) top.push(toLink(page));
   }
+  const start = options.start;
+  const startGroups =
+    start && start.links.length > 0
+      ? [
+          {
+            label: START_LABEL,
+            tag: "new",
+            note: "Interactive pages, one idea each. Chapters marked older cover the same ground in one long read.",
+            links: start.links,
+          },
+        ]
+      : [];
   const nav: NavModel = {
     top,
-    groups: groups.map((g) => ({
-      label: g.label,
-      links: g.pages.flatMap((path) => {
-        const page = outOf.get(path);
-        return page ? [toLink(page)] : [];
-      }),
-    })),
+    groups: [
+      ...startGroups,
+      ...groups.map((g) => ({
+        label: g.label,
+        links: g.pages.flatMap((path) => {
+          const page = outOf.get(path);
+          if (!page) return [];
+          const link = toLink(page);
+          return [start?.replaces(path) ? { ...link, tag: "older" } : link];
+        }),
+      })),
+    ],
   };
   const order = navOrder(nav);
   const rank = new Map(order.map((link, i) => [link.out, i]));
@@ -330,7 +360,52 @@ export async function buildDocs(options: DocsOptions): Promise<DocsResult> {
     );
   }
 
-  writes.push(Bun.write(join(outDir, "search.json"), `${JSON.stringify(search)}\n`));
+  writes.push(
+    Bun.write(join(outDir, "search.json"), `${JSON.stringify([...(start?.search ?? []), ...search])}\n`),
+  );
   await Promise.all(writes);
-  return { pages: pages.length, examples: sourceMap.size, warnings };
+  return { pages: pages.length, examples: sourceMap.size, warnings, nav };
+}
+
+/**
+ * The site's "Reference" page: a map of the package's entries, each linked to its long-form page, made from the root
+ * README's table of entries (one source) and the install and import pages' own first sentences.
+ */
+export async function entryMap(repoRoot: string, readme: string): Promise<string> {
+  const from = readme.indexOf("\n## The entries");
+  const to = readme.indexOf("\n## ", from + 1);
+  const rows = readme
+    .slice(from, to < 0 ? undefined : to)
+    .split("\n")
+    .filter((line) => line.startsWith("|"))
+    .join("\n");
+  // A page's first sentence as written (its code spans kept), from the first paragraph under its title.
+  const lead = async (path: string) => {
+    const text = (await Bun.file(join(repoRoot, path)).text()).replace(/\r\n/g, "\n");
+    const title = /^# (.+)$/m.exec(text)?.[1] ?? path;
+    const paragraph =
+      text
+        .split(/\n\s*\n/)
+        .map((p) => p.trim())
+        .find((p) => p !== "" && !/^(#|<!--|\||```)/.test(p)) ?? "";
+    const says = /^[\s\S]+?[.!?](?=\s|$)/.exec(paragraph.replace(/\s*\n\s*/g, " "))?.[0] ?? paragraph;
+    return { title, says };
+  };
+  const installing = await lead("docs/installing.md");
+  const imports = await lead("docs/imports.md");
+  return `# Reference
+
+One long-form page for each entry of the package: what it gives, and the rules its signatures leave out. For a task
+(a currency, a generator, a pacing contract) the [docs index](docs/README.md#the-reference-shelf) has a page per task
+and per system. The generated declarations in \`api/\` are the last word on every name.
+
+## Install
+
+- [${installing.title}](docs/installing.md): ${installing.says}
+- [${imports.title}](docs/imports.md): ${imports.says}
+
+## The entries
+
+${rows}
+`;
 }

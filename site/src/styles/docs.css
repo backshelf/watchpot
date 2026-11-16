@@ -1,4 +1,6 @@
 @import "./base.css";
+@import "./controls.css";
+@import "./guide.css";
 
 /*
  * The docs: a manual set in the site's drawing. The frame (masthead, contents rail, the page's header strip, the

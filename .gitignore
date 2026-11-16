@@ -13,3 +13,4 @@ dsp/target/
 # The site: build output (and a second dev server's), and the design tool's working files.
 site/dist-*/
 site/.impeccable/
+site/tools/out/

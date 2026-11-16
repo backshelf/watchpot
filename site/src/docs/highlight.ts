@@ -47,6 +47,26 @@ export type Highlight = (code: string, lang: string | undefined) => string;
 /** One highlighter for the process: a dev server rebuilds many times and must not make one each time. */
 let shared: ReturnType<typeof createHighlighter> | undefined;
 
+/** A highlighted line: each token's text and its colour, a `var(--hl-…)` (or undefined for the foreground). */
+export type TokenLine = { content: string; color?: string }[];
+
+/** Tokens rather than HTML, for a page that draws its code itself (the guide's listings, whose values change). */
+export async function createTokenizer(
+  langs: Iterable<string | undefined>,
+): Promise<(code: string, lang: string | undefined) => TokenLine[]> {
+  const grammars = [...new Set([...langs].map(grammarFor).filter((g): g is BundledLanguage => g !== null))];
+  shared ??= createHighlighter({ themes: [THEME], langs: [] });
+  const highlighter = await shared;
+  await highlighter.loadLanguage(...grammars);
+  return (code, lang) => {
+    const grammar = grammarFor(lang);
+    if (!grammar) return code.split("\n").map((line) => [{ content: line }]);
+    return highlighter
+      .codeToTokensBase(code, { lang: grammar, theme: THEME })
+      .map((line) => line.map((t) => ({ content: t.content, color: t.color })));
+  };
+}
+
 /** The highlighter for a build, with the grammars in `langs` loaded (each once, kept across builds). */
 export async function createHighlight(langs: Iterable<string | undefined>): Promise<Highlight> {
   const grammars = [...new Set([...langs].map(grammarFor).filter((g): g is BundledLanguage => g !== null))];

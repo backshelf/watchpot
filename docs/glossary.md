@@ -4,6 +4,10 @@ Every term of art the [guide](guide/01-what-watchpot-is.md) uses, in alphabetica
 means in one or two sentences, links to the chapter that teaches it, and names the reference page to look it up on.
 When a definition here and the generated declarations in [`api/`](../api) disagree, `api/` is right.
 
+An entry may open with a line that starts **In short:**: one sentence for a reader who knows none of the jargon.
+The site's getting-started pages show it when a word is hovered or tapped (an entry without one shows its first
+sentence), so write it in plain words and keep it to one sentence.
+
 ## Achievement
 
 Something the player earns once and keeps: a goal checked at the end of every pass, recorded with the game time it
@@ -11,6 +15,8 @@ was earned, and by default never wiped by a reset. Because it is a one-way latch
 Taught in [chapter 7](guide/07-the-first-reset.md#achievements). Reference: [achievements](achievements.md).
 
 ## Action
+
+**In short:** Something a player can do, written as a function that changes the state: Simmer's tap.
 
 A function on the store that changes the game, such as Simmer's `tap` or `buyBurner`. It sits beside its feature's
 state (`store.getState().pot.tap()`) and changes it through `api.set`. Taught in
@@ -70,6 +76,8 @@ Reference: [sound-mix](sound-mix.md).
 
 ## Catch-up
 
+**In short:** When a game opens again, the engine pays for the whole time it was closed, in one go.
+
 The pass that pays for time the game was not running: when a page opens, or a hidden tab comes back after more than
 five seconds (`AWAY_AFTER_MS`), the engine runs every phase once over the whole gap, with `ctx.dtMs` set to its
 length. A shorter gap is paid as live ticks. The store's root action `catchUp()` runs it. Taught in
@@ -126,6 +134,8 @@ A kind of money in the game, named once in the vocabulary and held in a wallet. 
 
 ## Decimal
 
+**In short:** The engine's number type: it reaches far past the largest number JavaScript can hold, and never changes in place.
+
 The engine's number type for anything that grows by multiplying (balances, rates, prices), from `break_eternity.js`.
 It reaches far past JavaScript's `number`, never changes in place, and compares with methods (`lt`, `gte`), never
 with `<`. Taught in [chapter 4](guide/04-words-and-numbers.md#four-habits-with-decimals). Reference:
@@ -164,6 +174,8 @@ list. Mentioned in [chapter 13](guide/13-from-the-template.md#why-a-template-at-
 
 ## Draft
 
+**In short:** A copy of the state you may change freely inside an action; the engine turns your changes into the next state.
+
 The object a recipe or a step is handed: the whole game state, which you change by assigning to it as if it were plain
 data. immer turns the changes into a new state when the recipe returns. Taught in
 [chapter 3](guide/03-the-mental-model.md#drafts-and-recipes).
@@ -190,6 +202,8 @@ with three helper groups: `select` (questions), `def` (its fixed setup) and `dra
 takes five in turn.
 
 ## Feature
+
+**In short:** One part of a game (a pot, a shop), declared in one place: its piece of the state and what changes it.
 
 One part of a game, declared in one place: the state it saves (its slice), the actions a player can take on it, and
 the steps it runs as time passes. A game is a list of features. Taught in
@@ -228,6 +242,8 @@ A small GPU program that runs once for every pixel of a canvas, every frame, and
 [chapter 11](guide/11-look-and-sound.md#why-a-shader-and-what-one-is). Reference: [shader](shader.md).
 
 ## Game
+
+**In short:** The description of a whole game: its features, and where it saves. A store runs it.
 
 What `defineGame` returns: the list of features, the save's key and version, the vocabulary and any step order. It is
 a description; a store runs it. Taught in [chapter 3](guide/03-the-mental-model.md#the-game-and-the-store). Reference:
@@ -271,6 +287,15 @@ Behaviour without a look. The engine's UI primitives bring focus, keys and ARIA 
 attributes, but ship no stylesheet, class name, colour or word. Introduced in
 [chapter 1](guide/01-what-watchpot-is.md#the-one-split), taught in [chapter 10](guide/10-the-page.md#the-headless-ui).
 Reference: [headless UI](ui.md).
+
+## Idle game
+
+**In short:** A game whose numbers keep growing while you look away, where the choices are what to spend them on to
+make them grow faster.
+
+Also called an incremental game. Every one needs the same machinery underneath: numbers too big for JavaScript, a
+clock, a save, and pay for the time a player was away. That machinery is what watchpot is. Taught in
+[chapter 1](guide/01-what-watchpot-is.md#an-engine-for-idle-games).
 
 ## Kernel
 
@@ -476,6 +501,8 @@ colour scheme onto `<html>` (following the OS unless told otherwise), and unlock
 
 ## Save
 
+**In short:** The game's state written out as text and kept in the browser, so closing the page loses nothing.
+
 The store's slices written out as text with a version number, kept in a backend and written at most a second after a
 change, and at once when the page hides. Functions and transient keys are left out. Taught in [chapter 2](guide/02-your-first-game.md#step-4-the-save)
 and [chapter 9](guide/09-saving-and-time-away.md#what-is-saved-and-when). Reference: [a save migration](migration.md).
@@ -505,6 +532,8 @@ so you can measure pacing. Taught in [chapter 12](guide/12-proving-the-pacing.md
 Reference: [the auto-player](persona.md), [a pacing contract](pacing-contract.md).
 
 ## Slice
+
+**In short:** The piece of the state one feature holds, under its name: the pot's slice is `{ bubbles }`.
 
 The state one feature holds, under its key: the stove's slice is `{ burners, off, perSecond }` at `s.stove`. Taught in
 [chapter 3](guide/03-the-mental-model.md#features-and-slices).
@@ -560,6 +589,8 @@ same idea. Taught in [chapter 11](guide/11-look-and-sound.md#the-backdrop). Refe
 
 ## Store
 
+**In short:** The object that holds a running game's whole state, beside the actions that change it.
+
 What `createIdleStore` makes from a game: one object holding every feature's slice and actions, plus the root
 actions, which loads and writes the save. It is a zustand store. Taught in
 [chapter 2](guide/02-your-first-game.md#step-1-a-pot-you-can-tap) and
@@ -579,6 +610,8 @@ Taught in [chapter 1](guide/01-what-watchpot-is.md#what-you-need) and
 [chapter 13](guide/13-from-the-template.md#how-the-template-works).
 
 ## Tick
+
+**In short:** One small step of time: about ten times a second, the engine moves the game on by the time that passed.
 
 A live pass: the store's `tick(dtMs)` runs every phase for one small slice of time, usually ten times a second. Taught
 in [chapter 2](guide/02-your-first-game.md#step-3-the-clock) and [chapter 3](guide/03-the-mental-model.md#the-tick).
