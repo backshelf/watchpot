@@ -600,7 +600,7 @@ behave over an absence) and offer the auto-player their moves where a player wou
   and `buffLeftMs` read it.
 - **Cost curves** (`costAt`, `costOfMany`, `maxAffordable`): what the next one costs, what the next N cost and how many
   the balance covers, in closed form for a geometric curve (`{ base, growth, every?, round? }`; `every` holds one
-  price for a set, `round` makes every price a whole number) and by walking the game's own function. `stepsOf`, `untilStep`, `reached` and `nextThreshold` read sets and
+  price for a set, every price is a whole number, rounded up unless `round` says `"floor"`, `"nearest"` or `"none"`) and by walking the game's own function. `stepsOf`, `untilStep`, `reached` and `nextThreshold` read sets and
   milestone ladders. Every system that sells something prices through these.
 - **Notations.** `fmt` and `formatter` take `notation`: the suffixes (default), `scientific`, `engineering`,
   `letters` and `logarithm`; `NOTATIONS` is the list for a settings screen ([`docs/notations.md`](docs/notations.md)).

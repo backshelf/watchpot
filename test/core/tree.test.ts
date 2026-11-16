@@ -44,6 +44,7 @@ const NODES: readonly Node[] = [
       { currency: "gold", amount: 5 },
       { currency: "gems", amount: 1 },
     ],
+    costGrowth: 1.5,
     maxLevel: 20,
     requires: ["drill"],
     effects: [{ stat: "toy.speed", mult: 1.5 }],

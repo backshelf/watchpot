@@ -5,9 +5,9 @@ import { D, type Decimal, type DecimalSource, ONE, ZERO } from "./decimal";
  * (`base x growth^bought`), whose sums have closed forms, so "buy 10", "buy max" and "how many can I afford" are
  * worked out in one step however large the numbers. With `every`, the price holds for a set and steps between
  * sets (`base x growth^floor(bought / every)`: ten at one price, the next ten at the next). A game with its own
- * curve passes a function instead, and the same three questions are answered by walking it. With `round`, each
- * price is a whole number: the small prices are added one by one and the rest in closed form, since past what a
- * double holds exactly a rounded price is the price.
+ * curve passes a function instead, and the same three questions are answered by walking it. Each price is a whole
+ * number (rounded up unless `round` says otherwise): the small prices are added one by one and the rest in closed
+ * form, since past what a double holds exactly a rounded price is the price.
  */
 
 /** A price that grows geometrically: the first costs `base`, each further step `growth` times the last. */
@@ -17,12 +17,12 @@ export interface GeometricCost {
   /** How many are bought at one price before it steps (default 1: every one costs more than the last). */
   readonly every?: number;
   /**
-   * Rounds each price to a whole number: down, up or to the nearest. Default: the price as it falls, fractions kept.
-   * With a growth that is not a whole number, leaving it out makes fractional prices that `fmt` (which floors) shows
-   * lower than they are: 11.5 reads as 11, and a player holding 11.2 cannot buy. Pass `"ceil"` for a price that reads
-   * as what it costs.
+   * How each price is made a whole number: `"ceil"` (the default) rounds up, `"floor"` down, `"nearest"` to the
+   * closest; `"none"` keeps the price as it falls, fractions and all. Up is the default because `fmt` floors: a price
+   * of 11.5 left as it falls reads as 11 and a player holding 11.2 cannot buy, where a rounded-up 12 reads as what
+   * it costs. A bulk price (`costOfMany`) is always the sum of the rounded single prices.
    */
-  readonly round?: "floor" | "ceil" | "nearest";
+  readonly round?: "ceil" | "floor" | "nearest" | "none";
 }
 
 /** A cost curve: geometric, or the game's own price for the next one when `bought` are bought. */
@@ -36,14 +36,25 @@ const everyOf = (curve: GeometricCost): number => Math.max(1, Math.floor(curve.e
 const whole = (n: number): number => Math.max(0, Math.floor(n));
 /** Past this a Decimal holds no fraction, so rounding a price changes nothing and the closed forms are exact. */
 const EXACT = 9e15;
+/** A price a hair off a whole number is that number: `7 x 2^9` must not ceil to 3585 for a power's float noise. */
+const snapped = (price: Decimal): Decimal => {
+  const near = price.round();
+  return price.sub(near).abs().lte(near.abs().mul(1e-12)) ? near : price;
+};
 const rounded = (curve: GeometricCost, price: Decimal): Decimal =>
-  curve.round === "floor"
-    ? price.floor()
-    : curve.round === "ceil"
-      ? price.ceil()
+  curve.round === "none"
+    ? price
+    : curve.round === "floor"
+      ? snapped(price).floor()
       : curve.round === "nearest"
         ? price.round()
-        : price;
+        : snapped(price).ceil();
+/** Whether rounding changes no price: kept as it falls, or a whole base and a whole growth only make whole prices. */
+const isPlain = (curve: GeometricCost): boolean =>
+  curve.round === "none" ||
+  (D(curve.base).floor().eq(curve.base) &&
+    D(curve.growth).floor().eq(curve.growth) &&
+    D(curve.growth).gte(0));
 
 /** The price of the next one when `bought` are bought. */
 export function costAt(curve: CostCurve, bought: number): Decimal {
@@ -74,9 +85,14 @@ export function costOfMany(curve: CostCurve, bought: number, count: number): Dec
     for (let i = 0; i < Math.min(n, WALK_LIMIT); i++) total = total.add(costAt(curve, had + i));
     return total;
   }
+  if (curve.round !== "none" && isPlain(curve)) {
+    // Whole prices already: the closed form is the sum, less the float noise of the power.
+    const total = costOfMany({ ...curve, round: "none" }, had, n);
+    return total.lt(EXACT) ? total.round() : total;
+  }
   const growth = D(curve.growth);
   const every = everyOf(curve);
-  if (curve.round) {
+  if (curve.round !== "none") {
     // Whole-number prices have no closed form while they are small: add those, then the rest as the plain curve.
     let total = ZERO;
     let i = 0;
@@ -86,7 +102,7 @@ export function costOfMany(curve: CostCurve, bought: number, count: number): Dec
       total = total.add(price);
       i += 1;
     }
-    return i >= n ? total : total.add(costOfMany({ ...curve, round: undefined }, had + i, n - i));
+    return i >= n ? total : total.add(costOfMany({ ...curve, round: "none" }, had + i, n - i));
   }
   if (every === 1) return geometricSum(costAt(curve, had), growth, n);
   const head = Math.min(n, every - (had % every));
@@ -135,7 +151,7 @@ export function maxAffordable(
   const growth = D(curve.growth);
   const every = everyOf(curve);
   // The estimate reads the plain curve; the checks after it read the rounded prices, so the answer is exact.
-  const first = costAt({ ...curve, round: undefined }, had);
+  const first = costAt({ ...curve, round: "none" }, had);
   if (first.lte(0) && growth.lte(1)) return Number.isFinite(cap) ? cap : 0;
   let n: number;
   if (every === 1) n = geometricCount(first, growth, held);

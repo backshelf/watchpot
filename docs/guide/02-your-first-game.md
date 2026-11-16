@@ -460,7 +460,7 @@ import from `watchpot/core`, then add this between the pot and `defineGame`:
 
 ```ts
 /** The first burner costs 10 bubbles; each one after costs 15% more than the last, rounded up to whole bubbles. */
-export const BURNER_COST = { base: 10, growth: 1.15, round: "ceil" } as const;
+export const BURNER_COST = { base: 10, growth: 1.15 } as const;
 
 /** The price of the next burner when `owned` are lit. */
 export function burnerPrice(owned: number) {
@@ -518,9 +518,9 @@ What is new:
 - **`reach: [pot]`** is how one feature touches another. Without it, the stove's draft has only `s.stove`. With it,
   `s.pot` is there too, typed, and `defineGame` checks that the pot really is in the game.
 - **`costAt(curve, owned)`** is the price of the next one when `owned` are already bought. The curve here is
-  geometric: 10, then 10 × 1.15, then 10 × 1.15², and so on. `round: "ceil"` rounds each price up to a whole number.
-  Without it the second burner would cost 11.5 bubbles, `fmt` would show it as 11, and the player would see a button
-  they cannot press with 11 bubbles in the pot.
+  geometric: 10, then 10 × 1.15, then 10 × 1.15², and so on. Each price is rounded up to a whole number, so the
+  second burner costs 12 bubbles, not 11.5: `fmt` rounds down, and a fractional price would show lower than it is and
+  leave the player a button they cannot press.
 - **`buyBurner` checks before it spends.** `lt` is "less than"; Decimals compare with methods, not `<`. If the pot
   cannot pay, the recipe returns `false` without changing anything; otherwise it pays and returns `true`.
 - **`api.set` returns what the recipe returns,** so `buyBurner()` answers whether it bought. The page below ignores
@@ -623,7 +623,7 @@ export const pot = feature({
 });
 
 /** The first burner costs 10 bubbles; each one after costs 15% more than the last, rounded up to whole bubbles. */
-export const BURNER_COST = { base: 10, growth: 1.15, round: "ceil" } as const;
+export const BURNER_COST = { base: 10, growth: 1.15 } as const;
 
 /** The price of the next burner when `owned` are lit. */
 export function burnerPrice(owned: number) {
@@ -787,7 +787,8 @@ Put `dist/` on any static host and the game runs there, saving to each player's 
   screen unless you show it; `useGameClock` returns `{ taken }` for that.
 - **The away note needs 30 seconds.** Shorter absences are paid but not reported; the `minMs` option changes that.
 - **`fmt` returns an object.** `{fmt(n)}` in JSX is an error; write `{fmt(n).text}`. And because `fmt` rounds down,
-  a price with a fraction shows lower than it is: round prices to whole numbers (`round: "ceil"`), as the burner does.
+  a price with a fraction shows lower than it is. Cost curves round up to whole numbers by default; a price you work
+  out yourself should too.
 - **`bun check` fails inside `node_modules/watchpot`.** If you see about twenty errors in the engine's development
   panel files about `.module.css` or `--` style keys, `"watchpot/env"` is missing from your `tsconfig.json`'s
   `types`.

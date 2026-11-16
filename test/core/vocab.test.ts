@@ -105,6 +105,7 @@ describe("a vocabulary types the engine's words", () => {
       name: "A",
       line: "",
       cost: [{ currency: "gems", amount: 2 }],
+      costGrowth: 1.5,
       maxLevel: 3,
       requires: [],
       effects: [],

@@ -3,8 +3,8 @@ import type { CurrenciesFeature, CurrencyDraft, Purse } from "./currencies";
 import { D, type Decimal, ZERO } from "./decimal";
 import { type Feature, type FeatureApi, feature, type Move, type ResetRule } from "./feature";
 import {
+  assertNodeGrowth,
   checkRank,
-  DEFAULT_COST_GROWTH,
   type GraphNode,
   type NodeCost,
   type NodeFailure,
@@ -135,6 +135,7 @@ export function tree<N extends GraphNode<unknown, string>>(def: TreeDef<N>): Tre
     if (byId.has(n.id)) throw new Error(`tree "${def.id}": the node "${n.id}" appears twice`);
     byId.set(n.id, n);
   }
+  for (const n of def.nodes) assertNodeGrowth(n);
   for (const n of def.nodes)
     for (const r of n.requires)
       if (!byId.has(r))
@@ -153,7 +154,7 @@ export function tree<N extends GraphNode<unknown, string>>(def: TreeDef<N>): Tre
    * sum their floors, which no one geometric curve is, so they are walked (`WALK_LIMIT` ranks at most a call).
    */
   const curvesOf = (node: N): [C, CostCurve][] => {
-    const growth = priced(node).costGrowth ?? DEFAULT_COST_GROWTH;
+    const growth = priced(node).costGrowth ?? 1;
     const lines = new Map<C, NodeCost<C>[]>();
     for (const c of priced(node).cost) lines.set(c.currency, [...(lines.get(c.currency) ?? []), c]);
     return [...lines].map(([currency, list]): [C, CostCurve] => {

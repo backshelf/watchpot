@@ -40,7 +40,7 @@ const FAIR: EventDefinition<Effect, Reward, "harvest"> = {
     { id: "ore", name: "Ore", glyph: "ore", start: 0 },
     { id: "ribbons", name: "Ribbons", glyph: "ribbon", start: 0, persistent: true },
   ],
-  upgrades: [node("stall", "Stall", "Sell faster.", 10, 3, [], [{ kind: "speed", mult: 1.1 }])],
+  upgrades: [node("stall", "Stall", "Sell faster.", 10, 3, [], [{ kind: "speed", mult: 1.1 }], 1.5)],
   mastery: [
     node("old-hand", "Old hand", "Keep a stall.", 1, 1, [], [{ kind: "keep", node: "stall", ranks: 2 }]),
     node(
@@ -51,6 +51,7 @@ const FAIR: EventDefinition<Effect, Reward, "harvest"> = {
       2,
       [],
       [{ kind: "head-start", currency: "tickets", amount: 2 }],
+      1.5,
     ),
   ],
   milestones: [

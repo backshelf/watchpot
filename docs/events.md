@@ -140,7 +140,7 @@ Its fields:
 - **`autoplay`**, **`world`**, **`gemBuys`**: below, and optional.
 
 **`eventNodeRow<E>(currency)`** makes a row builder for a tree priced in one currency:
-`row(id, name, line, cost, maxLevel, requires, effects, costGrowth?)`. Bind `E` (`eventNodeRow<Effect>("spoons")`) so
+`row(id, name, line, cost, maxLevel, requires, effects, costGrowth)` (`costGrowth` may be left out only at `maxLevel` 1). Bind `E` (`eventNodeRow<Effect>("spoons")`) so
 an effect literal is checked against your union.
 
 ## Windows
@@ -239,8 +239,8 @@ Tuning by hand, before you play:
 - **The band counts milestones met, claimed or not.** A player who never pressed "claim" still earns the band.
 - **Persistent currencies are not on the runtime.** A ribbon reward goes to `mastery.currencies`, which your feature
   credits; `freshRuntime` leaves persistent currencies out.
-- **Multi-rank nodes need a `costGrowth`.** Without one, each next rank costs 1.5 times the last (the graph's
-  default). Pass the last argument of the row builder for any node above one rank, 1 for a flat price.
+- **Multi-rank nodes need a `costGrowth`.** The row builder's last argument is required for any node above one
+  rank (a type error otherwise, and a throw naming the node if the types are escaped): 1 for a flat price.
 - **The runtime holds Decimals.** The save keeps them; compare with `.gte` and `.lt`, never with `<`.
 
 ## Where the guide teaches it

@@ -24,7 +24,7 @@ import {
 
 // ---- the game under test: Simmer's pot and its burners
 
-export const BURNER_COST = { base: 10, growth: 1.15, round: "ceil" } as const;
+export const BURNER_COST = { base: 10, growth: 1.15 } as const;
 
 export const pot = feature({
   key: "pot",
