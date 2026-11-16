@@ -49,9 +49,9 @@ function pay(
   s: { wallet: object; generators: { perSecond: Decimal }; summon: { tokens: Record<string, number> } },
   reward: ShowerReward,
 ) {
-  if (reward.kind === "seeds") wallet.credit(s, PREMIUM, reward.amount);
+  if (reward.kind === "seeds") wallet.draft.credit(s, PREMIUM, reward.amount);
   else if (reward.kind === "sunlight")
-    wallet.credit(s, MAIN, s.generators.perSecond.mul(60 * reward.minutes));
+    wallet.draft.credit(s, MAIN, s.generators.perSecond.mul(60 * reward.minutes));
   else s.summon.tokens[BOX] = (s.summon.tokens[BOX] ?? 0) + reward.count;
 }
 

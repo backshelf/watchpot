@@ -232,7 +232,7 @@ export function crafting<
   const own = (state: unknown): CraftingState => (state as Record<K, CraftingState>)[def.key];
   const purseOf = (draft: unknown): CraftPurse<C> => {
     const d = draft as CurrencyDraft<WK>;
-    return { ...wallet.purse(d), credit: (c, amount) => wallet.credit(d, c, amount) };
+    return { ...wallet.draft.purse(d), credit: (c, amount) => wallet.draft.credit(d, c, amount) };
   };
   const open = (state: G, r: RecipeDef<C, G>): boolean => r.unlocked?.(state) ?? true;
   const yieldOf = (state: G, r: RecipeDef<C, G>): DecimalSource => r.yield?.(state) ?? 1;
@@ -254,7 +254,9 @@ export function crafting<
     },
     craftable: (state, id) => {
       const r = byId.get(id);
-      return r && open(state, r) ? maxCraftable(r, wallet.purse(state as unknown as CurrencyDraft<WK>)) : 0;
+      return r && open(state, r)
+        ? maxCraftable(r, wallet.draft.purse(state as unknown as CurrencyDraft<WK>))
+        : 0;
     },
     job: (state, id) => own(state).queue.find((j) => j.recipe === id) ?? null,
     nextInMs: (state, id, now) => {

@@ -13,7 +13,8 @@ export const roads = stages<"roads", State>({
   ],
   force: (s) => s.wallet.gold.add(1).sqrt(), // the game's own damage stat
   open: (s, track) => track.id === "north" || s.wallet.gems.gte(1),
-  onClear: (d, track, from, to) => wallet.credit(d, "gems", track === "north" ? to - from : 5 * (to - from)),
+  onClear: (d, track, from, to) =>
+    wallet.draft.credit(d, "gems", track === "north" ? to - from : 5 * (to - from)),
   away: () => ({ rate: 0.5, capMs: 8 * 3_600_000 }),
 });
 

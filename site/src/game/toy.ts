@@ -97,7 +97,7 @@ function build({ pressure = 0.25 }: Tuning = {}) {
     actions: (api) => ({
       press: () =>
         api.set((s) => {
-          wallet.credit(s, "steam", (s.heat.perSecond.steam ?? D(0)).div(10).max(1));
+          wallet.draft.credit(s, "steam", (s.heat.perSecond.steam ?? D(0)).div(10).max(1));
           s.lid.presses += 1;
         }),
     }),

@@ -605,7 +605,7 @@ export const misfeeds = spawns({
   ],
   onCatch: (d: Draft<Reads>, outcome, now) => {
     if (outcome === "box") {
-      wallet.credit(d, MAIN, shadowRate(d).mul(MISFEED.boxSeconds).mul(mulOf(d, "misfeed.power")));
+      wallet.draft.credit(d, MAIN, shadowRate(d).mul(MISFEED.boxSeconds).mul(mulOf(d, "misfeed.power")));
       return;
     }
     // ...
@@ -693,7 +693,7 @@ export const surface = spawns({
   ],
   onCatch: (d: Draft<Page>, outcome, now) => {
     if (outcome === "splash") {
-      wallet.credit(d, "bubbles", income(d).mul(60).max(25)); // a minute of everything, 25 at least
+      wallet.draft.credit(d, "bubbles", income(d).mul(60).max(25)); // a minute of everything, 25 at least
       return;
     }
     boosts.start(d, outcome, now);
@@ -704,7 +704,7 @@ export const surface = spawns({
 `docs/examples/guide-first-page.ts`
 
 `active` keeps big bubbles away until the ladle is bought; while it is false, nothing arrives, and the wait starts
-over once it holds. `noRepeat` means two rolling boils never come back to back. `wallet.credit(d, ...)` and
+over once it holds. `noRepeat` means two rolling boils never come back to back. `wallet.draft.credit(d, ...)` and
 `boosts.start(d, ...)` are draft helpers: you are already inside a recipe in `onCatch`, so you change the draft you
 hold rather than calling a store action.
 

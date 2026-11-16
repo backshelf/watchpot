@@ -24,10 +24,10 @@ const purse = currencies({
   earned: { gold: "lifetimeGold" },
   spent: { gems: "gemsSpent" },
   extra: () => ({ dust: D(0) }),
-  actions: ({ set }, helpers) => ({
+  actions: ({ set }, { draft }) => ({
     sweep: () =>
       set((s) => {
-        helpers.credit(s, "gems", s.purse.dust);
+        draft.credit(s, "gems", s.purse.dust);
         s.purse.dust = D(0);
       }),
   }),
@@ -84,14 +84,14 @@ describe("currencies", () => {
     const store = storeOf();
     const afford = { before: false, after: true };
     store.setState((s) => {
-      afford.before = purse.canAfford(s, "gold", 30);
-      const p = purse.purse(s);
+      afford.before = purse.select.canAfford(s, "gold", 30);
+      const p = purse.draft.purse(s);
       expect(p.debit("gold", 25)).toBe(true);
       expect(p.balance("gold").eq(5)).toBe(true);
-      afford.after = purse.canAfford(s, "gold", 6);
+      afford.after = purse.select.canAfford(s, "gold", 6);
     });
     expect(afford).toEqual({ before: true, after: false });
-    expect(purse.balance(store.getState(), "gold").eq(5)).toBe(true);
+    expect(purse.select.balance(store.getState(), "gold").eq(5)).toBe(true);
   });
 
   test("the game's own actions sit beside credit and debit", () => {

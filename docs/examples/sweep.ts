@@ -18,7 +18,7 @@ export const line = sweep<"line", State>({
   ],
   onStrike: (d, result) => {
     if (!result.hit) return;
-    wallet.credit(d, "gold", (result.hit.grade === "perfect" ? 5 : 1) * result.streak);
+    wallet.draft.credit(d, "gold", (result.hit.grade === "perfect" ? 5 : 1) * result.streak);
   },
 });
 

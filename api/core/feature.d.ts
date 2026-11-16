@@ -187,7 +187,7 @@ export interface FeatureApi<G extends object> {
     /**
      * Mutates the game through an immer draft and returns what the recipe returns (`return api.set((s) => debit(s, …))`).
      * A recipe cannot call an action (one `set` inside another): the outer recipe would land over the inner change, so
-     * it throws. Inside a recipe, call the draft helpers instead (`wallet.credit(draft, …)`), or call the action after.
+     * it throws. Inside a recipe, call the draft helpers instead (`wallet.draft.credit(draft, …)`), or call the action after.
      */
     set<T = void>(recipe: (draft: Draft<G>) => T): T;
     get(): G;

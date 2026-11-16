@@ -194,7 +194,7 @@ export const store = createIdleStore(toy, {
   old name, is a deprecated alias; `codemods/0.18.0-offline-credit.ts` renames it; the store's `catchUp` action keeps
   its name).
 - **Actions.** `actions(api)` returns the feature's actions; `api.set(recipe)` runs one immer recipe over the whole
-  state and returns what the recipe returns (`buy: () => api.set((s) => wallet.debit(s, "gold", 10))` reports whether
+  state and returns what the recipe returns (`buy: () => api.set((s) => wallet.draft.debit(s, "gold", 10))` reports whether
   it paid), and a recipe that returns a value still changes the state through the draft only. An action called
   inside a recipe (one `api.set` inside another, or an action from a step during `tick`, `catchUp` or a reset)
   throws, saying to call the feature's draft helper instead or to call the action after the recipe: its change would
@@ -440,9 +440,9 @@ export const wallet = currencies({
   Credit ignores an amount of zero or less; debit refuses (false, nothing touched) what the balance cannot cover.
   They sit beside the balances, so `credit`, `debit` and `__proto__` (`RESERVED_CURRENCY_FIELDS`) are no currency's,
   total's, extra's or game action's name: the factory throws naming the clash.
-- **Draft helpers** on the feature, for recipes and steps: `wallet.credit(draft, c, n)`, `wallet.debit(draft, c, n)`,
-  `wallet.balance(draft, c)`, `wallet.canAfford(draft, c, n)`, and `wallet.purse(draft)`, a `Purse` (`balance`,
-  `debit`) for a tree or a shop to pay from. `wallet.currencies` is the list.
+- **`draft`, `select` and `def`** on the feature, for recipes and steps (`actions` receives the same object as its second argument): `wallet.draft.credit(draft, c, n)`, `wallet.draft.debit(draft, c, n)`,
+  `wallet.select.balance(draft, c)`, `wallet.select.canAfford(draft, c, n)`, and `wallet.draft.purse(draft)`, a `Purse` (`balance`,
+  `debit`) for a tree or a shop to pay from. `wallet.def.currencies` is the list.
 - It records its vocabulary, so `defineGame` refuses it unless the game declares the same one. A total for a word the
   vocabulary lacks, or a field name used twice (by a currency, a total, `credit` or `debit`), throws.
 

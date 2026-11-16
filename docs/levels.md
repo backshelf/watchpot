@@ -21,7 +21,7 @@ export const skills = levels({
     { id: "trade", curve: { kind: "table", totals: [50, 150, 400, 1000, 2500] } },
   ],
   maxLevel: 99, // every track stops here unless its own says otherwise
-  onLevel: (d: { wallet: object }, _track, from, to) => wallet.credit(d, "gems", to - from), // a gem a level
+  onLevel: (d: { wallet: object }, _track, from, to) => wallet.draft.credit(d, "gems", to - from), // a gem a level
   effects: (track, level): Effect[] => [
     { stat: "toy.speed", mult: 1 + (track.id === "gather" ? 0.05 : 0.1) * level },
   ],

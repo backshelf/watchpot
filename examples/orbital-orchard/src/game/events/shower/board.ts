@@ -48,7 +48,7 @@ export const skyBoard: EventBoard<BoardGame, EventBag, "sky", Sky, SkyActions> =
         rt.stats.caught = (rt.stats.caught ?? 0) + c.shards;
         rt.stats.casts = (rt.stats.casts ?? 0) + 1;
         s.events.caughtEver += c.shards;
-        if (c.seeds > 0) wallet.credit(s, PREMIUM, c.seeds);
+        if (c.seeds > 0) wallet.draft.credit(s, PREMIUM, c.seeds);
         sky.cells[cell] = c.token;
         if (c.cleared) {
           s.events.sky = freshSky(sky.cycle, sky.wave + 1);

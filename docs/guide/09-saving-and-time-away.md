@@ -221,7 +221,7 @@ const pot = feature({
   actions: (api) => ({
     tap: () =>
       api.set((s) => {
-        wallet.credit(s, "bubbles", 1);
+        wallet.draft.credit(s, "bubbles", 1);
         s.pot.presses += 1;
       }),
   }),
@@ -476,7 +476,7 @@ A step written as a bare function runs in **both** passes. Simmer's pot is one:
 produce: {
   // Runs on every live tick and on the catch-up after time away.
   simmer: (s, ctx) => {
-    wallet.credit(s, "bubbles", (SIMMER_PER_SECOND * ctx.dtMs) / 1000);
+    wallet.draft.credit(s, "bubbles", (SIMMER_PER_SECOND * ctx.dtMs) / 1000);
   },
 },
 ```
@@ -499,7 +499,7 @@ produce: {
   burn: {
     pass: "tick",
     run: (s, ctx) => {
-      wallet.credit(s, "bubbles", s.stove.perSecond.mul(ctx.dtMs / 1000));
+      wallet.draft.credit(s, "bubbles", s.stove.perSecond.mul(ctx.dtMs / 1000));
     },
   },
   // Time away pays half, for two hours at most.
@@ -507,7 +507,7 @@ produce: {
     pass: "catchUp",
     run: (s, ctx) => {
       const credited = Math.min(ctx.dtMs, AWAY_CAP_MS) * OFFLINE_RATE;
-      wallet.credit(s, "bubbles", s.stove.perSecond.mul(credited / 1000));
+      wallet.draft.credit(s, "bubbles", s.stove.perSecond.mul(credited / 1000));
     },
   },
 },

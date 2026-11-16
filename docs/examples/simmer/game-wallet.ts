@@ -69,7 +69,7 @@ export const pot = feature({
   actions: (api) => ({
     tap: () =>
       api.set((s) => {
-        wallet.credit(s, "bubbles", 1);
+        wallet.draft.credit(s, "bubbles", 1);
         s.pot.taps += 1;
       }),
   }),
@@ -79,7 +79,7 @@ export const pot = feature({
       simmer: {
         pass: "both",
         run: (s, ctx) => {
-          wallet.credit(s, "bubbles", (SIMMER_PER_SECOND * ctx.dtMs) / 1000);
+          wallet.draft.credit(s, "bubbles", (SIMMER_PER_SECOND * ctx.dtMs) / 1000);
         },
       },
     },
@@ -95,7 +95,7 @@ export const stove = feature({
   actions: (api) => ({
     buyBurner: () =>
       api.set((s) => {
-        if (!wallet.debit(s, "bubbles", burnerPrice(s.stove.burners))) return false;
+        if (!wallet.draft.debit(s, "bubbles", burnerPrice(s.stove.burners))) return false;
         s.stove.burners += 1;
         return true;
       }),
@@ -118,7 +118,7 @@ export const stove = feature({
       burn: {
         pass: "tick",
         run: (s, ctx) => {
-          wallet.credit(s, "bubbles", s.stove.perSecond.mul(ctx.dtMs / 1000));
+          wallet.draft.credit(s, "bubbles", s.stove.perSecond.mul(ctx.dtMs / 1000));
         },
       },
       // Time away pays half, for two hours at most.
@@ -126,7 +126,7 @@ export const stove = feature({
         pass: "catchUp",
         run: (s, ctx) => {
           const credited = Math.min(ctx.dtMs, AWAY_CAP_MS) * OFFLINE_RATE;
-          wallet.credit(s, "bubbles", s.stove.perSecond.mul(credited / 1000));
+          wallet.draft.credit(s, "bubbles", s.stove.perSecond.mul(credited / 1000));
         },
       },
     },

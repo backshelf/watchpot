@@ -9,8 +9,9 @@ Example: [`examples/add-a-currency.ts`](examples/add-a-currency.ts), with the sh
 - `start` sets opening balances; `earned` and `spent` name fields that total every credit or debit of a currency.
 - Actions: `credit(c, n)` and `debit(c, n): boolean` (a debit that cannot be covered touches nothing). Credit ignores
   zero or less.
-- Inside another feature's recipe or a step, call the draft helpers on the feature: `wallet.credit(draft, "gold", n)`,
-  `wallet.debit(draft, ...)`, `wallet.canAfford`, `wallet.balance`, and `wallet.purse(draft)` for a tree or shop.
+- Inside another feature's recipe or a step, use the three namespaces on the feature: `wallet.draft.credit(draft, "gold", n)`,
+  `wallet.draft.debit(draft, ...)` and `wallet.draft.purse(draft)` (for a tree or shop) change a draft; `wallet.select.canAfford` and
+  `wallet.select.balance` read; `wallet.def.currencies` lists the currencies. `actions` gets `{ select, def, draft }` as its second argument.
 - `defineGame` refuses the feature unless the game passes the same `vocab`.
 - **Reserved names.** The slice's own actions sit beside the balances, so no currency, total, `extra` field or game
   action may be named `credit`, `debit` or `__proto__` (`RESERVED_CURRENCY_FIELDS`): the factory throws at

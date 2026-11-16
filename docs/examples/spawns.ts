@@ -21,8 +21,8 @@ export const visitors = spawns({
     },
   ],
   onCatch: (draft: State, outcome) => {
-    if (outcome === "windfall") wallet.credit(draft, "gold", draft.mine.perSecond.mul(900));
-    if (outcome === "gem") wallet.credit(draft, "gems", 1);
+    if (outcome === "windfall") wallet.draft.credit(draft, "gold", draft.mine.perSecond.mul(900));
+    if (outcome === "gem") wallet.draft.credit(draft, "gems", 1);
     // "rush": the game starts a buff here (`boosts.start` from its own action, or its draft helper).
   },
 });

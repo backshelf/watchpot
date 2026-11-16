@@ -164,7 +164,7 @@ export function clicker<
       crit = roll < rule.chance;
       if (crit) amount = amount.mul(rule.mult);
     }
-    def.wallet.credit(draft as CurrencyDraft<WK>, def.currency, amount);
+    def.wallet.draft.credit(draft as CurrencyDraft<WK>, def.currency, amount);
     s.clicks += 1;
     s.runClicks += 1;
     if (crit) s.crits += 1;

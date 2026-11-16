@@ -25,8 +25,8 @@ export const auto = autobuyers({
       unlocked: (s) => s.wallet.gold.gte(1e6),
       intervalMs: () => 0, // every tick
       run: (d) => {
-        if (!wallet.debit(d, "gold", 1000)) return 0;
-        wallet.credit(d, "gems", 1);
+        if (!wallet.draft.debit(d, "gold", 1000)) return 0;
+        wallet.draft.credit(d, "gems", 1);
         return 1;
       },
     },

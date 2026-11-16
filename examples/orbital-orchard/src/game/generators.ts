@@ -32,7 +32,7 @@ export const generators = feature({
       api.set((s) => {
         const g = GENERATORS.find((x) => x.id === id);
         if (!g) return;
-        if (!wallet.debit(s, MAIN, generatorCost(g, s.generators.owned[id] ?? 0))) return;
+        if (!wallet.draft.debit(s, MAIN, generatorCost(g, s.generators.owned[id] ?? 0))) return;
         s.generators.owned[id] = (s.generators.owned[id] ?? 0) + 1;
         ok = true;
       });
@@ -52,13 +52,13 @@ export const generators = feature({
     produce: {
       online: {
         pass: "tick",
-        run: (s, ctx) => wallet.credit(s, MAIN, s.generators.perSecond.mul(ctx.dtMs / 1000)),
+        run: (s, ctx) => wallet.draft.credit(s, MAIN, s.generators.perSecond.mul(ctx.dtMs / 1000)),
       },
       away: {
         pass: "catchUp",
         run: (s, ctx) => {
           const span = offlineCredit(ctx.dtMs, s.generators.offline, OFFLINE_CAP_MS);
-          wallet.credit(s, MAIN, s.generators.perSecond.mul(span.creditedMs / 1000));
+          wallet.draft.credit(s, MAIN, s.generators.perSecond.mul(span.creditedMs / 1000));
         },
       },
     },

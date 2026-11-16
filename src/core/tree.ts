@@ -336,7 +336,7 @@ export function upgradeTree<
   const balanceOf =
     (state: G) =>
     (c: CostOf<N>): Decimal =>
-      wallet.balance(state as unknown as Draft, c);
+      wallet.select.balance(state as unknown as Draft, c);
   const readers = {
     open: (state: G, id: string): boolean => {
       const node = rules.node(id);
@@ -368,7 +368,7 @@ export function upgradeTree<
             result = { ok: false, code: "closed" };
             return;
           }
-          result = rules.buy(d[def.key].ranks, id, wallet.purse(d));
+          result = rules.buy(d[def.key].ranks, id, wallet.draft.purse(d));
         });
         return result;
       },
@@ -378,7 +378,7 @@ export function upgradeTree<
           const d = s as Draft;
           const node = rules.node(id);
           if (!node || (def.open && !def.open(d as unknown as G, node))) return;
-          n = rules.buyMax(d[def.key].ranks, id, wallet.purse(d), limit);
+          n = rules.buyMax(d[def.key].ranks, id, wallet.draft.purse(d), limit);
         });
         return n;
       },
@@ -386,7 +386,7 @@ export function upgradeTree<
         let n = 0;
         api.set((s) => {
           const d = s as Draft;
-          n = rules.buyCheapest(d[def.key].ranks, wallet.purse(d), {
+          n = rules.buyCheapest(d[def.key].ranks, wallet.draft.purse(d), {
             open: (node) => isOpen(d as unknown as G, node),
             limit,
           });

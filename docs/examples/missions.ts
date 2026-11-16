@@ -34,8 +34,8 @@ export const trips = missions({
     { id: "voyage", durationMs: () => 4 * HOUR_MS, cost: { gold: 500 }, reward: roll(25) },
     { id: "deep", durationMs: () => 12 * HOUR_MS, available: (s) => s.wallet.gems.gte(50), reward: roll(80) },
   ],
-  pay: (d, m) => (m.cost ? wallet.debit(d, "gold", m.cost.gold) : true), // writes nothing when it refuses
-  onClaim: (d, reward) => wallet.credit(d, "gems", reward.gems),
+  pay: (d, m) => (m.cost ? wallet.draft.debit(d, "gold", m.cost.gold) : true), // writes nothing when it refuses
+  onClaim: (d, reward) => wallet.draft.credit(d, "gems", reward.gems),
 });
 
 export const game = defineGame({
