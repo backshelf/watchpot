@@ -1,4 +1,6 @@
 import { describe, expect, test } from "bun:test";
+import { join } from "node:path";
+import { entryMap } from "../src/docs";
 import { docsPageOut, type Exists, type LinkContext, resolveLink } from "../src/docs/links";
 import { indexBlocks, parseMarkdown, renderBody } from "../src/docs/markdown";
 import { buildNavGroups, type IndexBlock, type NavPage, pluralLabel } from "../src/docs/nav";
@@ -255,5 +257,16 @@ describe("sidebar", () => {
       { label: "Deeper", pages: ["beta.md"] },
       { label: "More", pages: ["gamma.md", "orphan-a.md", "orphan-b.md", "examples/notes.md"] },
     ]);
+  });
+});
+
+describe("the reference page", () => {
+  test("maps every entry in the README's table, and the install and import pages, each a sentence", async () => {
+    const root = join(import.meta.dir, "../..");
+    const map = await entryMap(root, await Bun.file(join(root, "README.md")).text());
+    expect(map).toContain("## Install");
+    expect(map).toContain("(docs/core.md)");
+    expect(map).toContain("(docs/sound.md)");
+    expect(map).toMatch(/\[What each entry may import\]\(docs\/imports\.md\): [^\n]+\./);
   });
 });

@@ -55,7 +55,7 @@ export const PARTS: readonly Part[] = [
     height: 0.055,
     glyph: 3,
     side: "right",
-    href: "docs/reference.html#testing",
+    href: "docs/test-kit.html",
   },
   {
     id: "sim",
@@ -79,7 +79,7 @@ export const PARTS: readonly Part[] = [
     height: 0.055,
     glyph: 4,
     side: "left",
-    href: "docs/reference.html#react",
+    href: "docs/react.html",
   },
   {
     id: "kit",

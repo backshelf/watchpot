@@ -372,14 +372,24 @@ export async function buildDocs(options: DocsOptions): Promise<DocsResult> {
  * README's table of entries (one source) and the install and import pages' own first sentences.
  */
 export async function entryMap(repoRoot: string, readme: string): Promise<string> {
-  const table = /^## The entries\s*\n([\s\S]*?)(?=\n## |$)/m.exec(readme)?.[1] ?? "";
-  const rows = table
+  const from = readme.indexOf("\n## The entries");
+  const to = readme.indexOf("\n## ", from + 1);
+  const rows = readme
+    .slice(from, to < 0 ? undefined : to)
     .split("\n")
     .filter((line) => line.startsWith("|"))
     .join("\n");
+  // A page's first sentence as written (its code spans kept), from the first paragraph under its title.
   const lead = async (path: string) => {
-    const parsed = parseMarkdown(await Bun.file(join(repoRoot, path)).text());
-    return { title: parsed.title ?? path, says: firstSentences(parsed.prose, 200) };
+    const text = (await Bun.file(join(repoRoot, path)).text()).replace(/\r\n/g, "\n");
+    const title = /^# (.+)$/m.exec(text)?.[1] ?? path;
+    const paragraph =
+      text
+        .split(/\n\s*\n/)
+        .map((p) => p.trim())
+        .find((p) => p !== "" && !/^(#|<!--|\||```)/.test(p)) ?? "";
+    const says = /^[\s\S]+?[.!?](?=\s|$)/.exec(paragraph.replace(/\s*\n\s*/g, " "))?.[0] ?? paragraph;
+    return { title, says };
   };
   const installing = await lead("docs/installing.md");
   const imports = await lead("docs/imports.md");

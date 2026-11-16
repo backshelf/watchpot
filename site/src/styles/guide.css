@@ -227,6 +227,8 @@ a.steps__cell:hover {
 
 .doc__body .guide-try ol {
   display: grid;
+  /* A listing in a step scrolls inside it rather than widening the list. */
+  grid-template-columns: minmax(0, 1fr);
   gap: 0.6rem;
   margin: 0;
   padding: 0;
