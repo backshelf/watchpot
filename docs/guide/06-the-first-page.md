@@ -441,7 +441,7 @@ a tree. With `maxLevel: 1` and no requirements, it is a shop.
 
 Why use a tree for a shop rather than a list of booleans? Because the tree already does the parts you would otherwise
 write: the price per rank, the "requires", the refusal with a reason when you cannot afford it, and the
-[effects](../glossary.md#effect) folded into a [stat bus](../glossary.md#stat-bus) with `busOf`.
+[effects](../glossary.md#effect) handed to the game's stats as contributions.
 
 The game writes its shop items as one line each:
 
@@ -474,7 +474,8 @@ copper kettles double the kettles once you own one, and a ladle lets big bubbles
 <!-- example-code: guide-first-page.ts -->
 
 ```ts
-type Upgrade = GraphNode<Effect, "bubbles">;
+type Stat = "stir" | "kettle";
+type Upgrade = GraphNode<Effect<Stat>, "bubbles">;
 
 const UPGRADES: readonly Upgrade[] = [
   {
@@ -484,7 +485,7 @@ const UPGRADES: readonly Upgrade[] = [
     cost: [{ currency: "bubbles", amount: 25 }],
     maxLevel: 1,
     requires: [],
-    effects: [{ stat: "stir", mult: 2 }],
+    effects: [{ stat: "stir", mul: 2 }],
   },
   {
     id: "whisk",
@@ -503,23 +504,29 @@ export const kitchen = upgradeTree({
   key: "kitchen",
   nodes: UPGRADES,
   wallet,
+  reach: reach<{ kettles: GeneratorsState }>(),
   // The copper waits until there is a kettle to put it on.
-  open: (s: Page, node) => node.id !== "copper" || (s.kettles.owned.kettle ?? 0) > 0,
+  open: (s, node) => node.id !== "copper" || (s.kettles.owned.kettle ?? 0) > 0,
 });
 
 // ...
 
-/** A stat's value from the kitchen's ranks: 1, plus its adds, times its mults. Chapter 8 does this properly. */
-export const statOf = (s: Pick<Page, "kitchen">, stat: "stir" | "kettle"): number =>
-  statValue(busOf(kitchen.tree.contributions(s.kitchen.ranks)), stat, 1);
+/** The kitchen's two stats on the engine's stat graph, from a base of 1, each node counted once per rank held. */
+const KITCHEN = statIndex<Stat, never, Pick<Page, "kitchen">>({ base: () => 1 });
+for (const node of UPGRADES)
+  KITCHEN.add(node, { label: node.name, owner: "kitchen", times: (s) => s.kitchen.ranks[node.id] ?? 0 });
+
+/** A stat's value from the kitchen's ranks: 1, plus its adds, times its muls. Chapter 8 serves stats as a feature. */
+export const statOf = (s: Pick<Page, "kitchen">, stat: Stat): number => KITCHEN.over(s).stat(stat).toNumber();
 ```
 
 `docs/examples/guide-first-page.ts`
 
-`Effect` is the engine's `{ stat, add?, mult? }`. `kitchen.tree.contributions(ranks)` lists every rank held as an
-effect, `busOf` folds them into totals per stat, and `statValue(bus, "stir", 1)` gives `(1 + adds) × mults`. That is
-where the spoon's `statOf(s, "stir")` and the kettles' `statOf(s, "kettle")` came from. Folding the bus on every call
-is fine for four upgrades; chapter 8 shows the bus properly.
+An [effect](../glossary.md#effect) is `{ stat, add }` or `{ stat, mul }`, and `Effect<Stat>` says which stats it may
+name. `statIndex` is the engine's [stat graph](../glossary.md#stat-graph): each node goes in once, counted `times`
+over (the ranks held), and `over(s).stat("stir")` gives `(1 + adds) × muls` as a Decimal. That is where the spoon's
+`statOf(s, "stir")` and the kettles' `statOf(s, "kettle")` came from. A graph per call is fine for four upgrades;
+chapter 8 declares the stats once as a feature the whole game reads.
 
 The screen asks the feature itself. `kitchen.open(state, id)` says whether a node is on offer by your `open`,
 `kitchen.check(state, id)` says why `buy(id)` would refuse it now (`"closed"` first, then the price or a missing

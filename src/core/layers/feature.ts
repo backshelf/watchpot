@@ -127,7 +127,7 @@ export function layers<const K extends string, L extends string, S extends strin
               out.push({
                 id: `${key}.buy.${id}.${u.id}`,
                 cost: { currency: l.shop ?? id, amount: D(u.cost) },
-                value: () => 1,
+                worth: () => 1,
                 apply: (store) => own(store).buy(id, u.id),
               });
         if (!q.flag(`autolevel:${id}`))
@@ -136,7 +136,7 @@ export function layers<const K extends string, L extends string, S extends strin
               out.push({
                 id: `${key}.level.${id}.${b.id}`,
                 cost: q.flag(`free:${id}`) ? undefined : { currency: b.pay, amount: q.buyableCost(id, b) },
-                value: () => 1,
+                worth: () => 1,
                 apply: (store) => own(store).level(id, b.id) > 0,
               });
         if (!q.canReset(id)) continue;
@@ -145,7 +145,7 @@ export function layers<const K extends string, L extends string, S extends strin
             ? !q.flag(`auto:${id}`) || s.layers[id].manual
             : !q.established(id) || q.gain(id).gte(q.amount(id).max(1));
         if (worth)
-          out.push({ id: `${key}.reset.${id}`, value: () => l.row, apply: (store) => own(store).reset(id) });
+          out.push({ id: `${key}.reset.${id}`, worth: () => l.row, apply: (store) => own(store).reset(id) });
       }
       return out;
     },

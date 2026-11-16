@@ -16,7 +16,7 @@ const shop = feature({
           {
             id: "good",
             cost: { currency: "gold", amount: D(10) },
-            value: () => 1,
+            worth: () => 1,
             apply: (store) => {
               (store as { setState(f: (s: object) => object): void }).setState((x) => ({
                 ...x,

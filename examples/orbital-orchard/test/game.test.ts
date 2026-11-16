@@ -52,7 +52,7 @@ describe("the game", () => {
     store.getState().wallet.credit(MAIN, 1e6);
     expect(store.getState().upgrades.buy(node.id).ok).toBe(true);
     store.getState().tick(1_000, clock.advance(1_000));
-    expect(store.getState().generators.output).toBeGreaterThan(1);
+    expect(store.getState().stats.output.toNumber()).toBeGreaterThan(1);
   });
 
   test("a pull spends premium, finds an item and counts toward the guarantee", () => {
@@ -88,7 +88,7 @@ describe("the game", () => {
     expect(s.generators.owned[first]).toBe(1);
     expect(s.collection.owned).toEqual(found);
     store.getState().tick(1_000, clock.advance(1_000));
-    expect(store.getState().generators.output).toBeGreaterThan(1);
+    expect(store.getState().stats.output.toNumber()).toBeGreaterThan(1);
   });
 
   test("the next orbit's mark is where a burn starts paying one more", () => {

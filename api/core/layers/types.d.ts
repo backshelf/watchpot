@@ -1,6 +1,5 @@
 import type { Decimal, DecimalSource } from "../decimal";
-import type { LiveEffect } from "../graph/live";
-import type { StatDef } from "../graph/stats";
+import type { Effect, StatCaps } from "../graph/stats";
 import type { LayerQuery } from "./query";
 /**
  * The layer model's types: what a layer is, what it holds, and what a game's content declares. Three type
@@ -25,7 +24,7 @@ export type AnyLayerFlag<L extends string> = LayerFlag<L> | (string & {});
 /** The groups a challenge can silence while it is entered: a layer's upgrades, holding, power or buyables. */
 export type LayerMuteGroup<L extends string> = `${L}.${"upgrades" | "holding" | "power" | "buyables"}`;
 /** One push on one stat, valued from the query. `add` lands on the base before any `mul`. */
-export type LayerEffect<L extends string, S extends string, B extends string> = LiveEffect<S, LayerQuery<L, S, B>>;
+export type LayerEffect<L extends string, S extends string, B extends string> = Effect<S, LayerQuery<L, S, B>>;
 /** Anything that carries effects and flags while it counts. */
 export interface LayerSource<L extends string, S extends string, B extends string> {
     readonly effects?: readonly LayerEffect<L, S, B>[];
@@ -231,8 +230,8 @@ export interface LayerModelDef<L extends string, S extends string, B extends str
     readonly layers: readonly LayerDef<L, S, B>[];
     /** Stat bases (default 1, and 0 for every layer's `passive` stat). */
     readonly stats?: Partial<Record<S, DecimalSource>>;
-    /** Softcaps and hardcaps per stat (as `liveIndex` takes them). */
-    readonly caps?: Partial<Record<S, StatDef>>;
+    /** Softcaps and hardcaps per stat (as `statIndex` takes them). */
+    readonly caps?: Partial<Record<S, StatCaps>>;
     readonly sources?: readonly LayerExtraSource<L, S, B>[];
     /** The breakdown's label for a layer's source, in the game's words (default: `source.label`). */
     readonly label?: (source: LayerSourceRef<L>) => string;

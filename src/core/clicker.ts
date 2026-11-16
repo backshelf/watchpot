@@ -218,7 +218,7 @@ export function clicker<
       const worth = D(def.power(s as unknown as G, { now })).toNumber();
       const move: Move<typeof s> = {
         id: `${def.key}:click`,
-        value: () => (Number.isFinite(worth) ? worth : Number.MAX_VALUE),
+        worth: () => (Number.isFinite(worth) ? worth : Number.MAX_VALUE),
         apply: (store) => {
           const live = store.getState() as unknown as { gameNow?: () => number };
           if (own(live).lastAt > 0 && own(live).lastAt === live.gameNow?.()) return false;

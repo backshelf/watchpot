@@ -2,18 +2,18 @@
 
 A run under a restriction, for a permanent reward. Entering a challenge resets the run and switches on its named rule
 flags, which the game's own rules read with `challengeRule`; when its goal holds it completes (counted, its best time
-kept, the run reset again, the flags off), and what the completions give feeds the stat bus. The feature holds the
-record, so it never resets with the run and survives the very reset it triggers.
+kept, the run reset again, the flags off), and what the completions give feeds the game's `stats`. The feature holds
+the record, so it never resets with the run and survives the very reset it triggers.
 
 ```ts
 import {
-  busOf,
   challengeRule,
   challenges,
   type Decimal,
   defineGame,
   type Effect,
   feature,
+  stats,
 } from "watchpot/core";
 import { wallet } from "./add-a-currency";
 import { TOY } from "./vocab";
@@ -28,7 +28,7 @@ export const trials = challenges({
       id: "no-gems",
       goal: (s: State) => s.wallet.gold.gte(1e6),
       maxCompletions: 3,
-      effects: (n): Effect[] => [{ stat: "toy.speed", mult: 1 + 0.5 * n }], // grows with each completion
+      effects: (n): Effect<"toy.speed">[] => [{ stat: "toy.speed", mul: 1 + 0.5 * n }], // grows with each completion
       rules: ["noGems"], // the flag the game's own rules read
     },
     { id: "short", unlocked: (s) => s.wallet.gold.gte(1e3), goal: (s) => s.wallet.gold.gte(1e9) },
@@ -50,22 +50,29 @@ export const shop = feature({
   }),
 });
 
+/** What the completions give, on the engine's `stats`: `s.stats["toy.speed"]`, the rewards counted as they land. */
+export const rewards = stats({
+  key: "stats",
+  vocab: TOY,
+  reach: () => [trials],
+  stats: { "toy.speed": { base: 1 } },
+  contributions: (s) => trials.rules.contributions(s.trials),
+});
+
 export const game = defineGame({
   id: "trials",
   save: { key: "trials.save", version: 1 },
-  features: [wallet, shop, trials],
+  features: [wallet, shop, trials, rewards],
   vocab: TOY,
 });
 // store.getState().trials.enter("no-gems") → null, or "unknown" | "locked" | "maxed" | "busy"
-// busOf(trials.rules.contributions(state.trials)) · store.getState().trials.exit()
-export const speedBus = (s: { trials: { completions: Record<string, number> } }) =>
-  busOf(trials.rules.contributions(s.trials));
+// store.getState().trials.exit()
 ```
 
 - **`challenges({ key, list, onComplete?, depth? })`** saves `{ active, startedAt, rules, completions, bestMs }` under
-  `key` (the stat bus's source prefix too) with `reset: "never"`. A profile reset clears it; a run reset never does.
-  `depth` (default 1) is how deep entering, leaving and completing reset: challenges of a higher layer reset at its
-  depth.
+  `key` (the contributions' source prefix too) with `reset: "never"`. A profile reset clears it; a run reset never
+  does. `depth` (default 1) is how deep entering, leaving and completing reset: challenges of a higher layer reset at
+  its depth.
 - **`ChallengeDef<G, E>`**: `id`, `unlocked?(state)`, `goal(state)`, `maxCompletions?` (default 1), `effects?(completions)
   → E[]` (the reward for the completions so far) and `rules?: string[]` (the restriction's flags).
 - **`enter(id)`** resets the run (the store's `resetRun`, inside its recipe) and marks the challenge active; it
@@ -74,5 +81,7 @@ export const speedBus = (s: { trials: { completions: Record<string, number> } })
   the time since entering kept if it is the best, the run reset at the pass's `now`, the flags cleared, then
   `onComplete(draft, id, completions)`. It runs on a catch-up too.
 - **Flags:** `challengeRule(state.<key>, "noUpgrades")` is true only while a challenge carrying the flag is active.
-- **Rules (`.rules`):** `check(state, id)`, `maxed(slice, id)` and `contributions(slice)`, sourced `<key>:<id>`, for
-  `busOf`.
+  A rule flag can also name a mute group of the stats (`mute:tools`), read in the stats feature's `muted`
+  ([showcases](showcases.md#7-a-challenge-rule-that-switches-off-a-group)).
+- **Rules (`.rules`):** `check(state, id)`, `maxed(slice, id)` and `contributions(slice)`, sourced `<key>:<id>`, for a
+  `stats` feature's `contributions`.

@@ -77,7 +77,7 @@ dependency builds nowhere else.
 ## What it is
 
 A framework-light idle-game engine, a Bun package in its own repository. Twelve entries: `watchpot/core` (kernel:
-Decimals, formatting, rng, time, clock, save codec, stat bus; the feature store, the vocabularies, the systems and the
+Decimals, formatting, rng, time, clock, save codec, stats; the feature store, the vocabularies, the systems and the
 events framework below), `watchpot/sim` (the sim lab), `watchpot/test` (the test kit), `watchpot/react` (the store
 hooks, the clocks, the runtime, boot, hotkeys, news, prefs, and the page layout; it reaches no stylesheet), `watchpot/devtools` (the
 dev panel and the sound desk, the one entry with a stylesheet; a game imports it in its dev build), `watchpot/kit` (effects with
@@ -248,13 +248,17 @@ export const store = createIdleStore(toy, {
   it. The small printers: `fmtTimes` (`×3.20`), `fmtPlus` (`+0.50`), `fmtRate` (`12.5/s`), `fmtCounted(value, [one,
   many])` (the singular exactly at 1) and `fmtPlayed(ms)` (`4h 25m`, `12m 03s`). `formatter(options)` binds `num`,
   `times`, `plus`, `rate` and `counted` to one set of options, so a game sets its notation once.
-- **A live stat graph.** For stats whose effects are functions of the state and that may outgrow `number`: index
-  content once with `liveIndex({ base, caps }).add(source, { label, owner, group, active })`, then read one state with
-  `index.over(q, { muted })`. `stat`, `parts`, `explain` and `flag` work each stat out lazily in Decimals and keep it
-  for the graph's life, so make a new graph after the state changes. The order and the cap types are the bus's
-  (`softcapDecimal` is its softcap past 1e308). A muted group loses its effects, never its flags, and an effect that
-  reads its own stat throws. Use the bus for constant rank effects, and the live graph when a value reads the state
-  or another stat (`docs/stat-graph.md`).
+- **Stats.** One stat system. An effect is `{ stat, add }` or `{ stat, mul }`, its amount a number or a function of the
+  state; one order, `(base + every add) × every mul`, then the softcap, then the hardcap, in Decimals.
+  `stats({ key, vocab, reach, stats: { id: { base, softcap?, hardcap? } }, flags?, sources?, contributions?, label?,
+  muted? })` is a feature that serves every stat as a derived value (`s.stats.output`, a Decimal, never saved, worked
+  out again only when a slice it read may have changed): each base declared once (no default), `sources` declared with
+  `label`, `owner`, `group`, `active` and `times`, and `contributions(state)` taking what the factories'
+  `contributions` hand back (one effect repeated by one source is one breakdown row with `times`). An effect may read
+  another stat; two that read each other throw. `select.explain(state, id)` is the breakdown (`parts` with `op`,
+  `value`, `times`, `quiet` and `muted`: a muted group's rows stay listed and stop counting, its flags stay raised).
+  Underneath, `statIndex({ base, caps }).add(source, meta)` and `.over(q, { muted, extra })` give one graph over one
+  state, for a state that never lives in the store (`docs/stat-graph.md`).
 - **Time away, in steps.** `offlineSteps(elapsedMs, { capMs, rate, maxSteps, minStepMs })` (formerly `catchUpSteps`, a
   deprecated alias) is `offlineCredit` plus `steps` and `stepMs`, for a game whose growth compounds and must replay its
   own tick rule over an absence (`docs/time-away.md`).
@@ -448,7 +452,7 @@ export const wallet = currencies({
 
 ## Upgrade trees
 
-Ranks bought one at a time over `GraphNode`s (`rankCost`, `checkRank`), each rank's effects landing on the stat bus.
+Ranks bought one at a time over `GraphNode`s (`rankCost`, `checkRank`), each rank's effects handed to the game's stats.
 
 - **`tree({ id, nodes, milestone? })`** is the rules over a ranks record the game keeps wherever it saves it:
   `node(id)`, `price(node, owned)` (null at the last rank), `check(id, ranks, balance)`, `buy(ranks, id, purse)` (checks,
@@ -458,7 +462,7 @@ Ranks bought one at a time over `GraphNode`s (`rankCost`, `checkRank`), each ran
   line of its price, ties in node order, until nothing more can be bought; a free node with no last rank is skipped
   unless a `limit` is given) and `contributions(ranks)`, sourced `<id>:<node>`. A
   `milestone: { every, effect }` adds `effect(e)` of each of a node's effects at every `every`th rank. A repeated node
-  or a requirement outside the tree throws. `rankContributions(source, nodes, ranks, milestone?)` is the bus part alone.
+  or a requirement outside the tree throws. `rankContributions(source, nodes, ranks, milestone?)` is that list alone.
 - **`BuyResult<C>`** is `{ ok: true, id, level }` or `{ ok: false, code }` with `code` `unknown`, `closed` (the
   tree feature's `open` refuses the node), `maxed`, `requires`
   (and `node`) or `cannot-afford` (and `currency`, `balance`, `price`).
@@ -466,8 +470,8 @@ Ranks bought one at a time over `GraphNode`s (`rankCost`, `checkRank`), each ran
   own, so the sim never buys from it until the game wraps it: `withMoves(tree, treeMoves(...))`.
 - **`upgradeTree({ key, nodes, wallet, milestone?, open?, reset? })`** is a tree as a feature: it saves `{ ranks }`
   under `key`, buys with `buy(id)`, `buyMax(id, limit?)` and `buyAll(limit?)` (`buyCheapest` through the feature's
-  `open`) from a currencies feature, and carries its rules as `.tree` for the game's stat bus
-  (`busOf(mine.tree.contributions(s.mine.ranks))`). `open(state, node)` holds a node back until the game offers it
+  `open`) from a currencies feature, and carries its rules as `.tree` for the game's `stats` feature
+  (`contributions: (s) => mine.tree.contributions(s.mine.ranks)`). `open(state, node)` holds a node back until the game offers it
   (a closed one refuses as `closed`); the feature's own readers `open(state, id)`, `check(state, id)` and
   `affordable(state, id, limit?)` read it the way its actions do, so a screen never offers a node `buy` refuses.
   `.tree`'s readers know nothing of `open`. A run reset clears the ranks unless `reset` says otherwise.
@@ -475,25 +479,25 @@ Ranks bought one at a time over `GraphNode`s (`rankCost`, `checkRank`), each ran
 ## Loadouts
 
 A few slots, the items a player holds, and what the slotted items do together. The rules are pure over a slots record
-the game keeps; the effect type is the game's own (the stat bus's `Effect` makes `contributions` feed `busOf`).
+the game keeps; the effect type is the game's own (with the engine's `Effect`, `contributions` feeds a `stats` feature).
 
 Shelf page: [docs/loadouts.md](docs/loadouts.md).
 
 ```ts
-import { busOf, type Effect, loadoutFeature } from "watchpot/core";
+import { type Effect, loadoutFeature } from "watchpot/core";
 
 export const kit = loadoutFeature({
   key: "kit",
   slots: [{ id: "head", kind: "hat" }, { id: "hand", kind: "tool" }, { id: "spare" }],
   items: [
     { id: "cap", kind: "hat", tags: ["wool"], effects: [{ stat: "speed", add: 1 }] },
-    { id: "mitt", kind: "tool", tags: ["wool"], effects: [{ stat: "speed", mult: 2 }] },
-  ] satisfies { id: string; kind: string; tags: string[]; effects: Effect[] }[],
+    { id: "mitt", kind: "tool", tags: ["wool"], effects: [{ stat: "speed", mul: 2 }] },
+  ] satisfies { id: string; kind: string; tags: string[]; effects: Effect<"speed">[] }[],
   sets: [{ id: "woollens", tag: "wool", tiers: [{ count: 2, effects: [{ stat: "speed", add: 10 }] }] }],
   owns: (s: { bag: { held: string[] } }, item) => s.bag.held.includes(item),
 });
 // store.getState().kit.equip("head", "cap") → null, or why not
-// busOf(kit.loadout.contributions(s.kit.slotted))
+// a stats feature's contributions: (s) => kit.loadout.contributions(s.kit.slotted)
 ```
 
 - **`loadout({ id, slots, items, sets? })`** is the rules: `fits(slot, item)` (a slot with a `kind` takes only that

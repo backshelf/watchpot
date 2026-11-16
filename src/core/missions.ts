@@ -200,7 +200,7 @@ export function missions<const K extends string, R, X = never, G extends object 
       for (const a of own(s).active)
         out.push({
           id: `${def.key}:claim:${a.id}`,
-          value: () => 1,
+          worth: () => 1,
           apply: (store) => actions(store).claim(a.id), // refused until it is back
         });
       if (freeSlots(state) > 0)
@@ -208,7 +208,9 @@ export function missions<const K extends string, R, X = never, G extends object 
           if (!m.available || m.available(state))
             out.push({
               id: `${def.key}:start:${m.id}`,
-              value: () => 1,
+              worth: () => 1,
+              // The same mission may fill several slots in one look.
+              repeat: true,
               apply: (store) => actions(store).start(m.id) === null,
             });
       return out;

@@ -1,14 +1,15 @@
 // @feature visitor
 import { type BuffRule, type BuffsState, buffs, type Effect, spawns } from "watchpot/core";
+import type { StatId } from "../content/words";
 import { BUFF, LIFE_MS, WAIT } from "../content/visitor";
 
 /** The visitor's bonus as the buffs kernel reads it: catching another while it runs starts the clock again. */
 const RULE: BuffRule = { id: BUFF.id, durationMs: BUFF.seconds * 1000, stack: "refresh" };
 
 /** The timed bonuses, on the engine's `buffs`: the visitor's, output ×`BUFF.mult` while it runs. */
-export const boosts = buffs<"boosts", Effect>({
+export const boosts = buffs<"boosts", Effect<StatId>>({
   key: "boosts",
-  list: [{ ...RULE, effects: () => [{ stat: "output", mult: BUFF.mult }] }],
+  list: [{ ...RULE, effects: () => [{ stat: "output", mul: BUFF.mult }] }],
 });
 
 /** The one kind of arrival, and the id `catch` takes. */

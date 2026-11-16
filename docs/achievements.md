@@ -2,18 +2,19 @@
 
 A wall of things a player does once, laid in rows of a fixed width: each earned at most once and kept for good, a
 global multiplier from the count earned and the rows completed (the usual achievement-wall model: ×1.03 each, ×1.25
-a row), and effects for the stat bus while earned. Most are checked by the feature every pass; some must hold for a
-while first, some are only true at a moment the game names, and the rest the game awards itself.
+a row), and effects for the game's stats while earned. Most are checked by the feature every pass; some must hold for
+a while first, some are only true at a moment the game names, and the rest the game awards itself.
 
 ```ts
-import { type Achievement, achievements, type Decimal, type Effect } from "watchpot/core";
+import { type Achievement, achievements, type Decimal, type Effect, stats } from "watchpot/core";
 
 type State = { wallet: { gold: Decimal; gems: Decimal } };
+type Fx = Effect<"toy.speed">;
 
-const LIST: Achievement<State, Effect>[] = [
+const LIST: Achievement<State, Fx>[] = [
   { id: "ten", name: "Pocket money", line: "Hold 10 gold.", when: (s) => s.wallet.gold.gte(10) },
   { id: "hoard", name: "Hoarder", line: "Hold 5 gems for 30 seconds.", when: (s) => s.wallet.gems.gte(5),
-    forMs: 30_000, effects: [{ stat: "speed", add: 1 }] },
+    forMs: 30_000, effects: [{ stat: "toy.speed", add: 1 }] },
   { id: "clean", name: "Clean slate", line: "Reset holding no gems.", secret: true, on: ["reset"],
     when: (s) => s.wallet.gems.lte(0) },
   { id: "found", name: "Found it", line: "Open the hidden door." }, // award("found")
@@ -23,10 +24,25 @@ export const wall = achievements({
   key: "wall",
   columns: 4,
   list: LIST,
-  rowEffects: () => [{ stat: "speed", mult: 1.25 }],
+  rowEffects: (): Fx[] => [{ stat: "toy.speed", mul: 1.25 }],
 });
 // before the reset: store.getState().wall.notify("reset")
-// wall.board.power(s.wall.earned, { each: 1.03, row: 1.25 }); busOf(wall.board.contributions(s.wall.earned))
+
+/** What the wall gives: the global multiplier as a source, the earned effects and full rows as contributions. */
+export const bonuses = stats({
+  key: "stats",
+  vocab: TOY,
+  reach: () => [wall],
+  stats: { "toy.speed": { base: 1 } },
+  sources: [
+    {
+      label: "The wall",
+      owner: "wall",
+      effects: [{ stat: "toy.speed", mul: (q) => wall.board.power(q.wall.earned, { each: 1.03, row: 1.25 }) }],
+    },
+  ],
+  contributions: (s) => wall.board.contributions(s.wall.earned),
+});
 ```
 
 Example: [`examples/achievements.ts`](examples/achievements.ts).

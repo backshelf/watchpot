@@ -65,7 +65,7 @@ does. Its effects are optional; a buff can be a bare named timer. Taught in
 ## Bus (sound)
 
 A channel of the sound mix that a cue plays on. Five exist from the start: `sfx`, `ui`, `music`, `ambience` and
-`voice`. Not to be confused with the stat bus. Taught in [chapter 11](guide/11-look-and-sound.md#sound-the-smallest-correct-form).
+`voice`. Nothing to do with the stats. Taught in [chapter 11](guide/11-look-and-sound.md#sound-the-smallest-correct-form).
 Reference: [sound-mix](sound-mix.md).
 
 ## Catch-up
@@ -102,8 +102,9 @@ change and applies it only with `--write`. Taught in
 
 ## Contribution
 
-An effect together with where it came from: `{ source, effect }`. Upgrade trees, buffs and achievements all hand back
-contributions for the stat bus. Taught in [chapter 8](guide/08-effects.md#stats-and-effects). Reference:
+An effect together with where it came from: `{ source, effect }`, the source `<feature key>:<id>`. Upgrade trees,
+buffs, achievements, loadouts, levels and challenges all hand back contributions, which a `stats` feature takes in its
+`contributions`; one effect given several times by one source is one breakdown row with `times`. Taught in [chapter 8](guide/08-effects.md#stats-and-effects). Reference:
 [the stat graph](stat-graph.md).
 
 ## Crit
@@ -171,8 +172,9 @@ action is not allowed: `wallet.draft.credit(s, "bubbles", 1)`. Taught in
 
 ## Effect
 
-One change to a stat, as data: an amount to add or a factor to multiply by, such as `{ stat: "heat", mult: 1.25 }`.
-Upgrades, buffs and achievements carry effects; the stat bus folds them. Taught in
+One change to a stat, as data: an amount to add or a factor to multiply by, such as `{ stat: "heat", mul: 1.25 }` or
+`{ stat: "heat", add: (q) => q.stove.burners }`; the amount is a number or a function of the state. Upgrades, buffs and
+achievements carry effects; the game's `stats` feature folds them. Taught in
 [chapter 8](guide/08-effects.md#stats-and-effects). Reference: [the stat graph](stat-graph.md).
 
 ## Factory
@@ -277,12 +279,6 @@ all but text that is not a save. Taught in
 
 Experience tracks with curves that read both ways (level from experience and back). Shown in
 [the showcases](showcases.md#8-levels-that-count-time-on-display). Reference: [levels](levels.md).
-
-## Live graph
-
-The engine's second stat tool (`liveIndex`): sources whose effects are functions of the state, worked out in
-Decimals, with flags, mute groups and stats that read other stats. Taught in
-[chapter 8](guide/08-effects.md#the-live-graph). Reference: [the stat graph](stat-graph.md).
 
 ## Migration
 
@@ -485,7 +481,7 @@ The state one feature holds, under its key: the stove's slice is `{ burners, off
 ## Softcap
 
 A point past which a stat grows more slowly: above `start`, the value is bent by `power`. A hardcap is a ceiling it
-never passes. Taught in [chapter 8](guide/08-effects.md#the-stat-bus). Reference: [the stat graph](stat-graph.md).
+never passes. Taught in [chapter 8](guide/08-effects.md). Reference: [stats](stat-graph.md#effects).
 
 ## Spawn
 
@@ -499,12 +495,20 @@ A named number that many things can change, such as Simmer's `heat` (the stove's
 Effects name the stat they change. Taught in [chapter 8](guide/08-effects.md#stats-and-effects); met first in
 [chapter 5](guide/05-a-real-game.md#1-content-the-stations-and-the-supplies). Reference: [the stat graph](stat-graph.md).
 
-## Stat bus
+## Stat graph
 
-The one place every effect in the game is folded into named stats, once a pass: adds summed, multipliers multiplied,
-then the caps. The engine's is `busOf` and `statValue`. Taught in [chapter 8](guide/08-effects.md#the-stat-bus); met
-first in [chapter 5](guide/05-a-real-game.md#3-the-stats-where-effects-become-numbers). Reference:
-[the stat graph](stat-graph.md).
+What the `stats` feature is built on (`statIndex`): sources indexed once, read over one state, each stat worked out in
+Decimals on first read, with flags, mute groups, `times` and stats that read other stats. A game uses it directly for
+a state that never lives in the store (scoring a loadout being weighed). Reference:
+[stats](stat-graph.md#one-graph-by-hand-statindex).
+
+## Stats feature
+
+The one place every effect in the game is folded into named stats: `stats({ key, vocab, stats, sources,
+contributions })`. Each stat's base is declared once; each stat is a derived value on the state (`s.stats.output`, a
+Decimal), never saved, worked out again only when something it read changes. Adds are summed, multipliers multiplied,
+then the caps. Taught in [chapter 8](guide/08-effects.md); met first in
+[chapter 5](guide/05-a-real-game.md#3-the-stats-where-effects-become-numbers). Reference: [stats](stat-graph.md).
 
 ## Step
 

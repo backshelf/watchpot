@@ -1,5 +1,4 @@
 import {
-  busOf,
   createGameStorage,
   createIdleStore,
   createMemoryBackend,
@@ -10,13 +9,13 @@ import {
   type LoadoutItem,
   loadoutFeature,
   type Slotted,
-  statValue,
+  statIndex,
 } from "watchpot/core";
 
 /** Simmer's stove kit: three slots, and the pans and spoons a player has found. */
-export const UTENSILS: LoadoutItem<Effect>[] = [
+export const UTENSILS: LoadoutItem<Effect<"simmer">>[] = [
   { id: "glass-lid", kind: "lid", tags: ["glass"], effects: [{ stat: "simmer", add: 1 }] },
-  { id: "copper-lid", kind: "lid", tags: ["copper"], effects: [{ stat: "simmer", mult: 1.5 }] },
+  { id: "copper-lid", kind: "lid", tags: ["copper"], effects: [{ stat: "simmer", mul: 1.5 }] },
   { id: "wooden-spoon", kind: "spoon", effects: [{ stat: "simmer", add: 2 }] },
   { id: "copper-ladle", kind: "spoon", tags: ["copper"], effects: [{ stat: "simmer", add: 1 }] },
   { id: "copper-trivet", tags: ["copper"], effects: [] },
@@ -40,8 +39,8 @@ export const kit = loadoutFeature({
       id: "copperware",
       tag: "copper",
       tiers: [
-        { count: 2, effects: [{ stat: "simmer", mult: 1.2 }] },
-        { count: 3, effects: [{ stat: "simmer", mult: 2 }] },
+        { count: 2, effects: [{ stat: "simmer", mul: 1.2 }] },
+        { count: 3, effects: [{ stat: "simmer", mul: 2 }] },
       ],
     },
   ],
@@ -54,9 +53,22 @@ export const game = defineGame({
   features: [cupboard, kit],
 });
 
-/** Bubbles a second from the pot's base of 1, with everything slotted. */
+/** The pot's one stat on the engine's stat graph: a base of 1 bubble a second. */
+const POT = statIndex<"simmer", never, null>({ base: () => 1 });
+
+/**
+ * Bubbles a second with `slotted` in the kit: its contributions handed to one graph. A loadout that is only being
+ * weighed (the auto-fill below tries many) never lives in the state, so it is read off the graph, not a stats feature.
+ */
 export const simmerRate = (slotted: Slotted) =>
-  statValue(busOf(kit.loadout.contributions(slotted)), "simmer", 1);
+  POT.over(null, {
+    extra: () =>
+      kit.loadout
+        .contributions(slotted)
+        .map(({ source, effect }) => ({ effect, meta: { label: source, owner: "kit" } })),
+  })
+    .stat("simmer")
+    .toNumber();
 
 if (import.meta.main) {
   const store = createIdleStore(game, {

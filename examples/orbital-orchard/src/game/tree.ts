@@ -21,7 +21,7 @@ interface TreeMoveState {
 
 /**
  * The upgrade tree: ranks bought with the main currency, saved under `upgrades`, cleared by a prestige. Its effects
- * reach the stats through `statBus`.
+ * reach the stats as contributions (`stats.ts`).
  */
 export const upgrades = withMoves(
   upgradeTree({ key: "upgrades", nodes: NODES, wallet }),
@@ -36,12 +36,12 @@ export const upgrades = withMoves(
           id: `upgrade:${node.id}`,
           cost: price,
           // Worth: the production a rank adds a second (offline counts at half, gain at a tenth).
-          value: (st) => {
+          worth: (st) => {
             const rate = st.generators.perSecond.toNumber();
             return node.effects.reduce((sum, e) => {
-              if (e.stat === "output") return sum + (rate * ((e.mult ?? 1) - 1)) / 1;
-              if (e.stat === "offline") return sum + rate * (e.add ?? 0) * 0.5;
-              return sum + rate * ((e.mult ?? 1) - 1) * 0.1;
+              if (e.stat === "output") return sum + (rate * (Number(e.mul ?? 1) - 1)) / 1;
+              if (e.stat === "offline") return sum + rate * Number(e.add ?? 0) * 0.5;
+              return sum + rate * (Number(e.mul ?? 1) - 1) * 0.1;
             }, 0);
           },
           apply: (store) => store.getState().upgrades.buy(node.id).ok,

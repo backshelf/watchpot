@@ -13,9 +13,9 @@ import s from "./screens.module.css";
 /** What a rank of an effect does, in the stat's own name. */
 const effectText = (e: Effect) => {
   const name = STAT[e.stat as StatId];
-  return e.mult !== undefined
-    ? `${name} ×${e.mult} a rank`
-    : `${name} +${Math.round((e.add ?? 0) * 100)}% a rank`;
+  return e.mul !== undefined
+    ? `${name} ×${e.mul} a rank`
+    : `${name} +${Math.round(Number(e.add ?? 0) * 100)}% a rank`;
 };
 
 /** What the tree says around its nodes. */

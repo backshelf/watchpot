@@ -1,5 +1,5 @@
 import { type Decimal, ZERO } from "watchpot/core";
-import type { StatsState } from "./stats";
+import type { Stats } from "./stats";
 // @if generators
 import { MAIN } from "../content/words";
 // @end
@@ -11,7 +11,7 @@ import { chain } from "./dimensions";
 
 /** What the income is read from: the stats and the core's state. */
 export interface IncomeSources {
-  readonly stats: StatsState;
+  readonly stats: Stats;
   // @if generators
   readonly generators: { readonly perSecond: Readonly<Record<string, Decimal>> };
   // @end

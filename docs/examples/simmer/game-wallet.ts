@@ -49,8 +49,8 @@ export const AWAY_CAP_MS = 2 * 60 * 60 * 1000;
 /** The stove's own rate, in bubbles a second, before anything multiplies it. */
 export const flameOf = (burners: number) => D(burners * BURNER_PER_SECOND);
 
-/** The game's words: one currency. */
-export const WORDS = vocab({ currencies: ["bubbles"] });
+/** The game's words: one currency, and the stat chapter 8 adds up. */
+export const WORDS = vocab({ currencies: ["bubbles"], stats: ["heat"] });
 
 export type Currency = CurrencyOf<typeof WORDS>; // "bubbles"
 

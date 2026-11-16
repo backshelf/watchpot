@@ -3,8 +3,13 @@ import { type Rng, type Schedule } from "./schedule";
 import type { SimWorld } from "./world";
 /**
  * The auto-player: plays any game from its features' `moves`, with no persona written for it. At each look it buys
- * the move of the best value per share of its currency held, again and again while one is affordable, then takes
- * every free move (a claim, an open), and goes round again while either did anything.
+ * the move of the best worth per share of its currency held, again and again while one is affordable, then takes
+ * each free move (a claim, an open) once, and goes round again while either did anything.
+ *
+ * What a purchase is worth is worked out where it can be: the game names one `objective` (what the player is
+ * trying to grow, usually income a second), and a purchase's worth is the objective after buying it less the
+ * objective before, tried on the state and put back. A move that does not move the objective at once (an unlock,
+ * an offline cap, a reset) comes to nothing that way, and says its own `worth`.
  */
 /** What the auto-player reads of a game: its features (a `Game` is one). */
 export interface Playable {
@@ -12,36 +17,60 @@ export interface Playable {
 }
 /** Every feature's moves now, in the game's feature order. */
 export declare function movesOf<S extends object>(game: Playable, state: S): Move<S>[];
-/** Options for `autoPlayer`: how to read a balance by currency, and the most moves one look may make. */
+/** Options for `autoPlayer`: the objective, how to read a balance by currency, and the limits of one look. */
 export interface AutoPlayerOptions<S> {
+    /**
+     * What the player is trying to grow, read off the state: usually income a second. With it, a move that states
+     * no `worth` is worth what buying it adds to this. Without it, every move must state its `worth` (the first one
+     * that does not is named in the error).
+     */
+    objective?(state: S): number;
     /**
      * What the state holds of a currency a move's cost names: the auto-player buys only what this covers. Default,
      * when the game has exactly one `currencies` feature, its balance of that currency; otherwise required.
      */
     balance?(state: S, currency: string): Decimal;
-    /**
-     * The most moves one look makes, against a move that never stops going through. Default 1,000. A free move whose
-     * `apply` keeps succeeding is taken again and again until this runs out, so a free move should refuse once taken.
-     */
+    /** The most moves one look makes, against a purchase that never stops going through. Default 1,000. */
     maxMoves?: number;
+    /**
+     * How many looks a worked-out worth is kept for while nothing is bought (default 10). Every purchase and free
+     * move drops what was kept; 1 works each one out afresh at every look.
+     */
+    worthLooks?: number;
+    /** Silences the warning for features that look purchasable and declare no moves. */
+    quiet?: boolean;
 }
 /** What a look did: purchases and free moves taken. */
 export interface LookResult {
     bought: number;
     free: number;
 }
-/** A store whose state the auto-player reads (the game's state `S`); a move's `apply` gets it whole. */
+/**
+ * A store whose state the auto-player reads (the game's state `S`); a move's `apply` gets it whole. `trial`, when
+ * the store has one (the plain store does), runs something and puts the state back; without it the auto-player
+ * keeps the state it read and sets it back, which a store of immutable states (the real one) allows.
+ */
 export interface AutoStore<S> {
     getState(): S;
+    trial?<T>(run: () => T): T;
+}
+/** The auto-player `autoPlayer` makes. */
+export interface AutoPlayer<S> {
+    /** Plays one look. */
+    look(store: AutoStore<S>): LookResult;
+    /**
+     * The moves with no `worth` of their own whose worked-out worth has never come above nothing: the auto-player
+     * has never bought them, and each wants a hand-written `worth`. Read it at the end of a run.
+     */
+    blind(): readonly string[];
 }
 /**
- * The auto-player for a game: `look(store)` plays one look. A purchase's worth is its `value` over the
- * share of its currency it spends (`amount / balance`), so a gem and a gold purchase compare; ties go to the first
- * declared. A move whose `apply` refuses is not tried again in the look; one valued at or below 0 is never taken.
+ * The auto-player for a game: `look(store)` plays one look. A purchase's score is its worth over the share of its
+ * currency it spends (`amount / balance`), so a gem and a gold purchase compare; ties go to the first declared. A
+ * move whose `apply` refuses is not tried again in the look; one worth nothing or less is never taken; a free
+ * move is taken once a look unless it says `repeat`.
  */
-export declare function autoPlayer<S extends object>(game: Playable, { balance: given, maxMoves }?: AutoPlayerOptions<S>): {
-    look(store: AutoStore<S>): LookResult;
-};
+export declare function autoPlayer<S extends object>(game: Playable, { balance: given, maxMoves, objective, worthLooks, quiet }?: AutoPlayerOptions<S>): AutoPlayer<S>;
 /** One look's place in the days: its day, its session (from 0, across the run), its index in the session. */
 export interface LookAt {
     day: number;

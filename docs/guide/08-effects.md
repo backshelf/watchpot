@@ -55,14 +55,14 @@ the stove makes. An [effect](../glossary.md#effect) is one change to a stat: an 
 by. In the engine an effect is a plain object, the `Effect` type from `watchpot/core`:
 
 ```ts
-{ stat: "heat", mult: 1.25 }
+{ stat: "heat", mul: 1.25 }
 { stat: "heat", add: 0.5 }
 ```
 
 An effect with where it came from is a [contribution](../glossary.md#contribution):
 
 ```ts
-{ source: "kitchen:copper", effect: { stat: "heat", mult: 1.25 } }
+{ source: "kitchen:copper", effect: { stat: "heat", mul: 1.25 } }
 ```
 
 The source is a string. It is what the tooltip later turns back into a name the player reads.
@@ -79,7 +79,7 @@ Here are Simmer's four, each declared where it lives. First the upgrade, a coppe
 <!-- example-code: guide-effects.ts -->
 
 ```ts
-const COPPER: GraphNode<Effect, "bubbles"> = {
+const COPPER: GraphNode<Effect<"heat">, "bubbles"> = {
   id: "copper",
   name: "Copper base",
   line: "Spreads the heat.",
@@ -87,7 +87,7 @@ const COPPER: GraphNode<Effect, "bubbles"> = {
   costGrowth: 3,
   maxLevel: 5,
   requires: [],
-  effects: [{ stat: "heat", mult: 1.25 }],
+  effects: [{ stat: "heat", mul: 1.25 }],
 };
 export const kitchen = upgradeTree({ key: "kitchen", nodes: [COPPER], wallet });
 ```
@@ -102,10 +102,10 @@ The buff, a rolling boil:
 <!-- example-code: guide-effects.ts -->
 
 ```ts
-export const boosts = buffs<"boosts", Effect>({
+export const boosts = buffs<"boosts", Effect<"heat">>({
   key: "boosts",
   list: [
-    { id: "rolling-boil", durationMs: 30_000, stack: "refresh", effects: () => [{ stat: "heat", mult: 3 }] },
+    { id: "rolling-boil", durationMs: 30_000, stack: "refresh", effects: () => [{ stat: "heat", mul: 3 }] },
   ],
 });
 ```
@@ -115,15 +115,16 @@ export const boosts = buffs<"boosts", Effect>({
 A [buff](../glossary.md#buff) runs from the [game time](../glossary.md#game-time) it started for `durationMs`. Its
 `effects` is a function of its stacks and strength, because a stacking buff can be worth more the more it stacks. In
 chapter 6 the rolling boil had no `effects` and was read by name where it applied; here it says what it does, so the
-bus can count it with everything else. The second type argument, `Effect`, says what kind of effect the list holds;
-the engine's types are generic over it so a game can bring its own effect shape (more on that at the end).
+stats can count it with everything else. The second type argument, `Effect<"heat">`, says what kind of effect the list
+holds (and that the only stat it may name is `heat`); the engine's types are generic over it so a game can bring its
+own effect shape (more on that at the end).
 
 The medal:
 
 <!-- example-code: guide-effects.ts -->
 
 ```ts
-export const medals = achievements({
+export const medals = achievements<"medals", Simmer, Effect<"heat">>({
   key: "medals",
   columns: 5,
   list: [
@@ -131,7 +132,7 @@ export const medals = achievements({
       id: "ten-burners",
       name: "Full stove",
       line: "Light ten burners.",
-      effects: [{ stat: "heat", mult: 1.1 }],
+      effects: [{ stat: "heat", mul: 1.1 }],
       when: (s: Simmer) => s.stove.burners >= 10,
     },
   ],
@@ -145,7 +146,7 @@ And the milestone, which no engine system makes for you here, so you write the c
 <!-- example-code: guide-effects.ts -->
 
 ```ts
-function milestones(s: Pick<Simmer, "stove">): Contribution[] {
+function milestones(s: Pick<Simmer, "stove">): Contribution<"heat">[] {
   const reached = Math.floor(s.stove.burners / 25);
   return reached > 0 ? [{ source: "milestone", effect: { stat: "heat", add: 0.5 * reached } }] : [];
 }
@@ -156,50 +157,64 @@ function milestones(s: Pick<Simmer, "stove">): Contribution[] {
 Notice what none of these mention: the stove's rate. The copper base does not know a stove exists. It says "heat,
 times 1.25", and that is the whole of its job.
 
-## The stat bus
+## The stats feature
 
-The [stat bus](../glossary.md#stat-bus) is where the claims meet. `busOf` takes every contribution in one list and
-sums them per stat: the adds into one total, the multipliers into one product. `statValue` then reads one stat off it.
+The [stats feature](../glossary.md#stats-feature) is where the claims meet. `stats` declares each stat once, with its
+base and caps, takes every contribution in one list, and serves each stat on the state as a Decimal: `s.stats.heat`.
 
 <!-- example-code: guide-effects.ts -->
 
 ```ts
-export const HEAT: StatDef = { softcap: { start: 20, power: 0.5, label: "The pot spits over the rim" } };
+export const HEAT: StatCaps = { softcap: { start: 20, power: 0.5, label: "The pot spits over the rim" } };
+```
 
-export function busFor(s: Cooking, now: number): StatBus {
-  return busOf([
+`docs/examples/guide-effects.ts`
+
+<!-- example-code: guide-effects.ts -->
+
+```ts
+export const heat = stats({
+  key: "stats",
+  vocab: WORDS,
+  reach: () => SOURCES,
+  stats: { heat: { base: 1, ...HEAT } },
+  contributions: (s) => [
     ...kitchen.tree.contributions(s.kitchen.ranks),
-    ...boosts.contributions(s.boosts, now),
+    // The buffs' own step ends a buff whose time is up at the start of every pass, so each one listed is running.
+    ...boosts.contributions(s.boosts, Number.NEGATIVE_INFINITY),
     ...medals.board.contributions(s.medals.earned),
     ...milestones(s),
-  ]);
-}
+  ],
+  label: (source) => NAMES[source] ?? source,
+});
 ```
 
 `docs/examples/guide-effects.ts`
 
 Line by line:
 
-- `HEAT` is the stat's definition, a `StatDef`. It holds the caps, and nothing else. A
-  [softcap](../glossary.md#softcap) slows a stat down past `start`: above it the value is `value^power × start^(1 -
-  power)`, so with `power` 0.5 it grows like a square root. The `label` is the line a player reads while the softcap is
-  biting. A `hardcap` would be a ceiling it never passes. Heat has no hardcap.
-- `Cooking` is the state the bus reads: chapter 4's features and the three above, worked out with `StateOf`.
+- `HEAT` holds the caps, a `StatCaps`. A [softcap](../glossary.md#softcap) slows a stat down past `start`: above it
+  the value is `value^power × start^(1 - power)`, so with `power` 0.5 it grows like a square root. The `label` is the
+  line a player reads while the softcap is biting. A `hardcap` would be a ceiling it never passes. Heat has no hardcap.
+- `vocab: WORDS` is chapter 4's words, whose `stats: ["heat"]` names the one stat; `stats` must give every stat
+  its `base`. There is no default base: 1 here, because heat multiplies.
+- `reach: () => SOURCES` is the state the contributions read: chapter 4's features and the three above.
 - `kitchen.tree.contributions(ranks)` is every rank held, sourced `kitchen:<node>`.
-- `boosts.contributions(state, now)` is every buff running at `now`, sourced `boosts:<id>`. It needs the time because
-  a buff's running is a question about time.
+- `boosts.contributions(state, now)` is every buff running at `now`, sourced `boosts:<id>`. A stat reads the state and
+  never the clock, and the buffs end themselves at the start of each pass, so every buff still listed counts.
 - `medals.board.contributions(earned)` is every earned medal's effects, sourced `medals:<id>`.
-- `busOf` folds the lot. It does not care who said what.
+- `label` turns a source id into the name a player reads (the table is in the tooltip section below).
 
 Then the one order, the same everywhere in the engine:
 
 ```
-(base + every add) × every mult, then the softcap, then the hardcap
+(base + every add) × every mul, then the softcap, then the hardcap
 ```
 
-`statValue(bus, "heat", 1, HEAT)` reads heat with a base of 1. With three copper ranks, the rolling boil, the medal
-and 25 burners, that is (1 + 0.5) × 1.25³ × 3 × 1.1 = ×9.66, under the softcap's start, so the softcap does nothing
-yet.
+With three copper ranks, the rolling boil, the medal and 25 burners, heat is (1 + 0.5) × 1.25³ × 3 × 1.1 = ×9.66,
+under the softcap's start, so the softcap does nothing yet. The stat is never saved: it is worked out on load, and
+again whenever a slice it read changes (a rank bought, a buff started), so whatever reads `s.stats.heat` reads it
+current.
 
 The order is the answer to the second problem from the if-chain. An add is always worth the same no matter which file
 it came from, because every add lands before every multiplier.
@@ -207,28 +222,22 @@ it came from, because every add lands before every multiplier.
 ## Reading the stat where it applies
 
 The stove sets its rate in its own `rates.flame` step, and chapter 3's lid doubles it in `rates.trap`. Heat applies the
-same way: a small feature folds the bus at the pass's `now` and multiplies the stove's rate by the result, right after
-the lid.
+same way: a small feature multiplies the stove's rate by `s.stats.heat`, right after the lid.
 
 <!-- example-code: guide-effects.ts -->
 
 ```ts
-/** Heat as the stove reads it: the bus folded at `now`, with a base of 1 and the softcap. */
-export const heatAt = (s: Cooking, now: number): number => statValue(busFor(s, now), "heat", 1, HEAT);
-
-/** The fire: works heat out where it applies, and multiplies the stove's rate by it. It knows no copper, buff or medal. */
 export const fire = feature({
   key: "fire",
-  reach: SOURCES,
+  reach: [...SOURCES, heat],
   initial: () => ({}),
-  // A fresh state (a new store, a load, a reset) gets the stove's full rate before the first pass.
-  derive: (s, ctx) => {
-    s.stove.perSecond = s.stove.perSecond.mul(heatAt(s, ctx.now));
-  },
   steps: {
     rates: {
-      stoke: (s, ctx) => {
-        s.stove.perSecond = s.stove.perSecond.mul(heatAt(s, ctx.now));
+      stoke: {
+        after: "lid.rates.trap",
+        run: (s) => {
+          s.stove.perSecond = s.stove.perSecond.mul(s.stats.heat);
+        },
       },
     },
   },
@@ -238,9 +247,7 @@ export const game = defineGame({
   id: "simmer",
   save: { key: "simmer.save", version: 1 },
   vocab: WORDS,
-  features: [...SOURCES, fire],
-  // The stove sets its rate, the lid doubles it, then the fire multiplies it by heat.
-  order: { rates: [...SIMMER_RATES, "fire.rates.stoke"] },
+  features: [...SOURCES, heat, fire],
 });
 ```
 
@@ -248,34 +255,24 @@ export const game = defineGame({
 
 You have seen every part of this in chapter 3; here is what each does for the stat.
 
-- `SOURCES` is chapter 4's features followed by the kitchen, the boosts and the medals. `reach: SOURCES` lets the fire
-  read all of them, and the game spreads the same list, so the two never disagree.
+- `reach: [...SOURCES, heat]` lets the fire read the stove and the stats, and the game lists the same features.
 - `initial: () => ({})`: the fire saves nothing. Heat is worked out from things that are saved, so saving it too would
   only give a load something to disagree with.
 - `steps: { rates: { stoke } }` multiplies the stove's rate every [pass](../glossary.md#pass), in the `rates`
-  [phase](../glossary.md#phase), before anything is paid in `produce`. The step has `ctx.now`, the pass's game time,
-  which is what `boosts.contributions` needs to know whether the rolling boil is running.
-- `derive` does the same whenever the state is made fresh: a new store, a load, an import, a reset. The stove and the
-  lid have a `derive` of their own for the same reason, and the three run in list order.
-- `order` pins the fire's step after the lid's, so heat multiplies the doubled rate.
+  [phase](../glossary.md#phase), before anything is paid in `produce`, and `after` pins it behind the lid's step, so
+  heat multiplies the doubled rate.
+- The stats feature has no step and no place in the order: its values are derived, current wherever they are read.
 
 The stove itself reads nothing new: its rate is set, doubled and multiplied by three steps that each know only their
-own part.
-
-A factory with a callback works the same way. A `generators` list's `mult(state, def, { now })` is handed game time
-too, so `(s, def, { now }) => statValue(busFor(s, now), "heat", 1, HEAT)` reads the bus where the generators apply it,
-with no step of your own.
-
-Folding the bus where it applies is right while one or two rules read a stat. A game where many rules read many stats,
-many times a pass, folds them once in its own `rates` step into fields marked `transient`, with the same function as
-its `derive`, and every rule reads the fields. That is what VOID IF REMOVED does
-([chapter 5, stop 3](05-a-real-game.md#3-the-stats-where-effects-become-numbers), and below).
+own part. A factory with a callback reads it the same way: a `generators` list's `mult: (s) => s.stats.heat` applies
+heat where the generators make their rate, with no step of your own.
 
 ## The tooltip
 
-Now the third problem: telling the player why. `explainStat` takes the same bus and the same arguments as `statValue`
-and returns a `StatBreakdown`: the base, the summed adds, the product of the multipliers, the value before and after the
-caps, which cap is biting, and `sources`, every contribution to that stat in the order they were collected.
+Now the third problem: telling the player why. `heat.select.explain(state, "heat")` returns a `StatBreakdown`: the
+base, the summed adds, the product of the multipliers, the value before and after the caps, which cap is biting, and
+`parts`, one row per source in the order they arrived, each with its `label`, its `op`, what it comes to (`value`) and
+how many times over it counted (`times`).
 
 <!-- example-code: guide-effects.ts -->
 
@@ -286,20 +283,16 @@ const NAMES: Record<string, string> = {
   "medals:ten-burners": "Full stove",
   milestone: "Burner milestones",
 };
+```
 
-export function whyHeat(s: Cooking, now: number): string[] {
-  const b = explainStat(busFor(s, now), "heat", 1, HEAT);
-  const bySource = new Map<string, { add: number; mult: number }>();
-  for (const { source, effect } of b.sources) {
-    const row = bySource.get(source) ?? { add: 0, mult: 1 };
-    row.add += effect.add ?? 0;
-    row.mult *= effect.mult ?? 1;
-    bySource.set(source, row);
-  }
-  const lines = [...bySource].map(([source, row]) => {
-    const amount = row.add !== 0 ? fmtPlus(row.add) : fmtTimes(row.mult);
-    return `${amount}  ${NAMES[source] ?? source}`;
-  });
+`docs/examples/guide-effects.ts`
+
+<!-- example-code: guide-effects.ts -->
+
+```ts
+export function whyHeat(s: StateOf<typeof game.features>): string[] {
+  const b = heat.select.explain(s, "heat");
+  const lines = b.parts.map((p) => `${p.op === "add" ? fmtPlus(p.value) : fmtTimes(p.value)}  ${p.label}`);
   lines.push(`= ${fmtTimes(b.value)}${b.softcapped ? `  (${b.softcapped})` : ""}`);
   return lines;
 }
@@ -307,13 +300,13 @@ export function whyHeat(s: Cooking, now: number): string[] {
 
 `docs/examples/guide-effects.ts`
 
-Two things here are work the engine leaves to you, and it is fair to say so.
+Two things to see here.
 
-- **Sources are ids, not names.** A contribution carries `kitchen:copper`, so the tooltip needs its own table to turn
-  that into "Copper base". In a real game you would build that table from the content (every node's `name`, every
-  buff's) rather than by hand.
-- **One rank is one row.** Three copper ranks arrive as three contributions, so the tooltip groups them by source and
-  multiplies them together before showing one line.
+- **Sources are ids, not names.** A contribution carries `kitchen:copper`, so the feature's `label` turns it into
+  "Copper base" through a table. In a real game you would build that table from the content (every node's `name`,
+  every buff's) rather than by hand.
+- **One rank is one row.** Three copper ranks arrive as three contributions of the same effect, and the feature
+  counts them as one row with `times: 3` whose value is 1.25³.
 
 Run the file and the tooltip prints:
 
@@ -330,61 +323,52 @@ Run the file and the tooltip prints:
 On a page, these lines go inside the `Tooltip` from `watchpot/ui` over the stove's rate (chapter 10 builds the page).
 The function itself is plain TypeScript, which is why it can live beside the game and be checked in a test.
 
-## The live graph
+## An effect that reads the state
 
-The bus has one limit you will hit: an effect is a constant. "×1.25" is a number written in content. Some effects are
-not like that. "Heat times the log of the bubbles held" changes every tick, and "one stat feeds another" needs the
-first stat worked out before the second.
+An amount need not be a constant. "×1.25" is a number written in content, but "heat times the log of the bubbles
+held" changes every tick, and "one stat feeds another" needs the first stat worked out before the second. An effect's
+amount may be a function of the state: `{ stat: "heat", mul: (s) => s.wallet.bubbles.add(1).log10() }`, and in a
+`stats` feature's own `sources` it may read another stat (`(q) => q.stats.luck.sqrt()`).
 
-For those the engine has a second tool, the [live graph](../glossary.md#live-graph) (`liveIndex`, on the shelf as
-[The stat graph](../stat-graph.md)). You index each source once, from content, with effects whose `value` is a function
-of the state:
+The feature is built on the [stat graph](../glossary.md#stat-graph) (`statIndex`, on the shelf as
+[Stats](../stat-graph.md)), which a game can also use by hand, for a state that is never in the store. Each source is
+indexed once, with a `label`, an `owner`, and when and how many times over it counts:
 
 <!-- example-code: guide-effects.ts -->
 
 ```ts
-const LIVE = liveIndex<"heat", never, Cooking>({ caps: { heat: HEAT } });
-LIVE.add(
-  { effects: [{ stat: "heat", op: "mul", value: (s) => 1.25 ** (s.kitchen.ranks.copper ?? 0) }] },
-  { label: "Copper base", owner: "kitchen", active: (s) => (s.kitchen.ranks.copper ?? 0) > 0 },
+const POT = statIndex<"heat", never, Cooking>({ base: () => 1, caps: { heat: HEAT } });
+POT.add(
+  { effects: [{ stat: "heat", mul: 1.25 }] },
+  { label: "Copper base", owner: "kitchen", times: (s) => s.kitchen.ranks.copper ?? 0 },
 );
-LIVE.add(
-  // Multiplied by the log of the bubbles held: it changes every tick, so no fixed effect could carry it.
-  { effects: [{ stat: "heat", op: "mul", value: (s) => s.wallet.bubbles.add(1).log10() }] },
+POT.add(
+  // Multiplied by the log of the bubbles held: it changes every tick, so no fixed number could carry it.
+  { effects: [{ stat: "heat", mul: (s) => s.wallet.bubbles.add(1).log10() }] },
   { label: "A full pot", owner: "wallet", active: (s) => s.wallet.bubbles.gte(1000) },
 );
 
-export function liveHeat(s: Cooking): { value: Decimal; lines: string[] } {
-  const b = LIVE.over(s).explain("heat");
+/** Heat and its breakdown over one state, worked out on first read. */
+export function potHeat(s: Cooking): { value: Decimal; lines: string[] } {
+  const b = POT.over(s).explain("heat");
   return { value: b.value, lines: b.parts.map((p) => `${fmtTimes(p.value)}  ${p.label}`) };
 }
 ```
 
 `docs/examples/guide-effects.ts`
 
-What is different from the bus:
-
-- **Each effect's `value` reads the state.** The copper base computes its ranks' worth itself, so it is one effect,
-  not one per rank.
-- **Each source has a `label`, an `owner` and an `active` test.** The breakdown's `parts` carry the label, so the
-  tooltip needs no names table.
-- **Everything is a [Decimal](../glossary.md#decimal).** The bus works in `number`, which stops at about 1e308. Idle
-  games pass that, and the live graph does not care.
-- **`LIVE.over(s)` makes a graph for one state.** It works each stat out the first time you read it and keeps it, so
-  make a new graph whenever the state changes.
+- **`times` counts a source over.** The copper base is one source counted once per rank: one row, ×1.25³.
+- **Everything is a [Decimal](../glossary.md#decimal).** Idle games pass 1e308, and the graph does not care.
+- **`POT.over(s)` makes a graph for one state.** It works each stat out the first time you read it and keeps it, so
+  make a new graph whenever the state changes. The stats feature does that for you.
 
 <!-- example-prints: guide-effects.ts | live heat ×11.71 [ "×1.95  Copper base", "×6.00  A full pot" ] -->
 
-The script ends by asking the live graph about the same pot holding a million bubbles, and prints
+The script ends by asking the graph about the same pot holding a million bubbles, and prints
 `live heat ×11.71 [ "×1.95  Copper base", "×6.00  A full pot" ]`.
 
-The live graph also has flags (a source can switch a mechanic on while it is active), mute groups (silence a set of
-sources, say during a challenge) and stats that read other stats. The reference page covers those.
-
-Its caps take the same `StatDef`, and the order is the same: (base + adds) × mults, softcap, hardcap. Two things are
-spelled differently, and both will catch you moving between them. The live graph's base defaults to 1 for every stat,
-while `statValue`'s defaults to 0 (Simmer passes 1 to the bus by hand). And a live effect says `op: "mul"`, where a bus
-effect has a `mult` field.
+Sources may also raise flags (a mechanic switched on while they count), and belong to a mute group (silenced, say,
+during a challenge: their rows stay in the breakdown, marked, and stop counting). The reference page covers those.
 
 ## The honest part: the real game folds its own
 
@@ -442,11 +426,12 @@ export function fold(s: BusReads, now: number, onPart?: (part: Part) => void): S
 
 VOID IF REMOVED, `src/game/bus.ts`
 
-Read it against what you just built and most of it is familiar. `apply` is `busOf` for one source. `Part` is a
-contribution. `onPart` is how its breakdown gets the same walk `explainStat` gives you. What differs is why it exists:
+Read it against what you just built and most of it is familiar. `apply` is one source's rows. `Part` is a
+contribution. `onPart` is how its breakdown gets the same walk `select.explain` gives you. What differs is why it
+exists (it was written before the engine's stats feature):
 
 - **Multipliers are kept as log10.** Adding logs is multiplying, and a log never overflows, so a stat can pass 1e308 in
-  a plain `number`. The engine's bus would overflow there.
+  a plain `number`. The engine reaches the same with Decimals.
 - **An effect can be written in orders of magnitude** (`log`, beside `mul` and `add`), for a multiplier too large to
   write as a number at all.
 - **`times` scales an effect by ranks held,** so ten ranks are one call, not ten contributions.
@@ -468,47 +453,33 @@ once and lets them all read the result.
 So the idea is the engine's: sources declare effects, one fold, a fixed order, a breakdown from the same walk. The
 implementation is the game's.
 
-### What the engine would need for the game to use it
+### What the engine has now, and what it still lacks
 
-The live graph already has most of it: Decimals, flags, mute groups, stats reading stats. What it lacks for this game:
+The stats feature covers most of what that fold was written for: Decimals, flags, mute groups, stats reading stats,
+`times` for a ranked source, and values kept on the state that every rule reads cheaply. What it lacks for this game is
+an effect written in orders of magnitude, a `log` amount beside `add` and `mul`, so content can say "×1e500" without
+writing a function (a string amount, `mul: "1e500"`, carries a constant).
 
-- **A fold you can keep in the state.** The live graph is lazy and tied to one state object. The game wants plain
-  records in the draft that every rule reads cheaply, many times a pass. That works with the live graph only by reading
-  every stat off a fresh graph into the state each pass, which is the fold again.
-- **Effects written in orders of magnitude,** a `log` op beside `add` and `mul`, so content can say "×1e500" without
-  writing a function.
-- **Effects scaled by ranks,** so a ranked item is one source with a count, as `times` does.
-
-The bus, for its part, would need all of the above plus a number type that does not overflow.
-
-### Which to reach for
-
-For a new game:
-
-- **Start with the bus** (`busOf`, `statValue`, `explainStat`) when every effect is a constant bought in ranks and no
-  stat will pass about 1e300. Most small idle games are this. The systems hand you contributions for it already.
-- **Use the live graph** (`liveIndex`) when an effect's value reads the state or another stat, when you need flags or
-  mutes, or when numbers will outgrow `number`. It shares the bus's caps and order, and a game can use both.
-- **Fold your own** only when you need what neither has, as above, and keep the engine's shape when you do: effects as
-  data on the content, one fold, a `stats` feature with `derive`, readers. That is what VOID IF REMOVED did.
-
-If you are going to copy a game, copy the shape, not the file.
+For a new game, declare a `stats` feature. Fold your own only when you need what it has not, and keep the engine's
+shape when you do: effects as data on the content, one fold, a fixed order, a breakdown from the same walk. If you are
+going to copy a game, copy the shape, not the file.
 
 ## Things that bite
 
-- **A new medal counts from the next pass.** Medals are checked in the `settle` phase, after `rates` has read the bus
-  and `produce` has paid. The example prints the rate before and after: 219 a second on the pass the medal is earned,
-  241 on the next. A tooltip that calls `explainStat` fresh shows the new number one pass early.
-- **Feature order is step order.** Within a phase, steps run in feature-list order unless `defineGame({ order })` pins
-  some first (chapter 3). A step that multiplies a rate must run after the step that sets it, and a fold kept in the
-  state must run before anything that reads it. Nothing warns you when it does not; the rate is just wrong, or a pass
-  behind.
-- **Generator milestones are not on the bus.** `generators({ list: [{ milestones }] })` multiplies inside the generator,
-  so `explainStat` never sees it. Simmer writes its milestone as a contribution for exactly that reason. If you use the
-  built-in milestones, show them in the tooltip yourself (the list's `rules.boost(state, id)` gives their product).
-- **A typo in a stat id is silent.** `Effect.stat` is a `string`, and the bus folds whatever it is given. `{ stat:
-  "haet" }` makes a stat nobody reads. The ids in `vocab({ stats })` do not type it.
-- **The bus overflows past 1e308.** It is `number` throughout. A stat that grows without bound wants the live graph.
+- **A new medal counts from the next pass's rate.** Medals are checked in the `settle` phase, after `rates` has
+  multiplied the stove's rate and `produce` has paid. The example prints the rate before and after: 219 a second on the
+  pass the medal is earned, 241 on the next. `s.stats.heat` itself moves at once, so a tooltip shows the new number
+  one pass before the rate does.
+- **Feature order is step order.** Within a phase, steps run in feature-list order unless a step says `after` or
+  `before` (chapter 3). A step that multiplies a rate must run after the step that sets it. Nothing warns you when it
+  does not; the rate is just wrong. A derived stat has no such order: it is current wherever it is read.
+- **Generator milestones are not in the stats.** `generators({ list: [{ milestones }] })` multiplies inside the
+  generator, so the breakdown never sees it. Simmer writes its milestone as a contribution for exactly that reason. If
+  you use the built-in milestones, show them in the tooltip yourself (the list's `rules.boost(state, id)` gives their
+  product).
+- **Type the content's effects.** `Effect` alone takes any stat id, and the stats feature refuses contributions whose
+  stat is a plain `string`; `Effect<"heat">` (or `Effect<StatOf<typeof WORDS>>`) makes `{ stat: "haet" }` a type error.
+  An arrow returning effects may need its return type said (`(): Effect<"heat">[] => …`), or the literal widens.
 
 ## Next
 
@@ -517,13 +488,12 @@ the burners pay for the hours the tab was closed.
 
 ## Reference
 
-- [The stat graph](../stat-graph.md) for the live graph and "The first pass after a load", [Buffs](../buffs.md),
-  [Upgrade tree](../upgrade-tree.md), [Achievements](../achievements.md) and [Generators](../generators.md) on the
-  reference shelf.
-- `api/core/graph/stats.d.ts`: `busOf`, `statValue`, `statTotals`, `explainStat`, `applySoftcap`, `Effect`,
-  `Contribution`, `StatBus`, `StatDef`, `Softcap`, `StatBreakdown`.
-- `api/core/graph/live.d.ts`: `liveIndex`, `LiveIndex`, `LiveEffect`, `LiveMeta`, `StatGraph`, `StatPart`,
-  `LiveBreakdown`, `softcapDecimal`.
+- [Stats](../stat-graph.md), [Buffs](../buffs.md), [Upgrade tree](../upgrade-tree.md),
+  [Achievements](../achievements.md) and [Generators](../generators.md) on the reference shelf.
+- `api/core/stats.d.ts`: `stats`, `StatDef`, `StatSourceDef`, `Contribution`, `StatsSelect`, `StatsValues`,
+  `RESERVED_STAT_IDS`.
+- `api/core/graph/stats.d.ts`: `Effect`, `Amount`, `Softcap`, `StatCaps`, `statIndex`, `StatIndex`, `SourceMeta`,
+  `StatGraph`, `StatPart`, `StatBreakdown`, `applySoftcap`.
 - `api/core/tree.d.ts` (`Tree.contributions`, `rankContributions`), `api/core/buffs.d.ts` (`BuffsFeature.contributions`,
   `buffActive`), `api/core/achievements.d.ts` (`AchievementBoard.contributions`, `rowEffects`, `power`),
   `api/core/generators.d.ts` (`GeneratorsDef.mult`, `GeneratorRules.boost`).

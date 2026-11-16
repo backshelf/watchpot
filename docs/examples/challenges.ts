@@ -1,11 +1,11 @@
 import {
-  busOf,
   challengeRule,
   challenges,
   type Decimal,
   defineGame,
   type Effect,
   feature,
+  stats,
 } from "watchpot/core";
 import { wallet } from "./add-a-currency";
 import { TOY } from "./vocab";
@@ -20,7 +20,7 @@ export const trials = challenges({
       id: "no-gems",
       goal: (s: State) => s.wallet.gold.gte(1e6),
       maxCompletions: 3,
-      effects: (n): Effect[] => [{ stat: "toy.speed", mult: 1 + 0.5 * n }], // grows with each completion
+      effects: (n): Effect<"toy.speed">[] => [{ stat: "toy.speed", mul: 1 + 0.5 * n }], // grows with each completion
       rules: ["noGems"], // the flag the game's own rules read
     },
     { id: "short", unlocked: (s) => s.wallet.gold.gte(1e3), goal: (s) => s.wallet.gold.gte(1e9) },
@@ -42,13 +42,20 @@ export const shop = feature({
   }),
 });
 
+/** What the completions give, on the engine's `stats`: `s.stats["toy.speed"]`, the rewards counted as they land. */
+export const rewards = stats({
+  key: "stats",
+  vocab: TOY,
+  reach: () => [trials],
+  stats: { "toy.speed": { base: 1 } },
+  contributions: (s) => trials.rules.contributions(s.trials),
+});
+
 export const game = defineGame({
   id: "trials",
   save: { key: "trials.save", version: 1 },
-  features: [wallet, shop, trials],
+  features: [wallet, shop, trials, rewards],
   vocab: TOY,
 });
 // store.getState().trials.enter("no-gems") → null, or "unknown" | "locked" | "maxed" | "busy"
-// busOf(trials.rules.contributions(state.trials)) · store.getState().trials.exit()
-export const speedBus = (s: { trials: { completions: Record<string, number> } }) =>
-  busOf(trials.rules.contributions(s.trials));
+// store.getState().trials.exit()

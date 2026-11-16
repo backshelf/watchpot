@@ -314,7 +314,7 @@ export function spawns<const K extends string, G extends object = object>(def: {
         .map(
           (k): Move<typeof s> => ({
             id: `${def.key}:${k.id}`,
-            value: (st) => k.worth?.(st as unknown as G, { now: gameNowOf(st) }) ?? 1,
+            worth: (st) => k.worth?.(st as unknown as G, { now: gameNowOf(st) }) ?? 1,
             apply: (store) => (store.getState() as Record<K, SpawnsActions>)[def.key].catch(k.id) !== null,
           }),
         ),

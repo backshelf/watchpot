@@ -23,6 +23,11 @@ export interface Cells {
     raw<T extends object>(view: T): T;
     /** Ends a step or a recipe: every slice taken through the view since the last close counts as written. */
     close(): void;
+    /**
+     * Whether taking a slice through the view counts as writing it (default: it does). A holder whose state is read
+     * through the view between recipes turns it off there, so a read is only a read.
+     */
+    record(on: boolean): void;
     /** Every slice counts as written: after a reset, a load or an import, which write under the view. */
     touchAll(): void;
     /** Works out every cell that is not current and writes it into its slice of `root`. */

@@ -3,12 +3,12 @@ import { type GeneratorDef as Generator, generators } from "watchpot/core";
 import { OFFLINE_CAP_MS } from "../content/economy";
 import { GENERATORS, type GeneratorDef } from "../content/generators";
 import { type Currency, MAIN } from "../content/words";
-import type { StatsState } from "./stats";
+import type { Stats } from "./stats";
 import { wallet } from "./wallet";
 
-/** What the list's callbacks read: the stats, worked out earlier in the same pass. */
+/** What the list's callbacks read: the stats, current as of the pass. */
 interface Reads {
-  stats: StatsState;
+  stats: Stats;
 }
 
 /**
@@ -23,5 +23,5 @@ export const producers = generators({
     (g, i): Generator<Currency> & GeneratorDef => ({ ...g, pays: MAIN, makes: MAIN, free: i === 0 ? 1 : 0 }),
   ),
   mult: (s: Reads) => s.stats.output,
-  away: (s: Reads) => ({ rate: s.stats.offline, capMs: OFFLINE_CAP_MS }),
+  away: (s: Reads) => ({ rate: s.stats.offline.toNumber(), capMs: OFFLINE_CAP_MS }),
 });

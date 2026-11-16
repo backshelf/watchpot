@@ -117,7 +117,7 @@ function build({ pressure = 0.25 }: Tuning = {}) {
     const gain = ventGain(state.wallet.boiled);
     const ready = gain.gte(3) && gain.gte(state.valve.lifetime);
     return [
-      { id: "valve.vent", value: () => (ready ? 1 : 0), apply: (store) => store.getState().valve.vent() },
+      { id: "valve.vent", worth: () => (ready ? 1 : 0), apply: (store) => store.getState().valve.vent() },
     ];
   });
 

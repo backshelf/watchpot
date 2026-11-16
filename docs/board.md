@@ -2,8 +2,8 @@
 
 A grid of cells, pieces placed on it, and what each piece does read from where it sits: the pieces beside it, its row
 and column, the edge, how many of a kind are down. A garden bed, a reactor, a sheet of stickers, a beacon grid. The
-rules are pure over a cells record; the effect type is the game's own (the stat bus's `Effect` makes `contributions`
-feed `busOf`).
+rules are pure over a cells record; the effect type is the game's own (with the engine's `Effect`, `contributions`
+feeds a `stats` feature: the example's `growth`).
 
 Example: [`examples/board.ts`](examples/board.ts).
 

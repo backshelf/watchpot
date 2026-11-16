@@ -10,7 +10,7 @@ export const fame = levels({
   key: "fame",
   tracks: DISHES.map((id) => ({ id, curve: SLOW })),
   maxLevel: 10,
-  effects: (_track, level): Effect[] => [{ stat: "price", mult: 1 + 0.1 * level }],
+  effects: (_track, level): Effect[] => [{ stat: "price", mul: 1 + 0.1 * level }],
 });
 
 /** The window: two dishes on show at a time, picked by the player. */

@@ -34,7 +34,7 @@ export interface PlayStraightOptions<W extends SimWorld> {
   ms: number;
   /** Time between looks; the last stretch is the remainder. */
   lookEveryMs: number;
-  /** The longest tick, in ms. Default 1000. */
+  /** The longest tick, in ms. Default: the world's. */
   tickMs?: number;
   /** One look at the game, before each stretch is played. */
   look(): void;
@@ -49,7 +49,7 @@ export function playStraight<W extends SimWorld>({
   world,
   ms,
   lookEveryMs,
-  tickMs = 1000,
+  tickMs = world.tickMs,
   look,
   afterLook,
   until,

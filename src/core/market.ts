@@ -468,14 +468,14 @@ export function market<
             out.push({
               id: `${def.key}:buy:${t.id}`,
               cost: { currency: def.pays, amount: units.mul(priceOf(s, t, now) * (1 + feeOf(state))) },
-              value: () => 1 - level,
+              worth: () => 1 - level,
               apply: (store) => actions(store).buy(t.id, units).gt(0),
             });
         }
         if (level > sellAbove && heldOf(s, t.id).gt(0))
           out.push({
             id: `${def.key}:sell:${t.id}`,
-            value: () => level,
+            worth: () => level,
             apply: (store) => actions(store).sellAll(t.id).gt(0),
           });
       }

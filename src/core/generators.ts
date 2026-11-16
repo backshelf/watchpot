@@ -514,14 +514,14 @@ export function generators<
         out.push({
           id: `${def.key}:${g.id}`,
           cost: { currency: g.pays, amount: costAt(g.cost, ownedOf(s, g)) },
-          value: (st) => toNumber(unitRate(st as unknown as G, g, at(st))),
+          worth: (st) => toNumber(unitRate(st as unknown as G, g, at(st))),
           apply: (store) => actions(store).buy(g.id),
         });
         if (g.cycle && ownedOf(s, g) > 0 && !own(s).running[g.id] && !automated(state, g, at(s)))
           out.push({
             id: `${def.key}:run:${g.id}`,
             // Worth what the cycle pays; never nothing, so the auto-player starts even a cycle that pays little.
-            value: (st) =>
+            worth: (st) =>
               Math.max(Number.MIN_VALUE, toNumber(unit(st as unknown as G, g, at(st)).mul(ownedOf(st, g)))),
             apply: (store) => actions(store).run(g.id),
           });

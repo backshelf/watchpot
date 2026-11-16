@@ -378,7 +378,7 @@ export function dimensions<
           ({ t, i }): Move<typeof s> => ({
             id: `${def.key}:${t.id}`,
             cost: { currency: paysOf(t), amount: costAt(t.cost, boughtOf(s, t)) },
-            value: (st) => worth(st as unknown as G, i),
+            worth: (st) => worth(st as unknown as G, i),
             apply: (store) => (store.getState() as Record<K, DimensionActions>)[def.key].buy(t.id),
           }),
         ),

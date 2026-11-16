@@ -11,7 +11,6 @@ import {
   type BuffsState,
   buffActive,
   buffs,
-  busOf,
   type ClickerState,
   clicker,
   clickShare,
@@ -34,7 +33,7 @@ import {
   type SpawnsState,
   type StateOf,
   spawns,
-  statValue,
+  statIndex,
   type TreeState,
   upgradeTree,
   ZERO,
@@ -55,7 +54,9 @@ export type Page = Simmer & {
 // ---------------------------------------------------------------------------------------------------------------
 // The kitchen: an upgrade tree used as a shop
 
-type Upgrade = GraphNode<Effect, "bubbles">;
+/** The two numbers the kitchen raises. */
+type Stat = "stir" | "kettle";
+type Upgrade = GraphNode<Effect<Stat>, "bubbles">;
 
 const UPGRADES: readonly Upgrade[] = [
   {
@@ -65,7 +66,7 @@ const UPGRADES: readonly Upgrade[] = [
     cost: [{ currency: "bubbles", amount: 25 }],
     maxLevel: 1,
     requires: [],
-    effects: [{ stat: "stir", mult: 2 }],
+    effects: [{ stat: "stir", mul: 2 }],
   },
   {
     id: "whisk",
@@ -84,7 +85,7 @@ const UPGRADES: readonly Upgrade[] = [
     cost: [{ currency: "bubbles", amount: 400 }],
     maxLevel: 1,
     requires: [],
-    effects: [{ stat: "kettle", mult: 2 }],
+    effects: [{ stat: "kettle", mul: 2 }],
   },
   {
     id: "ladle",
@@ -109,9 +110,13 @@ export const kitchen = upgradeTree({
 /** Whether an upgrade is bought. */
 const has = (s: Pick<Page, "kitchen">, id: string): boolean => (s.kitchen.ranks[id] ?? 0) > 0;
 
-/** A stat's value from the kitchen's ranks: 1, plus its adds, times its mults. Chapter 8 does this properly. */
-export const statOf = (s: Pick<Page, "kitchen">, stat: "stir" | "kettle"): number =>
-  statValue(busOf(kitchen.tree.contributions(s.kitchen.ranks)), stat, 1);
+/** The kitchen's two stats on the engine's stat graph, from a base of 1, each node counted once per rank held. */
+const KITCHEN = statIndex<Stat, never, Pick<Page, "kitchen">>({ base: () => 1 });
+for (const node of UPGRADES)
+  KITCHEN.add(node, { label: node.name, owner: "kitchen", times: (s) => s.kitchen.ranks[node.id] ?? 0 });
+
+/** A stat's value from the kitchen's ranks: 1, plus its adds, times its muls. Chapter 8 serves stats as a feature. */
+export const statOf = (s: Pick<Page, "kitchen">, stat: Stat): number => KITCHEN.over(s).stat(stat).toNumber();
 
 // ---------------------------------------------------------------------------------------------------------------
 // The foam: a gauge

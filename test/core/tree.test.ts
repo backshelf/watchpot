@@ -1,6 +1,5 @@
 import { describe, expect, test } from "bun:test";
 import {
-  busOf,
   createGameStorage,
   createIdleStore,
   createMemoryBackend,
@@ -11,7 +10,6 @@ import {
   type Effect,
   type GraphNode,
   type Purse,
-  statTotals,
   tree,
   treeMoves,
   upgradeTree,
@@ -19,6 +17,7 @@ import {
   withMoves,
 } from "watchpot/core";
 import { autoPlayer } from "watchpot/sim";
+import { totals } from "./fold";
 
 const T0 = Date.UTC(2026, 9, 29, 12);
 
@@ -47,7 +46,7 @@ const NODES: readonly Node[] = [
     costGrowth: 1.5,
     maxLevel: 20,
     requires: ["drill"],
-    effects: [{ stat: "toy.speed", mult: 1.5 }],
+    effects: [{ stat: "toy.speed", mul: 1.5 }],
   },
 ];
 
@@ -155,12 +154,12 @@ describe("tree", () => {
     expect(shop.buyMax(ranks, "laser", rich)).toBe(0); // its requirement is not held
   });
 
-  test("every rank held lands on the stat bus, sourced by the tree and node", () => {
+  test("every rank held lands on the stats, sourced by the tree and node", () => {
     const c = rules.contributions({ drill: 2, laser: 1 });
     expect(c.every((x) => x.source.startsWith("mine:"))).toBe(true);
-    const totals = statTotals(busOf(c), "toy.speed");
-    expect(totals.add).toBe(2);
-    expect(totals.mult).toBeCloseTo(1.5);
+    const speed = totals(c, "toy.speed");
+    expect(speed.add).toBe(2);
+    expect(speed.mult).toBeCloseTo(1.5);
   });
 
   test("a milestone rank adds its extra effects on top, and only at every nth rank", () => {
@@ -169,10 +168,10 @@ describe("tree", () => {
       nodes: NODES,
       milestone: {
         every: 2,
-        effect: (e) => (e.add === undefined ? null : { stat: e.stat, add: e.add * 10 }),
+        effect: (e) => (typeof e.add === "number" ? { stat: e.stat, add: e.add * 10 } : null),
       },
     });
-    const add = (n: number) => statTotals(busOf(jumpy.contributions({ drill: n })), "toy.speed").add;
+    const add = (n: number) => totals(jumpy.contributions({ drill: n }), "toy.speed").add;
     expect(add(1)).toBe(1);
     expect(add(2) - add(1)).toBeGreaterThan(add(1));
     expect(add(3) - add(2)).toBe(1);

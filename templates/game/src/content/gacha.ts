@@ -1,7 +1,7 @@
 // @feature gacha
 // Written by /watchpot from .claude/specs/answers.json. It is the game's now: edit it freely.
 import type { Effect, OddsTable, PityRule } from "watchpot/core";
-import type { Rarity } from "./words";
+import type { Rarity, StatId } from "./words";
 
 export const GACHA_NAME = "The spore bank";
 /** The one box the pulls open; its id is the gacha's box key. */
@@ -36,14 +36,14 @@ export interface ItemDef {
   name: string;
   rarity: Rarity;
   /** What each copy owned adds. */
-  effect: Effect;
+  effect: Effect<StatId>;
 }
 
 export const ITEMS: readonly ItemDef[] = [
-  { id: "pillow-moss", name: "Pillow moss", rarity: "common", effect: { stat: "output", mult: 1.01 } },
+  { id: "pillow-moss", name: "Pillow moss", rarity: "common", effect: { stat: "output", mul: 1.01 } },
   { id: "peacock-fern", name: "Peacock fern", rarity: "common", effect: { stat: "offline", add: 0.01 } },
-  { id: "silver-lace", name: "Silver lace", rarity: "common", effect: { stat: "output", mult: 1.01 } },
-  { id: "jewel-orchid", name: "Jewel orchid", rarity: "rare", effect: { stat: "output", mult: 1.06 } },
-  { id: "sundew", name: "Sundew", rarity: "rare", effect: { stat: "gain", mult: 1.1 } },
-  { id: "ghost-orchid", name: "Ghost orchid", rarity: "heirloom", effect: { stat: "output", mult: 1.25 } },
+  { id: "silver-lace", name: "Silver lace", rarity: "common", effect: { stat: "output", mul: 1.01 } },
+  { id: "jewel-orchid", name: "Jewel orchid", rarity: "rare", effect: { stat: "output", mul: 1.06 } },
+  { id: "sundew", name: "Sundew", rarity: "rare", effect: { stat: "gain", mul: 1.1 } },
+  { id: "ghost-orchid", name: "Ghost orchid", rarity: "heirloom", effect: { stat: "output", mul: 1.25 } },
 ];

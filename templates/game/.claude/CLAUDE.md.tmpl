@@ -98,7 +98,8 @@ cannot compile GLSL: a shader counts only once it has drawn in the browser with 
 - `src/content/` the data: words (the vocabulary), the economy, the core's list, and one file per feature;
   `pacing.ts` is the session schedule and the pacing contract
 - `src/game/` the features on the engine's factories (`wallet`, `stats`, `settings`, the core and the chosen
-  features), `bus.ts` (every feature's contributions to the stats), `income.ts`, `game.ts` (`defineGame`) and the store
+  features; `stats.ts` is the engine's `stats`, fed by every feature's contributions), `income.ts`, `game.ts`
+  (`defineGame`) and the store
 - `src/app/` the page (`App.tsx` over `src/ui`'s `Shell`), the tabs, the header, the about sheet (the settings and
   the save as text), the icons, the sounds (zzfx only) · `src/screens/` one screen per tab and the main screen's parts
 - `src/shaders/` the backdrop's fragment and its still
