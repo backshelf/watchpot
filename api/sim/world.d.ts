@@ -13,7 +13,10 @@ export interface SimStore {
  */
 export interface SimWorld<S extends SimStore = SimStore> {
     store: S;
-    /** The sim's wall time: the day loop and the samples read it. */
+    /**
+     * The sim's wall time: the day loop and the samples read it. Not the game's time: `gameNow()` adds the profile's
+     * clock offset, so stamp actions with `gameNow()` and measure days and hours with `now()`.
+     */
     now(): number;
     /** The store's game time (the wall plus the profile's clock offset): what every action is stamped with. */
     gameNow(): number;
@@ -22,7 +25,10 @@ export interface SimWorld<S extends SimStore = SimStore> {
     /** Closes the tab for `ms`, then opens it: one catch-up over the gap, as on a return. */
     away(ms: number): void;
 }
-/** The shell's tick, which the harness plays in: a minute. */
+/**
+ * The shell's tick, which the harness plays in: a minute. `playStraight` and `runFit` step a second at a time
+ * instead (their own `tickMs` and `stepMs`); pass `tickMs` to match them when a run must agree with one of theirs.
+ */
 export declare const SIM_TICK_MS = 60000;
 /** Options for `createSimWorld`: the length of one play tick. */
 export interface SimWorldOptions {

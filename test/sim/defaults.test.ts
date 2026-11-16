@@ -1,5 +1,5 @@
 import { describe, expect, test } from "bun:test";
-import { currencies, D, defineGame, feature, type Move, vocab } from "watchpot/core";
+import { currencies, D, defineGame, feature, type Move, type StepContext, vocab } from "watchpot/core";
 import { autoPlayer, createSimWorld, fixedSchedule, playDays, rngFor, simStore } from "watchpot/sim";
 import { freshStore, T0 } from "watchpot/test";
 
@@ -46,6 +46,17 @@ describe("autoPlayer's default balance", () => {
     expect(() => autoPlayer(game)).toThrow(/balance/);
     expect(() => autoPlayer(game, { balance: () => D(0) })).not.toThrow();
   });
+
+  test("throws with two currencies features", () => {
+    const purse = currencies({ key: "purse", vocab: WORDS, start: { gems: 1 } });
+    const game = defineGame({
+      id: "two",
+      save: { key: "two", version: 1 },
+      vocab: WORDS,
+      features: [wallet, purse, shop],
+    });
+    expect(() => autoPlayer(game)).toThrow(/balance/);
+  });
 });
 
 describe("playDays stops", () => {
@@ -80,12 +91,35 @@ describe("playDays stops", () => {
 });
 
 describe("freshStore's play", () => {
-  test("moves the clock and ticks at the new now", () => {
-    const game = defineGame({ id: "t", save: { key: "t", version: 1 }, vocab: WORDS, features: [wallet] });
+  test("moves the clock and ticks the store over it, at the new now", () => {
+    type Seen = { seen: { dtMs: number; at: number } };
+    const watch = feature({
+      key: "seen",
+      initial: () => ({ dtMs: 0, at: 0 }),
+      steps: {
+        produce: {
+          note: {
+            pass: "tick",
+            run: (d: Seen, ctx: StepContext) => {
+              d.seen.dtMs += ctx.dtMs;
+              d.seen.at = ctx.now;
+            },
+          },
+        },
+      },
+    });
+    const game = defineGame({
+      id: "t",
+      save: { key: "t", version: 1 },
+      vocab: WORDS,
+      features: [wallet, watch],
+    });
     const fresh = freshStore(game);
     const before = fresh.clock.now();
     fresh.play(60_000);
     expect(fresh.clock.now()).toBe(before + 60_000);
-    expect(fresh.store.getState().gameNow()).toBeGreaterThanOrEqual(before + 60_000);
+    const seen = (fresh.store.getState() as unknown as Seen).seen;
+    expect(seen.dtMs).toBe(60_000);
+    expect(seen.at).toBeGreaterThanOrEqual(before + 60_000);
   });
 });

@@ -36,8 +36,8 @@ export interface SimWorld<S extends SimStore = SimStore> {
 }
 
 /**
- * The shell's tick, which the harness plays in: a minute. `playStraight` and `runFit` tick at a second instead
- * (their own `tickMs`); pass `tickMs` to match them when a run must agree with one of theirs.
+ * The shell's tick, which the harness plays in: a minute. `playStraight` and `runFit` step a second at a time
+ * instead (their own `tickMs` and `stepMs`); pass `tickMs` to match them when a run must agree with one of theirs.
  */
 export const SIM_TICK_MS = 60_000;
 
