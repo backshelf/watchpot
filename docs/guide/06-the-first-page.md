@@ -773,4 +773,5 @@ which of these features should keep their state when they do.
   [`api/core/spawns.d.ts`](../../api/core/spawns.d.ts), [`api/core/buffs.d.ts`](../../api/core/buffs.d.ts),
   [`api/ui/tabs.d.ts`](../../api/ui/tabs.d.ts) (`BuyAmount`, `buyCount`).
 - The whole example: [`docs/examples/guide-first-page.ts`](../examples/guide-first-page.ts), on Simmer's core in
-  [`docs/examples/simmer/game-wallet.ts`](../examples/simmer/game-wallet.ts).
+  [`docs/examples/simmer/game-wallet.ts`](../examples/simmer/game-wallet.ts). Most of this game drawn as one page of
+  React, as getting started ends: [`docs/examples/guide-first-game.tsx`](../examples/guide-first-game.tsx).
