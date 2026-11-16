@@ -1,5 +1,6 @@
 import type { Draft } from "immer";
 import { type Feature, type ResetRule } from "./feature";
+import type { CallbackContext } from "./gauge";
 import { type RngState } from "./rng";
 /**
  * Spawns: random clickable arrivals. Something appears after a random wait, lives a few seconds, and pays one of a
@@ -26,8 +27,8 @@ export interface SpawnWait {
 export interface SpawnOutcome<G> {
     readonly id: string;
     readonly weight: number;
-    /** Open only while this holds. */
-    readonly when?: (state: G) => boolean;
+    /** Open only while this holds, read at the game time the outcome is drawn. */
+    readonly when?: (state: G, ctx: CallbackContext) => boolean;
     /** Never the same outcome as the last catch of this kind. */
     readonly noRepeat?: boolean;
 }
@@ -60,8 +61,11 @@ export interface SpawnState {
  * span)^(1/(p+1))`, capped at 1 (the forced arrival at `maxMs`). Pure.
  */
 export declare function drawSpawnWait(rng: RngState, wait: SpawnWait): [number, RngState];
-/** Draws an outcome among those open (`when` holds, and not a `noRepeat` repeat of `last`); null when none is. Pure. */
-export declare function drawOutcome<G>(rng: RngState, outcomes: readonly SpawnOutcome<G>[], state: G, last: string | null): [string | null, RngState];
+/**
+ * Draws an outcome among those open (`when` holds at `ctx`, default game time 0, and not a `noRepeat` repeat of
+ * `last`); null when none is. Pure.
+ */
+export declare function drawOutcome<G>(rng: RngState, outcomes: readonly SpawnOutcome<G>[], state: G, last: string | null, ctx?: CallbackContext): [string | null, RngState];
 /** What `advanceSpawn` needs: the wait, the life, and the outcome drawn at an arrival when the kind draws at birth. */
 export interface SpawnTiming {
     readonly kind: string;
@@ -86,16 +90,16 @@ export declare function advanceSpawn(state: SpawnState, now: number, timing: Spa
 export interface SpawnKind<G> {
     readonly id: string;
     /** The wait between arrivals, fixed or read off the game state (upgrades that bring them sooner). */
-    readonly wait: SpawnWait | ((state: G) => SpawnWait);
+    readonly wait: SpawnWait | ((state: G, ctx: CallbackContext) => SpawnWait);
     /** How long one stays catchable. */
-    readonly lifeMs: number | ((state: G) => number);
+    readonly lifeMs: number | ((state: G, ctx: CallbackContext) => number);
     readonly outcomes: readonly SpawnOutcome<G>[];
     /** `"catch"` (default): the outcome is drawn when caught. `"birth"`: drawn at arrival and shown on `live.outcome`. */
     readonly drawAt?: "catch" | "birth";
     /** While this is false nothing arrives, and the wait starts over once it holds. Default: always. */
-    readonly active?: (state: G) => boolean;
+    readonly active?: (state: G, ctx: CallbackContext) => boolean;
     /** What catching it is worth to the auto-player (default 1). */
-    readonly worth?: (state: G) => number;
+    readonly worth?: (state: G, ctx: CallbackContext) => number;
 }
 /** The spawns feature's saved state: each kind's, by id. */
 export interface SpawnsState {
