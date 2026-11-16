@@ -118,18 +118,18 @@ describe("defineGame refuses", () => {
     expect(() => defineGame({ id: "clockish", save, features: [clockish] })).toThrow('key "clock"');
   });
 
-  test("an order id no feature declares, and one in another phase", () => {
-    expect(() =>
-      defineGame({ id: "order", save, features: [wallet], order: { produce: ["wallet.produce.income"] } }),
-    ).toThrow("wallet.produce.income");
-    expect(() =>
-      defineGame({
-        id: "order",
-        save,
-        features: [wallet, generator],
-        order: { sync: ["generator.produce.income"] },
-      }),
-    ).toThrow("another phase");
+  test("an after target no feature declares, one in another phase, and one that is no step", () => {
+    const step = (target: string) =>
+      feature({ key: "w", initial: () => ({}), steps: { sync: { x: { after: target, run: () => {} } } } });
+    expect(() => defineGame({ id: "order", save, features: [step("nobody.sync.y")] })).toThrow(
+      'no feature "nobody"',
+    );
+    expect(() => defineGame({ id: "order", save, features: [step("w.produce.y")] })).toThrow(
+      "not a step of the sync phase",
+    );
+    expect(() => defineGame({ id: "order", save, features: [step("w.sync.y")] })).toThrow(
+      "declares no such step",
+    );
   });
 
   test("a transient or kept key that is not in the initial state", () => {

@@ -76,8 +76,11 @@ export const pot = feature({
   steps: {
     produce: {
       // Runs on every live tick and on the catch-up after time away.
-      simmer: (s, ctx) => {
-        wallet.credit(s, "bubbles", (SIMMER_PER_SECOND * ctx.dtMs) / 1000);
+      simmer: {
+        pass: "both",
+        run: (s, ctx) => {
+          wallet.credit(s, "bubbles", (SIMMER_PER_SECOND * ctx.dtMs) / 1000);
+        },
       },
     },
   },
@@ -89,9 +92,6 @@ export const stove = feature({
   reach: [wallet],
   initial: () => ({ burners: 0, off: false, perSecond: ZERO }),
   transient: ["perSecond"],
-  derive: (s) => {
-    s.stove.perSecond = flameOf(s.stove.burners);
-  },
   actions: (api) => ({
     buyBurner: () =>
       api.set((s) => {
@@ -138,9 +138,6 @@ export const lid = feature({
   key: "lid",
   reach: [stove],
   initial: () => ({ on: false }),
-  derive: (s) => {
-    if (s.lid.on) s.stove.perSecond = s.stove.perSecond.mul(2);
-  },
   actions: (api) => ({
     toggle: () =>
       api.set((s) => {
@@ -149,8 +146,11 @@ export const lid = feature({
   }),
   steps: {
     rates: {
-      trap: (s) => {
-        if (s.lid.on) s.stove.perSecond = s.stove.perSecond.mul(2);
+      trap: {
+        after: "stove.rates.flame",
+        run: (s) => {
+          if (s.lid.on) s.stove.perSecond = s.stove.perSecond.mul(2);
+        },
       },
     },
   },
@@ -162,8 +162,6 @@ export const game = defineGame({
   save: { key: "simmer.save", version: 1 },
   vocab: WORDS,
   features: [wallet, pot, stove, lid],
-  // The lid's doubling must land after the stove sets the rate.
-  order: { rates: ["stove.rates.flame", "lid.rates.trap"] },
 });
 
 // ---------------------------------------------------------------------------------------------------------------
@@ -171,9 +169,6 @@ export const game = defineGame({
 
 /** Simmer's features in their order, for a bigger game to spread into its own list. */
 export const SIMMER = [wallet, pot, stove, lid] as const;
-
-/** The step order Simmer needs pinned; a bigger game spreads it into its own `order.rates`. */
-export const SIMMER_RATES = ["stove.rates.flame", "lid.rates.trap"] as const;
 
 /** The whole state of this game, as a recipe's draft or `store.getState()` sees it, actions aside. */
 export type Simmer = StateOf<typeof game.features>;

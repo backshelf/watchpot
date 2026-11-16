@@ -2,7 +2,7 @@ import { type CostCurve, type Threshold } from "./cost";
 import type { CurrenciesFeature } from "./currencies";
 import { type Decimal, type DecimalSource } from "./decimal";
 import type { DimensionAway } from "./dimensions";
-import { type Feature, type ResetRule } from "./feature";
+import { type Feature, type NeedsOf, type ReachOf, type ReachShape, type ResetRule } from "./feature";
 /**
  * Generators: the building list every idle game has. Buy N of a thing, each one makes a currency a second, and the
  * price climbs on a cost curve. A generator either pays a steady `rate` per one owned, or runs a timed `cycle` that
@@ -162,9 +162,11 @@ export type GeneratorsFeature<K extends string, G, T extends GeneratorDef> = Fea
 /** The share of an absence the list is credited, and the most of it that counts. */
 export type GeneratorAway = DimensionAway;
 /** The definition `generators` takes. */
-export interface GeneratorsDef<K extends string, T extends GeneratorDef<C>, WK extends string, C extends string, WS extends object, WA extends object, G extends object> {
+export interface GeneratorsDef<K extends string, T extends GeneratorDef<C>, WK extends string, C extends string, WS extends object, WA extends object, G extends object, R extends ReachShape = readonly []> {
     /** The saved key. */
     readonly key: K;
+    /** The features the callbacks read, as `feature`'s `reach`; the wallet is reached already. */
+    readonly reach?: R | (() => R);
     /** The currencies feature the list buys from and pays into. */
     readonly wallet: CurrenciesFeature<WK, C, WS, WA>;
     readonly list: readonly T[];
@@ -196,5 +198,7 @@ export interface GeneratorsDef<K extends string, T extends GeneratorDef<C>, WK e
  * over (the `free` ones owned again) unless `reset` says otherwise. The callbacks read the whole game state, so
  * annotate one of them with the game's state type.
  */
-export declare function generators<const K extends string, T extends GeneratorDef<C>, WK extends string, C extends string, WS extends object, WA extends object, G extends object = object>(def: GeneratorsDef<K, T, WK, C, WS, WA, G>): GeneratorsFeature<K, G, T>;
+export declare function generators<const K extends string, T extends GeneratorDef<C>, WK extends string, C extends string, WS extends object, WA extends object, const R extends ReachShape = readonly [], G extends object = Record<K, GeneratorsState> & Record<WK, WS> & ReachOf<R>>(def: GeneratorsDef<K, T, WK, C, WS, WA, G, R>): GeneratorsFeature<K, G, T> & {
+    readonly needs?: NeedsOf<R>;
+};
 export {};

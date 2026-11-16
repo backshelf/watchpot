@@ -107,12 +107,18 @@ describe("defineGame refuses a name that would replace another", () => {
     ).toThrow(/game action "wallet"/);
   });
 
-  test("an order id, naming the feature it points at", () => {
-    expect(() =>
-      defineGame({ id: "o", save, features: [counter], order: { sync: ["nobody.sync.x"] } }),
-    ).toThrow(/no feature "nobody"/);
-    expect(() =>
-      defineGame({ id: "o", save, features: [counter], order: { sync: ["counter.sync.x"] } }),
-    ).toThrow(/feature "counter" declares no sync step "x"/);
+  test("a before target, naming the feature it points at", () => {
+    const step = (target: string) =>
+      feature({
+        key: "counter",
+        initial: () => ({}),
+        steps: { sync: { x: { before: target, run: () => {} } } },
+      });
+    expect(() => defineGame({ id: "o", save, features: [step("nobody.sync.x")] })).toThrow(
+      /no feature "nobody"/,
+    );
+    expect(() => defineGame({ id: "o", save, features: [step("counter.sync.z")] })).toThrow(
+      /feature "counter" declares no such step/,
+    );
   });
 });

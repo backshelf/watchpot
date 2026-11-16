@@ -254,7 +254,7 @@ export function levels<
     return to - from;
   };
 
-  const made = feature<K, LevelsState, LevelActions, readonly [], Own>({
+  const made = feature<K, LevelsState, LevelActions, readonly [], Record<never, never>, Own>({
     key: def.key,
     initial: (): LevelsState => ({ xp: Object.fromEntries(def.tracks.map((t) => [t.id, ZERO])) }),
     reset: def.reset ?? "run",

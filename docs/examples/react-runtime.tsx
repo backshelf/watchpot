@@ -42,8 +42,11 @@ export const pot = feature({
   }),
   steps: {
     produce: {
-      simmer: (d, ctx) => {
-        d.pot.bubbles = d.pot.bubbles.add(((1 + d.pot.burners) * ctx.dtMs) / 1000);
+      simmer: {
+        pass: "both",
+        run: (d, ctx) => {
+          d.pot.bubbles = d.pot.bubbles.add(((1 + d.pot.burners) * ctx.dtMs) / 1000);
+        },
       },
     },
   },

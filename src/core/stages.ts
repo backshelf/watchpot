@@ -218,23 +218,26 @@ export function stages<const K extends string, G extends object = object>(def: {
     }),
     steps: {
       produce: {
-        advance: (d: Draft<Own>, ctx) => {
-          const state = d as unknown as G;
-          let dtMs = ctx.dtMs;
-          if (ctx.pass === "catchUp") {
-            const away = def.away?.(state) ?? { rate: 1 };
-            dtMs = offlineCredit(ctx.dtMs, away.rate, away.capMs ?? Number.POSITIVE_INFINITY).creditedMs;
-          }
-          if (dtMs <= 0) return;
-          const all = slice(d).tracks;
-          for (const t of def.tracks) {
-            if (def.open && !def.open(state, t)) continue;
-            const was = all[t.id] ?? fresh();
-            const step = advanceTrack(was, forceOf(state, t), dtMs, t);
-            all[t.id] = step.state;
-            if (step.cleared > 0)
-              def.onClear?.(d as unknown as Draft<G>, t.id, was.stage, step.state.stage, ctx.now);
-          }
+        advance: {
+          pass: "both",
+          run: (d: Draft<Own>, ctx) => {
+            const state = d as unknown as G;
+            let dtMs = ctx.dtMs;
+            if (ctx.pass === "catchUp") {
+              const away = def.away?.(state) ?? { rate: 1 };
+              dtMs = offlineCredit(ctx.dtMs, away.rate, away.capMs ?? Number.POSITIVE_INFINITY).creditedMs;
+            }
+            if (dtMs <= 0) return;
+            const all = slice(d).tracks;
+            for (const t of def.tracks) {
+              if (def.open && !def.open(state, t)) continue;
+              const was = all[t.id] ?? fresh();
+              const step = advanceTrack(was, forceOf(state, t), dtMs, t);
+              all[t.id] = step.state;
+              if (step.cleared > 0)
+                def.onClear?.(d as unknown as Draft<G>, t.id, was.stage, step.state.stage, ctx.now);
+            }
+          },
         },
       },
     },

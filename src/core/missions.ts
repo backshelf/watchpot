@@ -147,7 +147,7 @@ export function missions<const K extends string, R, X = never, G extends object 
     return null;
   };
 
-  const made = feature<K, MissionsState<R>, MissionActions, readonly [], Own>({
+  const made = feature<K, MissionsState<R>, MissionActions, readonly [], Record<never, never>, Own>({
     key: def.key,
     initial: (ctx): MissionsState<R> => ({
       active: [],

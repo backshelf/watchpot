@@ -31,7 +31,6 @@ import {
   burnerPrice,
   lid,
   pot,
-  SIMMER_RATES,
   type Simmer,
   stove,
   WORDS,
@@ -61,7 +60,6 @@ export const game = defineGame({
   save: { key: "simmer.save", version: 1 },
   vocab: WORDS,
   features: [wallet, playablePot, stove, lid],
-  order: { rates: [...SIMMER_RATES] },
 });
 
 // --- A run -----------------------------------------------------------------------------------------------------

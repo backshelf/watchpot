@@ -65,10 +65,13 @@ export const kettle = feature({
   }),
   steps: {
     produce: {
-      pour: (d, ctx) => {
-        if (gaugeLocked(d.pressure, ctx.now)) return;
-        const perSecond = 1 + gaugeFill(d.pressure, PRESSURE.max); // up to twice at full pressure
-        d.kettle.cups = d.kettle.cups.add((perSecond * ctx.dtMs) / 1000);
+      pour: {
+        pass: "both",
+        run: (d, ctx) => {
+          if (gaugeLocked(d.pressure, ctx.now)) return;
+          const perSecond = 1 + gaugeFill(d.pressure, PRESSURE.max); // up to twice at full pressure
+          d.kettle.cups = d.kettle.cups.add((perSecond * ctx.dtMs) / 1000);
+        },
       },
     },
   },

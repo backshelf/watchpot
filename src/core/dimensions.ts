@@ -325,7 +325,7 @@ export function dimensions<
     return Number.isFinite(n) ? n : Number.MAX_VALUE;
   };
 
-  const made = feature<K, DimensionsState, DimensionActions, readonly [], Own>({
+  const made = feature<K, DimensionsState, DimensionActions, readonly [], Record<never, never>, Own>({
     key: def.key,
     initial: (): DimensionsState => ({
       amount: Object.fromEntries(tiers.map((t) => [t.id, D(t.start ?? 0)])),
@@ -359,11 +359,14 @@ export function dimensions<
     },
     steps: {
       produce: {
-        chain: (d: Draft<Own>, ctx) => {
-          if (ctx.pass === "tick") return produce(d, ctx.dtMs / 1000);
-          const away = def.away?.(d as unknown as G) ?? { rate: 1 };
-          const span = offlineCredit(ctx.dtMs, away.rate, away.capMs ?? Number.POSITIVE_INFINITY);
-          produce(d, span.creditedMs / 1000);
+        chain: {
+          pass: "both",
+          run: (d: Draft<Own>, ctx) => {
+            if (ctx.pass === "tick") return produce(d, ctx.dtMs / 1000);
+            const away = def.away?.(d as unknown as G) ?? { rate: 1 };
+            const span = offlineCredit(ctx.dtMs, away.rate, away.capMs ?? Number.POSITIVE_INFINITY);
+            produce(d, span.creditedMs / 1000);
+          },
         },
       },
     },

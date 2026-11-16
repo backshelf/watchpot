@@ -109,7 +109,7 @@ export function autobuyers<const K extends string, G extends object = object>(de
     },
   };
 
-  const made = feature<K, AutobuyersState, AutobuyerActions, readonly [], Own>({
+  const made = feature<K, AutobuyersState, AutobuyerActions, readonly [], Record<never, never>, Own>({
     key: def.key,
     initial: (): AutobuyersState => ({
       on: Object.fromEntries(def.list.map((a) => [a.id, true])),

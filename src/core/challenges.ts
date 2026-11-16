@@ -135,7 +135,7 @@ export function challenges<const K extends string, E = never, G extends object =
     },
   };
 
-  const made = feature<K, ChallengesState, ChallengeActions, readonly [], Own>({
+  const made = feature<K, ChallengesState, ChallengeActions, readonly [], Record<never, never>, Own>({
     key: def.key,
     initial: (): ChallengesState => ({ active: null, startedAt: 0, rules: [], completions: {}, bestMs: {} }),
     reset: "never",

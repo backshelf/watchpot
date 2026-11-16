@@ -52,12 +52,12 @@ export const collection = withMoves(
     steps: {
       produce: {
         // Whole premium each time `DRIP_MS` passes; the remainder waits in `drip`.
-        drip: (s, ctx) => {
+        drip: { pass: "both", run: (s, ctx) => {
           const ms = s.collection.drip + (ctx.pass === "tick" ? ctx.dtMs : ctx.dtMs * DRIP_AWAY);
           const whole = Math.floor(ms / DRIP_MS);
           s.collection.drip = ms - whole * DRIP_MS;
           if (whole > 0) wallet.credit(s, PREMIUM, whole);
-        },
+        } },
       },
     },
   }),

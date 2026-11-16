@@ -29,7 +29,6 @@ import {
   lid,
   OFFLINE_RATE,
   SIMMER_PER_SECOND,
-  SIMMER_RATES,
   stove,
   WORDS,
   wallet,
@@ -58,8 +57,11 @@ const pot = feature({
   }),
   steps: {
     produce: {
-      simmer: (s, ctx) => {
-        wallet.credit(s, "bubbles", (SIMMER_PER_SECOND * ctx.dtMs) / 1000);
+      simmer: {
+        pass: "both",
+        run: (s, ctx) => {
+          wallet.credit(s, "bubbles", (SIMMER_PER_SECOND * ctx.dtMs) / 1000);
+        },
       },
     },
   },
@@ -70,7 +72,6 @@ export const simmerV2 = defineGame({
   save: { key: "simmer.save", version: 2 },
   vocab: WORDS,
   features: [wallet, pot, stove, lid],
-  order: { rates: [...SIMMER_RATES] },
 });
 
 /** The store a page builds: saved to localStorage, or held in memory (and said so) where there is none. */

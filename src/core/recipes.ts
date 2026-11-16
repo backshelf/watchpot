@@ -323,7 +323,7 @@ export function crafting<
     s.queue = s.queue.filter((j) => j.done < j.times);
   };
 
-  const made = feature<K, CraftingState, CraftingActions, readonly [], Own>({
+  const made = feature<K, CraftingState, CraftingActions, readonly [], Record<never, never>, Own>({
     key: def.key,
     initial: (): CraftingState => ({ made: {}, queue: [] }),
     reset: def.reset ?? "run",
@@ -350,7 +350,7 @@ export function crafting<
     }),
     steps: {
       produce: {
-        queue: (d: Draft<Own>, ctx) => deliver(d, ctx.now),
+        queue: { pass: "both", run: (d: Draft<Own>, ctx) => deliver(d, ctx.now) },
       },
     },
   });

@@ -183,7 +183,7 @@ export function currencies<
     purse: (draft) => ({ balance: (c) => balance(draft, c), debit: (c, amount) => debit(draft, c, amount) }),
   };
 
-  const made = feature<K, S, CurrencyActions<C> & A, readonly [], G>({
+  const made = feature<K, S, CurrencyActions<C> & A, readonly [], Record<never, never>, G>({
     key: def.key,
     initial,
     reset: def.reset,

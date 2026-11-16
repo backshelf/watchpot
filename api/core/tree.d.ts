@@ -1,6 +1,6 @@
 import type { CurrenciesFeature, Purse } from "./currencies";
 import { type Decimal } from "./decimal";
-import { type Feature, type Move, type ResetRule } from "./feature";
+import { type Feature, type Move, type NeedsOf, type ReachOf, type ReachShape, type ResetRule } from "./feature";
 import { type GraphNode, type NodeFailure } from "./graph/nodes";
 /**
  * Upgrade trees: ranks bought one at a time over `GraphNode`s, paid from a `Purse`, and every rank held as a
@@ -133,15 +133,19 @@ export type UpgradeTreeFeature<K extends string, N extends GraphNode<unknown, st
  * It carries no auto-player moves: the sim's `autoPlayer` never buys a node until the game gives it some, and says
  * nothing about it. Wrap it as `withMoves(upgradeTree({ ... }), treeMoves(key, nodes, worth))`.
  */
-export declare function upgradeTree<const K extends string, N extends GraphNode<unknown, string>, WK extends string, WS extends object, WA extends object, G extends object = object>(def: {
+export declare function upgradeTree<const K extends string, N extends GraphNode<unknown, string>, WK extends string, WS extends object, WA extends object, const R extends ReachShape = readonly [], G extends object = Record<K, TreeState> & Record<WK, WS> & ReachOf<R>>(def: {
     readonly key: K;
+    /** The features `open` reads, as `feature`'s `reach`; the wallet is reached already. */
+    readonly reach?: R | (() => R);
     readonly nodes: readonly N[];
     readonly wallet: CurrenciesFeature<WK, CostOf<N>, WS, WA>;
     readonly milestone?: RankMilestone<EffectOf<N>>;
     /** Whether a node is on offer now, read off the whole game state: a closed one refuses with `closed`. */
     readonly open?: (state: G, node: N) => boolean;
     readonly reset?: ResetRule<TreeState>;
-}): UpgradeTreeFeature<K, N, G>;
+}): UpgradeTreeFeature<K, N, G> & {
+    readonly needs?: NeedsOf<R>;
+};
 /**
  * The auto-player's moves over an `upgradeTree` feature saved under `key`: one per node whose next rank can be bought
  * (not at its last rank, its requirements held), priced at the first currency of that rank's price. `worth(node,

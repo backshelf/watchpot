@@ -171,7 +171,7 @@ describe("the page-hide flush", () => {
 });
 
 describe("merging a saved field over a Decimal default", () => {
-  const toyContext: InitialContext = { now: 0, rng: seedRng(0), reason: "new" };
+  const toyContext: InitialContext = { now: 0, wallNow: 0, rng: seedRng(0), reason: "new" };
   const purse = feature({ key: "purse", initial: () => ({ gold: D(5), note: "a" as string | null }) });
 
   test("undefined, null, an object or NaN keep the default; a number or a string is read", () => {

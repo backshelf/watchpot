@@ -12,11 +12,12 @@ export type { Draft } from "immer";
  * holds every feature's state under its `key`, and `StateOf` reads the whole store's type off the feature tuple.
  *
  * A feature's callbacks (steps, actions) see the game as a draft typed `G`: its own slice under its key plus the
- * features it names in `reach`, so a feature that credits a wallet writes `reach: [wallet]` and `s.wallet.gold`
- * is typed, with no annotation anywhere. A game whose features reach each other in a cycle annotates
- * one draft or api parameter with its own state type instead (`(s: GameDraft, ctx) => …`); `G` is then read off
- * the annotation. `Feature` itself erases `G`, so a game's state type may be derived from the tuple of its
- * features without a cycle.
+ * features it names in `reach`, so a feature that credits a wallet writes `reach: () => [wallet]` and
+ * `s.wallet.gold` is typed, with no annotation anywhere. `reach` is lazy, so it may name a feature declared further
+ * down. Two features that reach each other name one side by value and the other by its state type
+ * (`reach: reach<{ lid: LidState }>()`), which `defineGame` checks against the feature really listed under that
+ * key. A value reach brings the feature's state and actions; a type reach brings what the type says. `Feature`
+ * itself erases `G`, so a game's state type may be derived from the tuple of its features without a cycle.
  */
 /** The tick phases, in the order they run. */
 export declare const PHASES: readonly ["guard", "sync", "rates", "produce", "automate", "settle", "commit", "after"];
@@ -42,50 +43,73 @@ export interface StepContext {
  * before `commit`; `commit` and `after` always run (see `tick.ts`). A step with no return statement is `void`.
  */
 export type Step<G extends object = object> = (draft: Draft<G>, ctx: StepContext) => void | "stop";
-/** A step limited to one pass: `{ pass: "tick", run }`. Written as a literal, never through a helper (see below). */
+/** When a step runs: in a live tick, in a catch-up, or in both. */
+export type PassChoice = Pass | "both";
+/** Steps a step runs after or before: step ids (`<featureKey>.<phase>.<name>`) or feature keys, in the same phase. */
+export type StepRefs = string | readonly string[];
+/** A step with its options: `{ pass: "tick", run }`. Written as a literal, never through a helper (see below). */
 export interface StepDef<G extends object = object> {
     readonly run: Step<G>;
     /**
-     * The one pass the step runs in. Omitted, and for a step written as a bare function, it runs in both: a catch-up
-     * then pays the whole time away at the live rate, with no cap. A step that earns over time usually says
-     * `pass: "tick"` and has a `pass: "catchUp"` twin that pays the away rate.
+     * The passes the step runs in. Omitted, it runs in both, which suits a step that tidies or checks. A step in an
+     * earning phase (`EARNING_PHASES`) has no default and must say: one that pays the live rate in a catch-up pays
+     * the whole time away with no cap, so that is written out (`"both"`) or split into a `"tick"` step and a
+     * `"catchUp"` twin that pays the away rate.
      */
-    readonly pass?: Pass;
+    readonly pass?: PassChoice;
+    /**
+     * Runs after the named steps of the same phase: a step id, or a feature's key for all of its steps there. Only
+     * for a step that acts; a derived value needs no order (see `FeatureDef.derived`).
+     */
+    readonly after?: StepRefs;
+    /** Runs before the named steps of the same phase. */
+    readonly before?: StepRefs;
 }
+/** A step in an earning phase: it must name its pass. */
+export interface EarningStepDef<G extends object = object> extends StepDef<G> {
+    readonly pass: PassChoice;
+}
+/** The phases whose steps pay the player over time, and so must each name the pass they run in. */
+export declare const EARNING_PHASES: readonly ["produce"];
+/** A phase whose steps must name their pass. */
+export type EarningPhase = (typeof EARNING_PHASES)[number];
 /**
- * A step entry is the function, or `{ pass, run }`. A generic helper such as `onTick(run)` would not do: its
- * own unresolved type parameter becomes a candidate for the feature's `G` and breaks the inference.
+ * A step entry is the function, or `{ run, pass, after, before }`. A generic helper such as `onTick(run)` would
+ * not do: its own unresolved type parameter becomes a candidate for the feature's `G` and breaks the inference.
  */
 export type StepEntry<G extends object = object> = Step<G> | StepDef<G>;
-/** The feature's steps: by phase, then by name. The step's id is `<featureKey>.<phase>.<name>`. */
+/**
+ * The feature's steps: by phase, then by name. The step's id is `<featureKey>.<phase>.<name>`. In an earning
+ * phase a step is always `{ pass, run }`.
+ */
 export type FeatureSteps<G extends object = object> = {
-    readonly [P in Phase]?: Readonly<Record<string, StepEntry<G>>>;
+    readonly [P in Phase]?: Readonly<Record<string, P extends EarningPhase ? EarningStepDef<G> : StepEntry<G>>>;
 };
 /** A step with its game type erased (it accepts `never`): the store calls it with the game's draft. */
 export type AnyStep = (draft: never, ctx: StepContext) => void | "stop";
 /** A step as a feature declares it: a function or `{ pass, run }`. */
 export type AnyStepEntry = AnyStep | {
     readonly run: AnyStep;
-    readonly pass?: Pass;
+    readonly pass?: PassChoice;
+    readonly after?: StepRefs;
+    readonly before?: StepRefs;
 };
 /** A feature's steps by phase, then by name. */
 export type AnySteps = {
     readonly [P in Phase]?: Readonly<Record<string, AnyStepEntry>>;
 };
 /**
- * Why a feature's `initial` is being made. `new`: a fresh profile at construction (`now` is the wall, and the
- * clock's `createdAt` stays 0 until the first catch-up). `reset`: the profile reset. `run`: a prestige reset.
- * `import`: an import, whose saved fields then land over the result.
+ * Why a feature's `initial` is being made. `new`: a fresh profile at construction (the clock's `createdAt` stays
+ * 0 until the first catch-up). `reset`: the profile reset. `run`: a prestige reset. `import`: an import, whose
+ * saved fields then land over the result.
  */
 export type InitialReason = "new" | "reset" | "run" | "import";
 /** What `initial` is given: now, the profile's rng and why the state is being made. */
 export interface InitialContext {
-    /**
-     * Which clock depends on the reason. `run`: game time. `new` and `reset`: the wall, which is game time too, since
-     * a fresh profile's offset is 0. `import`: the wall, and the imported offset lands after, so a time recorded here
-     * is off by that offset (a saved field the import carries lands over it; one the save lacks keeps the wall).
-     */
+    /** Game time, whatever the reason: the clock every step and action reads. A run start recorded here is right. */
     readonly now: number;
+    /** The wall at the same moment: game time less the clock's offset. For the rare feature that keeps a real date. */
+    readonly wallNow: number;
     /**
      * The profile's first draws: seeded when the store has a seed, else entropy. A new profile and an import get the
      * same stream (the seed's own), so a slice a save lacks starts the same whether the run was imported or carried on.
@@ -180,11 +204,15 @@ export interface FeatureApi<G extends object> {
     readonly store: IdleStoreApi<G>;
 }
 /** The definition `feature` takes: key, initial state, actions, steps, reset rule, transient keys, migrations and merge. */
-export interface FeatureDef<K extends string, S extends object, A extends object, R extends readonly FeatureSpec[], G extends object> {
+export interface FeatureDef<K extends string, S extends object, A extends object, R extends ReachShape, G extends object, Dv = Record<never, never>> {
     /** The saved key: explicit and stable, never a position. */
     readonly key: K;
-    /** The other features this one reads or writes; their state joins the draft the callbacks see. */
-    readonly reach?: R;
+    /**
+     * The other features this one reads or writes; their state joins the draft the callbacks see. A list, a function
+     * returning one (so a feature declared further down may be named), or `reach<{ key: State }>()` for a feature
+     * reached by its state type (the other side of a cycle); the two mix inside a list.
+     */
+    readonly reach?: R | (() => R);
     /**
      * The state a new profile, a reset or an import starts from. Keep it pure and cheap: `defineGame` calls it once at
      * import to check the declaration, and the store on every reset.
@@ -192,20 +220,23 @@ export interface FeatureDef<K extends string, S extends object, A extends object
     readonly initial: (ctx: InitialContext) => S;
     /** Keys of `S` that never save (a sheet that is open, a pointer). */
     readonly transient?: readonly (keyof S & string)[];
+    /**
+     * Values worked out from the state: `derived: { perSecond: (s) => … }`. Each joins the feature's slice under its
+     * name, typed by what the function returns, and is read like any field (`s.stove.perSecond`). It is never saved
+     * and never written: the engine works it out on load, on reset, and again whenever a slice it read may have
+     * changed, so what a step, an action or the page reads is current as of the start of that step or action. One
+     * derived value may read another, of this feature or one it reaches; the engine orders them by who reads whom
+     * and throws, naming the loop, when they go round. The function sees the feature's saved state and its reach; it
+     * must be pure (no rng, no clock, nothing written). Write it after `initial` and `reach` and before `actions`
+     * and `steps`, which is the order the types are read in.
+     */
+    readonly derived?: DerivedDef<Record<K, S> & ReachOf<R>, Dv>;
     readonly actions?: (api: FeatureApi<G>) => A;
     readonly steps?: FeatureSteps<G>;
     readonly reset?: ResetRule<S>;
     readonly migrations?: Readonly<Record<number, Migration>>;
     /** Runs over the default merge's result on load and import: drop or rename what this build does not know. */
     readonly merge?: (merged: S, fresh: S) => S;
-    /**
-     * Works out this feature's derived transient state (stats folded from the rest, a rate) from the state as it
-     * stands. The store runs it, in feature order, wherever the transient state is made fresh (a new store, a load,
-     * an import, a profile reset and a run reset), so the next pass's first steps never read an empty value. It must
-     * be pure: no rng, no time passing, nothing saved changed. A feature that also refreshes it each pass lists the same
-     * function as a step (`rates`). See `docs/stat-graph.md` › The first pass after a load.
-     */
-    readonly derive?: (draft: Draft<G>, ctx: DeriveContext) => void;
     /**
      * The vocabulary this feature speaks, when it is built over one (a primitive made with `currencies({ vocab })`):
      * `defineGame` refuses it unless the game declares the same vocabulary. Its words type the feature through the
@@ -224,7 +255,7 @@ export interface FeatureDef<K extends string, S extends object, A extends object
  */
 export interface FeatureSpec {
     readonly key: string;
-    readonly reach: readonly FeatureSpec[];
+    readonly reach: () => readonly FeatureSpec[];
     readonly initial: (ctx: InitialContext) => object;
     readonly transient: readonly string[];
     readonly actions: (api: never) => object;
@@ -235,16 +266,9 @@ export interface FeatureSpec {
     };
     readonly migrations: Readonly<Record<number, Migration>>;
     readonly merge?: (merged: never, fresh: never) => object;
-    readonly derive?: (draft: never, ctx: DeriveContext) => void;
+    readonly derived: Readonly<Record<string, (state: never) => unknown>>;
     readonly vocab?: AnyVocab;
     readonly moves?: (state: never) => readonly AnyMove[];
-}
-/** Why a feature's `derive` runs: the store was built, loaded, imported, reset, or a run reset landed. */
-export type DeriveReason = "new" | "load" | "import" | "reset" | "run";
-/** What `derive` is given: game time, and why the transient state is fresh. */
-export interface DeriveContext {
-    readonly now: number;
-    readonly reason: DeriveReason;
 }
 /** A `ReachedRule` with its state type erased, as `FeatureSpec` holds it. */
 export type AnyReachedRule = "run" | {
@@ -256,7 +280,11 @@ export declare function resetRuleOf(reset: FeatureSpec["reset"]): {
     rule: AnyReachedRule;
 };
 /** A declared feature: its key, its state and actions types, and the spec the game reads. */
-export interface Feature<K extends string, S extends object, A extends object> extends FeatureSpec {
+export interface Feature<K extends string, S extends object, A extends object, N = unknown, Dv = unknown> extends FeatureSpec {
+    /** Type only: the feature's derived values, by name. */
+    readonly cells?: Dv;
+    /** Type only: the state this feature reaches by type, which `defineGame` checks the game has. */
+    readonly needs?: N;
     readonly key: K;
     readonly initial: (ctx: InitialContext) => S;
     readonly transient: readonly (keyof S & string)[];
@@ -264,11 +292,29 @@ export interface Feature<K extends string, S extends object, A extends object> e
     readonly reset: ResetRule<S>;
     readonly merge?: (merged: S, fresh: S) => S;
 }
+/** A feature reached by its state type instead of by value: `reach<{ lid: LidState }>()`. */
+export interface ReachType<T extends object> {
+    readonly reachType: true;
+    /** Type only. */
+    readonly state?: T;
+}
 /**
- * Declares a feature. `K`, `S`, `A` and the reach `R` are read off the definition; `G`, the game the callbacks
- * see, is the feature's own slice plus its reach, or whatever one annotated draft or api parameter says.
+ * Reaches features by their state types: the whole `reach`, or one entry of its list. For the far side of a cycle,
+ * where naming the feature itself would make each one's type depend on the other's. `defineGame` refuses a game
+ * that lacks a key named here, or whose feature under that key has another state.
  */
-export declare function feature<const K extends string, S extends object, A extends object = Record<never, never>, const R extends readonly FeatureSpec[] = readonly [], G extends object = Record<K, S> & StateOf<R>>(def: FeatureDef<K, S, A, R, G>): Feature<K, S, A>;
+export declare function reach<T extends object>(): ReachType<T>;
+/** What `reach` may hold: a list of features and type reaches, or one type reach. */
+export type ReachShape = readonly (FeatureSpec | ReachType<object>)[] | ReachType<object>;
+/** A feature's `derived` block: each value as a function of the state `In` (its saved slice and its reach). */
+export type DerivedDef<In, Dv> = {
+    readonly [P in keyof Dv]: (state: In) => Dv[P];
+};
+/**
+ * Declares a feature. `K`, `S`, `A`, the reach `R` and the derived values are read off the definition; `G`, the
+ * game the callbacks see, is the feature's own slice (derived values included) plus its reach.
+ */
+export declare function feature<const K extends string, S extends object, A extends object = Record<never, never>, const R extends ReachShape = readonly [], Dv = Record<never, never>, G extends object = Record<K, S & Dv> & ReachOf<R>>(def: FeatureDef<K, S, A, R, G, Dv>): Feature<K, S, A, NeedsOf<R>, Dv>;
 /**
  * The same feature with its auto-player moves: for a feature a factory made (`currencies`, `prestige`, `gacha`),
  * whose definition the game does not write itself. Keeps everything else the factory put on it.
@@ -285,8 +331,11 @@ type UnionToIntersection<U> = (U extends unknown ? (x: U) => void : never) exten
 type Flat<T> = {
     [K in keyof T]: T[K];
 };
-type SliceOf<F> = F extends Feature<infer K, infer S, infer A extends object> ? {
-    [P in K]: S & A;
+type SliceOf<F> = F extends Feature<infer K, infer S, infer A extends object, infer _N, infer Dv> ? {
+    [P in K]: S & Dv & A;
+} : never;
+type DataSliceOf<F> = F extends Feature<infer K, infer S, infer _A extends object, infer _N, infer Dv> ? {
+    [P in K]: S & Dv;
 } : never;
 type SavedSliceOf<F> = F extends Feature<infer K, infer S, infer _A extends object> ? {
     [P in K]: S;
@@ -294,8 +343,21 @@ type SavedSliceOf<F> = F extends Feature<infer K, infer S, infer _A extends obje
 type ActionsSliceOf<F> = F extends Feature<infer K, infer _S, infer A extends object> ? {
     [P in K]: A;
 } : never;
+type ReachedSlice<X> = X extends ReachType<infer T> ? T : SliceOf<X>;
+type TypeReached<X> = X extends ReachType<infer T> ? T : never;
+/** The state a `reach` adds to the draft: every reached feature's slice, and every type reached. */
+export type ReachOf<R> = R extends ReachType<infer T> ? T : R extends readonly unknown[] ? Flat<UnionToIntersection<ReachedSlice<R[number]>>> : unknown;
+/** The part of a `reach` given by type, which only the finished game can check. */
+export type NeedsOf<R> = R extends ReachType<infer T> ? T : R extends readonly unknown[] ? UnionToIntersection<TypeReached<R[number]>> : unknown;
+/** Every type-reached state the features of a tuple ask for. */
+export type NeedsOfAll<F extends readonly FeatureSpec[]> = UnionToIntersection<NeedOf<F[number]>>;
+type NeedOf<X> = X extends {
+    readonly needs?: infer N;
+} ? (unknown extends N ? never : N) : never;
 /** The store's state from a feature tuple: every feature's state and actions under its key. */
 export type StateOf<F extends readonly FeatureSpec[]> = Flat<UnionToIntersection<SliceOf<F[number]>>>;
+/** Every feature's data under its key: its saved state and its derived values, no actions. */
+export type DataOf<F extends readonly FeatureSpec[]> = Flat<UnionToIntersection<DataSliceOf<F[number]>>>;
 /** The saved shape: every feature's state under its key, no actions. */
 export type SavedOf<F extends readonly FeatureSpec[]> = Flat<UnionToIntersection<SavedSliceOf<F[number]>>>;
 /** Every feature's actions under its key. */

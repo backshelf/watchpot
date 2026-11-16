@@ -22,8 +22,11 @@ export const pot = feature({
   steps: {
     produce: {
       // Runs on every live tick and on the catch-up after time away.
-      simmer: (s, ctx) => {
-        s.pot.bubbles = s.pot.bubbles.add((SIMMER_PER_SECOND * ctx.dtMs) / 1000);
+      simmer: {
+        pass: "both",
+        run: (s, ctx) => {
+          s.pot.bubbles = s.pot.bubbles.add((SIMMER_PER_SECOND * ctx.dtMs) / 1000);
+        },
       },
     },
   },
@@ -55,9 +58,12 @@ export const stove = feature({
   }),
   steps: {
     produce: {
-      burn: (s, ctx) => {
-        const made = D(s.stove.burners * BURNER_PER_SECOND).mul(ctx.dtMs / 1000);
-        s.pot.bubbles = s.pot.bubbles.add(made);
+      burn: {
+        pass: "both",
+        run: (s, ctx) => {
+          const made = D(s.stove.burners * BURNER_PER_SECOND).mul(ctx.dtMs / 1000);
+          s.pot.bubbles = s.pot.bubbles.add(made);
+        },
       },
     },
   },

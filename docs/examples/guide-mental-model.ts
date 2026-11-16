@@ -34,9 +34,6 @@ export const stove = feature({
   reach: [pot],
   initial: () => ({ burners: 0, off: false, perSecond: ZERO }),
   transient: ["perSecond"],
-  derive: (s) => {
-    s.stove.perSecond = flameOf(s.stove.burners);
-  },
   actions: (api) => ({
     buyBurner: () =>
       api.set((s) => {
@@ -85,9 +82,6 @@ export const lid = feature({
   key: "lid",
   reach: [stove],
   initial: () => ({ on: false }),
-  derive: (s) => {
-    if (s.lid.on) s.stove.perSecond = s.stove.perSecond.mul(2);
-  },
   actions: (api) => ({
     toggle: () =>
       api.set((s) => {
@@ -96,8 +90,11 @@ export const lid = feature({
   }),
   steps: {
     rates: {
-      trap: (s) => {
-        if (s.lid.on) s.stove.perSecond = s.stove.perSecond.mul(2);
+      trap: {
+        after: "stove.rates.flame",
+        run: (s) => {
+          if (s.lid.on) s.stove.perSecond = s.stove.perSecond.mul(2);
+        },
       },
     },
   },
@@ -107,8 +104,6 @@ export const game = defineGame({
   id: "simmer",
   save: { key: "simmer.save", version: 1 },
   features: [pot, stove, lid],
-  // The lid's doubling must land after the stove sets the rate. Pinned here, it holds whatever the list order.
-  order: { rates: ["stove.rates.flame", "lid.rates.trap"] },
 });
 
 if (import.meta.main) {

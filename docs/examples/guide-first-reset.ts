@@ -18,15 +18,7 @@ import {
   resetPace,
   type StateOf,
 } from "watchpot/core";
-import {
-  lid,
-  SIMMER_PER_SECOND,
-  SIMMER_RATES,
-  scriptStore,
-  stove,
-  WORDS,
-  wallet,
-} from "./simmer/game-wallet";
+import { lid, SIMMER_PER_SECOND, scriptStore, stove, WORDS, wallet } from "./simmer/game-wallet";
 
 // --- The run -------------------------------------------------------------------------------------------------
 
@@ -49,8 +41,11 @@ export const pot = feature({
   }),
   steps: {
     produce: {
-      simmer: (s, ctx) => {
-        wallet.credit(s, "bubbles", (SIMMER_PER_SECOND * ctx.dtMs) / 1000);
+      simmer: {
+        pass: "both",
+        run: (s, ctx) => {
+          wallet.credit(s, "bubbles", (SIMMER_PER_SECOND * ctx.dtMs) / 1000);
+        },
       },
     },
   },
@@ -87,8 +82,11 @@ export const steam = prestige({
   steps: {
     rates: {
       // Every steam ever made adds a tenth to the stove: 1 + 0.1 x lifetime steam.
-      drive: (s) => {
-        s.stove.perSecond = s.stove.perSecond.mul(lifetimeMultiplier(s.steam.lifetime, { k: 0.1, exp: 1 }));
+      drive: {
+        after: "lid.rates.trap",
+        run: (s) => {
+          s.stove.perSecond = s.stove.perSecond.mul(lifetimeMultiplier(s.steam.lifetime, { k: 0.1, exp: 1 }));
+        },
       },
     },
     settle: {
@@ -139,8 +137,6 @@ export const game = defineGame({
   save: { key: "simmer.save", version: 1 },
   vocab: WORDS,
   features: [...BELOW, medals, pages],
-  // The steam's push lands after the stove sets its rate and the lid doubles it.
-  order: { rates: [...SIMMER_RATES, "steam.rates.drive"] },
 });
 
 // --- A run, end to end ---------------------------------------------------------------------------------------

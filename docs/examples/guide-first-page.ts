@@ -30,7 +30,9 @@ import {
   gaugeLocked,
   generators,
   HOUR_MS,
+  reach,
   type SpawnsState,
+  type StateOf,
   spawns,
   statValue,
   type TreeState,
@@ -38,7 +40,7 @@ import {
   ZERO,
 } from "watchpot/core";
 import type { BuyMode } from "watchpot/ui";
-import { SIMMER, SIMMER_RATES, type Simmer, WORDS, wallet } from "./simmer/game-wallet";
+import { SIMMER, type Simmer, WORDS, wallet } from "./simmer/game-wallet";
 
 /** What the callbacks below read: chapter 4's Simmer, plus the slices this page adds. Written by hand: they read each other. */
 export type Page = Simmer & {
@@ -99,8 +101,9 @@ export const kitchen = upgradeTree({
   key: "kitchen",
   nodes: UPGRADES,
   wallet,
+  reach: reach<{ kettles: GeneratorsState }>(),
   // The copper waits until there is a kettle to put it on.
-  open: (s: Page, node) => node.id !== "copper" || (s.kettles.owned.kettle ?? 0) > 0,
+  open: (s, node) => node.id !== "copper" || (s.kettles.owned.kettle ?? 0) > 0,
 });
 
 /** Whether an upgrade is bought. */
@@ -142,6 +145,7 @@ const DOUBLINGS = [10, 25, 50, 100].map((at) => ({ at, gives: { mult: 2 } }));
 export const kettles = generators({
   key: "kettles",
   wallet,
+  reach: () => [kitchen, boosts],
   list: [
     {
       id: "kettle",
@@ -164,7 +168,7 @@ export const kettles = generators({
   ],
   global: [{ at: 25, gives: { mult: 3 } }], // once every kettle and cauldron reaches 25
   // The copper, and three times over while a rolling boil runs.
-  mult: (s: Page, _def, { now }) =>
+  mult: (s, _def, { now }) =>
     statOf(s, "kettle") * (buffActive(s.boosts, "rolling-boil", now) ? ROLLING_BOIL.mult : 1),
   away: () => ({ rate: 0.5, capMs: 8 * HOUR_MS }), // half pay while you are gone, for up to 8 hours
 });
@@ -223,14 +227,13 @@ export const game = defineGame({
   save: { key: "simmer.save", version: 1 },
   vocab: WORDS,
   features: [...SIMMER, kitchen, foam, kettles, spoon, boosts, surface],
-  order: { rates: [...SIMMER_RATES] },
 });
 
 // ---------------------------------------------------------------------------------------------------------------
 // What the screen reads: plain functions over the state, no React
 
 /** One kettle row: what it shows and what its button would buy, for the chosen buy mode. */
-export function kettleRow(s: Page, id: string, mode: BuyMode, now: number) {
+export function kettleRow(s: StateOf<typeof game.features>, id: string, mode: BuyMode, now: number) {
   const { count, price, canBuy } = kettles.rules.row(s, id, mode, now);
   return {
     owned: kettles.rules.owned(s, id),

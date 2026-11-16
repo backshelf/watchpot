@@ -92,9 +92,12 @@ const mine = feature({
   initial: () => ({ gold: 0 }),
   steps: {
     produce: {
-      income: (d, ctx) => {
-        const from = ctx.now - ctx.dtMs;
-        d.mine.gold += ctx.dtMs / 1000 + (6 * overlapMs(d.boosts, "rush", from, ctx.now)) / 1000;
+      income: {
+        pass: "both",
+        run: (d, ctx) => {
+          const from = ctx.now - ctx.dtMs;
+          d.mine.gold += ctx.dtMs / 1000 + (6 * overlapMs(d.boosts, "rush", from, ctx.now)) / 1000;
+        },
       },
     },
   },

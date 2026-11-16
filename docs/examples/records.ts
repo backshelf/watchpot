@@ -16,7 +16,9 @@ export const mine = feature({
   reach: [stats],
   initial: () => ({ perSecond: 2 }),
   steps: {
-    produce: { income: (d, ctx) => stats.add(d, "gold", (d.mine.perSecond * ctx.dtMs) / 1000) },
+    produce: {
+      income: { pass: "both", run: (d, ctx) => stats.add(d, "gold", (d.mine.perSecond * ctx.dtMs) / 1000) },
+    },
   },
 });
 

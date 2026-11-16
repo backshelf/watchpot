@@ -32,15 +32,18 @@ describe("the resolved order", () => {
     ]);
   });
 
-  test("`order` puts the named steps first, the rest follow in feature order", () => {
-    const a = feature({ key: "a", initial: () => ({}), steps: { sync: { one: () => {}, two: () => {} } } });
-    const b = feature({ key: "b", initial: () => ({}), steps: { sync: { three: () => {} } } });
-    const game = defineGame({
-      id: "ordered",
-      save: { key: "o", version: 1 },
-      features: [a, b],
-      order: { sync: ["b.sync.three", "a.sync.two"] },
+  test("`after` and `before` pull a step to the other side of another; the rest follow in feature order", () => {
+    const a = feature({
+      key: "a",
+      initial: () => ({}),
+      steps: { sync: { one: () => {}, two: { before: "a.sync.one", run: () => {} } } },
     });
+    const b = feature({
+      key: "b",
+      initial: () => ({}),
+      steps: { sync: { three: { before: "a.sync.two", run: () => {} } } },
+    });
+    const game = defineGame({ id: "ordered", save: { key: "o", version: 1 }, features: [a, b] });
     expect(resolvedSteps(game, "tick")).toEqual([
       "clock.guard.dt",
       "b.sync.three",
@@ -49,23 +52,60 @@ describe("the resolved order", () => {
       "clock.commit.lastSeen",
     ]);
   });
+
+  test("a feature key as a target means all of that feature's steps in the phase", () => {
+    const a = feature({
+      key: "a",
+      initial: () => ({}),
+      steps: { sync: { one: { after: "b", run: () => {} }, two: () => {} } },
+    });
+    const b = feature({ key: "b", initial: () => ({}), steps: { sync: { x: () => {}, y: () => {} } } });
+    const game = defineGame({ id: "keyed", save: { key: "k", version: 1 }, features: [a, b] });
+    expect(resolvedSteps(game, "tick")).toEqual([
+      "clock.guard.dt",
+      "a.sync.two",
+      "b.sync.x",
+      "b.sync.y",
+      "a.sync.one",
+      "clock.commit.lastSeen",
+    ]);
+  });
+
+  test("steps that wait on each other in a loop are refused at definition", () => {
+    const a = feature({
+      key: "a",
+      initial: () => ({}),
+      steps: { sync: { one: { after: "b.sync.two", run: () => {} } } },
+    });
+    const b = feature({
+      key: "b",
+      initial: () => ({}),
+      steps: { sync: { two: { after: "a.sync.one", run: () => {} } } },
+    });
+    expect(() => defineGame({ id: "loop", save: { key: "l", version: 1 }, features: [a, b] })).toThrow(
+      "in a loop",
+    );
+  });
 });
 
 /** A game whose steps write their ids into a log, with a guard that stops when asked. */
 function logged(stopAt: Partial<Record<Phase, boolean>>) {
   const log: string[] = [];
   const phases: Phase[] = ["guard", "sync", "rates", "produce", "automate", "settle", "commit", "after"];
+  const wrap = (phase: Phase, run: () => "stop" | undefined) =>
+    phase === "produce" ? { pass: "both" as const, run } : run;
   const steps = Object.fromEntries(
     phases.map((phase) => [
       phase,
       {
-        a: () => {
+        a: wrap(phase, () => {
           log.push(`${phase}.a`);
           return stopAt[phase] ? "stop" : undefined;
-        },
-        b: () => {
+        }),
+        b: wrap(phase, () => {
           log.push(`${phase}.b`);
-        },
+          return undefined;
+        }),
       },
     ]),
   );

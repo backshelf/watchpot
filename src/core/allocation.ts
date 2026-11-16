@@ -247,7 +247,7 @@ export function allocation<const K extends string, E = never, G extends object =
     }
   };
 
-  const made = feature<K, AllocationState, AllocationActions, readonly [], Own>({
+  const made = feature<K, AllocationState, AllocationActions, readonly [], Record<never, never>, Own>({
     key: def.key,
     initial: (): AllocationState => ({
       assigned: Object.fromEntries(def.sinks.map((s) => [s.id, 0])),
@@ -290,13 +290,16 @@ export function allocation<const K extends string, E = never, G extends object =
         },
       },
       produce: {
-        fill: (d: Draft<Own>, ctx) => {
-          if (ctx.pass === "tick") return fill(d, ctx.dtMs / 1000);
-          const away = def.away?.(d as unknown as G) ?? { rate: 1 };
-          fill(
-            d,
-            offlineCredit(ctx.dtMs, away.rate, away.capMs ?? Number.POSITIVE_INFINITY).creditedMs / 1000,
-          );
+        fill: {
+          pass: "both",
+          run: (d: Draft<Own>, ctx) => {
+            if (ctx.pass === "tick") return fill(d, ctx.dtMs / 1000);
+            const away = def.away?.(d as unknown as G) ?? { rate: 1 };
+            fill(
+              d,
+              offlineCredit(ctx.dtMs, away.rate, away.capMs ?? Number.POSITIVE_INFINITY).creditedMs / 1000,
+            );
+          },
         },
       },
     },

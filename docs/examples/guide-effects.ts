@@ -28,7 +28,7 @@ import {
   statValue,
   upgradeTree,
 } from "watchpot/core";
-import { SIMMER, SIMMER_RATES, type Simmer, scriptStore, WORDS, wallet } from "./simmer/game-wallet";
+import { SIMMER, type Simmer, scriptStore, WORDS, wallet } from "./simmer/game-wallet";
 
 // --- 1. Four sources, each saying what it does to "heat" -----------------------------------------------------------
 
@@ -104,13 +104,13 @@ export const fire = feature({
   reach: SOURCES,
   initial: () => ({}),
   // A fresh state (a new store, a load, a reset) gets the stove's full rate before the first pass.
-  derive: (s, ctx) => {
-    s.stove.perSecond = s.stove.perSecond.mul(heatAt(s, ctx.now));
-  },
   steps: {
     rates: {
-      stoke: (s, ctx) => {
-        s.stove.perSecond = s.stove.perSecond.mul(heatAt(s, ctx.now));
+      stoke: {
+        after: "lid.rates.trap",
+        run: (s, ctx) => {
+          s.stove.perSecond = s.stove.perSecond.mul(heatAt(s, ctx.now));
+        },
       },
     },
   },
@@ -121,8 +121,6 @@ export const game = defineGame({
   save: { key: "simmer.save", version: 1 },
   vocab: WORDS,
   features: [...SOURCES, fire],
-  // The stove sets its rate, the lid doubles it, then the fire multiplies it by heat.
-  order: { rates: [...SIMMER_RATES, "fire.rates.stoke"] },
 });
 
 // --- 4. The tooltip: where the rate comes from ---------------------------------------------------------------------

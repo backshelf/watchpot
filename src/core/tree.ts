@@ -1,7 +1,16 @@
 import { type CostCurve, costOfMany, maxAffordable } from "./cost";
 import type { CurrenciesFeature, CurrencyDraft, Purse } from "./currencies";
 import { D, type Decimal, ZERO } from "./decimal";
-import { type Feature, type FeatureApi, feature, type Move, type ResetRule } from "./feature";
+import {
+  type Feature,
+  type FeatureApi,
+  feature,
+  type Move,
+  type NeedsOf,
+  type ReachOf,
+  type ReachShape,
+  type ResetRule,
+} from "./feature";
 import {
   checkRank,
   DEFAULT_COST_GROWTH,
@@ -305,16 +314,19 @@ export function upgradeTree<
   WK extends string,
   WS extends object,
   WA extends object,
-  G extends object = object,
+  const R extends ReachShape = readonly [],
+  G extends object = Record<K, TreeState> & Record<WK, WS> & ReachOf<R>,
 >(def: {
   readonly key: K;
+  /** The features `open` reads, as `feature`'s `reach`; the wallet is reached already. */
+  readonly reach?: R | (() => R);
   readonly nodes: readonly N[];
   readonly wallet: CurrenciesFeature<WK, CostOf<N>, WS, WA>;
   readonly milestone?: RankMilestone<EffectOf<N>>;
   /** Whether a node is on offer now, read off the whole game state: a closed one refuses with `closed`. */
   readonly open?: (state: G, node: N) => boolean;
   readonly reset?: ResetRule<TreeState>;
-}): UpgradeTreeFeature<K, N, G> {
+}): UpgradeTreeFeature<K, N, G> & { readonly needs?: NeedsOf<R> } {
   const rules = tree({ id: def.key, nodes: def.nodes, milestone: def.milestone });
   const wallet = def.wallet;
   type Draft = CurrencyDraft<WK> & Record<K, TreeState>;
@@ -340,9 +352,9 @@ export function upgradeTree<
       return rules.affordable(id, ranksOf(state), balanceOf(state), limit);
     },
   };
-  const made = feature<K, TreeState, TreeActions<CostOf<N>>, readonly [], Draft>({
+  const made = feature<K, TreeState, TreeActions<CostOf<N>>, ReachShape, Record<never, never>, Draft>({
+    reach: def.reach,
     key: def.key,
-    reach: [],
     initial: () => ({ ranks: {} }),
     reset: def.reset,
     actions: (api: FeatureApi<Draft>) => ({
@@ -382,7 +394,9 @@ export function upgradeTree<
       },
     }),
   });
-  return Object.assign(made, readers, { tree: rules });
+  return Object.assign(made, readers, { tree: rules }) as UpgradeTreeFeature<K, N, G> & {
+    readonly needs?: NeedsOf<R>;
+  };
 }
 
 /**

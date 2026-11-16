@@ -178,7 +178,7 @@ export function clicker<
     return result;
   };
 
-  const made = feature<K, ClickerState, ClickerActions, readonly [], Own>({
+  const made = feature<K, ClickerState, ClickerActions, readonly [], Record<never, never>, Own>({
     key: def.key,
     initial: (ctx): ClickerState => ({
       clicks: 0,

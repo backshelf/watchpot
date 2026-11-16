@@ -1,11 +1,11 @@
-import { current, type Draft, isDraft, produce } from "immer";
+import { current, type Draft, isDraft } from "immer";
 import { type PersistStorage, persist } from "zustand/middleware";
 import { immer } from "zustand/middleware/immer";
 import { createStore } from "zustand/vanilla";
+import { createCells } from "./cells";
 import { readClock, writeClock } from "./clock-feature";
 import { D, type Decimal, isDecimal } from "./decimal";
 import {
-  type DeriveReason,
   type FeatureApi,
   type FeatureSpec,
   type IdleStoreApi,
@@ -110,7 +110,7 @@ export function partializeState(features: readonly FeatureSpec[], state: object)
     if (!data) {
       const fresh: Record<string, unknown> = {};
       for (const [k, v] of Object.entries(slice)) {
-        if (typeof v === "function" || f.transient.includes(k)) continue;
+        if (typeof v === "function" || f.transient.includes(k) || k in f.derived) continue;
         fresh[k] = v;
       }
       data = Object.freeze(fresh);
@@ -192,6 +192,10 @@ export function createIdleStore<F extends readonly FeatureSpec[], R extends obje
   const notes: SaveNotes = { setAside: null, blockedBy: null };
   /** True while a recipe runs: a `set` inside one would be lost under the outer recipe's result. */
   let drafting = false;
+  /** True while a recipe's result is being published: any other change went round the recipes. */
+  let publishing = false;
+  /** Works the derived values out again over the state as it stands. */
+  let resettle = () => {};
   let settle = () => {};
   const hydrated = new Promise<void>((resolve) => {
     settle = resolve;
@@ -204,26 +208,28 @@ export function createIdleStore<F extends readonly FeatureSpec[], R extends obje
     removeItem: (key) => storage.removeItem(key),
   };
 
-  /** Draft helper: every feature's derived transient state worked out afresh, in feature order. */
-  const deriving = features.filter((f) => f.derive);
-  const deriveAll = (s: object, now: number, reason: DeriveReason): void => {
-    // Declared over the feature's own game `G`, which the whole draft is.
-    for (const f of deriving) f.derive?.(s as never, { now, reason });
+  /** The derived values: worked out on a new state, a load, a reset, and after every recipe and step. */
+  const cells = createCells(features);
+  /** Every derived value worked out onto a plain state the store is about to hold. */
+  const fill = <T extends object>(s: T): T => {
+    cells.touchAll();
+    cells.settle(s);
+    return s;
   };
-  /** The same over a plain state, outside a recipe (a new store, a load): untouched when no feature derives. */
-  const derivePlain = <T extends object>(s: T, now: number, reason: DeriveReason): T =>
-    deriving.length === 0 ? s : produce(s, (d) => deriveAll(d, now, reason));
 
   /** Draft helper: every feature back to `initial`, then the clock's anchors on `now` with its offset zeroed. */
-  const resetAll = (s: object, ctx: InitialContext): void => {
+  const resetAll = (view: object, ctx: InitialContext): void => {
+    const s = cells.raw(view);
     for (const f of features) Object.assign((s as Slices)[f.key] ?? {}, f.initial(ctx));
     writeClock(s, clock, { createdAt: ctx.now, lastSeen: ctx.now, offsetMs: 0 });
+    cells.touchAll();
   };
 
   /** Draft helper: the prestige reset. Each feature by its rule; the clock's anchors on `now`, its offset kept. */
-  const resetRun = (s: object, now: number, next: RngState, depth = 1): void => {
-    const ctx: InitialContext = { now, rng: next, reason: "run", depth };
+  const resetRun = (view: object, now: number, next: RngState, depth = 1): void => {
+    const s = cells.raw(view);
     const { offsetMs } = readClock(s, clock);
+    const ctx: InitialContext = { now, wallNow: now - offsetMs, rng: next, reason: "run", depth };
     for (const f of features) {
       const { depth: from, rule } = resetRuleOf(f.reset);
       if (depth < from) continue;
@@ -243,7 +249,7 @@ export function createIdleStore<F extends readonly FeatureSpec[], R extends obje
       for (const k of rule.keep) slot[k] = before[k];
     }
     writeClock(s, clock, { createdAt: now, lastSeen: now, offsetMs });
-    deriveAll(s, now, "run");
+    cells.touchAll();
   };
 
   /** A step's `resetRun`: the run reset inside the pass's recipe, at the pass's `now` unless told otherwise. */
@@ -265,18 +271,27 @@ export function createIdleStore<F extends readonly FeatureSpec[], R extends obje
               "watchpot: an action was called inside a recipe (a `set` or a step), where its change would be lost under the outer one's. Call the draft helper on the draft in hand instead (`wallet.credit(draft, …)`), or call the action once the recipe has returned.",
             );
           let out: T | undefined;
-          // immer's `set` is typed over `Exclude<State, Function>`, which is `State` here (a generic the checker
-          // cannot reduce).
-          (set as (fn: (s: Draft<State>) => void) => void)((s) => {
+          const run = (s: Draft<State>): void => {
             drafting = true;
             try {
-              out = recipe(s);
+              out = recipe(cells.view(s));
+              cells.close();
+              cells.settle(s);
             } finally {
               drafting = false;
             }
-          });
+          };
+          publishing = true;
+          try {
+            // immer's `set` is typed over `Exclude<State, Function>`, which is `State` here (a generic the checker
+            // cannot reduce).
+            (set as (fn: (s: Draft<State>) => void) => void)(run);
+          } finally {
+            publishing = false;
+          }
           return out as T;
         };
+        resettle = () => draft(() => {});
         const featureApi: FeatureApi<State> = {
           set: draft,
           get,
@@ -287,7 +302,8 @@ export function createIdleStore<F extends readonly FeatureSpec[], R extends obje
           // zustand types the persist mutator as `unknown` inside the initializer, whatever the persisted shape.
           store: api as IdleStoreApi<State>,
         };
-        const initial: InitialContext = { now: wall(), rng: firstRng, reason: "new" };
+        const born = wall();
+        const initial: InitialContext = { now: born, wallNow: born, rng: firstRng, reason: "new" };
         const slices: Slices = {};
         // Each feature's api is the same object: `set`, `get` and the clock are the game's, not the feature's.
         for (const f of features)
@@ -296,23 +312,22 @@ export function createIdleStore<F extends readonly FeatureSpec[], R extends obje
           gameNow: () => wall() + readClock(get(), clock).offsetMs,
           tick: (dtMs, at = get().gameNow()) =>
             draft((s) => {
-              runPass(game, s, { pass: "tick", now: at, dtMs, resetRun: stepReset(at) });
+              runPass(game, s, { pass: "tick", now: at, dtMs, resetRun: stepReset(at) }, cells.close);
             }),
           catchUp: (at = get().gameNow()) =>
             draft((s) => {
               const last = readClock(s, clock).lastSeen;
-              runPass(game, s, {
-                pass: "catchUp",
-                now: at,
-                dtMs: last > 0 ? at - last : 0,
-                resetRun: stepReset(at),
-              });
+              runPass(
+                game,
+                s,
+                { pass: "catchUp", now: at, dtMs: last > 0 ? at - last : 0, resetRun: stepReset(at) },
+                cells.close,
+              );
             }),
           resetProfile: (at = wall()) =>
             draft((s) => {
               swaps += 1;
-              resetAll(s, { now: at, rng: entropy(), reason: "reset" });
-              deriveAll(s, at, "reset");
+              resetAll(s, { now: at, wallNow: at, rng: entropy(), reason: "reset" });
             }),
           resetRun: (ctx = {}) =>
             draft((s) => {
@@ -328,23 +343,29 @@ export function createIdleStore<F extends readonly FeatureSpec[], R extends obje
             if (!saved) throw new SaveError("bad-shape");
             // The first draws a new profile gets, so a slice the save lacks starts on the same stream whether the
             // profile was imported or carried on from construction: a seeded replay from a save does not part ways.
-            const ctx: InitialContext = { now: at, rng: firstDraws(), reason: "import" };
-            draft((s) => {
+            // The offset the import brings, read before any `initial` runs, so each is handed game time.
+            const holder = features.find((f) => f.key === clock.feature);
+            const probe: InitialContext = { now: at, wallNow: at, rng: firstDraws(), reason: "import" };
+            const offsetMs = holder
+              ? readClock(
+                  { [holder.key]: mergeFeature(holder, holder.initial(probe), saved[holder.key]) },
+                  clock,
+                ).offsetMs
+              : 0;
+            const ctx: InitialContext = { ...probe, now: at + offsetMs };
+            draft((view) => {
+              const s = cells.raw(view);
               swaps += 1;
               resetAll(s, ctx);
               for (const f of features)
                 Object.assign((s as Slices)[f.key] ?? {}, mergeFeature(f, f.initial(ctx), saved[f.key]));
               writeClock(s, clock, { lastSeen: at + readClock(s, clock).offsetMs });
-              deriveAll(s, at + readClock(s, clock).offsetMs, "import");
+              cells.touchAll();
             });
           },
         };
         // The state is built by key from the features' declarations; its type is read off the same tuple.
-        return derivePlain(
-          { ...slices, ...game.actions(featureApi as never), ...root } as State,
-          initial.now,
-          "new",
-        );
+        return fill({ ...slices, ...game.actions(featureApi as never), ...root } as State);
       }),
       {
         name,
@@ -357,7 +378,7 @@ export function createIdleStore<F extends readonly FeatureSpec[], R extends obje
           if (!saved) return current;
           const next = { ...current } as Slices;
           for (const f of features) next[f.key] = mergeFeature(f, next[f.key] ?? {}, saved[f.key]);
-          return derivePlain(next, wall() + readClock(next, clock).offsetMs, "load") as State;
+          return fill(next) as State;
         },
         // An older save comes forward through the game's and the features' steps, and zustand writes it at this
         // version. One no step reaches, or one a step throws on (or brings forward to something not a state), is
@@ -409,6 +430,13 @@ export function createIdleStore<F extends readonly FeatureSpec[], R extends obje
       },
     ),
   );
+  // A write that went round the recipes (`store.setState`) leaves the derived values behind: work them out again.
+  if (cells.any)
+    store.subscribe(() => {
+      if (publishing) return;
+      cells.touchAll();
+      resettle();
+    });
   registerStore(store, { game, storage, name, notes });
   return Object.assign(store, { hydrated, profileSwaps: () => swaps });
 }

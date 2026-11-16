@@ -5,11 +5,11 @@ import {
   type ClockSpec,
   clockFeature,
 } from "./clock-feature";
-import type { FeatureApi, FeatureSpec, Migration, Phase, StateOf } from "./feature";
+import type { DataOf, FeatureApi, FeatureSpec, Migration, NeedsOfAll, StateOf } from "./feature";
 import { PHASES, resetRuleOf } from "./feature";
 import { seedRng } from "./rng";
 import { migrationProblems } from "./save";
-import { declaredSteps } from "./tick";
+import { declaredSteps, orderPhase } from "./tick";
 import type { AnyVocab } from "./vocab";
 
 /**
@@ -22,14 +22,17 @@ export interface SaveSpec {
   readonly migrations?: Readonly<Record<number, Migration>>;
 }
 
-/**
- * Per phase, the step ids (`<featureKey>.<phase>.<name>`) that run first, in this order; the phase's other
- * steps follow in feature-list order (the clock's last).
- */
-export type StepOrder = { readonly [P in Phase]?: readonly string[] };
-
 /** The feature tuple the game ends up with: the built-in clock joins it when the game names no clock fields. */
 export type FeaturesOf<F extends readonly FeatureSpec[], C> = C extends undefined ? [...F, ClockFeature] : F;
+
+/**
+ * Checks every reach given by type against the features listed: `unknown` when each key named exists with that
+ * state, else a shape no feature list satisfies, whose text is the error.
+ */
+export type ReachCheck<F extends readonly FeatureSpec[]> =
+  DataOf<F> extends NeedsOfAll<F>
+    ? unknown
+    : { readonly "a feature reaches, by type, state this game does not have": NeedsOfAll<F> };
 
 /** The definition `defineGame` takes: id, save key and version, features, clock, vocabulary and the game's extras. */
 export interface GameDef<
@@ -41,8 +44,7 @@ export interface GameDef<
 > {
   readonly id: string;
   readonly save: SaveSpec;
-  readonly features: F;
-  readonly order?: StepOrder;
+  readonly features: F & ReachCheck<F>;
   /** Where the clock's fields already live; omitted, the engine keeps them under `clock`. */
   readonly clock?: C;
   /** Actions at the store's root, beside the engine's (`tick`, `catchUp`, …). */
@@ -60,7 +62,6 @@ export interface Game<
   readonly id: string;
   readonly save: SaveSpec;
   readonly features: F;
-  readonly order: StepOrder;
   readonly clock: ClockLens;
   readonly actions: (api: never) => R;
   readonly vocab: V;
@@ -75,18 +76,17 @@ export type AnyGame = Game<readonly FeatureSpec[], object>;
 const noActions = <R extends object>(): R => ({}) as R;
 
 /**
- * Declares a game: its features in order, where its clock lives, and which steps run first in a phase.
+ * Declares a game: its features in order and where its clock lives.
  *
- * Steps run phase by phase (`PHASES`), whatever the list says; the feature list ranks steps only inside one phase,
- * after the ids `order` pulls to the front. A step that reads a slice another feature writes later in the same
- * phase reads the value from the pass before: put the writer in an earlier phase, earlier in the list, or in
- * `order`.
+ * Steps run phase by phase (`PHASES`), whatever the list says; inside one phase they run in feature-list order
+ * unless a step says `after` or `before`. A step that acts on what another step of the same phase wrote names it
+ * (`after: "wallet"`); a value worked out from the state is a `derived` value instead, which needs no order.
  *
  * Checks at definition time, naming the feature in the error: keys are unique, transient and kept keys exist in
- * `initial`, no action is named like a key of its feature's `initial` (or a game action like a feature's key),
- * every id in `order` is a step its feature (or the clock) declares in that phase, and the migrations, when there
- * are any, step through every version from the oldest they declare to the save's. It calls every `initial` and
- * builds every `actions` once to check them, so both stay pure and cheap.
+ * `initial`, no action or derived value is named like a key of its feature's `initial` (or a game action like a
+ * feature's key), every `after` and `before` names a feature or a step of the same phase and they do not go
+ * round, and the migrations, when there are any, step through every version from the oldest they declare to the
+ * save's. It calls every `initial` and builds every `actions` once to check them, so both stay pure and cheap.
  */
 export function defineGame<
   const F extends readonly FeatureSpec[],
@@ -97,16 +97,15 @@ export function defineGame<
 >(def: GameDef<F, R, C, G, V>): Game<FeaturesOf<F, C>, R, V> {
   const features = (def.clock ? def.features : [...def.features, clockFeature]) as FeaturesOf<F, C>;
   const clock: ClockLens = def.clock ?? BUILT_IN_CLOCK;
-  const order = def.order ?? {};
   // `actions` was typed over `G`; the store supplies the api (see `feature.ts`).
   const actions = def.actions ?? noActions<R>;
-  validate(def.id, features, clock, order, def.vocab, actions);
+  validate(def.id, features, clock, def.vocab, actions);
   for (const problem of migrationProblems({ save: def.save, features }))
     throw new Error(`defineGame "${def.id}": ${problem}`);
-  return { id: def.id, save: def.save, features, order, clock, actions, vocab: def.vocab as V };
+  return { id: def.id, save: def.save, features, clock, actions, vocab: def.vocab as V };
 }
 
-const PROBE_CONTEXT = { now: 0, rng: seedRng(0), reason: "new" } as const;
+const PROBE_CONTEXT = { now: 0, wallNow: 0, rng: seedRng(0), reason: "new" } as const;
 
 /** The api `validate` builds actions on, to read their names: nothing it does reaches a store. */
 const PROBE_API: FeatureApi<object> = {
@@ -122,7 +121,6 @@ function validate(
   id: string,
   features: readonly FeatureSpec[],
   clock: ClockLens,
-  order: StepOrder,
   vocab: AnyVocab | undefined,
   actions: (api: never) => object,
 ): void {
@@ -137,13 +135,22 @@ function validate(
         `feature "${f.key}" speaks a vocabulary the game does not declare: the game's \`vocab\` must be the very object the feature was built over (an equal copy is refused too)`,
       );
     seen.add(f.key);
-    for (const r of f.reach)
+    for (const r of f.reach())
       if (!features.includes(r)) fail(`feature "${f.key}" reaches "${r.key}", which the game does not list`);
     const keys = Object.keys(f.initial(PROBE_CONTEXT));
     // The slice is `{ ...initial, ...actions }`: an action named like a field would replace it without a word.
     for (const k of Object.keys(f.actions(PROBE_API as never)))
       if (keys.includes(k))
         fail(`feature "${f.key}": the action "${k}" is named like a key of its initial state; rename one`);
+    const acts = Object.keys(f.actions(PROBE_API as never));
+    for (const k of Object.keys(f.derived)) {
+      if (keys.includes(k))
+        fail(
+          `feature "${f.key}": the derived value "${k}" is named like a key of its initial state; drop one`,
+        );
+      if (acts.includes(k))
+        fail(`feature "${f.key}": the derived value "${k}" is named like an action; rename one`);
+    }
     for (const k of f.transient)
       if (!keys.includes(k)) fail(`feature "${f.key}": transient key "${k}" is not in its initial state`);
     const { depth, rule } = resetRuleOf(f.reset);
@@ -159,14 +166,29 @@ function validate(
   // The game's actions sit at the root beside the slices: one named like a feature's key would replace its slice.
   for (const k of Object.keys(actions(PROBE_API as never)))
     if (seen.has(k)) fail(`the game action "${k}" is named like the feature "${k}"; rename one`);
-  const ids = new Set(declaredSteps(features, clock).map((s) => s.id));
-  for (const phase of PHASES)
-    for (const stepId of order[phase] ?? []) {
-      const [key = "", stepPhase, name] = stepId.split(".");
-      if (!seen.has(key)) fail(`order.${phase} names "${stepId}", but the game has no feature "${key}"`);
-      if (stepPhase !== phase)
-        fail(`order.${phase} names "${stepId}", a step of feature "${key}" in another phase`);
-      if (!ids.has(stepId))
-        fail(`order.${phase} names "${stepId}": feature "${key}" declares no ${phase} step "${name}"`);
-    }
+  const declared = declaredSteps(features, clock);
+  for (const phase of PHASES) {
+    const inPhase = declared.filter((s) => s.phase === phase);
+    for (const step of inPhase)
+      for (const [word, names] of [
+        ["after", step.after],
+        ["before", step.before],
+      ] as const)
+        for (const name of names) {
+          if (seen.has(name) || name === "clock") continue;
+          const [key = "", stepPhase] = name.split(".");
+          if (!seen.has(key) && key !== "clock")
+            fail(`step "${step.id}" runs ${word} "${name}", but the game has no feature "${key}"`);
+          if (stepPhase !== phase)
+            fail(`step "${step.id}" runs ${word} "${name}", which is not a step of the ${phase} phase`);
+          if (!inPhase.some((s) => s.id === name))
+            fail(`step "${step.id}" runs ${word} "${name}": feature "${key}" declares no such step`);
+        }
+    for (const pass of ["tick", "catchUp"] as const)
+      try {
+        orderPhase(inPhase.filter((s) => s.pass === undefined || s.pass === pass));
+      } catch (e) {
+        fail(e instanceof Error ? e.message : String(e));
+      }
+  }
 }

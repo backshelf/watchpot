@@ -12,7 +12,16 @@ import {
 import type { CurrenciesFeature, CurrencyDraft } from "./currencies";
 import { D, type Decimal, type DecimalSource, ZERO } from "./decimal";
 import type { DimensionAway } from "./dimensions";
-import { type Feature, type FeatureApi, feature, type Move, type ResetRule } from "./feature";
+import {
+  type Feature,
+  type FeatureApi,
+  feature,
+  type Move,
+  type NeedsOf,
+  type ReachOf,
+  type ReachShape,
+  type ResetRule,
+} from "./feature";
 
 /**
  * Generators: the building list every idle game has. Buy N of a thing, each one makes a currency a second, and the
@@ -206,9 +215,12 @@ export interface GeneratorsDef<
   WS extends object,
   WA extends object,
   G extends object,
+  R extends ReachShape = readonly [],
 > {
   /** The saved key. */
   readonly key: K;
+  /** The features the callbacks read, as `feature`'s `reach`; the wallet is reached already. */
+  readonly reach?: R | (() => R);
   /** The currencies feature the list buys from and pays into. */
   readonly wallet: CurrenciesFeature<WK, C, WS, WA>;
   readonly list: readonly T[];
@@ -248,8 +260,11 @@ export function generators<
   C extends string,
   WS extends object,
   WA extends object,
-  G extends object = object,
->(def: GeneratorsDef<K, T, WK, C, WS, WA, G>): GeneratorsFeature<K, G, T> {
+  const R extends ReachShape = readonly [],
+  G extends object = Record<K, GeneratorsState> & Record<WK, WS> & ReachOf<R>,
+>(
+  def: GeneratorsDef<K, T, WK, C, WS, WA, G, R>,
+): GeneratorsFeature<K, G, T> & { readonly needs?: NeedsOf<R> } {
   const { list, wallet } = def;
   const byId = new Map<string, T>();
   for (const g of list) {
@@ -427,7 +442,8 @@ export function generators<
     return Number.isFinite(n) ? n : Number.MAX_VALUE;
   };
 
-  const made = feature<K, GeneratorsState, GeneratorActions, readonly [], Own>({
+  const made = feature<K, GeneratorsState, GeneratorActions, ReachShape, Record<never, never>, Own>({
+    reach: def.reach,
     key: def.key,
     initial: (): GeneratorsState => ({
       owned: Object.fromEntries(list.map((g) => [g.id, Math.max(0, Math.floor(g.free ?? 0))])),
@@ -477,11 +493,14 @@ export function generators<
         },
       },
       produce: {
-        make: (d: Draft<Own>, ctx) => {
-          const c = { now: ctx.now };
-          if (ctx.pass === "tick") return make(d, ctx.dtMs, c);
-          const a = away(d as unknown as G, c);
-          make(d, offlineCredit(ctx.dtMs, a.rate, a.capMs ?? Number.POSITIVE_INFINITY).creditedMs, c);
+        make: {
+          pass: "both",
+          run: (d: Draft<Own>, ctx) => {
+            const c = { now: ctx.now };
+            if (ctx.pass === "tick") return make(d, ctx.dtMs, c);
+            const a = away(d as unknown as G, c);
+            make(d, offlineCredit(ctx.dtMs, a.rate, a.capMs ?? Number.POSITIVE_INFINITY).creditedMs, c);
+          },
         },
       },
     },
@@ -515,5 +534,7 @@ export function generators<
     buyMax: (draft, id, limit = Number.POSITIVE_INFINITY, now) =>
       buyDraft(draft as Draft<Own>, id, limit, true, at(draft, now)),
   };
-  return Object.assign(made, helpers, { rules });
+  return Object.assign(made, helpers, { rules }) as GeneratorsFeature<K, G, T> & {
+    readonly needs?: NeedsOf<R>;
+  };
 }

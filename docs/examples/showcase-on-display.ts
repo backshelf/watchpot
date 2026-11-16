@@ -27,8 +27,11 @@ export const shopWindow = feature({
   steps: {
     produce: {
       // Every pass, the tab open or a catch-up after an absence: each dish on show gains its seconds.
-      age: (d, ctx) => {
-        for (const id of d.window.shown) fame.gain(d, id, ctx.dtMs / 1000);
+      age: {
+        pass: "both",
+        run: (d, ctx) => {
+          for (const id of d.window.shown) fame.gain(d, id, ctx.dtMs / 1000);
+        },
       },
     },
   },

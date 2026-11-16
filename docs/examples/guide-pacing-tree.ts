@@ -19,7 +19,7 @@ import {
 } from "watchpot/core";
 import { autoPlayer, createSimWorld, fmtClock, playStraight, simStore } from "watchpot/sim";
 import { playablePot } from "./guide-pacing";
-import { lid, SIMMER_RATES, stove, WORDS, wallet } from "./simmer/game-wallet";
+import { lid, stove, WORDS, wallet } from "./simmer/game-wallet";
 
 /** The kitchen's one upgrade. It names no stat (Simmer has none); the `copper` feature below reads its rank. */
 const COPPER: GraphNode<Effect, "bubbles"> = {
@@ -46,13 +46,13 @@ const copper = feature({
   key: "copper",
   reach: [stove, kitchen],
   initial: () => ({}),
-  derive: (s) => {
-    if (hasCopper(s)) s.stove.perSecond = s.stove.perSecond.mul(2);
-  },
   steps: {
     rates: {
-      spread: (s) => {
-        if (hasCopper(s)) s.stove.perSecond = s.stove.perSecond.mul(2);
+      spread: {
+        after: "lid.rates.trap",
+        run: (s) => {
+          if (hasCopper(s)) s.stove.perSecond = s.stove.perSecond.mul(2);
+        },
       },
     },
   },
@@ -63,7 +63,6 @@ export const game = defineGame({
   save: { key: "simmer.save", version: 1 },
   vocab: WORDS,
   features: [wallet, playablePot, stove, lid, kitchen, copper],
-  order: { rates: [...SIMMER_RATES, "copper.rates.spread"] },
 });
 
 /** How long the sim took to buy the copper base, in ms, or null if two hours were not enough. */

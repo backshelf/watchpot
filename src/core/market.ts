@@ -388,7 +388,7 @@ export function market<
   const sellAbove = def.player?.sellAbove ?? 0.7;
   const spend = Math.min(1, Math.max(0, def.player?.spend ?? 0.5));
 
-  const made = feature<K, MarketState, MarketActions, readonly [], Own>({
+  const made = feature<K, MarketState, MarketActions, readonly [], Record<never, never>, Own>({
     key: def.key,
     initial: (ctx): MarketState => ({
       seed: hashText(`${ctx.rng.join(".")}:${def.key}`),
@@ -423,13 +423,16 @@ export function market<
     },
     steps: {
       produce: {
-        yield: (d: Draft<Own>, ctx) => {
-          if (ctx.pass === "tick") return pay(d, ctx.dtMs / 1000);
-          const away = def.away?.(d as unknown as G) ?? { rate: 1 };
-          pay(
-            d,
-            offlineCredit(ctx.dtMs, away.rate, away.capMs ?? Number.POSITIVE_INFINITY).creditedMs / 1000,
-          );
+        yield: {
+          pass: "both",
+          run: (d: Draft<Own>, ctx) => {
+            if (ctx.pass === "tick") return pay(d, ctx.dtMs / 1000);
+            const away = def.away?.(d as unknown as G) ?? { rate: 1 };
+            pay(
+              d,
+              offlineCredit(ctx.dtMs, away.rate, away.capMs ?? Number.POSITIVE_INFINITY).creditedMs / 1000,
+            );
+          },
         },
       },
       automate: {

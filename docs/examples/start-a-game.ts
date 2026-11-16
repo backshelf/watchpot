@@ -13,8 +13,11 @@ const wallet = feature({
   steps: {
     produce: {
       // Runs on every tick and every catch-up: one gold a second.
-      income: (s, ctx) => {
-        s.wallet.gold = s.wallet.gold.add(ctx.dtMs / 1000);
+      income: {
+        pass: "both",
+        run: (s, ctx) => {
+          s.wallet.gold = s.wallet.gold.add(ctx.dtMs / 1000);
+        },
       },
     },
   },

@@ -23,9 +23,12 @@ export const mine = feature({
   initial: () => ({ gold: 0 }),
   steps: {
     produce: {
-      income: (d, ctx) => {
-        const rushed = overlapMs(d.boosts, "rush", ctx.now - ctx.dtMs, ctx.now);
-        d.mine.gold += (ctx.dtMs + 6 * rushed) / 1000;
+      income: {
+        pass: "both",
+        run: (d, ctx) => {
+          const rushed = overlapMs(d.boosts, "rush", ctx.now - ctx.dtMs, ctx.now);
+          d.mine.gold += (ctx.dtMs + 6 * rushed) / 1000;
+        },
       },
     },
   },

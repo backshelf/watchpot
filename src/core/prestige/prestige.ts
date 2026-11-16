@@ -168,7 +168,7 @@ export function prestige<
     return { [name]: reset, ...own } as Record<N, PrestigeReset> & A;
   };
 
-  const made = feature<K, PrestigeCore & X, Record<N, PrestigeReset> & A, R, G>({
+  const made = feature<K, PrestigeCore & X, Record<N, PrestigeReset> & A, R, Record<never, never>, G>({
     key: def.key,
     reach: def.reach,
     initial: (ctx) => ({ runs: 0, currency: ZERO, lifetime: ZERO, ...(def.initial?.(ctx) ?? ({} as X)) }),
