@@ -20,7 +20,7 @@ export interface StatDef {
   hardcap?: number;
 }
 
-/** What a node does to a stat: add or multiply. */
+/** What a node does to a stat: add or multiply (`mult`, where the live graph's `LiveEffect` says `op: "mul"`). */
 export interface Effect {
   stat: string;
   add?: number;
@@ -70,7 +70,10 @@ export function applySoftcap(value: number, cap: Softcap | undefined): number {
   return value ** cap.power * cap.start ** (1 - cap.power);
 }
 
-/** A stat's value: `(base + add) x mult`, softcapped, then hardcapped. */
+/**
+ * A stat's value: `(base + add) x mult`, softcapped, then hardcapped. `base` defaults to 0, where the live graph's
+ * (`liveIndex`) defaults to 1: a stat with only multipliers on it comes to 0 here, so pass 1 for a multiplier stat.
+ */
 export function statValue(bus: StatBus, id: string, base = 0, def: StatDef = {}): number {
   const t = statTotals(bus, id);
   const capped = applySoftcap((base + t.add) * t.mult, def.softcap);
@@ -93,7 +96,10 @@ export interface StatBreakdown {
   sources: Contribution[];
 }
 
-/** Everything that feeds a stat and what it comes to: the tree lines and the "fed by" lots are built from this. */
+/**
+ * Everything that feeds a stat and what it comes to: the tree lines and the "fed by" lots are built from this. `base`
+ * defaults to 0, as in `statValue` (the live graph's defaults to 1).
+ */
 export function explainStat(bus: StatBus, id: string, base = 0, def: StatDef = {}): StatBreakdown {
   const t = statTotals(bus, id);
   const raw = (base + t.add) * t.mult;

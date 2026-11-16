@@ -242,3 +242,71 @@ describe("generators", () => {
     expect(world.store.getState().works.owned.mill).toBeGreaterThan(0);
   });
 });
+
+describe("generators: game time, the milestone gate, the away rate and buy rows", () => {
+  const RUSH_UNTIL = T0 + 5000;
+  const timed = generators({
+    key: "works",
+    wallet,
+    list: [
+      {
+        id: "cart",
+        cost: { base: 10, growth: 1.15 },
+        pays: "gold",
+        makes: "gold",
+        rate: 1,
+        free: 1,
+        milestones: [{ at: 3, gives: { mult: 2 } }],
+      },
+    ],
+    // A buff read where it applies: doubled until game time reaches RUSH_UNTIL.
+    mult: (_s: State, _g, { now }) => (now < RUSH_UNTIL ? 2 : 1),
+    milestones: (s) => s.wallet.gems.lte(0),
+    away: (_s, { now }) => ({ rate: now > 0 ? 0.25 : 0 }),
+  });
+  const g = defineGame({
+    id: "timed",
+    save: { key: "timed.save", version: 1 },
+    features: [wallet, timed],
+    vocab: WORDS,
+  });
+
+  test("a callback reads game time: the step's, and the one a screen passes", () => {
+    const { store } = freshStore(g);
+    store.getState().tick(1000, T0 + 1000);
+    store.getState().tick(1000, RUSH_UNTIL + 1000);
+    expect(num(store.getState().wallet.gold)).toBe(10 + 2 + 1);
+    const rush = num(timed.rules.rate(store.getState(), "cart", T0));
+    expect(rush).toBe(2 * num(timed.rules.rate(store.getState(), "cart", RUSH_UNTIL)));
+  });
+
+  test("the milestone gate shuts off a reached milestone", () => {
+    const { store } = freshStore(g);
+    store.getState().wallet.credit("gold", 1000);
+    store.getState().works.buy("cart", 2);
+    expect(timed.rules.boost(store.getState(), "cart", RUSH_UNTIL).mult).toBe(2);
+    store.getState().wallet.credit("gems", 1);
+    expect(timed.rules.boost(store.getState(), "cart", RUSH_UNTIL).mult).toBe(1);
+  });
+
+  test("the away rate is the one the definition gives, or all of it", () => {
+    expect(timed.rules.away({} as State, 1).rate).toBe(0.25);
+    expect(works.rules.away({} as State)).toEqual({ rate: 0.5, capMs: HOUR_MS });
+  });
+
+  test("a buy row always prices at least one and can buy only what the balance covers", () => {
+    const { store } = freshStore(g);
+    const st = () => store.getState();
+    for (const mode of [1, 10, "max", "next"] as const) {
+      const row = timed.rules.row(st(), "cart", mode);
+      expect(row.count).toBeGreaterThanOrEqual(1);
+      expect(row.price.eq(timed.rules.price(st(), "cart", row.count))).toBe(true);
+      expect(row.canBuy).toBe(row.price.lte(st().wallet.gold));
+    }
+    st().wallet.credit("gold", 1000);
+    st().works.buy("cart", 2);
+    expect(timed.rules.row(st(), "cart", "next").canBuy).toBe(false); // past the last milestone
+    expect(timed.rules.row(st(), "cart", "max").canBuy).toBe(true);
+    expect(timed.rules.row(st(), "nope", 1)).toMatchObject({ count: 1, canBuy: false });
+  });
+});

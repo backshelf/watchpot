@@ -16,7 +16,12 @@ export interface GeometricCost {
   readonly growth: DecimalSource;
   /** How many are bought at one price before it steps (default 1: every one costs more than the last). */
   readonly every?: number;
-  /** Rounds each price to a whole number: down, up or to the nearest. Default: the price as it falls. */
+  /**
+   * Rounds each price to a whole number: down, up or to the nearest. Default: the price as it falls, fractions kept.
+   * With a growth that is not a whole number, leaving it out makes fractional prices that `fmt` (which floors) shows
+   * lower than they are: 11.5 reads as 11, and a player holding 11.2 cannot buy. Pass `"ceil"` for a price that reads
+   * as what it costs.
+   */
   readonly round?: "floor" | "ceil" | "nearest";
 }
 

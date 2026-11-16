@@ -188,10 +188,13 @@ export interface AchievementsDef<K extends string, G, E> extends Omit<Achievemen
  * `<key>.settle.check` after a pass's production, every unearned achievement that has a `when` and no `on`: earned at
  * once, or once its condition has held for `forMs` (the timer starts the first time a pass sees it hold and clears
  * the first time one sees it broken; over a catch-up the gap counts only if it holds at the end). Those with `on` are
- * checked by `notify(event)`; the game earns the rest with `award(id)` or `.earn(draft, id, now)`. A prestige reset
+ * checked by `notify(event)`; the game earns the rest with `award(id)` or `.earn(draft, id, now)`. A run reset
  * keeps everything unless `reset` says otherwise. The callbacks read the whole game state, so annotate one of them.
+ *
+ * Its type parameters are key, state, effect (`achievements<K, G, E>`), the order of `Achievement<G, E>` and
+ * `AchievementsDef<K, G, E>`; all three infer, so most games write none.
  */
-export function achievements<const K extends string, E, G extends object = object>(
+export function achievements<const K extends string, G extends object = object, E = never>(
   def: AchievementsDef<K, G, E>,
 ): AchievementsFeature<K, G, E> {
   const board = achievementBoard<G, E>({
