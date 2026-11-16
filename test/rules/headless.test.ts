@@ -40,9 +40,8 @@ const offending = (found: Map<string, string[]>, bad: (f: string) => boolean) =>
   [...found].filter(([f]) => bad(f)).map(([, c]) => c.join(" > "));
 
 describe("the headless entries", () => {
-  test("the walk is not blind: from watchpot/react it arrives at the kit and a stylesheet", () => {
-    const all = [...reached("src/react/index.ts").keys()];
-    expect(all.some((f) => f.startsWith("src/kit/"))).toBe(true);
+  test("the walk is not blind: from watchpot/devtools it arrives at a stylesheet", () => {
+    const all = [...reached("src/devtools/index.ts").keys()];
     expect(all.some((f) => f.endsWith(".css"))).toBe(true);
   });
 
@@ -78,7 +77,7 @@ describe("the headless entries", () => {
   test("nothing in src/ ships CSS but the dev panel, a developer's tool with self-contained colours", () => {
     const css = [...files].filter((f) => f.startsWith("src/") && f.endsWith(".css"));
     expect(css.length).toBeGreaterThan(0);
-    expect(css.filter((f) => !f.startsWith("src/react/dev/"))).toEqual([]);
+    expect(css.filter((f) => !f.startsWith("src/devtools/"))).toEqual([]);
     // Self-contained: the panel's stylesheet reads only its own `--dp-*` properties, no game token.
     for (const f of css) {
       const vars = [...readFileSync(join(ROOT, f), "utf8").matchAll(/var\(\s*(--[\w-]+)/g)].map((m) => m[1]);

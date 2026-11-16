@@ -44,14 +44,10 @@ export function Stove() {
 
 ## Which import
 
-There are two entries with the same hooks, and you want the first:
-
-- **`watchpot/react`**: everything on this page, plus `useGameRuntime` and `usePageRuntime`, the `DevPanel` (with
-  its sound desk and sample host) and `SheetOutlet`. Use it.
-- **`watchpot/hooks`**: `watchpot/react` without those. Every export it has is the very same function, not a copy.
-  It exists for a build that cannot load a `.module.css` file (the dev panel has one) or must not pull in the kit (the
-  page runtime writes motion and scheme through it); a rule test keeps it free of both. On it, start the clock with
-  `useGameClock` and write the motion and scheme yourself.
+- **`watchpot/react`**: everything on this page, plus `useGameRuntime`, `usePageRuntime` and `SheetOutlet`. It reaches no
+  stylesheet.
+- **`watchpot/devtools`**: the `DevPanel` (with its sound desk and sample host), for a development build. The one entry
+  with a stylesheet.
 
 ## The store hooks
 
@@ -72,8 +68,7 @@ context that holds the store. A test mounts under the same provider with `render
 
 **`useShallow(selector)`** wraps a selector that builds a new value each time (an object of two figures, a Decimal
 from arithmetic): it hands back its last value while the new one is shallowly equal. A Decimal compares by its
-fields, so `useShallow((s) => s.pot.bubbles.mul(2))` is steady too. It comes from `watchpot/react` and
-`watchpot/hooks`; you need no import of zustand for it.
+fields, so `useShallow((s) => s.pot.bubbles.mul(2))` is steady too. It comes from `watchpot/react`; you need no import of zustand for it.
 
 **`StoreState<typeof store>`** is your state's type, for a selector written outside a component. **`useIdleStore()`**
 is the untyped store in context, what the engine's own hooks read; a game uses its typed hooks instead.

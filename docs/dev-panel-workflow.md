@@ -1,6 +1,6 @@
 # The dev-panel workflow
 
-`DevPanel` docks over the running game in a development build: time warp, a jump to day N, each feature's saved state as
+`DevPanel` (from `watchpot/devtools`) docks over the running game in a development build: time warp, a jump to day N, each feature's saved state as
 JSON, and the save as text (export, check through the codec, edit, import).
 
 Example: [`examples/dev-panel.tsx`](examples/dev-panel.tsx) (`bun docs/examples/dev-panel.tsx` runs the warp in code).

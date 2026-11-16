@@ -11,7 +11,7 @@ import {
   type Notation,
   resolvedSteps,
 } from "watchpot/core";
-import { awayGains, useAwayReport, warpClock } from "watchpot/hooks";
+import { awayGains, useAwayReport, warpClock } from "watchpot/react";
 import { autoPlayer } from "watchpot/sim";
 import { BuyAmount, type BuyMode, buyCount, ConfirmPress, Pressable, Progress } from "watchpot/ui";
 import { store, useGameView } from "../app/store";

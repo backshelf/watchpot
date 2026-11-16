@@ -373,21 +373,11 @@ function Play({ onTitle }: { onTitle: () => void }) {
 
 `App` is always mounted and sets up the page. `Play` mounts only once the title is pressed, and starts the clock.
 
-### `watchpot/react` or `watchpot/hooks`
+### `watchpot/react` and `watchpot/devtools`
 
-You will find the same hooks under two imports. Here is the real difference.
-
-`watchpot/hooks` is `watchpot/react` with four things left out: `useGameRuntime` and `usePageRuntime`, the
-`DevPanel` (with the sound desk and the sample host that go with it), and `SheetOutlet`. Everything it does export
-is the very same function as in `watchpot/react`, not a copy.
-
-The reason it exists is what those four things pull in. `usePageRuntime` reaches the kit's motion and scheme code,
-and the dev panel has a stylesheet. `watchpot/hooks` is kept free of both (a rule test, `test/rules/hooks.test.ts`,
-fails if it ever reaches them), so a build with no CSS-module loader can import it.
-
-So: use `watchpot/react`. Reach for `watchpot/hooks` only when your build cannot load a `.module.css` file or must not
-pull in the kit, and then start the clock with `useGameClock` and write motion and scheme yourself. The README's
-list of entries and the comment at the top of `src/hooks/index.ts` say the same.
+`watchpot/react` is hooks and runtime only, and reaches no stylesheet (a rule test, `test/rules/react-entry.test.ts`,
+fails if it ever does). The dev panel and the sound desk, which carry a stylesheet, are `watchpot/devtools`: import
+them in a development build.
 
 ## The headless UI
 
@@ -576,7 +566,7 @@ For a sequence with its own staging (a box opening, cards turning), the kit has 
 ## The dev panel
 
 While you build, you want to skip an hour, see what the save holds, or load a save that reproduces a bug. The
-`DevPanel` from `watchpot/react` docks over the running game and does all of that: time warp from a minute to a
+`DevPanel` from `watchpot/devtools` docks over the running game and does all of that: time warp from a minute to a
 day, a jump to day N, each feature's saved state as JSON, and the save as text you can export, check, edit and import.
 
 Simmer mounts it at the end of `App`, above:
@@ -632,6 +622,6 @@ never goes back. [dev-panel-workflow.md](../dev-panel-workflow.md) has the loop 
 - `templates/game/src/ui/README.md`: the copy-in registry and its token contract.
 - The README's React and Dev panel sections: `useSampled`, `useClockNow`, the paced view in full.
 - `api/react/store.d.ts` (`createRuntimeHooks`, `mountGame`), `api/react/paced.d.ts`, `api/react/runtime.d.ts`,
-  `api/react/gameClock.d.ts`, `api/react/hashRoute.d.ts`, `api/react/sample.d.ts`, `api/react/clock.d.ts`, `api/react/dev/gate.d.ts`,
+  `api/react/gameClock.d.ts`, `api/react/hashRoute.d.ts`, `api/react/sample.d.ts`, `api/react/clock.d.ts`, `api/devtools/gate.d.ts`,
   `api/hooks/index.d.ts`, `api/ui/press.d.ts`, `api/ui/feedback.d.ts`, `api/core/watch.d.ts`,
   `api/kit/fx/gesture.d.ts`, `api/kit/fx/marks.d.ts`, `api/kit/fx/director.d.ts`.

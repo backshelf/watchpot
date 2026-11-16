@@ -1,6 +1,6 @@
 import { expect, test } from "bun:test";
 import { renderHook } from "@testing-library/react";
-import { useGameClock } from "watchpot/hooks";
+import { useGameClock } from "watchpot/react";
 import { freshStore } from "watchpot/test";
 import { toy } from "../core/toy";
 

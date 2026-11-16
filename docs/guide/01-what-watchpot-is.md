@@ -89,8 +89,8 @@ scripts. A game takes the ones it needs.
 | `watchpot/core` | The kernel: big numbers, formatting, seeded randomness, the clock, saving, the feature store, and the ready-made systems (generators, prestige, upgrade trees, achievements and about twenty more). No React. |
 | `watchpot/sim` | The sim lab: an auto-player that plays your game at machine speed on a schedule, so you can measure pacing. No React. |
 | `watchpot/test` | The test kit: fresh stores, saves for a given point in a game, a fake clock and render helpers. |
-| `watchpot/react` | React bindings: store hooks, the running clock, the page runtime, layout, hotkeys, and the dev panel. |
-| `watchpot/hooks` | The same hooks as `watchpot/react`, without the runtime or the dev panel, for a build that cannot load CSS modules. |
+| `watchpot/react` | React bindings: store hooks, the running clock, the page runtime, layout and hotkeys. No stylesheet. |
+| `watchpot/devtools` | The dev panel and the sound desk, for a development build. The one entry that carries a stylesheet. |
 | `watchpot/kit` | Effects with no look: number tickers, confetti bursts, gesture tracking, a director that paces celebrations, and the mechanism for a reveal. |
 | `watchpot/ui` | Headless components: dialogs, tabs, tooltips, toasts, grids, focus helpers. Behaviour and accessibility, no style. |
 | `watchpot/shader` | A canvas that runs your own 2D fragment shaders, with a library of GLSL pieces to build them from. |
@@ -100,9 +100,6 @@ scripts. A game takes the ones it needs.
 The other two are for build scripts rather than games: `watchpot/kit/theme` (the compiler that turns a design token
 file into CSS) and `watchpot/sound/pack` (a tool that turns downloaded samples into a sound pack). They come up in
 [chapter 11](11-look-and-sound.md).
-
-The overlap between `watchpot/react` and `watchpot/hooks` is real and slightly confusing. Use `watchpot/react`
-unless you know your build has no CSS-module loader.
 
 Two boundaries hold across all of them. `core` and `sim` never import React, so your game's rules run and test
 without a browser. And the engine never names a game: nothing in it knows what your currency is called.

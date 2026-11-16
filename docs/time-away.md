@@ -32,7 +32,7 @@ Example: [`examples/time-away.ts`](examples/time-away.ts) (`bun docs/examples/ti
 ## Telling the player
 
 The catch-up runs in one pass, so the page sees the absence as one change in which the clock's `lastSeen` jumped.
-`watchAway(store, onReturn, { minMs?, settlePasses?, lens? })` (`watchpot/react`, `watchpot/hooks`) hears exactly
+`watchAway(store, onReturn, { minMs?, settlePasses?, lens? })` (`watchpot/react`) hears exactly
 that change and hands the game `{ before, after, ms }`: the state before the catch-up, the state after it, and the
 time away (the whole jump in `lastSeen`: the offline cap may have credited less, and the states say what
 was paid). A gap under `minMs` (`AWAY_REPORT_MIN_MS` by default) is not reported, and neither is a profile's first

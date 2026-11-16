@@ -1,7 +1,7 @@
 // The one store this page runs: the toy game on the engine's store, saved in this browser. `now` here is the only
 // wall-clock read the game makes; the engine itself never reads one.
 import { createGameStorage, createIdleStore, createMemoryBackend, localStorageBackend } from "watchpot/core";
-import { createRuntimeHooks } from "watchpot/hooks";
+import { createRuntimeHooks } from "watchpot/react";
 import { toy } from "../game/toy";
 
 export const store = createIdleStore(toy, {

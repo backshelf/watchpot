@@ -1,4 +1,4 @@
-import { useGameClock } from "watchpot/hooks";
+import { useGameClock } from "watchpot/react";
 import { Foot } from "../sections/Foot";
 import { Hero } from "../sections/Hero";
 import { HowMade } from "../sections/HowMade";

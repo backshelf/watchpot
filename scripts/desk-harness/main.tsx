@@ -2,10 +2,10 @@
 // a button that opens the real window over it.
 import { StrictMode } from "react";
 import { createRoot } from "react-dom/client";
-import { SoundDeskView, type SoundDeskViewProps } from "../../src/react/dev/desk/SoundDeskView";
-import { type DeskSwitch, openSoundDesk } from "../../src/react/dev/SoundDesk";
+import { SoundDeskView, type SoundDeskViewProps } from "../../src/devtools/desk/SoundDeskView";
+import { type DeskSwitch, openSoundDesk } from "../../src/devtools/SoundDesk";
 import type { MixFile } from "../../src/sound/desk";
-import { fakeDesk, fakeSampleHost, runScript } from "../../test/react/fixtures/desk";
+import { fakeDesk, fakeSampleHost, runScript } from "../../test/devtools/fixtures/desk";
 
 const query = new URLSearchParams(location.search);
 const fail = query.get("fail");

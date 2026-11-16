@@ -2,8 +2,13 @@ import { describe, expect, spyOn, test } from "bun:test";
 import { render, renderHook, screen } from "@testing-library/react";
 import { StrictMode } from "react";
 import { D } from "watchpot/core";
-import * as hooks from "watchpot/hooks";
-import { createRuntimeHooks, IdleStoreProvider, type RuntimeStore, useShallow } from "watchpot/react";
+import {
+  createRuntimeHooks,
+  IdleStoreProvider,
+  type RuntimeStore,
+  useShallow,
+  useTickNow,
+} from "watchpot/react";
 
 interface State {
   gold: ReturnType<typeof D>;
@@ -31,10 +36,6 @@ function Unstable() {
 }
 
 describe("the selector trap", () => {
-  test("useShallow is the same binding on both hook entries", () => {
-    expect(hooks.useShallow).toBe(useShallow);
-  });
-
   test("a Decimal built by the selector is stable under useShallow, with no warning", () => {
     const warn = spyOn(console, "warn").mockImplementation(() => {});
     try {
@@ -76,7 +77,7 @@ describe("the selector trap", () => {
     const error = spyOn(console, "error").mockImplementation(() => {});
     try {
       expect(() => renderHook(() => useGameStore())).toThrow(/useGameStore.*mountGame/);
-      expect(() => renderHook(() => hooks.useTickNow())).toThrow(/useTickNow.*mountGame/);
+      expect(() => renderHook(() => useTickNow())).toThrow(/useTickNow.*mountGame/);
     } finally {
       error.mockRestore();
     }

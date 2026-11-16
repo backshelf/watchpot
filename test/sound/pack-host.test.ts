@@ -12,7 +12,7 @@ import {
 } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { fetchSampleHost } from "../../src/react/dev/sampleHost";
+import { fetchSampleHost } from "../../src/devtools/sampleHost";
 import { FfmpegError } from "../../src/sound/pack/ffmpeg";
 import { sampleHost } from "../../src/sound/pack/host";
 import { manifestSource, readManifest } from "../../src/sound/pack/manifest";

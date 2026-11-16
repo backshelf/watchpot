@@ -1,7 +1,7 @@
 import { createIdleStore, crossedMark, fmt, fmtCounted, fmtRate, watchChanges, ZERO } from "watchpot/core";
+import { DevPanel } from "watchpot/devtools";
 import {
   createRuntimeHooks,
-  DevPanel,
   mountGame,
   type StoreState,
   useGameRuntime,

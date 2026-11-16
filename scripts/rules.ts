@@ -27,7 +27,6 @@ export interface ImportRule {
   source: string[];
 }
 
-const DEV = /\/dev\//;
 const CORE = ["pkg:watchpot/core", "src/core/"];
 /** What the kit and the headless UI may take from `/core`: formatting and `decimal` helpers (types are free). */
 const CORE_FOR_UI = [
@@ -88,7 +87,6 @@ export const IMPORT_RULES: ImportRule[] = [
       "src/sim/",
       "src/test/",
     ],
-    exceptFrom: [DEV],
     source: [".claude/CLAUDE.md › Rules: the kit takes props only"],
   },
   {
@@ -157,6 +155,30 @@ export const IMPORT_RULES: ImportRule[] = [
     from: /^src\/three\//,
     forbid: [/^src\/(?!three\/|core\/|react\/prefs\.ts$)/, /^pkg:watchpot\/(?!core$)/, "ext:.css"],
     source: ["docs/three.md: `watchpot/three` imports from the engine only `/core` and the prefs hook"],
+  },
+  {
+    // The dev panel and the sound desk read the store hooks, `/core`, the sound engine and the headless primitives
+    // only: no kit, sim, test kit, 3D stage or shader.
+    id: "devtools-narrow",
+    from: /^src\/devtools\//,
+    forbid: [
+      "src/kit/",
+      "src/sim/",
+      "src/test/",
+      "src/three/",
+      "src/shader/",
+      /^pkg:watchpot\/(?!core$|sound$|ui$|react$)/,
+    ],
+    source: [
+      "docs/dev-panel-workflow.md: `watchpot/devtools` reads the hooks, `/core`, the sound engine and `/ui`",
+    ],
+  },
+  {
+    // `watchpot/devtools` carries stylesheets: only a game imports it, never another entry.
+    id: "devtools-alone",
+    from: /^src\/(?!devtools\/)/,
+    forbid: ["src/devtools/", "pkg:watchpot/devtools"],
+    source: ["docs/dev-panel-workflow.md: no other entry imports `watchpot/devtools`"],
   },
   {
     id: "three-alone",

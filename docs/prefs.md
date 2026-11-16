@@ -89,7 +89,7 @@ It returns a `Prefs<T>`:
 - **`reset()`**: back to `initial`, saved, and every override let go.
 - **`subscribe(listener)`**: called after every change; returns the unsubscribe.
 
-**`usePrefs(store, select?)`** (`watchpot/react` and `watchpot/hooks`) is the React read: the whole value, or with
+**`usePrefs(store, select?)`** (`watchpot/react`) is the React read: the whole value, or with
 `select` only the part it returns, re-rendering when that part changes.
 
 ## The pace clock

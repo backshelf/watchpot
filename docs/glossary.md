@@ -146,7 +146,7 @@ an import, a reset. It must be pure. Taught in
 
 ## Dev panel
 
-`DevPanel` from `watchpot/react`: a developer's panel docked over the running game that warps time, shows each
+`DevPanel` from `watchpot/devtools`: a developer's panel docked over the running game that warps time, shows each
 feature's state and edits the save. It renders nothing in a production build. Taught in
 [chapter 10](guide/10-the-page.md#the-dev-panel) and [chapter 13](guide/13-from-the-template.md#the-dev-panel).
 Reference: [the dev-panel workflow](dev-panel-workflow.md).
