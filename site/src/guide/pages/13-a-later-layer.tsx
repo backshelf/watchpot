@@ -7,6 +7,7 @@ import {
   Act,
   Actions,
   CodeBox,
+  CodeName,
   definePage,
   Note,
   Panel,
@@ -16,7 +17,6 @@ import {
   StateTree,
   Try,
 } from "../kit";
-import { CodeName } from "../kit/more";
 
 type S = StateOf<typeof Simmer.game.features>;
 

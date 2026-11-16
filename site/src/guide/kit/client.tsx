@@ -20,6 +20,7 @@ export function hydrateGuide(page: PageDef) {
     intervalMs: page.game.intervalMs,
     externals: page.game.externals,
     store: page.game.store,
+    start: page.game.start,
   };
   const host = data.edit
     ? new WorkerHost(

@@ -1,21 +1,20 @@
 // Getting started, step 18: your first page. The whole of Simmer's first page, the example's own React components,
 // running in the panel on a store saved in this browser; the words say what each part is and which page taught it,
 // list the words learned, and point on: the deeper chapters, the reference, and making a real game.
-import { App, makeStore } from "../../../../docs/examples/guide-first-game";
-import { definePage, Note, Term, Try } from "../kit";
-import { Listing, OwnGame } from "../kit/more";
-
-const SOURCE = { file: "guide-first-game.tsx", href: "../examples/guide-first-game.tsx.html" };
+import * as react from "react";
+import * as jsxRuntime from "react/jsx-runtime";
+import * as watchpotReact from "watchpot/react";
+import * as watchpotUi from "watchpot/ui";
+import { Away, Code, definePage, ExamplePage, Note, Panel, Reload, StartOver, Term, Try } from "../kit";
 
 function YourPage() {
   return (
-    <OwnGame
-      title="Simmer, the first page"
-      page="18-your-first-page"
-      make={(options) => makeStore(options)}
-      App={App}
-      source={SOURCE}
-    />
+    <Panel title="Simmer, the first page">
+      <ExamplePage label="What guide-first-game.tsx draws" />
+      <Away />
+      <Reload />
+      <StartOver />
+    </Panel>
   );
 }
 
@@ -36,14 +35,24 @@ export default definePage({
       upgrade, ticking and saving. This is the game you would ship first.
     </>
   ),
-  // The panel runs guide-first-game.tsx itself, React and all (kit/more.tsx, `OwnGame`); the kit's own host runs
-  // this small file only because a page must name one.
-  game: { file: "simmer/game-wallet.ts", keep: "memory", clock: false },
+  // The example's own page, run as its `main.tsx` would: `start()` makes the store and mounts `App`.
+  game: {
+    file: "guide-first-game.tsx",
+    externals: {
+      react,
+      "react/jsx-runtime": jsxRuntime,
+      "watchpot/react": watchpotReact,
+      "watchpot/ui": watchpotUi,
+    },
+    start: "start",
+    clock: "example",
+    keep: "local",
+  },
   code: {
-    store: { at: "makeStore", file: "guide-first-game.tsx" },
-    count: { at: "Count", file: "guide-first-game.tsx" },
-    app: { at: "App", file: "guide-first-game.tsx" },
-    start: { at: "start", file: "guide-first-game.tsx" },
+    store: { at: "makeStore" },
+    count: { at: "Count" },
+    app: { at: "App" },
+    start: { at: "start" },
   },
   Panel: YourPage,
   Body: () => (
@@ -56,7 +65,9 @@ export default definePage({
       </p>
       <Try>
         <li>Stir the pot, light a burner, put the lid on. Save up for a kettle, then for the salt.</li>
-        <li>Reload it: a new store, made from the save. Everything comes back as you left it.</li>
+        <li>
+          Press "Reload the game": a new store, made from the save. Everything comes back as you left it.
+        </li>
         <li>
           Leave for an hour and come back. The page opens again on its save, the engine pays for the hour, and
           the page itself says what the pot made.
@@ -126,23 +137,23 @@ export default definePage({
         The whole page is one file, <code>docs/examples/guide-first-game.tsx</code>. Its game is chapter 6's,
         the one the last two steps ran. What is new is only the React around it. First, the store:
       </p>
-      <Listing id="store" />
+      <Code id="store" />
       <p>
         <code>makeStore</code> makes the store from the game. In the browser it saves itself and reads the
         clock; the panel hands it a storage and a clock of its own, so it can send the game away for an hour.
       </p>
-      <Listing id="count" />
+      <Code id="count" />
       <p>
         Each part of the page is a small component that reads the store with <code>useGameState</code> and
         prints what it reads. Here it reads the balance and works the rate out from three numbers on the
         state. It never stores anything, and it redraws when what it read changes.
       </p>
-      <Listing id="app" />
+      <Code id="app" />
       <p>
         <code>App</code> starts the clock once, for the whole page, and lists the parts. The welcome back
         after time away is <code>AwayNote</code>, which the engine's <code>useAwayReport</code> feeds.
       </p>
-      <Listing id="start" />
+      <Code id="start" />
       <p>
         <code>start()</code> makes the store and draws <code>App</code> into the page. In a game of your own,
         it is the last line of <code>main.tsx</code>. The panel does the same, inside this page.

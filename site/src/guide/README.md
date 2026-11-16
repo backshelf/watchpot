@@ -90,6 +90,14 @@ export default definePage({
   by its path, `ready` lights it when the game would take it), `ClockSwitch`, `Away` (send the reader away for a
   while; `measure` says what to count, `week` stretches it to a week), `SaveText` (`open`), `StateTree` (`only` some
   slices), `StartOver`, `Reload` (a new store reads the save, as a reload does).
+- **Small pieces for a panel.** `Shortcut` (a press that is a convenience of the page, not a move in the game: "Add
+  1,000 bubbles", with a line saying so), `PanelChoice` (a choice the panel keeps to itself, such as a buy mode),
+  `CodeName` (a name from the code as a readout's label, in the code's own case), `figure` (a small number with its
+  decimals: `fmt` rounds a 1.5 heat down to 1).
+- **Figures from the state** (`figures.tsx`, props only). `PriceCurve` (the price of each of the first few, owned
+  inked, the next lit, the rest ruled), `Breakdown` (a number's parts as a parts list: base, a row per source, a row
+  not counting ruled through, the total), `SliceFields` (a slice field by field, each marked by whether the save
+  holds it), `AgainstCopy` (a worked-out figure beside a copy written once, hatched while stale).
 - **Time on a strip.** `TickStrip` (each tick of the last three seconds, as tall as what it paid, and what that comes
   to a second), `TickLength` (how often the page's clock ticks), `SaveStrip` (each change to the state, and each
   write of the save).
@@ -97,7 +105,9 @@ export default definePage({
   packages it imports as `game.externals` (`react`, `react/jsx-runtime`, `watchpot/react`); `<ExamplePage />` draws
   what its `mountGame` call was handed, under its store, and says in plain words why it stopped if a component
   throws. With `game.clock: "example"` the page starts no clock of its own: the example's `useGameClock` runs it,
-  pays for time away when it mounts, and lights the panel's lamp.
+  pays for time away when it mounts, and lights the panel's lamp. An example that makes its store and mounts its page
+  in a function (the last line of a game's `main.tsx`) names it in `game.start`; the page calls it once the example
+  has run (`guide-first-game.tsx`'s `start`).
 - **An example that is not a game.** `game.store: false`: the example's modules run (with the controls' values) and
   no store is made; the panel calls its functions with `useExample()`.
 - **Hooks.** `useView(select)` for anything else from the state; `useExample<typeof Example>()` for the example's

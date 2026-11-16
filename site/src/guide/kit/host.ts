@@ -90,6 +90,8 @@ export interface HostOptions {
   externals?: Externals;
   /** False for an example that makes no game. */
   store?: boolean;
+  /** An exported function to call once the modules have run (it makes the store, or mounts the page). */
+  start?: string;
 }
 
 const PREFIX = "watchpot.guide.";
@@ -141,7 +143,7 @@ export interface Made {
 export function fresh(
   modules: ModuleSet,
   params: Record<string, ParamValue>,
-  options: { externals?: Externals; store?: boolean } = {},
+  options: { externals?: Externals; store?: boolean; start?: string } = {},
 ): { snapshot: Snapshot } & Made {
   const made: unknown[] = [];
   let mount: unknown = null;
@@ -154,6 +156,7 @@ export function fresh(
   );
   const loaded: Record<string, Record<string, unknown>> = {};
   const exports = runModules(modules, externals, params, loaded);
+  begin(exports, options.start);
   if (options.store === false) return { snapshot: blank({}), exports, loaded, mount };
   const store = storeOf(made, exports, () => 0, core.createGameStorage(core.createMemoryBackend()));
   return { snapshot: blank(store.getState() as Record<string, unknown>), exports, loaded, mount };
@@ -230,6 +233,14 @@ export function harness(
     externals["watchpot/react"] = { ...wp, mountGame, useGameClock };
   }
   return externals;
+}
+
+/** Calls the example's `start` export, when the page names one: it makes the store, or mounts the page, or both. */
+function begin(exports: Record<string, unknown>, start: string | undefined) {
+  if (!start) return;
+  const fn = exports[start];
+  if (typeof fn !== "function") throw new Error(`the example exports no function \`${start}\``);
+  fn();
 }
 
 /** Each store the page made, to the key its game saves under. */
@@ -356,6 +367,7 @@ export class LocalHost implements GameHost {
       },
     });
     const exports = runModules(this.options.modules, externals, this.params, loaded);
+    begin(exports, this.options.start);
     this.made = { exports, loaded, mount };
     const build = this.snap.build + 1;
     if (this.options.store === false) {

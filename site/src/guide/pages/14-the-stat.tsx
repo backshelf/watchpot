@@ -6,9 +6,13 @@ import type * as Simmer from "../../../../docs/examples/simmer/game-wallet";
 import {
   Act,
   Actions,
+  Breakdown,
+  type BreakdownRow,
+  Code,
   Controls,
   choice,
   definePage,
+  figure,
   Note,
   Panel,
   Readout,
@@ -20,7 +24,6 @@ import {
   useSnapshot,
   useView,
 } from "../kit";
-import { Breakdown, type BreakdownRow, figure, Listing } from "../kit/more";
 
 type S = StateOf<typeof Simmer.game.features>;
 type Example = typeof Simmer;
@@ -120,7 +123,7 @@ export default definePage({
 
       <h2>A source and its effect</h2>
       <p>Each thing that changes a stat is a source. Here is the lid's:</p>
-      <Listing id="lid" />
+      <Code id="lid" />
       <p>
         While <code>active</code> says the lid is on, the source applies its <code>effects</code>. It has one,
         and an <Term id="effect">effect</Term> is plain data: which stat, and an amount to multiply by (
@@ -130,7 +133,7 @@ export default definePage({
       </p>
 
       <h2>The stats feature</h2>
-      <Listing id="stats" />
+      <Code id="stats" />
       <p>
         <code>defineStats</code> writes a feature from a description: the stats there are (<code>heat</code>,
         with a base of 1, because it multiplies) and the sources that change them. <code>vocab</code> is the
@@ -151,7 +154,7 @@ export default definePage({
           multiplies by every multiplier, whatever order the sources were listed in.
         </li>
       </Try>
-      <Listing id="base" />
+      <Code id="base" />
       <p>
         A source with no <code>active</code> always counts. Adding it to the game was one name in a list:
         nothing else in the game knows it exists, and nothing else had to change.

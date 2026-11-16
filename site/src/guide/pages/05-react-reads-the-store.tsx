@@ -133,6 +133,8 @@ export default definePage({
         tells values apart by whether they are the same object, not by the number inside, so each answer looks
         like a change. It draws <code>Pot</code> again, which asks the selector again, which makes another new
         Decimal, and so on, until React gives up and stops the page. In your game, the page would go blank.
+        While you develop, the engine warns you first, in the browser's console: it prints the selector and
+        the fix.
       </p>
       <p>
         The cure is to select what is stored, as the example does, and work things out in the component's

@@ -6,10 +6,8 @@ import { Code, Controls, choice, definePage, Note, Panel, slider, Term, Try, use
 type Example = typeof Words;
 
 function OnScreen() {
-  const { onScreen, everyNotation, NOTATION, BUBBLES } = useExample<Example>();
+  const { onScreen, everyNotation, NOTATION } = useExample<Example>();
   const { shown, exact } = onScreen();
-  // Past 2^53 a Decimal no longer holds every digit, and fmtFull prints nonsense there (`1e20` for 1.23e16).
-  const exactOk = BUBBLES.lt(Number.MAX_SAFE_INTEGER);
   const head = shown.text.slice(0, shown.text.length - shown.suffix.length);
   return (
     <>
@@ -30,11 +28,7 @@ function OnScreen() {
           </div>
           <div>
             <dt>Every digit (fmtFull)</dt>
-            <dd className={exactOk ? "num" : undefined}>
-              {exactOk
-                ? exact
-                : "Too many to keep: past about 9e15, a Decimal holds only the first sixteen or so."}
-            </dd>
+            <dd className="num">{exact}</dd>
           </div>
         </dl>
       </div>
@@ -123,8 +117,8 @@ export default definePage({
         <code>suffix</code>. Most of the time you want <code>.text</code>; the parts are there for a page that
         sets the suffix smaller, or counts the number up. Writing <code>{"{fmt(bubbles)}"}</code> in a
         component is an error, and <code>{"{fmt(bubbles).text}"}</code> is right. <code>fmtFull</code> is the
-        other printer here: every digit, never a suffix, for a figure that is not too big. (Past about 9e15 a
-        Decimal keeps only its first sixteen or so digits, so there are no more digits to print.)
+        other printer here: every digit, never a suffix. (A Decimal keeps about the first fourteen digits of a
+        number; past those, <code>fmtFull</code> writes zeros.)
       </p>
       <p>
         The panel prints these bubbles, in the <Term id="notation">notation</Term> the player picked: the way
@@ -179,10 +173,4 @@ export default definePage({
       </Note>
     </>
   ),
-  // Until page 10 is written, the way on is the guide's chapter that buys the first burner.
-  next: {
-    href: "../guide/02-your-first-game.html#step-6-a-burner-you-can-buy",
-    title: "Your first game, from step 6: a burner you can buy",
-    label: "Continue in the guide",
-  },
 });

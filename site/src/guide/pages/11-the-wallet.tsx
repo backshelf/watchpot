@@ -6,6 +6,7 @@ import type * as Simmer from "../../../../docs/examples/simmer/game-wallet";
 import {
   Act,
   Actions,
+  Code,
   Controls,
   choice,
   definePage,
@@ -19,7 +20,6 @@ import {
   Try,
   Value,
 } from "../kit";
-import { Listing } from "../kit/more";
 
 type S = StateOf<typeof Simmer.game.features>;
 
@@ -84,7 +84,7 @@ export default definePage({
         So from this page on, Simmer names its money once and keeps every balance in one feature. The names
         come first:
       </p>
-      <Listing id="words" />
+      <Code id="words" />
       <p>
         <code>vocab</code> declares the game's <Term id="vocabulary">vocabulary</Term>: the words the engine
         knows it by. <code>currencies</code> lists each kind of money, each a{" "}
@@ -94,7 +94,7 @@ export default definePage({
       </p>
 
       <h2>The wallet</h2>
-      <Listing id="wallet" />
+      <Code id="wallet" />
       <p>
         <code>defineCurrencies</code> writes the feature for you from that description: a{" "}
         <Term id="wallet">wallet</Term>, with one balance for every currency in the words (
@@ -120,7 +120,7 @@ export default definePage({
       </Try>
 
       <h2>Paying in</h2>
-      <Listing id="pot" />
+      <Code id="pot" />
       <p>
         The pot no longer holds the bubbles: it pays them into the wallet. Its slice keeps only a count of
         taps. <code>wallet.draft.credit(s, "bubbles", 1)</code> is the wallet's credit, written for use inside
@@ -130,7 +130,7 @@ export default definePage({
       </p>
 
       <h2>Paying out</h2>
-      <Listing id="buy" />
+      <Code id="buy" />
       <p>
         <code>debit</code> takes the price if the balance covers it and says whether it did: <code>true</code>
         , and the bubbles are gone; <code>false</code>, and nothing changed. So the whole purchase is two

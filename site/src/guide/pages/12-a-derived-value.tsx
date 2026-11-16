@@ -7,6 +7,8 @@ import type * as Simmer from "../../../../docs/examples/simmer/game-wallet";
 import {
   Act,
   Actions,
+  AgainstCopy,
+  Code,
   Controls,
   definePage,
   Note,
@@ -14,6 +16,7 @@ import {
   Readout,
   Readouts,
   SaveText,
+  SliceFields,
   StartOver,
   slider,
   Term,
@@ -21,7 +24,6 @@ import {
   useView,
   Value,
 } from "../kit";
-import { AgainstCopy, Listing, SliceFields } from "../kit/more";
 
 type S = StateOf<typeof Simmer.game.features>;
 
@@ -116,11 +118,11 @@ export default definePage({
 
       <h2>Declaring one</h2>
       <p>What the stove keeps is two fields: how many burners are lit, and a switch a later chapter uses.</p>
-      <Listing id="initial" />
+      <Code id="initial" />
       <p>
         What it works out sits beside that, under <code>derived</code>:
       </p>
-      <Listing id="derived" />
+      <Code id="derived" />
       <p>
         Three values are declared there. This page is about the first, <code>nextPrice</code>: a function from
         the state to a number, <code>(s) =&gt; burnerPrice(s.stove.burners)</code>, the burner's price from
@@ -128,7 +130,7 @@ export default definePage({
         two, and why they sit in two groups, are the next three pages.
       </p>
       <p>The price reads the growth from page 10, which you can move again here:</p>
-      <Listing id="cost" />
+      <Code id="cost" />
       <Controls />
       <Try>
         <li>
@@ -172,6 +174,23 @@ export default definePage({
           something it read has changed (here, <code>burners</code>), and leaves it alone otherwise.
         </li>
       </ul>
+
+      <Note title="Inside an action, it is as of the start">
+        <p>
+          There is one place "current" does not reach: the middle of an action. While your function runs, a
+          derived value is what it was when the action began, and it catches up when the action returns:
+        </p>
+        <pre className="guide-snippet">
+          <code>{`api.set((s) => {
+  s.stove.burners += 1;
+  s.stove.nextPrice; // still the price before this burner
+});`}</code>
+        </pre>
+        <p>
+          So read a derived value before you change what it reads. <code>buyBurner</code> does: it charges{" "}
+          <code>nextPrice</code> first, then lights the burner.
+        </p>
+      </Note>
 
       <h2>Why not keep the price in the state?</h2>
       <p>
