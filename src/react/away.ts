@@ -133,21 +133,23 @@ export function useAwayReport<S extends object, R>(
   const latest = useRef(summarize);
   latest.current = summarize;
   const { minMs, settlePasses, lens } = options;
+  // The state after the last return this hook heard: StrictMode's second run of the effect must not hear it again.
+  const heard = useRef<object | null>(null);
   // A child's layout effect runs before its parent's, so it subscribes before the clock's catch-up; a hook after the
   // clock's in one component subscribes after it, and starts from the catch-up it missed.
-  useLayoutEffect(
-    () =>
-      listenAway(
-        store as unknown as Subscribable<S>,
-        (away) => {
-          const r = latest.current(away);
-          if (r !== null) setReport(r);
-        },
-        { minMs, settlePasses, lens },
-        freshOpening<S>(store),
-      ),
-    [store, minMs, settlePasses, lens],
-  );
+  useLayoutEffect(() => {
+    const opening = freshOpening<S>(store);
+    return listenAway(
+      store as unknown as Subscribable<S>,
+      (away) => {
+        heard.current = away.after;
+        const r = latest.current(away);
+        if (r !== null) setReport(r);
+      },
+      { minMs, settlePasses, lens },
+      opening && opening.after !== heard.current ? opening : null,
+    );
+  }, [store, minMs, settlePasses, lens]);
   const dismiss = useCallback(() => setReport(null), []);
   return { report, dismiss };
 }

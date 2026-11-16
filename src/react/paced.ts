@@ -132,6 +132,7 @@ export function pacedView<S>(store: PaceableStore<S>, options?: PacedViewOptions
   const had = views.get(store);
   if (had) {
     if (
+      typeof process !== "undefined" &&
       process.env.NODE_ENV !== "production" &&
       options !== undefined &&
       !warned.has(store) &&

@@ -96,7 +96,12 @@ export function useShaderTokens<N extends string>(
     if (!el) return;
     const read = () => {
       const next = readTokens(el, names);
-      if (next === null && !warned.current && process.env.NODE_ENV !== "production")
+      if (
+        next === null &&
+        !warned.current &&
+        typeof process !== "undefined" &&
+        process.env.NODE_ENV !== "production"
+      )
         warned.current = warnMissing(el, names);
       setValue((was) => (same(was, next) ? was : next));
     };

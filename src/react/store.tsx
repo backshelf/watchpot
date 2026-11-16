@@ -111,7 +111,7 @@ function checkSelector(store: RuntimeStore, selector: (state: never) => unknown)
 /** `useStore(selector)` against the store in context, untyped; `createRuntimeHooks` gives it the game's type. */
 function useStoreState<T>(selector: (state: never) => T): T {
   const store = useIdleStore("useGameState");
-  if (process.env.NODE_ENV !== "production") checkSelector(store, selector);
+  if (typeof process !== "undefined" && process.env.NODE_ENV !== "production") checkSelector(store, selector);
   return useStore(store as never, selector);
 }
 
