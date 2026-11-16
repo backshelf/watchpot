@@ -64,7 +64,7 @@ export const game = defineGame({
   free into one sink). A sink that gains goes to the end of `order`.
 - **`select`** (questions over state): `pool`, `free`, `cap`, `perSecond(state, id)` (a bar's work a second),
   `bar(state, id)` → `{ level, into, need, share }`, and `contributions(state)` sourced `<key>:<id>`, which is what
-  the `stats` feature's `contributions` takes.
+  the stats feature (`defineStats`)'s `contributions` takes.
 - **`def`** (what it was given): `sinks`, `sink(id)`, and `contributions(slice)`, the same contributions from the
   saved slice alone (`{ level }`).
 - **`draft`** (inside a recipe or a step, named like the actions): `assign(draft, id, n)`, `unassign(draft, id, n)`,

@@ -327,7 +327,7 @@ a term from a page the player has not opened stays plain text.
 
 **Why it works.** A challenge's `rules` are plain strings, and `trials.select.rule(state, rule)` is true only while a
 challenge carrying that string is active. Separately, the engine's [stat graph](glossary.md#stat-graph) (`statIndex`,
-and the `stats` feature built on it) puts each source in an optional `group`, and `muted` silences the effects of any
+and the stats feature (`defineStats`) built on it) puts each source in an optional `group`, and `muted` silences the effects of any
 group it names: the rows stay in the breakdown, marked with the reason, and stop counting. Name the rule after the
 group and the two systems join with no code in between. (A `stats` feature takes the same function as its own
 ``muted: (s, group) => trials.select.rule(s, `mute:${group}`)``.)
