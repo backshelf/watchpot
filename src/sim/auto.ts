@@ -50,6 +50,20 @@ export interface AutoPlayerOptions<S> {
   worthLooks?: number;
   /** Silences the warning for features that look purchasable and declare no moves. */
   quiet?: boolean;
+  /** What an earlier auto-player remembered (`remember()`, kept in a snapshot): this one carries on from it. */
+  memory?: AutoPlayerMemory;
+}
+
+/**
+ * What an auto-player carries between looks: the worths it worked out and keeps, how many looks they are kept for
+ * yet, which moves' worked-out worth ever came above nothing, and whether it has warned. Plain data, kept in a
+ * snapshot, so a run resumed from one buys what the run that took it would have.
+ */
+export interface AutoPlayerMemory {
+  readonly kept: readonly (readonly [string, number])[];
+  readonly keptFor: number;
+  readonly worked: readonly (readonly [string, boolean])[];
+  readonly warned: boolean;
 }
 
 /** The balance reader of a game's one `currencies` feature (`state[key][currency]`); throws on none or several. */
@@ -91,6 +105,8 @@ export interface AutoPlayer<S> {
    * has never bought them, and each wants a hand-written `worth`. Read it at the end of a run.
    */
   blind(): readonly string[];
+  /** What it carries between looks, as plain data: pass it as `memory` to carry on from here. */
+  remember(): AutoPlayerMemory;
 }
 
 /** Whether a move costs nothing. */
@@ -104,15 +120,22 @@ const isFree = <S extends object>(move: Move<S>): boolean => !move.cost || move.
  */
 export function autoPlayer<S extends object>(
   game: Playable,
-  { balance: given, maxMoves = 1_000, objective, worthLooks = 10, quiet = false }: AutoPlayerOptions<S> = {},
+  {
+    balance: given,
+    maxMoves = 1_000,
+    objective,
+    worthLooks = 10,
+    quiet = false,
+    memory,
+  }: AutoPlayerOptions<S> = {},
 ): AutoPlayer<S> {
   const balance = given ?? currencyBalance<S>(game);
   /** Worked-out worths kept between looks, by move id, and the looks left before they are dropped. */
-  const kept = new Map<string, number>();
-  let keptFor = 0;
+  const kept = new Map<string, number>(memory?.kept);
+  let keptFor = memory?.keptFor ?? 0;
   /** Moves with no `worth` of their own, and whether their worked-out worth has ever been above nothing. */
-  const worked = new Map<string, boolean>();
-  let warned = quiet;
+  const worked = new Map<string, boolean>(memory?.worked);
+  let warned = quiet || (memory?.warned ?? false);
 
   const warnMissing = (state: S): void => {
     warned = true;
@@ -157,6 +180,7 @@ export function autoPlayer<S extends object>(
 
   return {
     blind: () => [...worked].filter(([, seen]) => !seen).map(([id]) => id),
+    remember: () => ({ kept: [...kept], keptFor, worked: [...worked], warned }),
     look(store) {
       if (!warned) warnMissing(store.getState());
       if (keptFor <= 0) {

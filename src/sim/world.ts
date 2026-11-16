@@ -5,17 +5,29 @@ import {
   createMemoryBackend,
   createPlainStore,
   type IdleStore,
+  type PlainData,
   type PlainStore,
   type StateOf,
 } from "../core";
 
-/** What the harness drives: any store with the root clock actions (`createIdleStore`'s, or a game's wrapper of it). */
+/**
+ * What the harness drives: any store with the root clock actions (`createIdleStore`'s, or a game's wrapper of it). A
+ * store with `snapshot` and `restore` (the plain store's) can be snapshotted and resumed.
+ */
 export interface SimStore {
   getState(): {
     tick(dtMs: number, now?: number): void;
     catchUp(now?: number): void;
     gameNow(): number;
   };
+  snapshot?(): PlainData;
+  restore?(data: PlainData): void;
+}
+
+/** A world at a moment: the sim clock and the store's data (the rng's position is in the data). */
+export interface WorldSnapshot {
+  readonly now: number;
+  readonly state: PlainData;
 }
 
 /**
@@ -37,6 +49,8 @@ export interface SimWorld<S extends SimStore = SimStore> {
   play(ms: number, stepMs?: number): void;
   /** Closes the tab for `ms`, then opens it: one catch-up over the gap, as on a return. */
   away(ms: number): void;
+  /** The world now, to resume from (`resumeSimWorld`). Throws for a store that cannot be snapshotted. */
+  snapshot(): WorldSnapshot;
 }
 
 /**
@@ -67,14 +81,50 @@ export interface SimWorldOptions {
 export function createSimWorld<S extends SimStore>(
   build: (now: () => number) => S,
   start: number,
-  { quality = "exact", tickMs = SIM_QUALITY[quality] }: SimWorldOptions = {},
+  options: SimWorldOptions = {},
+): SimWorld<S> {
+  return openWorld(build, start, options, null);
+}
+
+/**
+ * A world picked up where a snapshot left it (`world.snapshot()`, or `SimSnapshot.world`): `build` makes a fresh
+ * store over the clock, set to the snapshot's time, and the snapshot's data is put into it. There is no opening
+ * catch-up: the run carries on as if it had never stopped, and plays on exactly as the one that took it. The store
+ * must have `restore` (the plain store's: `simStore`).
+ */
+export function resumeSimWorld<S extends SimStore>(
+  build: (now: () => number) => S,
+  from: WorldSnapshot,
+  options: SimWorldOptions = {},
+): SimWorld<S> {
+  return openWorld(build, from.now, options, from);
+}
+
+function openWorld<S extends SimStore>(
+  build: (now: () => number) => S,
+  start: number,
+  { quality = "exact", tickMs = SIM_QUALITY[quality] }: SimWorldOptions,
+  from: WorldSnapshot | null,
 ): SimWorld<S> {
   let clock = start;
   const store = build(() => clock);
-  store.getState().catchUp(store.getState().gameNow());
+  if (from) {
+    if (!store.restore)
+      throw new Error(
+        "resumeSimWorld: the store cannot be restored; build it with `simStore` (a plain store)",
+      );
+    store.restore(from.state);
+  } else store.getState().catchUp(store.getState().gameNow());
   return {
     store,
     tickMs,
+    snapshot() {
+      if (!store.snapshot)
+        throw new Error(
+          "SimWorld.snapshot: the store cannot be snapshotted; build it with `simStore` (a plain store)",
+        );
+      return { now: clock, state: store.snapshot() };
+    },
     now: () => clock,
     gameNow: () => store.getState().gameNow(),
     play(ms, stepMs = tickMs) {

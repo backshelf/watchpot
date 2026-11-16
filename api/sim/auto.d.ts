@@ -39,6 +39,19 @@ export interface AutoPlayerOptions<S> {
     worthLooks?: number;
     /** Silences the warning for features that look purchasable and declare no moves. */
     quiet?: boolean;
+    /** What an earlier auto-player remembered (`remember()`, kept in a snapshot): this one carries on from it. */
+    memory?: AutoPlayerMemory;
+}
+/**
+ * What an auto-player carries between looks: the worths it worked out and keeps, how many looks they are kept for
+ * yet, which moves' worked-out worth ever came above nothing, and whether it has warned. Plain data, kept in a
+ * snapshot, so a run resumed from one buys what the run that took it would have.
+ */
+export interface AutoPlayerMemory {
+    readonly kept: readonly (readonly [string, number])[];
+    readonly keptFor: number;
+    readonly worked: readonly (readonly [string, boolean])[];
+    readonly warned: boolean;
 }
 /** What a look did: purchases and free moves taken. */
 export interface LookResult {
@@ -63,6 +76,8 @@ export interface AutoPlayer<S> {
      * has never bought them, and each wants a hand-written `worth`. Read it at the end of a run.
      */
     blind(): readonly string[];
+    /** What it carries between looks, as plain data: pass it as `memory` to carry on from here. */
+    remember(): AutoPlayerMemory;
 }
 /**
  * The auto-player for a game: `look(store)` plays one look. A purchase's score is its worth over the share of its
@@ -70,7 +85,7 @@ export interface AutoPlayer<S> {
  * move whose `apply` refuses is not tried again in the look; one worth nothing or less is never taken; a free
  * move is taken once a look unless it says `repeat`.
  */
-export declare function autoPlayer<S extends object>(game: Playable, { balance: given, maxMoves, objective, worthLooks, quiet }?: AutoPlayerOptions<S>): AutoPlayer<S>;
+export declare function autoPlayer<S extends object>(game: Playable, { balance: given, maxMoves, objective, worthLooks, quiet, memory, }?: AutoPlayerOptions<S>): AutoPlayer<S>;
 /** One look's place in the days: its day, its session (from 0, across the run), its index in the session. */
 export interface LookAt {
     day: number;

@@ -5,46 +5,45 @@ import { join } from "node:path";
 import { D, type Decimal } from "watchpot/core";
 import {
   BLOCKED,
+  DRAFT_LINE,
   type FitGate,
-  type FitResult,
-  fitReader,
+  fitTable,
   fitTableSource,
   formatFit,
   holdings,
+  isBlocked,
   nicePrice,
+  priceAbove,
   runFit,
 } from "watchpot/sim";
 
 const MIN = 60_000;
 
-/** A jar that fills a coin a second; a gate is paid out of it as soon as its price is set and the jar holds it. */
+/** A jar that fills a coin a second; a gate is paid out of it as soon as the table prices it and the jar holds it. */
 function jar(plan: Record<string, number>, priceAt: (held: Decimal) => string | null = nicePrice) {
   const s = { coins: D(0), playedMs: 0, paid: new Set<string>() };
-  const prices: Record<string, string> = {};
-  const have = holdings(["coins"], () => s.coins, 30);
+  const table = fitTable();
+  const have = holdings(["coins"], () => s.coins, { window: 30 });
   const asked: string[] = [];
   const gates: FitGate[] = Object.entries(plan).map(([key, minute]) => ({
     key,
     atMs: minute * MIN,
-    block: () => {
-      prices[key] = BLOCKED;
-    },
     price: () => {
       asked.push(key);
-      const value = priceAt(have.held("coins"));
-      if (value) prices[key] = value.split(" ")[0] ?? value;
-      return value;
+      return priceAt(have.held("coins"));
     },
   }));
   const run = (limitMs = 20 * MIN) =>
     runFit({
+      table,
       gates,
       step: (dt) => {
         s.coins = s.coins.add(dt / 1000);
         s.playedMs += dt;
       },
       look: () => {
-        for (const [key, p] of Object.entries(prices)) {
+        for (const key of Object.keys(plan)) {
+          const p = table.get(key);
           if (s.paid.has(key) || s.coins.lt(p)) continue;
           s.coins = s.coins.sub(p);
           s.paid.add(key);
@@ -55,30 +54,42 @@ function jar(plan: Record<string, number>, priceAt: (held: Decimal) => string | 
       done: () => s.paid.size === gates.length,
       limitMs,
     });
-  return { s, prices, asked, run };
+  return { s, table, asked, run };
 }
 
 describe("runFit", () => {
-  test("blocks every gate, then opens each at or after its minute and finishes", () => {
-    const plan = { first: 1, second: 3, third: 4 };
-    const j = jar(plan);
+  test("shuts every gate, then prices each into the table at or after its minute and finishes", () => {
+    const j = jar({ first: 1, second: 3, third: 4 });
+    j.table.set("first", "1"); // a stale price the fit must shut
     const result = j.run();
     expect(result.finished).toBe(true);
     for (const g of result.gates) {
       expect(g.openedMs).toBeGreaterThanOrEqual(g.atMs);
       expect(g.openedMs).toBeLessThan(g.atMs + MIN);
-      expect(g.value).toBeDefined();
+      expect(j.table.figure(g.key)).toBe(g.value);
     }
     expect(result.playedMs).toBeLessThan(10 * MIN);
+    expect(result.snapshots).toEqual([]);
   });
 
-  test("a gate nothing prices stays unopened and the run is not finished", () => {
+  test("a gate nothing prices stays shut and the run is not finished", () => {
     const j = jar({ first: 1, never: 2 }, (held) => (held.gt(1e9) ? "1" : null));
     const result = j.run(5 * MIN);
     expect(result.finished).toBe(false);
     expect(result.playedMs).toBe(5 * MIN);
     expect(result.gates.every((g) => g.openedMs === undefined)).toBe(true);
+    expect(isBlocked(j.table.get("never"))).toBe(true);
     expect(formatFit(result)).toContain("| never | 0:02 | never |  |");
+  });
+
+  test("a note after the price goes in the report, never in the table", () => {
+    const j = jar({ only: 1 }, (held) => {
+      const p = nicePrice(held);
+      return p && `${p} (with a note)`;
+    });
+    const result = j.run();
+    expect(result.gates[0]?.value).toMatch(/ \(with a note\)$/);
+    expect(j.table.figure("only")).toBe(result.gates[0]?.value?.split(" ")[0]);
   });
 
   test("gates due in one step are asked in minute order, the plan's order between equals", () => {
@@ -87,10 +98,36 @@ describe("runFit", () => {
     expect(j.asked.slice(0, 2)).toEqual(["b", "a"]);
   });
 
+  test("steps at its quality, or at its stepMs", () => {
+    const seen: number[] = [];
+    let played = 0;
+    const go = (o: { quality?: "quick" | "rough"; stepMs?: number }) =>
+      runFit({
+        table: fitTable(),
+        gates: [],
+        step: (dt) => {
+          seen.push(dt);
+          played += dt;
+        },
+        look: () => {},
+        playedMs: () => played,
+        done: () => false,
+        limitMs: played + 60_000,
+        ...o,
+      });
+    go({});
+    expect(seen.at(-1)).toBe(1000);
+    go({ quality: "quick" });
+    expect(seen.at(-1)).toBe(10_000);
+    go({ quality: "rough", stepMs: 500 });
+    expect(seen.at(-1)).toBe(500);
+  });
+
   test("looks every `lookEvery`th step, before the step", () => {
     const seen: number[] = [];
     let played = 0;
     runFit({
+      table: fitTable(),
       gates: [],
       step: (dt) => {
         played += dt;
@@ -109,7 +146,7 @@ describe("runFit", () => {
 describe("holdings", () => {
   test("held is the most in the window or the last samples; peak is the most ever", () => {
     let v = 0;
-    const h = holdings(["x"], () => D(v), 3);
+    const h = holdings(["x"], () => D(v), { window: 3 });
     expect(h.held("x").toNumber()).toBe(0);
     for (const n of [5, 9, 2, 1, 3]) {
       v = n;
@@ -123,7 +160,7 @@ describe("holdings", () => {
 
   test("the ratchet refuses until holdings pass the earlier peak by the margin", () => {
     let v = 0;
-    const h = holdings(["x"], () => D(v), 5);
+    const h = holdings(["x"], () => D(v), { window: 5 });
     const feed = (n: number) => {
       v = n;
       h.sample();
@@ -138,6 +175,24 @@ describe("holdings", () => {
     expect(clear()).toBe(true);
     const tight = h.ratchet("x", 1);
     expect(tight()).toBe(true);
+  });
+
+  test("carry on from what they remembered: the window, the peaks and each ratchet's bar", () => {
+    let v = 0;
+    const a = holdings(["x"], () => D(v), { window: 3 });
+    const clearA = a.ratchet("x");
+    for (const n of [50, 10]) {
+      v = n;
+      a.sample();
+    }
+    expect(clearA()).toBe(false); // the bar is fixed at 67
+    const b = holdings(["x"], () => D(v), { window: 3, from: a.remember() });
+    const clearB = b.ratchet("x");
+    v = 200;
+    b.sample(); // a new peak: a fresh ratchet would fix its bar at 268
+    expect(clearB()).toBe(true);
+    expect(b.peak("x").toNumber()).toBe(200);
+    expect(b.held("x").toNumber()).toBe(200);
   });
 });
 
@@ -179,44 +234,74 @@ describe("nicePrice", () => {
   });
 });
 
-describe("the fitted table", () => {
-  test("fitReader gives the fitted price, or BLOCKED for a gate the table lacks", () => {
-    const read = fitReader<"a" | "b">({ a: "120" });
-    expect(read("a")).toBe("120");
-    expect(read("b")).toBe(BLOCKED);
-    expect(D(BLOCKED).gt("1e1000")).toBe(true);
+describe("priceAbove", () => {
+  test("a readable figure strictly above its input", () => {
+    expect(priceAbove(D(0.3))).toBe("1");
+    expect(priceAbove(D(1))).toBe("2");
+    expect(priceAbove(D(99.5))).toBe("100");
+    expect(priceAbove(D(100))).toBe("110");
+    expect(priceAbove(D(123))).toBe("130");
+    expect(priceAbove(D(995))).toBe("1000");
+    expect(priceAbove(D(2.71e7))).toBe("2.8e7");
+    expect(priceAbove(D(9.95e7))).toBe("1e8");
+    expect(priceAbove(D("6.51e1234"))).toBe("6.6e1234");
+    for (const x of [0, 1, 7.5, 99, 150, 4321, 7.7e5, 3.1e9, 9.99e12])
+      expect(D(priceAbove(D(x))).gt(x)).toBe(true);
+    expect(() => priceAbove(D(Number.POSITIVE_INFINITY))).toThrow(/no price above/);
+  });
+});
+
+describe("the fit table", () => {
+  test("gives a priced gate's price, BLOCKED for one it lacks, and counts its changes", () => {
+    const t = fitTable<"a" | "b">({ a: "120" });
+    expect(t.get("a").toNumber()).toBe(120);
+    expect(t.figure("a")).toBe("120");
+    expect(t.get("b").eq(D(BLOCKED))).toBe(true);
+    expect(isBlocked(t.get("b"))).toBe(true);
+    expect(isBlocked(t.get("a"))).toBe(false);
+    const v = t.version();
+    t.set("b", "2.5e7");
+    expect(t.has("b")).toBe(true);
+    expect(t.get("b").toNumber()).toBe(2.5e7);
+    t.set("a", null);
+    expect(t.has("a")).toBe(false);
+    expect(t.version()).toBe(v + 2);
+    expect(t.data()).toEqual({ b: "2.5e7" });
+    t.load({ a: "3" });
+    expect(t.data()).toEqual({ a: "3" });
+    expect(() => t.set("a", "lots")).toThrow(/not a price/);
   });
 
-  test("fitTableSource round-trips through fitReader, without notes or unopened gates", async () => {
-    const result: FitResult = {
-      finished: false,
-      playedMs: 9 * MIN,
-      gates: [
-        { key: "plain", atMs: MIN, openedMs: MIN, value: "150" },
-        { key: "with.dot", atMs: 2 * MIN, openedMs: 3 * MIN, value: "2.5e7 (a note for the report)" },
-        { key: "stuck", atMs: 4 * MIN },
-      ],
-    };
-    const text = fitTableSource(result, {
+  test("fitTableSource round-trips through fitTable, in the plan's order, a draft saying so", async () => {
+    const table = fitTable({ "with.dot": "2.5e7", plain: "150" });
+    const text = fitTableSource(table, {
       header: "Written by the fit.\nDo not edit.",
       planImport: "./plan",
       keyType: "Key",
+      order: ["plain", "stuck", "with.dot"],
     });
     expect(
       text.startsWith('// Written by the fit.\n// Do not edit.\nimport type { Key } from "./plan";'),
     ).toBe(true);
-    expect(text).not.toContain("note");
-    expect(formatFit(result)).toContain("2.5e7 (a note for the report)");
+    expect(text.indexOf("plain")).toBeLessThan(text.indexOf("with.dot"));
+    expect(text).not.toContain("stuck");
+    const draft = fitTableSource(table.data(), {
+      header: "x",
+      planImport: "./plan",
+      keyType: "Key",
+      draft: true,
+    });
+    expect(draft.startsWith(`${DRAFT_LINE}\n// x\n`)).toBe(true);
 
     const dir = mkdtempSync(join(tmpdir(), "watchpot-fit-"));
     try {
       const file = join(dir, "fit.table.ts");
       writeFileSync(file, text);
       const { FIT } = (await import(file)) as { FIT: Partial<Record<string, string>> };
-      const read = fitReader(FIT);
-      expect(read("plain")).toBe("150");
-      expect(read("with.dot")).toBe("2.5e7");
-      expect(read("stuck")).toBe(BLOCKED);
+      const read = fitTable(FIT);
+      expect(read.figure("plain")).toBe("150");
+      expect(read.figure("with.dot")).toBe("2.5e7");
+      expect(isBlocked(read.get("stuck"))).toBe(true);
     } finally {
       rmSync(dir, { recursive: true, force: true });
     }

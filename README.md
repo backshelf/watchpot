@@ -41,7 +41,7 @@ New here? Read the guide in [`docs/`](docs/README.md) front to back: thirteen ch
 empty folder, then show each concept on a real game. After it come the [showcases](docs/showcases.md), the
 [glossary](docs/glossary.md) and the reference pages: one per task and one per system (a currency, a generator, an
 upgrade tree, a gacha, a timed event with a board, a prestige layer, a migration, a pacing contract, the auto-player, a
-theme, a sound table, a reveal, the dev-panel workflow, a live stat graph, time away, plan-and-fit), each with a
+theme, a sound table, a reveal, the dev-panel workflow, a live stat graph, time away, plan-and-fit, the fit kit), each with a
 complete example in `docs/examples/` that `bun run verify` type-checks. The sections below are the reference. A new
 game starts from the template, [`templates/game/`](templates/game/.scaffold/README.md), in one command:
 `bun templates/game/.scaffold/new.ts <answers.json> <out> [--engine <tag>] [--no-install]` copies it, writes the game
@@ -1148,16 +1148,17 @@ const CONTRACT = table(
 judge(rows.rows, CONTRACT); // a verdict per band the run reached
 ```
 
-- **The harness.** `createSimWorld(build, start, { tickMs })` hands `build` the sim's clock (the store's `now`) and
-  returns `{ store, now, gameNow, play(ms), away(ms) }`: `play` ticks with the tab open (a minute at most a tick,
-  `SIM_TICK_MS`), `away` is a closed tab and one catch-up. `simStore(game, now, seed)` is a store that never writes.
+- **The harness.** `createSimWorld(build, start, { quality, tickMs })` hands `build` the sim's clock (the store's
+  `now`) and returns `{ store, now, gameNow, play(ms), away(ms), snapshot() }`: `play` ticks with the tab open (a
+  tick at most the quality's, `SIM_QUALITY`: a second by default), `away` is a closed tab and one catch-up.
+  `simStore(game, now, seed)` is the game on plain data, saving nothing. `world.snapshot()` is the clock and the
+  store's data; `resumeSimWorld(build, snapshot)` picks a fresh store up there with no opening catch-up.
 - **Schedules.** `planDay(rng, schedule, day, weekday, dayStart)` turns a `Schedule` into sessions: `fixedSchedule`
   (one session, a look every N minutes) or a `SessionSchedule` (sessions a day, their lengths, cadence, keypress bursts,
   skipped days, decay). `rngFor(seed, id)` is the seeded behaviour stream; `drawRange` and `drawLogNormal` its draws.
   `playDays` plays the sessions, a closed tab or background play between them. Its `until()` and `hours` stop a run
   early: checked after each look, so the run ends after the look that crosses it, and a day cut short gets no
-  `dayEnd`. (The sim world ticks a minute at most, `SIM_TICK_MS`; `playStraight`'s `tickMs` and `runFit`'s `stepMs`
-  default to a second.)
+  `dayEnd`. (The sim world, `playStraight` and `runFit` all step a second by default, `SIM_TICK_MS`.)
 - **The timeline.** `sampler({ marks, start, take, at })`: a row as the time since the run's start passes each mark
   (marks passed together are one row), `push` for a milestone, `close` at a day's end (replacing a row taken at the
   same moment), `restart(at)` for a new run. `markdownTable(heads, rows)` prints it.
@@ -1187,14 +1188,22 @@ judge(rows.rows, CONTRACT); // a verdict per band the run reached
   `fmtClock(ms)` prints `h:mm`; `shortDecimal(d)` prints a whole number below a million, then `e12.3`. The template's
   `sim/run.ts` uses them: `bun run sim -- --straight=<hours>` plays one sitting and prints the usual table.
 - **Plan and fit.** Price a game from a plan instead of judging it after the run. Write the minute each gate should
-  open and give each gate a `block()` and a `price()` (the game's code: the engine never writes a definition).
-  `runFit` plays the pilot with every gate blocked; as each minute comes it asks the gate for a price, which the gate
-  works out from `holdings` (the most held lately; `ratchet` for a gate behind a reset) and rounds down with
-  `nicePrice`, and the run carries on with that price fixed. `formatFit` prints the report, `fitTableSource` is the
-  text of the table module (write it only when the run finished), and the game reads prices through
-  `fitReader(FIT)`, where an unfitted gate costs `BLOCKED`. A replay on the fitted table should finish within 0.7 to
-  1.25 of the plan's last minute. The pilot must hold some of what it earns, or prices are pinned to an empty
+  open and give each gate a `price()` (the game's code: the engine never writes a definition). The game reads every
+  gate's price from a live `fitTable(FIT)` (`get(key)`, `BLOCKED` for a gate it lacks; `isBlocked`). `runFit({
+  table, gates, … })` shuts every gate in it and plays the pilot; as each minute comes it asks the gate for a price,
+  which the gate works out from `holdings` (the most held lately; `ratchet` for a gate behind a reset) and rounds
+  with `nicePrice` (down) or `priceAbove` (strictly up), and the fit writes it into the table, payable at once.
+  `quality` sets the step (`SIM_QUALITY`). `formatFit` prints the report, `fitTableSource(table, { …, draft })` is the
+  text of the table module (write it only when the run finished). A replay on the fitted table should finish within
+  0.7 to 1.25 of the plan's last minute. The pilot must hold some of what it earns, or prices are pinned to an empty
   balance. A fit is one run for a ballpark, not a sweep (`docs/plan-and-fit.md`).
+- **The fit kit.** With `capture` a fit leaves a `SimSnapshot` every `snapshotEveryMs` of play and one at its end:
+  the world, the auto-player's memory (`remember()`, `memory`), the fit's progress and the game's own `extra`, exact
+  as text (`encodeSnapshot` / `decodeSnapshot`; the caller picks the file). `runFit({ from })` carries a fit on from
+  one (`fitHolds` says when the plan moved under it; `latestSnapshot` picks one). `proveFit` replays the finished
+  table between the snapshots and must arrive at each exactly; a draft skips it, and `proveFitParallel` runs it on
+  Bun workers from a module the game names. `profileSim` and `timeSteps` time a stretch by look, step and step id;
+  `formatProfile` prints it (`docs/fit-kit.md`).
 
 A game keeps its own personas, sample rows, tables and gate checks in its `sim/` on top of these.
 
