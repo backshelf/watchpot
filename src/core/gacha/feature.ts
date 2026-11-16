@@ -128,6 +128,10 @@ const perBox = <B extends string, T>(boxes: readonly B[], make: (box: B) => T): 
 export function gacha<const K extends string, R extends string, B extends string, P = R>(
   def: GachaDef<K, R, B, P>,
 ): GachaFeature<K, R, B, P> {
+  if (def.ladder.size === 0)
+    throw new Error(
+      `gacha "${def.key}": its ladder has no rungs; give the vocabulary's \`rarities\` at least one`,
+    );
   const boxes = Object.keys(def.odds) as B[];
   const roll: GachaRoll<R, B, P> = def.roll ?? (({ rarity, rng }) => [rarity as unknown as P, rng]);
 

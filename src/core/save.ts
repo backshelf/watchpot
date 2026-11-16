@@ -129,10 +129,22 @@ export function oldestReadable(steps: MigrationSteps): number {
 }
 
 /**
+ * A saved value read loosely, for a migration step (which is handed `unknown`): its own fields when it is a plain
+ * object, else an empty record. Decimals inside are already revived. `const old = savedRecord(saved);
+ * return { ...old, count: old.owned ?? 0 }`; the game's step reads a slice the same way, `savedRecord(old.wallet)`.
+ */
+export function savedRecord(saved: unknown): Record<string, unknown> {
+  return saved !== null && typeof saved === "object" && !Array.isArray(saved) && !isDecimal(saved)
+    ? (saved as Record<string, unknown>)
+    : {};
+}
+
+/**
  * What the loader keeps of a saved state at `fromVersion`: the state itself at the current version; from an older
  * one, the state brought forward by `steps` one version at a time (at each, the game's step over the whole state,
- * then each feature's over its own data in feature order), or nothing (a fresh profile) when a version on the way
- * has no step. A newer one is a typed error. A step that throws is not caught here.
+ * then each feature's over its own data in feature order, skipping a feature the save has no slice for), or nothing
+ * (a fresh profile) when a version on the way has no step. A newer one is a typed error. A step that throws is not
+ * caught here.
  */
 export function migrate(
   state: unknown,
@@ -157,7 +169,9 @@ export function migrate(
     const { whole, own } = at(v);
     if (whole) next = whole(next);
     for (const { key, step } of own) {
-      const saved = next && typeof next === "object" ? (next as Record<string, unknown>) : {};
+      const saved = savedRecord(next);
+      // A save with no slice for the feature has nothing to bring forward: the merge gives it its defaults.
+      if (saved[key] === undefined) continue;
       next = { ...saved, [key]: step(saved[key]) };
     }
   }

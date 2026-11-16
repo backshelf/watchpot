@@ -5,6 +5,9 @@ import type { RngState } from "./rng";
 import type { PersistedState } from "./storage";
 import type { AnyVocab } from "./vocab";
 
+/** immer's draft of `T`, as a recipe or a step sees it: for a hand-written draft helper's parameter. */
+export type { Draft } from "immer";
+
 /**
  * The feature: the unit a game is made of. One declaration brings its own saved state, the keys that never
  * save, its actions, its tick steps by phase, its prestige reset rule, its migrations and its merge. The store
@@ -50,6 +53,11 @@ export type Step<G extends object = object> = (draft: Draft<G>, ctx: StepContext
 /** A step limited to one pass: `{ pass: "tick", run }`. Written as a literal, never through a helper (see below). */
 export interface StepDef<G extends object = object> {
   readonly run: Step<G>;
+  /**
+   * The one pass the step runs in. Omitted, and for a step written as a bare function, it runs in both: a catch-up
+   * then pays the whole time away at the live rate, with no cap. A step that earns over time usually says
+   * `pass: "tick"` and has a `pass: "catchUp"` twin that pays the away rate.
+   */
   readonly pass?: Pass;
 }
 
@@ -81,7 +89,11 @@ export type InitialReason = "new" | "reset" | "run" | "import";
 
 /** What `initial` is given: now, the profile's rng and why the state is being made. */
 export interface InitialContext {
-  /** The wall for a new profile, a reset or an import; game time for a run reset. */
+  /**
+   * Which clock depends on the reason. `run`: game time. `new` and `reset`: the wall, which is game time too, since
+   * a fresh profile's offset is 0. `import`: the wall, and the imported offset lands after, so a time recorded here
+   * is off by that offset (a saved field the import carries lands over it; one the save lacks keeps the wall).
+   */
   readonly now: number;
   /**
    * The profile's first draws: seeded when the store has a seed, else entropy. A new profile and an import get the
@@ -125,7 +137,11 @@ export type ResetRule<S extends object> =
   | "never"
   | { readonly depth: number; readonly rule?: ReachedRule<S> };
 
-/** A saved-shape step: the feature's data at the version before its key, to that version (see `migrate`). */
+/**
+ * A saved-shape step: the feature's data at the version before its key, to that version (see `migrate`). The data
+ * is already parsed, its Decimals revived; read it with `savedRecord` rather than a cast. A feature's step is not
+ * called when the save has no slice for that feature (the merge then gives it its defaults).
+ */
 export type Migration = (saved: unknown) => unknown;
 
 /** What a move spends: an amount of one currency, as the game names it. */
@@ -164,8 +180,12 @@ export type IdleStoreApi<G extends object> = Mutate<StoreApi<G>, IdleMutators>;
 
 /** What a feature's `actions` build on: typed over the game state `G` the feature sees. */
 export interface FeatureApi<G extends object> {
-  /** Mutate the game through an immer draft. */
-  set(recipe: (draft: Draft<G>) => void): void;
+  /**
+   * Mutates the game through an immer draft and returns what the recipe returns (`return api.set((s) => debit(s, …))`).
+   * A recipe cannot call an action (one `set` inside another): the outer recipe would land over the inner change, so
+   * it throws. Inside a recipe, call the draft helpers instead (`wallet.credit(draft, …)`), or call the action after.
+   */
+  set<T = void>(recipe: (draft: Draft<G>) => T): T;
   get(): G;
   /** Game time now. */
   now(): number;
@@ -192,6 +212,10 @@ export interface FeatureDef<
   readonly key: K;
   /** The other features this one reads or writes; their state joins the draft the callbacks see. */
   readonly reach?: R;
+  /**
+   * The state a new profile, a reset or an import starts from. Keep it pure and cheap: `defineGame` calls it once at
+   * import to check the declaration, and the store on every reset.
+   */
   readonly initial: (ctx: InitialContext) => S;
   /** Keys of `S` that never save (a sheet that is open, a pointer). */
   readonly transient?: readonly (keyof S & string)[];

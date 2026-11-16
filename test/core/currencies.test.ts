@@ -129,21 +129,12 @@ describe("currencies", () => {
     expect(() => currencies({ key: "p", vocab: TOY, spent: { gems: "credit" } })).toThrow(
       /total "credit" collides/,
     );
-    expect(() =>
-      defineGame({
-        id: "x",
-        save: { key: "x", version: 1 },
-        features: [currencies({ key: "p", vocab: TOY, extra: () => ({ gold: D(1) }) })],
-        vocab: TOY,
-      }),
-    ).toThrow(/extra field "gold"/);
+    expect(() => currencies({ key: "p", vocab: TOY, extra: () => ({ gold: D(1) }) })).toThrow(
+      /extra field "gold"/,
+    );
     const shadowing = currencies({ key: "p", vocab: TOY, actions: () => ({ gems: () => {} }) });
-    const game = defineGame({ id: "x", save: { key: "x", version: 1 }, features: [shadowing], vocab: TOY });
     expect(() =>
-      createIdleStore(game, {
-        storage: createGameStorage(createMemoryBackend(), { debounceMs: 0, onError: () => {} }),
-        now: () => T0,
-      }),
+      defineGame({ id: "x", save: { key: "x", version: 1 }, features: [shadowing], vocab: TOY }),
     ).toThrow(/action "gems"/);
   });
 
