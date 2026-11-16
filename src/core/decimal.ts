@@ -5,7 +5,12 @@ export { Decimal };
 /** Anything the engine accepts where a Decimal is wanted. */
 export type DecimalSource = Decimal | number | string;
 
-/** Coerce anything Decimal-like. A Decimal passes through untouched; Decimal values are never mutated. */
+/**
+ * Coerce anything Decimal-like. A Decimal passes through untouched; Decimal values are never mutated.
+ *
+ * Compare Decimals with their methods, never with operators: `a.lt(b)`, `a.gte(b)`, `a.eq(b)`. `D(3) < D(20)` and
+ * `D(1) === D(1)` compile and are both false (`<` compares the objects' strings, `===` their identity).
+ */
 export function D(value: DecimalSource): Decimal {
   return value instanceof Decimal ? value : new Decimal(value);
 }

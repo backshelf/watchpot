@@ -3,7 +3,7 @@ import { type PersistStorage, persist } from "zustand/middleware";
 import { immer } from "zustand/middleware/immer";
 import { createStore } from "zustand/vanilla";
 import { readClock, writeClock } from "./clock-feature";
-import { D, isDecimal } from "./decimal";
+import { D, type Decimal, isDecimal } from "./decimal";
 import {
   type DeriveReason,
   type FeatureApi,
@@ -15,7 +15,7 @@ import {
   type StateOf,
 } from "./feature";
 import type { Game } from "./game";
-import { registerStore } from "./persist";
+import { registerStore, type SaveNotes } from "./persist";
 import { type RngState, randomSeed, seedRng } from "./rng";
 import { decodeProfile, encodeProfile, migrate, SaveError } from "./save";
 import {
@@ -24,6 +24,7 @@ import {
   createMemoryBackend,
   type GameStorage,
   isPlainObject,
+  KEPT_SUFFIX,
   localStorageBackend,
   type PersistedState,
 } from "./storage";
@@ -121,23 +122,30 @@ export function partializeState(features: readonly FeatureSpec[], state: object)
 }
 
 /**
- * Saved fields over a feature's current data, keeping the actions. A Decimal default coerces a saved number or
- * string; a plain-object default under a plain-object save is filled one level down, so a key added since the
- * save loads as its default. The feature's `merge` then runs over the result.
+ * Saved fields over a feature's current data, keeping the actions. A saved `undefined` is a missing field (the
+ * default stays). Under a Decimal default a saved Decimal, number or string is read as one, and anything else, or
+ * what reads as NaN, leaves the default; a plain-object default under a plain-object save is filled one level down,
+ * so a key added since the save loads as its default. The feature's `merge` then runs over the result.
  */
 export function mergeFeature<T extends object>(f: FeatureSpec, fresh: T, saved: unknown): T {
   if (!isPlainObject(saved)) return fresh;
   const next: Record<string, unknown> = { ...(fresh as Record<string, unknown>) };
   for (const [k, v] of Object.entries(saved)) {
-    if (typeof v === "function" || !(k in next) || typeof next[k] === "function") continue;
+    if (v === undefined || typeof v === "function" || !(k in next) || typeof next[k] === "function") continue;
     const def = next[k];
-    if (isPlainObject(def) && isPlainObject(v)) next[k] = { ...def, ...v };
-    else
-      next[k] =
-        isDecimal(def) && !isDecimal(v) && (typeof v === "number" || typeof v === "string") ? D(v) : v;
+    if (isDecimal(def)) next[k] = savedDecimal(v) ?? def;
+    else if (isPlainObject(def) && isPlainObject(v)) next[k] = { ...def, ...v };
+    else next[k] = v;
   }
   // `merge` was declared over the feature's own `S`, which `fresh` is.
   return f.merge ? ({ ...next, ...f.merge(next as never, fresh as never) } as T) : (next as T);
+}
+
+/** A saved value as a Decimal, or null when it is not one, a number or a string, or reads as NaN. */
+function savedDecimal(v: unknown): Decimal | null {
+  if (!isDecimal(v) && typeof v !== "number" && typeof v !== "string") return null;
+  const d = D(v);
+  return d.isNan() ? null : d;
 }
 
 /** localStorage, or a memory backend that says it is not durable, so the window can say nothing is being saved. */
@@ -151,7 +159,10 @@ type Slice = Record<string, unknown>;
 /** A plain snapshot of a draft (or the value itself when it is not one). */
 const plain = (value: Slice): Slice => (isDraft(value) ? current(value as Draft<Slice>) : value);
 
-/** Builds the zustand store a game runs from its definition: every feature's state and actions, the tick and the save. */
+/**
+ * Builds the zustand store a game runs from its definition: every feature's state and actions, the tick and the save.
+ * Where there is a page it flushes the save itself when the page hides, clock or no clock (`registerStore`).
+ */
 export function createIdleStore<F extends readonly FeatureSpec[], R extends object>(
   game: Game<F, R>,
   options: IdleStoreOptions,
@@ -177,6 +188,10 @@ export function createIdleStore<F extends readonly FeatureSpec[], R extends obje
   let swaps = 0;
   /** A copy of a save this build will not use, still being written (async backends). */
   let keeping: void | Promise<void>;
+  /** Why a save was set aside or saving is blocked: `saveSetAside` and `saveBlockedBy` read it. */
+  const notes: SaveNotes = { setAside: null, blockedBy: null };
+  /** True while a recipe runs: a `set` inside one would be lost under the outer recipe's result. */
+  let drafting = false;
   let settle = () => {};
   const hydrated = new Promise<void>((resolve) => {
     settle = resolve;
@@ -240,10 +255,30 @@ export function createIdleStore<F extends readonly FeatureSpec[], R extends obje
   const store = createStore<State>()(
     persist(
       immer((set, get, api) => {
-        const featureApi: FeatureApi<State> = {
+        /**
+         * Runs a recipe over the draft and hands back what it returns (immer itself would take a returned value for
+         * the next state). A recipe run inside another throws: the outer one's result would land over its change.
+         */
+        const draft = <T>(recipe: (s: Draft<State>) => T): T => {
+          if (drafting)
+            throw new Error(
+              "watchpot: an action was called inside a recipe (a `set` or a step), where its change would be lost under the outer one's. Call the draft helper on the draft in hand instead (`wallet.credit(draft, …)`), or call the action once the recipe has returned.",
+            );
+          let out: T | undefined;
           // immer's `set` is typed over `Exclude<State, Function>`, which is `State` here (a generic the checker
           // cannot reduce).
-          set: set as FeatureApi<State>["set"],
+          (set as (fn: (s: Draft<State>) => void) => void)((s) => {
+            drafting = true;
+            try {
+              out = recipe(s);
+            } finally {
+              drafting = false;
+            }
+          });
+          return out as T;
+        };
+        const featureApi: FeatureApi<State> = {
+          set: draft,
           get,
           now: () => get().gameNow(),
           rng,
@@ -260,11 +295,11 @@ export function createIdleStore<F extends readonly FeatureSpec[], R extends obje
         const root: RootActions = {
           gameNow: () => wall() + readClock(get(), clock).offsetMs,
           tick: (dtMs, at = get().gameNow()) =>
-            set((s) => {
+            draft((s) => {
               runPass(game, s, { pass: "tick", now: at, dtMs, resetRun: stepReset(at) });
             }),
           catchUp: (at = get().gameNow()) =>
-            set((s) => {
+            draft((s) => {
               const last = readClock(s, clock).lastSeen;
               runPass(game, s, {
                 pass: "catchUp",
@@ -273,15 +308,14 @@ export function createIdleStore<F extends readonly FeatureSpec[], R extends obje
                 resetRun: stepReset(at),
               });
             }),
-          resetProfile: (at = wall()) => {
-            swaps += 1;
-            set((s) => {
+          resetProfile: (at = wall()) =>
+            draft((s) => {
+              swaps += 1;
               resetAll(s, { now: at, rng: entropy(), reason: "reset" });
               deriveAll(s, at, "reset");
-            });
-          },
+            }),
           resetRun: (ctx = {}) =>
-            set((s) => {
+            draft((s) => {
               resetRun(s, ctx.now ?? get().gameNow(), ctx.rng ?? runRng(s), ctx.depth);
             }),
           exportProfile: (at = get().gameNow()) => {
@@ -295,8 +329,8 @@ export function createIdleStore<F extends readonly FeatureSpec[], R extends obje
             // The first draws a new profile gets, so a slice the save lacks starts on the same stream whether the
             // profile was imported or carried on from construction: a seeded replay from a save does not part ways.
             const ctx: InitialContext = { now: at, rng: firstDraws(), reason: "import" };
-            swaps += 1;
-            set((s) => {
+            draft((s) => {
+              swaps += 1;
               resetAll(s, ctx);
               for (const f of features)
                 Object.assign((s as Slices)[f.key] ?? {}, mergeFeature(f, f.initial(ctx), saved[f.key]));
@@ -326,17 +360,26 @@ export function createIdleStore<F extends readonly FeatureSpec[], R extends obje
           return derivePlain(next, wall() + readClock(next, clock).offsetMs, "load") as State;
         },
         // An older save comes forward through the game's and the features' steps, and zustand writes it at this
-        // version. One no step reaches, or one a step throws on, is copied to the kept key, then migrates to nothing:
-        // the merge keeps the defaults, and zustand writes the fresh profile. A newer one throws (below).
+        // version. One no step reaches, or one a step throws on (or brings forward to something not a state), is
+        // copied to the kept key, noted and warned of, then migrates to nothing: the merge keeps the defaults, and
+        // zustand writes the fresh profile. A newer one throws (below).
         migrate: (persisted, from) => {
           let next: PersistedState | null = null;
+          let why: SaveNotes["setAside"] = "old-version";
           try {
-            next = asPersisted(migrate(persisted, from, version, game));
+            const moved = migrate(persisted, from, version, game);
+            next = asPersisted(moved);
+            if (moved !== null) why = "migration-failed";
           } catch (e) {
             if (e instanceof SaveError && e.code === "newer-version") throw e;
+            why = "migration-failed";
             console.error("watchpot: a save migration failed", e);
           }
           if (next) return next;
+          notes.setAside = why;
+          console.warn(
+            `watchpot: the save at version ${from} could not be brought to version ${version} (${why}); it is kept under "${name}${KEPT_SUFFIX}" and the profile starts fresh`,
+          );
           keeping = storage.keep(name);
           return {};
         },
@@ -346,11 +389,13 @@ export function createIdleStore<F extends readonly FeatureSpec[], R extends obje
         onRehydrateStorage: () => (_state, error) => {
           loaded = true;
           if (error) {
-            if (!(error instanceof SaveError && error.code === "newer-version"))
+            const newer = error instanceof SaveError && error.code === "newer-version";
+            if (!newer)
               console.error(
                 "watchpot: the save could not be loaded; this session will not write over it",
                 error,
               );
+            if (!storage.blocked) notes.blockedBy = newer ? "newer" : "unreadable";
             try {
               keeping = storage.keep(name, { replace: false });
             } catch {
@@ -364,6 +409,6 @@ export function createIdleStore<F extends readonly FeatureSpec[], R extends obje
       },
     ),
   );
-  registerStore(store, { game, storage, name });
+  registerStore(store, { game, storage, name, notes });
   return Object.assign(store, { hydrated, profileSwaps: () => swaps });
 }

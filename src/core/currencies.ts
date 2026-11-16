@@ -102,7 +102,8 @@ export const RESERVED_CURRENCY_FIELDS: readonly string[] = ["credit", "debit", "
 /**
  * Declares a currencies feature over a vocabulary's currencies. Throws at definition on a total for a currency the
  * vocabulary lacks, a name in `RESERVED_CURRENCY_FIELDS`, or a field taken twice (by a currency, a total or an
- * extra); a game action named like a balance, a total or `debit` throws when the store is built.
+ * extra: `extra` is called once here to claim its keys, so keep it pure); a game action named like a balance, a
+ * total or `debit` throws when the game is defined (`defineGame` builds the actions once to check them).
  */
 export function currencies<
   const K extends string,
@@ -129,33 +130,28 @@ export function currencies<
     if (!ids.includes(c))
       throw new Error(`currencies "${def.key}": "${c}" is not a currency of the vocabulary`);
   // The actions sit beside the balances in the slice, so their names are taken too, and an object's own
-  // `__proto__` cannot be a field at all.
+  // `__proto__` cannot be a field at all. `taken` ends as every field a slice holds: balances, totals and extras.
   const taken = new Set<string>();
   const claim = (field: string, what: string): void => {
     if (RESERVED_CURRENCY_FIELDS.includes(field))
       throw new Error(
         `currencies "${def.key}": ${what} "${field}" collides with the wallet's own "${field}" (reserved: ${RESERVED_CURRENCY_FIELDS.join(", ")}); name it something else`,
       );
-    if (taken.has(field)) throw new Error(`currencies "${def.key}": ${what} "${field}" is taken twice`);
+    if (taken.has(field))
+      throw new Error(
+        `currencies "${def.key}": ${what} "${field}" is already taken by a balance, a total or an extra field`,
+      );
     taken.add(field);
   };
   for (const c of ids) claim(c, "the currency");
   for (const field of [...earned.values(), ...spent.values()]) claim(field, "the total");
-  /** The fields a slice holds: the balances and totals, then the game's extras, each claimed once. */
-  const fields = new Set(taken);
+  for (const field of Object.keys(def.extra?.() ?? {})) claim(field, "the extra field");
 
   const initial = (): S => {
     const s: Record<string, unknown> = {};
     for (const c of ids) s[c] = D(def.start?.[c] ?? 0);
     for (const f of [...earned.values(), ...spent.values()]) s[f] = ZERO;
-    const extra = def.extra?.() ?? {};
-    for (const k of Object.keys(extra)) {
-      if (RESERVED_CURRENCY_FIELDS.includes(k) || fields.has(k))
-        throw new Error(
-          `currencies "${def.key}": the extra field "${k}" collides with a balance, a total or an action`,
-        );
-    }
-    return Object.assign(s, extra) as S;
+    return Object.assign(s, def.extra?.()) as S;
   };
 
   const slice = (draft: CurrencyDraft<K>): Record<string, Decimal> =>
@@ -196,17 +192,11 @@ export function currencies<
       const self = (draft: unknown) => draft as CurrencyDraft<K>;
       const own: CurrencyActions<C> = {
         credit: (c, amount) => api.set((s) => credit(self(s), c, amount)),
-        debit: (c, amount) => {
-          let ok = false;
-          api.set((s) => {
-            ok = debit(self(s), c, amount);
-          });
-          return ok;
-        },
+        debit: (c, amount) => api.set((s) => debit(self(s), c, amount)),
       };
       const theirs = def.actions?.(api, helpers) ?? {};
       for (const k of Object.keys(theirs))
-        if (RESERVED_CURRENCY_FIELDS.includes(k) || fields.has(k))
+        if (RESERVED_CURRENCY_FIELDS.includes(k) || taken.has(k))
           throw new Error(
             `currencies "${def.key}": the action "${k}" collides with a balance, a total or an action`,
           );
