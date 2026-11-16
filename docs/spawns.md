@@ -1,4 +1,4 @@
-## Spawns
+# Spawns
 
 Random clickable arrivals (the usual random-arrival model): something appears after a random wait, lives a few
 seconds, and pays one of a weighted table when caught; one left alone dies and is counted missed. The wait is at least

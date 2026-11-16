@@ -7,7 +7,7 @@ Example: [`examples/upgrade-tree.ts`](examples/upgrade-tree.ts).
 - `upgradeTree({ key, nodes, wallet })` is the tree as a feature: it saves `{ ranks }`, buys with `buy(id)` through a
   currencies feature, and carries the rules as `.tree`. A run reset clears the ranks unless `reset` says otherwise.
 - A buy returns a `BuyResult`: `{ ok: true, id, level }` or `{ ok: false, code }` with `code` one of `unknown`,
-  `maxed`, `requires`, `cannot-afford`.
+  `closed` (the tree's `open` refuses the node now), `maxed`, `requires`, `cannot-afford`.
 - **Buy max.** `buyMax(id, limit?)` buys as many ranks as the wallet covers, up to `limit` and the node's last rank,
   one debit per currency, and returns how many (0 when closed, maxed, short or a requirement is missing). It is the
   count buying one at a time would reach, worked out in one step: a node's price in a currency is one geometric line

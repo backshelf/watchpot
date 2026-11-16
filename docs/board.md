@@ -1,4 +1,4 @@
-## Boards
+# Boards
 
 A grid of cells, pieces placed on it, and what each piece does read from where it sits: the pieces beside it, its row
 and column, the edge, how many of a kind are down. A garden bed, a reactor, a sheet of stickers, a beacon grid. The

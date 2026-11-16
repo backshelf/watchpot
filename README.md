@@ -24,12 +24,14 @@ then `gh auth setup-git`.
 
 ## Guide
 
-New here? Start with the recipes in [`docs/`](docs/README.md): one page per task (start a game, a currency, a
-generator, an upgrade tree, a gacha, a timed event with a board, a prestige layer, a migration, a pacing contract, a
-persona, a theme, a sound table, a reveal, the dev-panel workflow, a live stat graph, time away, plan-and-fit), each
-with a complete example in
-`docs/examples/` that `bun run verify` type-checks. Read `docs/start-a-game.md` first, then the sections below as the
-reference. A new game starts from the template, [`templates/game/`](templates/game/.scaffold/README.md), which
+New here? Read the guide in [`docs/`](docs/README.md) front to back: thirteen chapters that start at
+[what watchpot is](docs/guide/01-what-watchpot-is.md), build [a first game](docs/guide/02-your-first-game.md) from an
+empty folder, then show each concept on a real game. After it come the [showcases](docs/showcases.md), the
+[glossary](docs/glossary.md) and the reference pages: one per task and one per system (a currency, a generator, an
+upgrade tree, a gacha, a timed event with a board, a prestige layer, a migration, a pacing contract, a persona, a
+theme, a sound table, a reveal, the dev-panel workflow, a live stat graph, time away, plan-and-fit), each with a
+complete example in `docs/examples/` that `bun run verify` type-checks. The sections below are the reference. A new
+game starts from the template, [`templates/game/`](templates/game/.scaffold/README.md), which
 `/watchpot` fills from an interview: a `generators` or `dimensions` core and any of a clicker, an upgrade tree, a
 gacha, a prestige layer, an achievement wall and a visitor (spawns paying a buff), every one on its engine system.
 Its about sheet holds the settings (sound, and "still the motion", saved by a

@@ -1,4 +1,4 @@
-## Notations
+# Notations
 
 How a big number reads, as a player's setting. Every notation prints plain digits with separators below its plain
 range, floors its mantissa (nothing is rounded up in the player's favour), and prints infinity as `∞`; past the plain
@@ -22,7 +22,7 @@ export const FORMATTERS = Object.fromEntries(NOTATIONS.map((n) => [n, formatter(
 
 Example: [`examples/notations.ts`](examples/notations.ts) (runs with `bun docs/examples/notations.ts`).
 
-- **`suffix`** (the default) and **`scientific`** are unchanged: K to Dc then `1.00e36`; `1.23e45` from `plainBelow`.
+- **`suffix`** (the default) and **`scientific`**: K to Dc then `1.00e36`; `1.23e45` from `plainBelow`.
 - **`engineering`**: the exponent a multiple of 3 and three figures (`100e3`, `12.3e6`, `1.00e9`).
 - **`letters`**: `a` per thousand, then `b`, … `z`, `aa`, `ab` … (`letterSuffix(n)`, bijective base 26), two
   decimals: `999.99b`, then `1.00c`.

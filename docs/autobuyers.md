@@ -1,4 +1,4 @@
-## Autobuyers
+# Autobuyers
 
 Automation as a system: things the game buys for the player on an interval, once unlocked and switched on. The game
 writes each purchase (`run`, inside the tick's recipe, returning how many it bought); the feature owns the player's

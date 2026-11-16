@@ -1,4 +1,4 @@
-## Allocation
+# Allocation
 
 A capped pool split between sinks: workers across jobs, energy across bars. The pool is the game's number and the
 player says how much goes where. A sink either counts what is assigned to it (the game reads `assigned` as a rate) or
@@ -49,7 +49,7 @@ export const jobBus = (s: { jobs: { level: Record<string, number> } }) =>
   `speed(state)` (work per unit a second) and `maxLevel?`. A long step levels several times at once through
   `maxAffordable`: closed-form for a geometric cost, walked (`WALK_LIMIT` a step) for a function. At `maxLevel` the bar
   stops and holds no progress.
-- **Actions** (each returns the units moved): `assignUnits(id, n)`, `unassign(id, n)`, `clear()`, `fill(id)` (everything
+- **Actions** (each returns the units moved): `assign(id, n)`, `unassign(id, n)`, `clear()`, `fill(id)` (everything
   free into one sink). A sink that gains goes to the end of `order`.
 - **Rules (`.rules`):** `pool`, `free`, `cap`, `perSecond(state, id)` (a bar's work a second), `bar(state, id)` →
   `{ level, into, need, share }`, and `contributions(slice)` sourced `<key>:<id>`.

@@ -1,4 +1,4 @@
-## Generators
+# Generators
 
 The building list every idle game has: buy N of a thing, each one makes a currency a second, and the price climbs on a
 cost curve (`cost.ts`, so bulk buys are closed-form). A generator pays a steady `rate` per one owned, or runs a timed

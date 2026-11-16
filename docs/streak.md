@@ -1,4 +1,4 @@
-## Streak
+# Streak
 
 The daily return: one claim a local calendar day, and a run of consecutive days that a missed day breaks. Days are the
 player's own calendar days, found by the calendar (`dayKey`, `previousDayKey`, `nextLocalMidnight`), so a 23- or

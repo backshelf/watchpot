@@ -1,4 +1,4 @@
-## Recipes
+# Recipes
 
 Crafting: inputs to outputs. A recipe takes amounts of some currencies and gives amounts of others, all or nothing,
 as many times over as asked, with a yield multiplier on what it gives. The pure rules work over a `Purse` that can be

@@ -1,4 +1,4 @@
-## Clicker
+# Clicker
 
 A press pays a currency: the usual clicker loop. What one press pays is the game's (`power`, often a base plus a share
 of income per second); a press may crit, rolled on the feature's own saved stream so a reload cannot reroll it, and

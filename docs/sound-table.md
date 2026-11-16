@@ -104,7 +104,7 @@ behind the main button is not marked `mine` when it should become a roll.
   to `useGameRuntime`, which unlocks and mutes for you. Until the core boots (the unlocking gesture) cues play the 0.6
   way and `mode()` reads `"locked"`.
 - **`mode()`** says what is playing: `"locked"`, `"core"`, or `"fallback"`, where the core cannot run (no AudioWorklet,
-  no WebAssembly, or the boot failed, with one `console.warn`). The fallback is zzfx voices and the 0.6 clips through
+  no WebAssembly, or the boot failed, with one `console.warn`). The fallback is zzfx voices and [clips](#clips) through
   plain Web Audio: the mixer, the music and the instruments need the core and do nothing there, and a `ladder`, `vary`,
   `roll` and the governor do not apply.
 - **Time.** A play reaches the core and is stamped on the audio context's own frame clock; a cue with `at` offsets or a
@@ -114,9 +114,9 @@ behind the main button is not marked `mine` when it should become a roll.
 - **Wrap the engine** in named cue functions (`playGold`), so screens never spell a key. Pick sounds yourself; the
   engine ships none.
 
-## 0.6 cues still work
+## Clips
 
-`clips` (`{ file, at?, level, playbackRate? }`, all layers together) and `SoundOptions.samples` (every clip's URL by name)
-are still read: a cue plays its clips when every one is decoded, through the core, `level` the target RMS it is scaled
-to. `loadSamples()` decodes them on demand. A new cue names `takes` instead. `soundSamples` and the stems player
-(`createStems`) are gone; `sound.music` replaces the stems ([sound-music](sound-music.md)).
+A cue can name `clips` (`{ file, at?, level, playbackRate? }`, all layers together), with `SoundOptions.samples`
+giving every clip's URL by name: the cue plays its clips when every one is decoded and no take of it is ready (a ready
+take wins), `level` the target RMS it is scaled to. `loadSamples()` decodes them on demand. `takes` is the usual way; clips
+are the older form. For music, use `sound.music` ([sound-music](sound-music.md)).

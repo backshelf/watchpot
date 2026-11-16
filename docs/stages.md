@@ -1,4 +1,4 @@
-## Stages
+# Stages
 
 A track of walls, each with more resistance than the last, worn down by a force: the stage in front takes `force` a
 second, falls when it has taken its resistance, and the next one stands. Zones, floors, waves, a front line on a map.
