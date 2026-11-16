@@ -82,7 +82,7 @@ describe("the layers feature", () => {
     const climb = climbOf([A, B]);
     const game = defineGame({ id: "climb", save: { key: "climb.save", version: 1 }, features: [climb] });
     const world = createSimWorld((now) => simStore(game, now), T0);
-    const player = autoPlayer(game, { balance: climb.balance });
+    const player = autoPlayer(game, { balance: climb.select.balance });
     for (let i = 0; i < 60 && !world.store.getState().climb.layers.b.established; i++) {
       player.look(world.store);
       world.play(60_000);
@@ -90,5 +90,14 @@ describe("the layers feature", () => {
     const s = world.store.getState().climb;
     expect(s.layers.a.established).toBe(true);
     expect(s.layers.b.established).toBe(true);
+  });
+
+  test("def carries the model, select reads a resource off the game, draft is empty", () => {
+    const climb = climbOf([A, B]);
+    const state = { climb: climb.def.model.fresh() };
+    expect(climb.def.model.list.map((l) => l.id)).toEqual(["a", "b"]);
+    expect(climb.select.balance(state, "points").toNumber()).toBe(0);
+    expect(climb.select.balance(state, "a").toNumber()).toBe(0);
+    expect(climb.draft).toEqual({});
   });
 });

@@ -1,10 +1,19 @@
-import { type Feature, type FeatureApi, feature, type ResetRule } from "./feature";
+import {
+  type Feature,
+  type FeatureApi,
+  feature,
+  type NeedsOf,
+  type ReachOf,
+  type ReachShape,
+  type ResetRule,
+} from "./feature";
 
 /**
  * Boards: a grid of cells, pieces placed on it, and what each piece does read from where it sits: its neighbours,
  * its row and column, the edge, how many of a kind are down. A garden, a reactor, a sheet of stickers, a beacon grid.
  * `board({ id, width, height, pieces })` is the rules, pure over a cells record the game keeps; `boardFeature` saves
- * the cells and carries the rules. The effect type is the game's own.
+ * the cells and carries the rules as `def.board`, with the state-reading questions under `select`. The effect type is
+ * the game's own.
  */
 
 /** What a piece sees from its cell: itself, where it is, and what is around it. */
@@ -424,30 +433,50 @@ export interface BoardActions {
   lay(cells: BoardCells): void;
 }
 
-/** A `boardFeature`, carrying its rules as `.board` and the limits a state gives as `.limits(state)`. */
-export type BoardFeature<K extends string, G, E> = Feature<K, BoardState, BoardActions> & {
-  readonly board: Board<E>;
+/** The read-only questions over state. */
+export interface BoardSelect<G, E> {
+  /** The limits (`held`, `open`) the game's state gives. */
   limits(state: G): BoardLimits;
-  /** Every effect on the board as a state has it. */
+  /** Every effect on the board as a state has it, pieces no longer held or on a closed cell left out. */
   contributions(state: G): { source: string; effect: E }[];
+}
+
+/** The fixed configuration of a board feature. */
+export interface BoardFixed<E> {
+  /** The board's rules: pure over a cells record (`def.board.place(cells, …)`). */
+  readonly board: Board<E>;
+}
+
+/** A `boardFeature`: the feature plus `select`, `def` and `draft` (which is empty: the actions are the changes). */
+export type BoardFeature<K extends string, G, E> = Feature<K, BoardState, BoardActions> & {
+  readonly select: BoardSelect<G, E>;
+  readonly def: BoardFixed<E>;
+  readonly draft: Record<never, never>;
 };
 
 /**
  * A board as a feature: it saves `{ cells }` under `key`, with the actions `place`, `lift`, `move`, `clear` and
  * `lay`. `held(state, piece)` is how many of a piece the player has and `open(state, x, y)` which cells are unlocked,
- * both read off the whole game state, so a board grows and its pieces are earned however the game likes. A piece no
- * longer held, or on a cell no longer open, simply stops counting (`contributions` leaves it out). A prestige reset
- * keeps the layout unless `reset` says otherwise.
+ * both read off the whole game state (its own slice plus what `reach` names), so a board grows and its pieces are
+ * earned however the game likes. A piece no longer held, or on a cell no longer open, simply stops counting
+ * (`select.contributions` leaves it out). A prestige reset keeps the layout unless `reset` says otherwise.
  */
-export function boardFeature<const K extends string, E, G extends object = object>(def: {
+export function boardFeature<
+  const K extends string,
+  E,
+  const R extends ReachShape = readonly [],
+  G extends object = Record<K, BoardState> & ReachOf<R>,
+>(def: {
   readonly key: K;
+  /** The features `held` and `open` read, as `feature`'s `reach`. */
+  readonly reach?: R | (() => R);
   readonly width: number;
   readonly height: number;
   readonly pieces: readonly BoardPiece<E>[];
   readonly held?: (state: G, piece: string) => number;
   readonly open?: (state: G, x: number, y: number) => boolean;
   readonly reset?: ResetRule<BoardState>;
-}): BoardFeature<K, G, E> {
+}): BoardFeature<K, G, E> & { readonly needs?: NeedsOf<R> } {
   const rules = board<E>({ id: def.key, width: def.width, height: def.height, pieces: def.pieces });
   type Own = Record<K, BoardState>;
   const slice = (state: unknown): BoardState => (state as Own)[def.key];
@@ -455,7 +484,8 @@ export function boardFeature<const K extends string, E, G extends object = objec
     held: def.held ? (piece) => def.held?.(state, piece) ?? 0 : undefined,
     open: def.open ? (x, y) => def.open?.(state, x, y) ?? true : undefined,
   });
-  const made = feature({
+  const made = feature<K, BoardState, BoardActions, ReachShape, Record<never, never>, Own>({
+    reach: def.reach,
     key: def.key,
     initial: (): BoardState => ({ cells: {} }),
     reset: def.reset ?? "never",
@@ -482,10 +512,14 @@ export function boardFeature<const K extends string, E, G extends object = objec
       };
     },
   });
-  return Object.assign(made, {
-    board: rules,
-    limits,
-    contributions: (state: G) =>
-      rules.contributions(rules.settle(slice(state).cells, limits(state)), limits(state)),
-  });
+  const helpers: Pick<BoardFeature<K, G, E>, "select" | "def" | "draft"> = {
+    select: {
+      limits,
+      contributions: (state) =>
+        rules.contributions(rules.settle(slice(state).cells, limits(state)), limits(state)),
+    },
+    def: { board: rules },
+    draft: {},
+  };
+  return Object.assign(made, helpers) as BoardFeature<K, G, E> & { readonly needs?: NeedsOf<R> };
 }

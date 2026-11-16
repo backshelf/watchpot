@@ -582,7 +582,7 @@ is on the kind's own saved random stream. The screen reads `state.<key>.kinds[ki
 `buffs({ key, list, onEnd?, reset? })` is timed boosts, each a [buff](../glossary.md#buff). Each entry has an `id`, a
 `durationMs`, a `stack` rule for starting it while it runs (`"refresh"`, `"extend"`, `"stack"` or `"ignore"`) and,
 if it should feed a stat bus, its `effects`. Without `effects` a buff is a timer that your own rules ask about. The
-readers are free functions: `buffActive(state, id, now)`, `buffLeftMs(state, id, now)` and `overlapMs(state, id,
+readers are `boosts.select.active(state, id, now)`, `boosts.select.leftMs(state, id, now)` and `boosts.select.overlapMs(state, id,
 from, to)`, which says how much of a stretch of time the buff covered.
 
 The game calls its arrivals misfeeds:
@@ -623,7 +623,7 @@ export const misfeeds = spawns({
 VOID IF REMOVED, `src/game/misfeeds.ts`
 
 The trimmed `onCatch` line starts the buff named by the outcome with the buffs feature's draft helper,
-`boosts.start(d, outcome, now, ...)`. Note that `wait` is a function of the state, so an upgrade can bring misfeeds
+`boosts.draft.start(d, outcome, now, ...)`. Note that `wait` is a function of the state, so an upgrade can bring misfeeds
 sooner. The buffs themselves:
 
 ```ts
@@ -703,7 +703,7 @@ export const surface = spawns({
       wallet.draft.credit(d, "bubbles", income(d).mul(60).max(25)); // a minute of everything, 25 at least
       return;
     }
-    boosts.start(d, outcome, now);
+    boosts.draft.start(d, outcome, now);
   },
 });
 ```
@@ -712,7 +712,7 @@ export const surface = spawns({
 
 `active` keeps big bubbles away until the ladle is bought; while it is false, nothing arrives, and the wait starts
 over once it holds. `noRepeat` means two rolling boils never come back to back. `wallet.draft.credit(d, ...)` and
-`boosts.start(d, ...)` are draft helpers: you are already inside a recipe in `onCatch`, so you change the draft you
+`boosts.draft.start(d, ...)` are draft helpers: you are already inside a recipe in `onCatch`, so you change the draft you
 hold rather than calling a store action.
 
 The rolling boil is paid where it applies: the kettles' `mult` (in the generators section) multiplies by three while

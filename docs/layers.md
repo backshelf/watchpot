@@ -5,7 +5,7 @@ base resource. A layer's amount is earned by resetting everything in the rows be
 upgrades, levelled buyables, milestones that are never lost and challenges, and every one of those is a source of
 effects on stats (through the [live stat graph](stat-graph.md)) and of flags the rules read. The layers beneath read
 those stats, so content is data and the rules never name a layer. The rules are pure functions over a plain state
-(`.model`), so a sim or a test drives them with no store; the feature saves that state under `key` and steps it.
+(`.def.model`), so a sim or a test drives them with no store; the feature saves that state under `key` and steps it.
 
 Example: [`examples/layers.ts`](examples/layers.ts) (`bun docs/examples/layers.ts`).
 
@@ -126,8 +126,9 @@ export const climb = layers({ key: "climb", base: { id: "points", rate: "speed" 
   older save through `fillDeep` (a layer added since starts fresh), and steps as `<key>.produce.advance` and
   `<key>.produce.away`. Its actions are `reset`, `buy`, `level`, `enter`, `leave`, `manual` and `tag`; `onEvent`
   hears what the rules did (sighted, established, reset, milestone, upgrade, entered, completed, left, tagged,
-  away), for a log, a sound or a tag of the game's own. Read a finished state with `.model.query(state)` (cached per
-  state object); a rule's draft gets `.model.read(state)`.
+  away), for a log, a sound or a tag of the game's own. Read a finished state with `.def.model.query(state)` (cached per
+  state object); a rule's draft gets `.def.model.read(state)`. Beside the actions the feature carries `select.balance(s,
+  currency)` (what a game state holds of a resource), `def.model` and an empty `draft`.
 - **The breakdown** (`q.parts(stat)`, `q.explain(stat)`) labels a layer's source by its `name`, else its id, and a
   challenge's penalties as `inside <challenge>`. `label: (source) => string` on the model puts them in the game's
   words: `source` is `{ layer, kind, id, label }`, `kind` one of `holding`, `power`, `upgrade`, `buyable`,
@@ -139,7 +140,7 @@ export const climb = layers({ key: "climb", base: { id: "points", rate: "speed" 
 - **The auto-player** reads its moves: every affordable upgrade and level is worth 1 (cheapest share of a balance
   first), a reset is a free move worth its row, taken for a static layer that is not automated and for a normal
   one not yet established or paying at least what it holds. It never enters a challenge. Pass
-  `balance: feature.balance`.
+  `balance: feature.select.balance`.
 - **The check.** `layerModel` throws on a repeated id, a reference to an unknown layer (a `from`, `shop`, `pay`,
   parent, flag or mute), a `.power` of a layer without one, a layer measured from a higher row, a static layer with
   neither a scale nor prices, or a milestone on an unknown count.

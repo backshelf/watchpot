@@ -95,7 +95,7 @@ const mine = feature({
         pass: "both",
         run: (d, ctx) => {
           const from = ctx.now - ctx.dtMs;
-          d.mine.gold += ctx.dtMs / 1000 + (6 * overlapMs(d.boosts, "rush", from, ctx.now)) / 1000;
+          d.mine.gold += ctx.dtMs / 1000 + (6 * boosts.select.overlapMs(d, "rush", from, ctx.now)) / 1000;
         },
       },
     },
@@ -122,18 +122,18 @@ describe("buffs feature", () => {
     store.getState().boosts.start("pile", { strength: 2 });
     store.getState().boosts.start("pile");
     const now = clock.now();
-    expect(totals(boosts.contributions(store.getState().boosts, now), "speed").add).toBe(4);
-    expect(boosts.contributions(store.getState().boosts, now + 10_000)).toEqual([]);
-    expect(boosts.contributions(store.getState().boosts, now)[0]?.source).toBe("boosts:pile");
+    expect(totals(boosts.select.contributions(store.getState(), now), "speed").add).toBe(4);
+    expect(boosts.select.contributions(store.getState(), now + 10_000)).toEqual([]);
+    expect(boosts.select.contributions(store.getState(), now)[0]?.source).toBe("boosts:pile");
   });
 
   test("start and end over a draft, for a handler already inside a recipe", () => {
     const draft = { boosts: { active: {}, ended: {} } as BuffsState };
-    expect(boosts.start(draft, "nothing", T0)).toBe(false);
-    expect(boosts.start(draft, "rush", T0)).toBe(true);
+    expect(boosts.draft.start(draft, "nothing", T0)).toBe(false);
+    expect(boosts.draft.start(draft, "rush", T0)).toBe(true);
     expect(buffActive(draft.boosts, "rush", T0 + 1000)).toBe(true);
-    expect(boosts.end(draft, "rush", T0 + 2000)).toBe(true);
-    expect(boosts.end(draft, "rush", T0 + 2000)).toBe(false);
+    expect(boosts.draft.end(draft, "rush", T0 + 2000)).toBe(true);
+    expect(boosts.draft.end(draft, "rush", T0 + 2000)).toBe(false);
     expect(draft.boosts.ended.rush).toEqual({ since: T0, until: T0 + 2000 });
   });
 
@@ -146,5 +146,52 @@ describe("buffs feature", () => {
     expect(store.getState().boosts.end("rush")).toBe(false);
     store.getState().resetRun();
     expect(store.getState().boosts).toMatchObject({ active: {}, ended: {} });
+  });
+});
+
+describe("buffs select and def", () => {
+  test("the readers are the pure ones, state-first over the game", () => {
+    const state = { boosts: startBuff(NONE, rule("stack", 3), 0, { strength: 2 }) };
+    expect(boosts.select.active(state, "rush", 1000)).toBe(buffActive(state.boosts, "rush", 1000));
+    expect(boosts.select.leftMs(state, "rush", 4000)).toBe(buffLeftMs(state.boosts, "rush", 4000));
+    expect(boosts.select.stacks(state, "rush", 4000)).toBe(buffStacks(state.boosts, "rush", 4000));
+    expect(boosts.select.overlapMs(state, "rush", 0, 60_000)).toBe(
+      overlapMs(state.boosts, "rush", 0, 60_000),
+    );
+    expect(boosts.def.list.map((b) => b.id)).toEqual(["rush", "pile"]);
+  });
+});
+
+describe("buffs reach", () => {
+  const gold = feature({ key: "gold", initial: () => ({ n: 0 }) });
+  const other = feature({ key: "other", initial: () => ({ m: 0 }) });
+
+  test("onEnd reads a reached feature; one it does not reach is a type error", () => {
+    const reached = buffs({
+      key: "reached",
+      reach: [gold],
+      list: [{ id: "x", durationMs: 1000, stack: "refresh" }],
+      onEnd: (d) => {
+        d.gold.n += 1;
+      },
+    });
+    const unreached = buffs({
+      key: "unreached",
+      reach: [gold],
+      list: [],
+      onEnd: (d) => {
+        // @ts-expect-error `other` is not in the reach
+        d.other.m += 1;
+      },
+    });
+    const g = defineGame({
+      id: "reach",
+      save: { key: "reach.save", version: 1 },
+      features: [gold, other, reached, unreached],
+    });
+    const { store } = freshStore(g);
+    store.getState().reached.start("x");
+    store.getState().catchUp(T0 + 5000);
+    expect(store.getState().gold.n).toBe(1);
   });
 });

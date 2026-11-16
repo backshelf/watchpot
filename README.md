@@ -413,7 +413,8 @@ export const summon = gacha({
 - **`gacha({ key, ladder, odds, pity, roll?, reset?, vocab? })`** is a feature over `GachaState`: `pity`, `rng` (its
   own stream, seeded from the profile's first draws and its key), `opened`, `tokens` and `lastOpen`, per box (the
   odds table's keys). Actions: `open(box, count)` (free: tokens first) and `grant(box, count)`. It charges nothing:
-  a game's paying action takes its price and calls `summon.openDraft(draft, box, count)` in the same recipe. A
+  a game's paying action takes its price and calls `summon.draft.open(draft, box, count)` in the same recipe
+  (`summon.def` holds `ladder`, `boxes`, `odds` and `pity`; `summon.select` is empty). A
   prestige reset keeps it whole unless `reset` says otherwise. Without `roll` a pull's item is its rarity;
   `catalogueRoll(entries)` picks evenly among the entries of the drawn rarity.
 
@@ -484,7 +485,9 @@ the game keeps; the effect type is the game's own (with the engine's `Effect`, `
 Shelf page: [docs/loadouts.md](docs/loadouts.md).
 
 ```ts
-import { type Effect, loadoutFeature } from "watchpot/core";
+import { type Effect, feature, loadoutFeature } from "watchpot/core";
+
+export const bag = feature({ key: "bag", initial: () => ({ held: ["cap", "mitt"] as string[] }) });
 
 export const kit = loadoutFeature({
   key: "kit",
@@ -494,10 +497,11 @@ export const kit = loadoutFeature({
     { id: "mitt", kind: "tool", tags: ["wool"], effects: [{ stat: "speed", mul: 2 }] },
   ] satisfies { id: string; kind: string; tags: string[]; effects: Effect<"speed">[] }[],
   sets: [{ id: "woollens", tag: "wool", tiers: [{ count: 2, effects: [{ stat: "speed", add: 10 }] }] }],
-  owns: (s: { bag: { held: string[] } }, item) => s.bag.held.includes(item),
+  reach: [bag],
+  owns: (s, item) => s.bag.held.includes(item),
 });
 // store.getState().kit.equip("head", "cap") → null, or why not
-// a stats feature's contributions: (s) => kit.loadout.contributions(s.kit.slotted)
+// a stats feature's contributions: (s) => kit.def.loadout.contributions(s.kit.slotted)
 ```
 
 - **`loadout({ id, slots, items, sets? })`** is the rules: `fits(slot, item)` (a slot with a `kind` takes only that
@@ -507,11 +511,11 @@ export const kit = loadoutFeature({
   `contributions(slotted)`. A repeated slot, item or set id throws.
 - **Sets.** A `LoadoutSet` counts the slotted items carrying its `tag` and pays the highest tier whose `count` is
   reached, and only that tier. `standings` gives each set's `count`, `tier` (-1 for none) and `next` (the count the
-  next tier needs, null at the last) for a screen to print. Sources on the bus are `<id>:<item>` and
+  next tier needs, null at the last) for a screen to print. Sources of its contributions are `<id>:<item>` and
   `<id>:set:<set>`.
-- **`loadoutFeature({ key, slots, items, sets?, owns, reset? })`** saves `{ slotted }` under `key` with the actions
-  `equip(slot, item)` and `clear(slot)`, and carries the rules as `.loadout`. `owns(state, item)` is the game's rule
-  for what the player holds, read off the whole game state. A prestige reset keeps the slots unless `reset` says
+- **`loadoutFeature({ key, slots, items, sets?, owns, reach?, reset? })`** saves `{ slotted }` under `key` with the actions
+  `equip(slot, item)` and `clear(slot)`, and carries the rules as `def.loadout` (`select` and `draft` are empty). `owns(state, item)` is the game's rule
+  for what the player holds, read off its own slice and what `reach` names. A prestige reset keeps the slots unless `reset` says
   otherwise.
 - **`fillLoadout(rules, { owns, score, slots?, start?, depth? })`** is an auto-equip: the best exchange of up to
   `depth` slots at once (default 3) for owned, unslotted items, repeated until none scores higher under the game's
@@ -598,8 +602,8 @@ behave over an absence) and offer the auto-player their moves where a player wou
   last milestone. `away(state, now?)` is the absence rate the catch-up credits (the definition's `away`, or
   `{ rate: 1 }`). A `milestones(state, def, ctx)` gate turns a generator's own and the global milestones off by the
   game's rule. `RateGeneratorDef` and `CycleGeneratorDef` are the two kinds (`GeneratorDef` their union).
-- **A buff without effects** is a timer: `effects` is optional, it adds nothing to `contributions`, and `buffActive`
-  and `buffLeftMs` read it.
+- **A buff without effects** is a timer: `effects` is optional, it adds nothing to `boosts.select.contributions`, and `boosts.select.active`
+  and `boosts.select.leftMs` read it (or the pure `buffActive` and `buffLeftMs` over the slice).
 - **Cost curves** (`costAt`, `costOfMany`, `maxAffordable`): what the next one costs, what the next N cost and how many
   the balance covers, in closed form for a geometric curve (`{ base, growth, every?, round? }`; `every` holds one
   price for a set, every price is a whole number, rounded up unless `round` says `"floor"`, `"nearest"` or `"none"`) and by walking the game's own function. `stepsOf`, `untilStep`, `reached` and `nextThreshold` read sets and

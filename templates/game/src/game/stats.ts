@@ -90,7 +90,7 @@ export const stats = statsFeature({
     // @end
     // @if visitor
     // Every buff still listed is running: the buffs' own step ends one whose time is up at the start of each pass.
-    ...boosts.contributions(s.boosts, Number.NEGATIVE_INFINITY),
+    ...boosts.select.contributions(s, Number.NEGATIVE_INFINITY),
     // @end
   ],
   // @end

@@ -80,8 +80,12 @@ describe("the spawn kernel", () => {
   });
 });
 
+const purse = feature({ key: "purse", initial: () => ({ gold: 0, gems: 0 }) });
+/** A copy of a state without its actions: what a recipe is handed, for calling a draft helper directly. */
+const plain = <T>(state: T): T => JSON.parse(JSON.stringify(state));
 const fair = spawns({
   key: "fair",
+  reach: [purse],
   kinds: [
     {
       id: "spark",
@@ -93,12 +97,11 @@ const fair = spawns({
       ],
     },
   ],
-  onCatch: (d: { purse: { gold: number; gems: number } }, outcome) => {
+  onCatch: (d, outcome) => {
     if (outcome === "gold") d.purse.gold += 10;
     if (outcome === "gems") d.purse.gems += 1;
   },
 });
-const purse = feature({ key: "purse", initial: () => ({ gold: 0, gems: 0 }) });
 const game = defineGame({ id: "fair", save: { key: "fair.save", version: 1 }, features: [purse, fair] });
 
 describe("spawns feature", () => {
@@ -169,5 +172,40 @@ describe("spawns feature", () => {
     const spark = world.store.getState().fair.kinds.spark;
     expect(spark?.caught).toBeGreaterThan(10);
     expect(spark?.missed).toBe(0);
+  });
+
+  test("def lists the kinds, select is empty, and draft.catch takes the live one inside a recipe", () => {
+    expect(fair.def.kinds.map((k) => k.id)).toEqual(["spark"]);
+    expect(fair.select).toEqual({});
+    const { store } = freshStore(game, { seed: 4 });
+    const draft = plain({ fair: store.getState().fair, purse: store.getState().purse });
+    const spark = draft.fair.kinds.spark;
+    if (!spark) throw new Error("no spark kind");
+    expect(fair.draft.catch(draft, "spark", 100)).toBeNull();
+    spark.live = { id: "spark:0", bornAt: 0, diesAt: 5000 };
+    expect(fair.draft.catch(draft, "spark", 100)).not.toBeNull();
+    expect(spark.caught).toBe(1);
+  });
+
+  test("a callback reads a reached feature; one it does not reach is a type error", () => {
+    const other = feature({ key: "other", initial: () => ({ m: 0 }) });
+    const peek = spawns({
+      key: "peek",
+      reach: [purse],
+      kinds: [
+        {
+          id: "k",
+          wait: { minMs: 1, maxMs: 2 },
+          lifeMs: 1,
+          outcomes: [
+            { id: "a", weight: 1, when: (s) => s.purse.gold > 0 },
+            // @ts-expect-error `other` is not in the reach
+            { id: "b", weight: 1, when: (s) => s.other.m > 0 },
+          ],
+        },
+      ],
+    });
+    expect(peek.key).toBe("peek");
+    expect(other.key).toBe("other");
   });
 });

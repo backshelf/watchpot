@@ -157,7 +157,7 @@ describe("clicker", () => {
     expect(store.getState().timers.start("rush")).toBe(true);
     clock.advance(100);
     expect(store.getState().rushed.click()?.amount.toNumber()).toBe(7);
-    expect(timers.contributions(store.getState().timers, clock.now())).toEqual([]);
+    expect(timers.select.contributions(store.getState(), clock.now())).toEqual([]);
     clock.advance(10_000);
     expect(store.getState().rushed.click()?.amount.toNumber()).toBe(1);
   });

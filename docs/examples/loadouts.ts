@@ -27,11 +27,10 @@ export const cupboard = feature({
   initial: () => ({ held: ["glass-lid", "copper-lid", "wooden-spoon", "copper-ladle", "copper-trivet"] }),
 });
 
-type Reads = { cupboard: { held: string[] } };
-
 /** The kit: a lid slot, a spoon slot and a spare that takes anything. Three copper pieces make a set. */
 export const kit = loadoutFeature({
   key: "kit",
+  reach: [cupboard],
   slots: [{ id: "lid", kind: "lid" }, { id: "spoon", kind: "spoon" }, { id: "spare" }],
   items: UTENSILS,
   sets: [
@@ -44,7 +43,7 @@ export const kit = loadoutFeature({
       ],
     },
   ],
-  owns: (s: Reads, item) => s.cupboard.held.includes(item),
+  owns: (s, item) => s.cupboard.held.includes(item),
 });
 
 export const game = defineGame({
@@ -63,7 +62,7 @@ const POT = statIndex<"simmer", never, null>({ base: () => 1 });
 export const simmerRate = (slotted: Slotted) =>
   POT.over(null, {
     extra: () =>
-      kit.loadout
+      kit.def.loadout
         .contributions(slotted)
         .map(({ source, effect }) => ({ effect, meta: { label: source, owner: "kit" } })),
   })
@@ -93,12 +92,12 @@ if (import.meta.main) {
   );
 
   const owns = (item: string) => s().cupboard.held.includes(item);
-  const best = fillLoadout(kit.loadout, { owns, score: simmerRate });
+  const best = fillLoadout(kit.def.loadout, { owns, score: simmerRate });
   for (const [slot, item] of Object.entries(best)) {
     if (item) s().kit.equip(slot, item);
     else s().kit.clear(slot);
   }
-  const [copper] = kit.loadout.standings(s().kit.slotted);
+  const [copper] = kit.def.loadout.standings(s().kit.slotted);
   console.log(
     "auto-filled:",
     JSON.stringify(s().kit.slotted),

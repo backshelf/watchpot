@@ -23,6 +23,6 @@ export const visitors = spawns({
   key: "visitors",
   kinds: [{ id: VISITOR_KIND, wait: WAIT, lifeMs: LIFE_MS, outcomes: [{ id: BUFF.id, weight: 1 }] }],
   onCatch: (d: { boosts: BuffsState }, _outcome, now) => {
-    boosts.start(d, BUFF.id, now);
+    boosts.draft.start(d, BUFF.id, now);
   },
 });
