@@ -80,6 +80,9 @@ describe("the import rules", () => {
     ["src/three/Stage.tsx", "pkg:watchpot/kit", ["X"], "three-narrow", true],
     ["src/three/Stage.tsx", "src/three/stage.module.css", ["X"], "three-narrow", true],
     ["src/react/index.ts", "src/three/index.ts", ["X"], "three-alone", true],
+    ["src/react/index.ts", "src/devtools/index.ts", ["X"], "devtools-alone", true],
+    ["src/devtools/DevPanel.tsx", "src/react/store.tsx", ["X"], "devtools-narrow", false],
+    ["src/devtools/DevPanel.tsx", "src/kit/index.ts", ["X"], "devtools-narrow", true],
     ["src/kit/index.ts", "pkg:watchpot/three", ["X"], "three-alone", true],
     ["src/three/post.ts", "src/three/compile.ts", ["X"], "three-alone", false],
   ];

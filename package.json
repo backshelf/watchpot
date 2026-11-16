@@ -42,15 +42,14 @@
     "./sim": "./src/sim/index.ts",
     "./test": "./src/test/index.ts",
     "./react": "./src/react/index.ts",
-    "./hooks": "./src/hooks/index.ts",
+    "./devtools": "./src/devtools/index.ts",
     "./kit": "./src/kit/index.ts",
     "./sound": "./src/sound/index.ts",
     "./sound/pack": "./src/sound/pack/index.ts",
     "./three": "./src/three/index.ts",
     "./ui": "./src/ui/index.ts",
     "./shader": "./src/shader/index.ts",
-    "./kit/theme": "./src/kit/theme/build.ts",
-    "./env": "./src/env.d.ts"
+    "./kit/theme": "./src/kit/theme/build.ts"
   },
   "peerDependencies": {
     "@number-flow/react": "^0.6.2",

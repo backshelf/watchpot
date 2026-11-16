@@ -9,10 +9,10 @@ import {
   settings,
   ZERO,
 } from "watchpot/core";
+import { DevPanel } from "watchpot/devtools";
 import {
   type BootMachine,
   createRuntimeHooks,
-  DevPanel,
   mountGame,
   type PageRuntimeOptions,
   type StoreState,

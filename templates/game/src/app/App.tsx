@@ -1,5 +1,6 @@
 import type { Decimal } from "watchpot/core";
-import { DevPanel, useGameRuntime } from "watchpot/react";
+import { DevPanel } from "watchpot/devtools";
+import { useGameRuntime } from "watchpot/react";
 import type { SheetRegistry } from "watchpot/ui";
 import { useEffect, useState } from "react";
 import { LATE_RATE } from "../content/economy";

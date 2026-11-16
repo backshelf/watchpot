@@ -2,9 +2,6 @@ export { SheetOutlet, type SheetOutletProps, type SheetRegistry } from "../ui/pa
 export { type AwayGain, type AwayOptions, type AwayReport, type AwayReturn, awayGains, useAwayReport, watchAway, } from "./away";
 export { type BootMachine, useBoot } from "./boot";
 export { clockLens, useClockNow, useTickNow, warpClock } from "./clock";
-export { DevPanel, type DevPanelProps } from "./dev/gate";
-export { type DeskSwitch, openSoundDesk, type SoundDeskOptions } from "./dev/SoundDesk";
-export { type FetchSampleHostOptions, fetchSampleHost } from "./dev/sampleHost";
 export { type GameClockState, useGameClock } from "./gameClock";
 export { useHashRoute } from "./hashRoute";
 export { useHotkeys } from "./hotkeys";

@@ -155,7 +155,7 @@ openSoundDesk({
 });
 ```
 
-`openSoundDesk` (from `watchpot/react`) opens the desk in a window of its own, laid out as a mixer: a column a bus,
+`openSoundDesk` (from `watchpot/devtools`) opens the desk in a window of its own, laid out as a mixer: a column a bus,
 the selected bus's effects in a row along the bottom, the sources in a pane beside them. `onSave` writes the file
 wherever `createSound` reads it (a route on the game's dev server that writes `mix.json` into the repository).
 `samples` is who processes a dropped recording and writes it into a pack ([sound-packs](sound-packs.md) › The sample

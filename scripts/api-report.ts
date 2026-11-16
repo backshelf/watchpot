@@ -13,7 +13,7 @@ const ENTRIES = [
   "sim/index.ts",
   "test/index.ts",
   "react/index.ts",
-  "hooks/index.ts",
+  "devtools/index.ts",
   "kit/index.ts",
   "kit/theme/build.ts",
   "sound/index.ts",

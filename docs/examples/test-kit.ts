@@ -11,7 +11,7 @@ import {
   MINUTE_MS,
   ZERO,
 } from "watchpot/core";
-import { createRuntimeHooks } from "watchpot/hooks";
+import { createRuntimeHooks } from "watchpot/react";
 import {
   createAsyncMemoryBackend,
   type FixturePlay,

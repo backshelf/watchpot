@@ -26,7 +26,7 @@ const ENTRIES = [
   "src/sim/index.ts",
   "src/test/index.ts",
   "src/react/index.ts",
-  "src/hooks/index.ts",
+  "src/devtools/index.ts",
   "src/sound/index.ts",
   "src/ui/index.ts",
   "src/shader/index.ts",

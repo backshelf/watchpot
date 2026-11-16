@@ -27,12 +27,11 @@ then `gh auth setup-git`.
 
 `package.json`'s `files` names what a consumer or the scaffold needs (`src/`, `api/`, `docs/`, `templates/`,
 `codemods/`, the env declarations, the README and the changelog), and a packed tarball carries only those; Bun's git
-install ignores `files` and checks out the whole tree. A game's typecheck needs the engine's ambient declarations
-(CSS modules, audio imports, `--` custom properties in style objects, which the dev panel and sound desk use): name
-them in its `tsconfig.json`, `"types": ["bun", "watchpot/env"]`.
+install ignores `files` and checks out the whole tree. A game's typecheck needs no engine declarations: `watchpot/devtools`, the one entry with CSS modules, carries its own
+references.
 
 A page whose imports reach no CSS module needs no dev script: `bun ./index.html [--port=N]` serves it and hot-reloads
-it. `watchpot/react` reaches one (the dev panel's), as does any game CSS module, so the template's `dev.ts` serves the
+it. `watchpot/devtools` reaches one (the dev panel's), as does any game CSS module, so the template's `dev.ts` serves the
 page with HMR off instead, working around Bun's CSS-module reload (oven-sh/bun#18258).
 
 ## Guide
@@ -80,8 +79,8 @@ dependency builds nowhere else.
 A framework-light idle-game engine, a Bun package in its own repository. Twelve entries: `watchpot/core` (kernel:
 Decimals, formatting, rng, time, clock, save codec, stat bus; the feature store, the vocabularies, the systems and the
 events framework below), `watchpot/sim` (the sim lab), `watchpot/test` (the test kit), `watchpot/react` (the store
-hooks, the clocks, the runtime, boot, hotkeys, news, prefs, the page layout and the dev panel), `watchpot/hooks` (the
-same hooks without the runtime or the dev panel, for a build with no CSS-module loader), `watchpot/kit` (effects with
+hooks, the clocks, the runtime, boot, hotkeys, news, prefs, and the page layout; it reaches no stylesheet), `watchpot/devtools` (the
+dev panel and the sound desk, the one entry with a stylesheet; a game imports it in its dev build), `watchpot/kit` (effects with
 no look and the reveal's mechanism; plus `watchpot/kit/theme`, the token compiler), `watchpot/sound` (the sound
 engine on its own; plus `watchpot/sound/pack`, the build-time sample-pack pipeline), `watchpot/ui` (headless primitives), `watchpot/shader` (a container for a game's own fragment
 shaders) and `watchpot/three` (3D on three and r3f). The package never imports `src/`; `core` and `sim` never import
@@ -96,11 +95,10 @@ module each, copied in from the template's registry ([`templates/game/src/ui/`](
 the token contract and every component) and then restyled, rewritten or deleted as the game's own. Its backdrops,
 foils and transitions are its own GLSL run by `watchpot/shader`.
 
-A game imports its hooks from `watchpot/react` by default (the template does), and from `watchpot/hooks` only for a
-build with no CSS-module loader. `watchpot/hooks` holds the store hooks, the clocks, `useGameClock`
+A game imports its hooks from `watchpot/react` (the template does). `watchpot/react` holds the store hooks, the clocks, `useGameClock`
 (the running clock and the other-tab watch alone: `useGameRuntime` without the motion, scheme and sound), `useBoot`,
-`useHotkeys`, `useNews`, `useLayerSwap`, the page layout and the tab title, the same bindings as `watchpot/react`, on
-an entry that reaches neither the kit nor a stylesheet (`test/rules/hooks.test.ts`).
+`useHotkeys`, `useNews`, `useLayerSwap`, the page layout and the tab title, the same bindings as `watchpot/react`, and
+the runtime hooks, on an entry that reaches no stylesheet (`test/rules/react-entry.test.ts`).
 
 `@number-flow/react` (the kit's `Ticker`) and `canvas-confetti` (the kit's `burst`) are optional peers: only
 `watchpot/kit` reaches them (`test/rules/peers.test.ts` walks the imports of every other entry and proves it).
@@ -607,7 +605,7 @@ behave over an absence) and offer the auto-player their moves where a player wou
 - **Prefs.** `prefs({ key, initial, read?, override? })` is a small store under its own storage key, read before the
   save loads and kept through a fresh profile; `read` cleans a stored value (one that is not JSON arrives as its
   text, for a form an older build kept), `override` lays this load's values over it without saving them (a
-  `?quality=low`) until the player sets that key. `usePrefs(store, select?)` reads it in React (`watchpot/hooks`).
+  `?quality=low`) until the player sets that key. `usePrefs(store, select?)` reads it in React (`watchpot/react`).
 - **The pace clock.** `createPaceClock(realSeconds)` is real time scaled, for slow motion and a held moment: every
   animation reads `now()`, one `setScale(to, seconds)` slows the whole scene, and the ramp is integrated exactly.
   `createRamp(value)` eases one number toward a target. Presentation time only: the economy runs on `gameNow()`.
@@ -696,7 +694,7 @@ Shelf page: [docs/react-runtime.md](docs/react-runtime.md).
   hook and pointing to `mountGame` or an `IdleStoreProvider`. `RuntimeStore` is the shape they need: `getState` (the
   root actions), `setState` (an immer recipe) and `subscribe`. A selector must hand back the same value for the same
   state: a new object, or Decimal arithmetic, renders without end. Wrap it in `useShallow` (re-exported here and from
-  `watchpot/hooks`, so no game imports zustand; it compares a Decimal by its fields:
+  `watchpot/react`, so no game imports zustand; it compares a Decimal by its fields:
   `useGameState(useShallow((s) => ({ a: s.a })))`), or select stored values and compute in the render. In development such a selector gets one warning,
   with the fix, before React's own loop error.
 - **The route.** `useHashRoute()` is `[route, go]`: the hash without its `#`, following every `hashchange`, so a
@@ -901,8 +899,8 @@ FLAC files and a typed manifest through `ffmpeg`, and is never in a game's bundl
   pointed, effects added, moved, re-keyed and removed, a source routed to a bus, a cue split into a strip per bus its
   plays ask for); a cue's takes; a recording staged beside a sample and compared with it; undo. What is moved saves as
   a `MixFile` that `createSound({ mix })` lays over the declared mix, in development and production.
-  `openSoundDesk({ desk, onSave, samples, switches })` (`watchpot/react`) is its window in a dev build, laid out as a
-  mixer; `sampleHost` (`watchpot/sound/pack`) and `fetchSampleHost` run a dropped recording through the pack pipeline
+  `openSoundDesk({ desk, onSave, samples, switches })` (`watchpot/devtools`) is its window in a dev build, laid out as a
+  mixer; `sampleHost` (`watchpot/sound/pack`) and `fetchSampleHost` (`watchpot/devtools`) run a dropped recording through the pack pipeline
   and write it into a pack. "The mix desk" in `docs/sound-mix.md`, "The sample host" in `docs/sound-packs.md`.
 - **Music.** `transport` is the clock (`set({ bpm, beatsPerBar, swing })`, `start`, `stop`, `position()`, `onBeat`);
   `harmony` is the key, scale and chord (`set({ key, scale?, chord? }, when?)`); `music({ pack, stems, sections })` plays

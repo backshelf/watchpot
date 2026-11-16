@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { dueMilestones, ZERO } from "watchpot/core";
-import { DevPanel, useGameRuntime } from "watchpot/react";
+import { DevPanel } from "watchpot/devtools";
+import { useGameRuntime } from "watchpot/react";
 import type { SheetRegistry } from "watchpot/ui";
 import { NETS, SHOWER } from "../content/shower";
 import { NAME } from "../content/words";

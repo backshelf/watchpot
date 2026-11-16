@@ -19,4 +19,4 @@ const server = Bun.serve({
 });
 console.log(`dev server on ${server.url}`);
 
-// In the page: `openSoundDesk({ sound, samples: fetchSampleHost("/__samples") })` (`watchpot/react`).
+// In the page: `openSoundDesk({ sound, samples: fetchSampleHost("/__samples") })` (`watchpot/devtools`).

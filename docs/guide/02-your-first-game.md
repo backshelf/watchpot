@@ -99,7 +99,7 @@ files directly, both when it bundles and when it runs a script. A tool chain tha
     "skipLibCheck": true,
     "verbatimModuleSyntax": true,
     "allowImportingTsExtensions": true,
-    "types": ["bun", "watchpot/env"]
+    "types": ["bun"]
   },
   "include": ["*.ts", "*.tsx"]
 }
@@ -109,12 +109,6 @@ These are the same compiler options the engine and its game template use. The on
 `"moduleResolution": "bundler"` lets you import `watchpot/core` the way a bundler resolves it, `"jsx": "react-jsx"`
 lets `.tsx` files hold JSX without importing React, and `"noEmit": true` says TypeScript only checks; Bun does the
 building. `include` names your own files.
-
-The `types` line needs a word. Because the engine ships source, TypeScript checks the engine's files too, and a few
-of them (the development panel, which you will meet in a later chapter) import CSS modules and set CSS custom
-properties. `watchpot/env` is a declarations-only entry of the engine that teaches TypeScript what a CSS import is
-and that `--name` is a valid style key. Leave it out and `bun check` reports about twenty errors, all inside
-`node_modules/watchpot`, none of them yours.
 
 ### index.html
 
@@ -788,9 +782,6 @@ Put `dist/` on any static host and the game runs there, saving to each player's 
 - **The away note needs 30 seconds.** Shorter absences are paid but not reported; the `minMs` option changes that.
 - **`fmt` returns an object.** `{fmt(n)}` in JSX is an error; write `{fmt(n).text}`. And because `fmt` rounds down,
   a price with a fraction shows lower than it is: round prices to whole numbers (`round: "ceil"`), as the burner does.
-- **`bun check` fails inside `node_modules/watchpot`.** If you see about twenty errors in the engine's development
-  panel files about `.module.css` or `--` style keys, `"watchpot/env"` is missing from your `tsconfig.json`'s
-  `types`.
 
 ## Next
 

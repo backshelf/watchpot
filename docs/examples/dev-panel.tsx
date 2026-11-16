@@ -1,5 +1,6 @@
 import { createIdleStore, DAY_MS } from "watchpot/core";
-import { DevPanel, mountGame, useHashRoute, warpClock } from "watchpot/react";
+import { DevPanel } from "watchpot/devtools";
+import { mountGame, useHashRoute, warpClock } from "watchpot/react";
 import { game } from "./add-a-generator";
 
 /**

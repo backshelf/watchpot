@@ -356,7 +356,7 @@ Line by line:
   that read `location.hash` once at mount would never hear about it.
 - `process.env.NODE_ENV !== "production"` is the check the engine's docs and its reference game write. The bundler
   replaces it with `false` in a production build and drops everything after it.
-- That check is a second lock, not the only one. `DevPanel` as `watchpot/react` exports it already draws nothing in a
+- That check is a second lock, not the only one. `DevPanel` as `watchpot/devtools` exports it already draws nothing in a
   production build and reaches the panel's module only through a dynamic import behind the same test, so the panel's
   code and styles stay out of your bundle even if you move or drop the check here. Keep it anyway: it also keeps
   the route's own code out, and it matches every other example you will read.
@@ -433,6 +433,6 @@ template did not wire.
 - [A save migration](../migration.md), for when your saved shape changes
 - The engine's `README.md` › Install and › Developing the engine and a game together, `CHANGELOG.md`, and
   `codemods/README.md`
-- `api/react/dev/DevPanel.d.ts` (`DevPanel`, `DevPanelProps`), `api/react/hashRoute.d.ts` (`useHashRoute`),
+- `api/devtools/DevPanel.d.ts` (`DevPanel`, `DevPanelProps`), `api/react/hashRoute.d.ts` (`useHashRoute`),
   `api/react/clock.d.ts` (`warpClock`), `api/react/runtime.d.ts` (`useGameRuntime`), `api/react/store.d.ts`
   (`mountGame`, `createRuntimeHooks`)
