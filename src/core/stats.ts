@@ -93,7 +93,7 @@ export type StatsFeature<
  * (true, or the reason as a string): its rows stay in the breakdown, marked, and stop counting. Throws at
  * definition on a stat named in `RESERVED_STAT_IDS`.
  */
-export function stats<
+export function defineStats<
   const K extends string,
   V extends AnyVocab,
   const F extends string = never,

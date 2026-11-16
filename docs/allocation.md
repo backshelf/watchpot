@@ -6,7 +6,7 @@ fills a bar: each assigned unit does `speed` work a second, and a full bar level
 the pool shrinks, the most recently assigned sink gives way first.
 
 ```ts
-import { allocation, defineGame, type Effect, feature, stats } from "watchpot/core";
+import { allocation, defineGame, type Effect, feature, defineStats } from "watchpot/core";
 import { TOY } from "./vocab";
 
 type State = { crew: { size: number } };
@@ -29,7 +29,7 @@ export const jobs = allocation({
 });
 
 /** What the bars' levels give, on the engine's `stats`: `s.stats["toy.speed"]`, worked out as the levels move. */
-export const boosts = stats({
+export const boosts = defineStats({
   key: "stats",
   vocab: TOY,
   reach: () => [jobs],

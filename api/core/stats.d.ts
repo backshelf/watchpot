@@ -72,7 +72,7 @@ export type StatsFeature<K extends string, S extends string, F extends string, Q
  * (true, or the reason as a string): its rows stay in the breakdown, marked, and stop counting. Throws at
  * definition on a stat named in `RESERVED_STAT_IDS`.
  */
-export declare function stats<const K extends string, V extends AnyVocab, const F extends string = never, const R extends ReachShape = readonly [], G extends string = string>(def: {
+export declare function defineStats<const K extends string, V extends AnyVocab, const F extends string = never, const R extends ReachShape = readonly [], G extends string = string>(def: {
     /** The key the stats are read under: `s.<key>.<stat>`. Nothing is saved there. */
     readonly key: K;
     readonly vocab: V;

@@ -6,7 +6,7 @@ a row), and effects for the game's stats while earned. Most are checked by the f
 a while first, some are only true at a moment the game names, and the rest the game awards itself.
 
 ```ts
-import { type Achievement, achievements, type Decimal, type Effect, stats } from "watchpot/core";
+import { type Achievement, achievements, type Decimal, type Effect, defineStats } from "watchpot/core";
 
 type State = { wallet: { gold: Decimal; gems: Decimal } };
 type Fx = Effect<"toy.speed">;
@@ -29,7 +29,7 @@ export const wall = achievements({
 // before the reset: store.getState().wall.notify("reset")
 
 /** What the wall gives: the global multiplier as a source, the earned effects and full rows as contributions. */
-export const bonuses = stats({
+export const bonuses = defineStats({
   key: "stats",
   vocab: TOY,
   reach: () => [wall],

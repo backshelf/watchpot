@@ -1,4 +1,13 @@
-import { buffActive, buffs, defineGame, type Effect, feature, overlapMs, stats, vocab } from "watchpot/core";
+import {
+  buffActive,
+  buffs,
+  defineGame,
+  defineStats,
+  type Effect,
+  feature,
+  overlapMs,
+  vocab,
+} from "watchpot/core";
 
 const WORDS = vocab({ currencies: ["gold"], stats: ["speed"] });
 
@@ -40,7 +49,7 @@ export const mine = feature({
  * What the running buffs do, on the engine's `stats`: `s.stats.speed`. A stat is worked out from the state alone, and
  * the buffs' own step ends every buff whose time is up at the start of each pass, so every buff still listed counts.
  */
-export const speed = stats({
+export const speed = defineStats({
   key: "stats",
   vocab: WORDS,
   reach: () => [boosts],

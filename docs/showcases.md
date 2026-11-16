@@ -400,7 +400,7 @@ contributions, each a `source` string and an `effect`. It does not care which sy
 declares its whole set of stats in one place:
 
 ```ts
-export const stats = statsFeature({
+export const stats = defineStats({
   key: "stats",
   vocab: WORDS,
   reach: () => [upgrades, collection, reach<{ prestige: { currency: Decimal } }>()],

@@ -3,9 +3,9 @@ import {
   challenges,
   type Decimal,
   defineGame,
+  defineStats,
   type Effect,
   feature,
-  stats,
 } from "watchpot/core";
 import { wallet } from "./add-a-currency";
 import { TOY } from "./vocab";
@@ -43,7 +43,7 @@ export const shop = feature({
 });
 
 /** What the completions give, on the engine's `stats`: `s.stats["toy.speed"]`, the rewards counted as they land. */
-export const rewards = stats({
+export const rewards = defineStats({
   key: "stats",
   vocab: TOY,
   reach: () => [trials],

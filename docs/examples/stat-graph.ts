@@ -6,9 +6,9 @@ import {
   type Decimal,
   type DecimalSource,
   defineGame,
+  defineStats,
   feature,
   fmt,
-  stats,
   vocab,
 } from "watchpot/core";
 
@@ -33,7 +33,7 @@ const mine = feature({
  * (`s.numbers.dig`), worked out again only when something it read has changed; an effect reads another stat the same
  * way (`q.numbers.haul`).
  */
-const numbers = stats({
+const numbers = defineStats({
   key: "numbers",
   vocab: WORDS,
   reach: () => [mine],

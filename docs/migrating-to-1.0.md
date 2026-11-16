@@ -139,15 +139,15 @@ state, everything is a Decimal, a stat's base is declared once.
 
 | Old | New |
 | --- | --- |
-| `busOf`, `statValue`, `statTotals`, `explainStat`, `StatBus`, `StatTotals`, the bus's `StatBreakdown` | removed; declare a `stats(...)` feature and read `s.stats.<id>` |
+| `busOf`, `statValue`, `statTotals`, `explainStat`, `StatBus`, `StatTotals`, the bus's `StatBreakdown` | removed; declare a `defineStats(...)` feature and read `s.stats.<id>` |
 | `Effect { stat, add?, mult? }` (numbers) | `Effect<S, Q>`: `{ stat, add }` or `{ stat, mul }`, the amount a number or `(q) => number` |
 | `{ stat, mult: 2 }` in content tables | `{ stat, mul: 2 }` |
 | `LiveEffect { stat, op: "mul", value }` | `{ stat, mul: value }` (and `op: "add"` → `{ stat, add: value }`) |
 | `liveIndex(options?)`, `LiveIndex` | `statIndex({ base, caps? })`, `StatIndex`; `base` is required (no default of 1) |
 | `LiveSource`, `LiveMeta`, `LiveBreakdown`, `LiveIndexOptions` | `StatSource`, `SourceMeta`, `StatBreakdown`, `StatIndexOptions` |
 | `softcapDecimal(value, cap)` and the number `applySoftcap` | `applySoftcap(value: Decimal, cap)` |
-| `StatDef { softcap?, hardcap? }` | `StatCaps`; `StatDef` is now `StatCaps & { base }`, what `stats()` takes per stat |
-| `statValue(bus, id, base)` with the base at each call site (default 0; the live graph's was 1) | the base once, in `stats({ stats: { id: { base } } })` |
+| `StatDef { softcap?, hardcap? }` | `StatCaps`; `StatDef` is now `StatCaps & { base }`, what `defineStats()` takes per stat |
+| `statValue(bus, id, base)` with the base at each call site (default 0; the live graph's was 1) | the base once, in `defineStats({ stats: { id: { base } } })` |
 | `graph/live.ts` | merged into `graph/stats.ts` |
 
 What changed in behaviour:
@@ -167,7 +167,7 @@ The `stats` feature replaces a game's own fold:
 export const outputOf = (bus: StatBus) => statValue(bus, "output", 1);
 
 // New: declared once; every stat is a derived value, never saved, current wherever it is read.
-export const numbers = stats({
+export const numbers = defineStats({
   key: "stats",
   vocab: WORDS,                       // stat ids come from vocab({ stats })
   reach: () => [upgrades, boosts],

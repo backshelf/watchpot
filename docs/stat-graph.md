@@ -29,7 +29,7 @@ its `label` is the line a player reads while it bites; a `hardcap` is a ceiling.
 ## The `stats` feature
 
 ```ts
-export const numbers = stats({
+export const numbers = defineStats({
   key: "stats",
   vocab: WORDS, // its stats, `vocab({ stats: ["output", "offline", "gain"] })`
   reach: () => [upgrades, collection, reach<{ prestige: { currency: Decimal } }>()],

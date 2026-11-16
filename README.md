@@ -250,7 +250,7 @@ export const store = createIdleStore(toy, {
   `times`, `plus`, `rate` and `counted` to one set of options, so a game sets its notation once.
 - **Stats.** One stat system. An effect is `{ stat, add }` or `{ stat, mul }`, its amount a number or a function of the
   state; one order, `(base + every add) × every mul`, then the softcap, then the hardcap, in Decimals.
-  `stats({ key, vocab, reach, stats: { id: { base, softcap?, hardcap? } }, flags?, sources?, contributions?, label?,
+  `defineStats({ key, vocab, reach, stats: { id: { base, softcap?, hardcap? } }, flags?, sources?, contributions?, label?,
   muted? })` is a feature that serves every stat as a derived value (`s.stats.output`, a Decimal, never saved, worked
   out again only when a slice it read may have changed): each base declared once (no default), `sources` declared with
   `label`, `owner`, `group`, `active` and `times`, and `contributions(state)` taking what the factories'

@@ -13,6 +13,7 @@ import {
   D,
   type Decimal,
   defineGame,
+  defineStats,
   type Effect,
   feature,
   fmtPlus,
@@ -22,7 +23,6 @@ import {
   type StatCaps,
   type StateOf,
   statIndex,
-  stats,
   upgradeTree,
 } from "watchpot/core";
 import { SIMMER, type Simmer, scriptStore, WORDS, wallet } from "./simmer/game-wallet";
@@ -89,7 +89,7 @@ const NAMES: Record<string, string> = {
 };
 
 /** Heat, on the state as `s.stats.heat`: a base of 1, every source's effects, worked out again when one changes. */
-export const heat = stats({
+export const heat = defineStats({
   key: "stats",
   vocab: WORDS,
   reach: () => SOURCES,

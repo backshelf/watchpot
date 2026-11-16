@@ -4,9 +4,9 @@ import {
   currencies,
   type Decimal,
   defineGame,
+  defineStats,
   type Effect,
   type StatOf,
-  stats,
 } from "watchpot/core";
 import { TOY } from "./vocab";
 
@@ -49,7 +49,7 @@ export const wall = achievements({
  * What the wall gives, on the engine's `stats`: the global multiplier (the count earned and the rows) as a source,
  * and every earned achievement's and full row's effects as contributions. `s.stats["toy.speed"]` is the result.
  */
-export const bonuses = stats({
+export const bonuses = defineStats({
   key: "stats",
   vocab: TOY,
   reach: () => [wall],

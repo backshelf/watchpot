@@ -505,7 +505,7 @@ a state that never lives in the store (scoring a loadout being weighed). Referen
 
 ## Stats feature
 
-The one place every effect in the game is folded into named stats: `stats({ key, vocab, stats, sources,
+The one place every effect in the game is folded into named stats: `defineStats({ key, vocab, stats, sources,
 contributions })`. Each stat's base is declared once; each stat is a derived value on the state (`s.stats.output`, a
 Decimal), never saved, worked out again only when something it read changes. Adds are summed, multipliers multiplied,
 then the caps. Taught in [chapter 8](guide/08-effects.md); met first in

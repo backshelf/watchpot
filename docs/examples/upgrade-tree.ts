@@ -4,9 +4,9 @@ import {
   createMemoryBackend,
   type Decimal,
   defineGame,
+  defineStats,
   type Effect,
   type GraphNode,
-  stats,
   treeMoves,
   upgradeTree,
   withMoves,
@@ -65,7 +65,7 @@ export const mine = withMoves(
 );
 
 /** The ranks held, on the engine's `stats`: `s.stats["toy.speed"]`. */
-export const speed = stats({
+export const speed = defineStats({
   key: "stats",
   vocab: TOY,
   reach: () => [mine],

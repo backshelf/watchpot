@@ -2,10 +2,10 @@ import {
   type BoardPiece,
   boardFeature,
   defineGame,
+  defineStats,
   type Effect,
   feature,
   fillBoard,
-  stats,
   vocab,
 } from "watchpot/core";
 
@@ -40,7 +40,7 @@ export const garden = boardFeature<"garden", Fx, State>({
 });
 
 /** What the bed gives, on the engine's `stats`: `s.stats.growth`, worked out again as the cells change. */
-export const growth = stats({
+export const growth = defineStats({
   key: "stats",
   vocab: WORDS,
   reach: () => [shed, garden],

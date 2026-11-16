@@ -1,4 +1,4 @@
-import { type Decimal, stats as statsFeature } from "watchpot/core";
+import { type Decimal, defineStats } from "watchpot/core";
 import { OFFLINE_BASE } from "../content/economy";
 import { WORDS } from "../content/words";
 // @if tree
@@ -33,7 +33,7 @@ export type Stats = { readonly [P in "output" | "offline" | "gain"]: Decimal };
  * buffs) as `contributions`, a number read off the state as a source. `stats.select.explain(state, "output")` is
  * the breakdown behind a number.
  */
-export const stats = statsFeature({
+export const stats = defineStats({
   key: "stats",
   vocab: WORDS,
   reach: () => [

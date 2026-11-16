@@ -1,4 +1,4 @@
-import { type Decimal, rankContributions, reach, stats as statsFeature } from "watchpot/core";
+import { type Decimal, defineStats, rankContributions, reach } from "watchpot/core";
 import { ITEMS } from "../content/gacha";
 import { OFFLINE_BASE } from "../content/generators";
 import { BONUS_PER_UNIT } from "../content/prestige";
@@ -18,7 +18,7 @@ const NAMES = new Map<string, string>([
  * (`s.stats.output`), never saved. Every feature that raises one feeds it here: the tree's ranks and the collection's
  * copies as contributions, the orbits held as a source. The prestige layer reads `gain`, so it is reached by type.
  */
-export const stats = statsFeature({
+export const stats = defineStats({
   key: "stats",
   vocab: WORDS,
   reach: () => [upgrades, collection, reach<{ prestige: { currency: Decimal } }>()],

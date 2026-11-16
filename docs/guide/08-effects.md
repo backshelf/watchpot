@@ -173,7 +173,7 @@ export const HEAT: StatCaps = { softcap: { start: 20, power: 0.5, label: "The po
 <!-- example-code: guide-effects.ts -->
 
 ```ts
-export const heat = stats({
+export const heat = defineStats({
   key: "stats",
   vocab: WORDS,
   reach: () => SOURCES,

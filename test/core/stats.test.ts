@@ -5,10 +5,10 @@ import {
   createMemoryBackend,
   type Decimal,
   defineGame,
+  defineStats,
   type Effect,
   feature,
   reach,
-  stats,
   vocab,
 } from "watchpot/core";
 
@@ -29,7 +29,7 @@ const stove = feature({
   }),
 });
 
-const numbers = stats({
+const numbers = defineStats({
   key: "numbers",
   vocab: WORDS,
   reach: () => [stove],
@@ -150,7 +150,7 @@ describe("the stats feature", () => {
   });
 
   test("two stats that read each other are refused", () => {
-    const loop = stats({
+    const loop = defineStats({
       key: "loop",
       vocab: WORDS,
       stats: { heat: { base: 1 }, draw: { base: 1 }, reach: { base: 1 } },
@@ -166,7 +166,7 @@ describe("the stats feature", () => {
 
   test("a stat cannot take a reserved name", () => {
     const words = vocab({ currencies: ["x"], stats: ["flags"] });
-    expect(() => stats({ key: "s", vocab: words, stats: { flags: { base: 1 } } })).toThrow("reserved");
+    expect(() => defineStats({ key: "s", vocab: words, stats: { flags: { base: 1 } } })).toThrow("reserved");
   });
 
   test("a feature reached by type may feed the stats that it reads", () => {
@@ -177,7 +177,7 @@ describe("the stats feature", () => {
       initial: () => ({ size: 2 }),
       derived: { boil: (s) => s.far.heat.toNumber() * s.pan.size },
     });
-    const far = stats({
+    const far = defineStats({
       key: "far",
       vocab: WORDS,
       reach: reach<{ pan: { size: number } }>(),

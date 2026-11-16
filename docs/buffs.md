@@ -6,7 +6,7 @@ game time, so a buff runs out during an absence too, and the income step of that
 covered.
 
 ```ts
-import { buffs, type Effect, feature, overlapMs, stats } from "watchpot/core";
+import { buffs, type Effect, feature, overlapMs, defineStats } from "watchpot/core";
 
 export const boosts = buffs<"boosts", Effect<"speed">>({
   key: "boosts",
@@ -33,7 +33,7 @@ export const mine = feature({
 // store.getState().boosts.start("rush")
 
 /** `s.stats.speed`: every buff still listed is running, since `sync.expire` ends the rest at the start of a pass. */
-export const speed = stats({
+export const speed = defineStats({
   key: "stats",
   vocab: WORDS, // vocab({ currencies: ["gold"], stats: ["speed"] })
   reach: () => [boosts],
