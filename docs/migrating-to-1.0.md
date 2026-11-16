@@ -388,6 +388,16 @@ Every layer now keeps its own run start and peak pace and serves the pace as der
 - `autoPlayer` warns once when a feature has an action named `buy…` and declares no moves (`quiet: true` silences
   it). It returns an `AutoPlayer` (`look`, `blind`). New options: `objective`, `worthLooks`, `quiet`.
 - `AutoStore` may have `trial(run)`.
+- `autoPlayer(game, …)` takes its state type from the game: drop `autoPlayer<GameState>(…)` and the annotation on
+  `objective`'s parameter (both still compile). `withMoves(feature, (s) => …)` types `s` as the feature's own slice.
+
+### Aliases deprecated in 0.18, now removed
+
+| Removed | Use |
+| --- | --- |
+| `catchUp(…)` the pure helper (not the store's `catchUp` action, which stays) | `offlineCredit(…)` |
+| `catchUpSteps(…)`, `CatchUp`, `CatchUpSteps` | `offlineSteps(…)`, `OfflineCredit`, `OfflineSteps` |
+| `Persona` (`watchpot/test`) | `FixturePlay` |
 
 ### The fit kit
 
