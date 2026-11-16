@@ -58,7 +58,7 @@ export const generator = feature({
     {
       id: "buy-generator",
       cost: { currency: "gold", amount: generatorCost(s.generator.owned) },
-      value: () => 1,
+      worth: () => 1,
       apply: (store) => store.getState().generator.buy(),
     },
   ],

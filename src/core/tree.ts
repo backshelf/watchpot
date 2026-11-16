@@ -424,7 +424,7 @@ export function treeMoves<K extends string, C extends string = string>(
         {
           id: `${key}:${node.id}`,
           cost: price,
-          value: () => worth(node, owned),
+          worth: () => worth(node, owned),
           apply: (store) => store.getState()[key].buy(node.id).ok,
         },
       ];

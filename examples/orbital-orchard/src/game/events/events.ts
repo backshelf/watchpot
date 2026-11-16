@@ -143,7 +143,7 @@ export const events = feature({
     if (s.events.live && (rt.currencies[NETS] ?? ZERO).gte(1) && cell >= 0)
       out.push({
         id: `cast:${s.events.sky.wave}:${cell}`,
-        value: () => 1,
+        worth: () => 1,
         apply: (store) => store.getState().events.cast(cell) !== null,
       });
     for (const node of SHOWER.upgrades) {
@@ -153,14 +153,14 @@ export const events = feature({
       out.push({
         id: `shower:${node.id}`,
         cost: { currency: SHARDS, amount: price.amount },
-        value: () => 1,
+        worth: () => 1,
         apply: (store) => store.getState().events.buyNode(node.id),
       });
     }
     for (const m of dueMilestones(SHOWER, rt))
       out.push({
         id: `claim:${m.id}`,
-        value: () => 2,
+        worth: () => 2,
         apply: (store) => store.getState().events.claim(m.id),
       });
     return out;

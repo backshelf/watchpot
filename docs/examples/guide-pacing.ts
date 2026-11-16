@@ -49,7 +49,7 @@ export const playablePot = withMoves(pot, (s: Simmer) => [
   {
     id: "buy-burner",
     cost: { currency: "bubbles", amount: burnerPrice(s.stove.burners) },
-    value: () => BURNER_PER_SECOND, // bubbles a second: the only thing a burner does
+    worth: () => BURNER_PER_SECOND, // bubbles a second: the only thing a burner does
     apply: (store) => store.getState().stove.buyBurner(),
   },
 ]);

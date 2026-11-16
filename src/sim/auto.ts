@@ -4,8 +4,13 @@ import type { SimWorld } from "./world";
 
 /**
  * The auto-player: plays any game from its features' `moves`, with no persona written for it. At each look it buys
- * the move of the best value per share of its currency held, again and again while one is affordable, then takes
- * every free move (a claim, an open), and goes round again while either did anything.
+ * the move of the best worth per share of its currency held, again and again while one is affordable, then takes
+ * each free move (a claim, an open) once, and goes round again while either did anything.
+ *
+ * What a purchase is worth is worked out where it can be: the game names one `objective` (what the player is
+ * trying to grow, usually income a second), and a purchase's worth is the objective after buying it less the
+ * objective before, tried on the state and put back. A move that does not move the objective at once (an unlock,
+ * an offline cap, a reset) comes to nothing that way, and says its own `worth`.
  */
 
 /** What the auto-player reads of a game: its features (a `Game` is one). */
@@ -23,23 +28,35 @@ export function movesOf<S extends object>(game: Playable, state: S): Move<S>[] {
   return out;
 }
 
-/** Options for `autoPlayer`: how to read a balance by currency, and the most moves one look may make. */
+/** Options for `autoPlayer`: the objective, how to read a balance by currency, and the limits of one look. */
 export interface AutoPlayerOptions<S> {
+  /**
+   * What the player is trying to grow, read off the state: usually income a second. With it, a move that states
+   * no `worth` is worth what buying it adds to this. Without it, every move must state its `worth` (the first one
+   * that does not is named in the error).
+   */
+  objective?(state: S): number;
   /**
    * What the state holds of a currency a move's cost names: the auto-player buys only what this covers. Default,
    * when the game has exactly one `currencies` feature, its balance of that currency; otherwise required.
    */
   balance?(state: S, currency: string): Decimal;
-  /**
-   * The most moves one look makes, against a move that never stops going through. Default 1,000. A free move whose
-   * `apply` keeps succeeding is taken again and again until this runs out, so a free move should refuse once taken.
-   */
+  /** The most moves one look makes, against a purchase that never stops going through. Default 1,000. */
   maxMoves?: number;
+  /**
+   * How many looks a worked-out worth is kept for while nothing is bought (default 10). Every purchase and free
+   * move drops what was kept; 1 works each one out afresh at every look.
+   */
+  worthLooks?: number;
+  /** Silences the warning for features that look purchasable and declare no moves. */
+  quiet?: boolean;
 }
 
 /** The balance reader of a game's one `currencies` feature (`state[key][currency]`); throws on none or several. */
 function currencyBalance<S>(game: Playable): (state: S, currency: string) => Decimal {
-  const wallets = game.features.filter((f) => Array.isArray((f as { currencies?: unknown }).currencies));
+  const wallets = game.features.filter((f) =>
+    Array.isArray((f as { def?: { currencies?: unknown } }).def?.currencies),
+  );
   const only = wallets[0];
   if (wallets.length !== 1 || !only)
     throw new Error(
@@ -55,29 +72,108 @@ export interface LookResult {
   free: number;
 }
 
-/** A store whose state the auto-player reads (the game's state `S`); a move's `apply` gets it whole. */
+/**
+ * A store whose state the auto-player reads (the game's state `S`); a move's `apply` gets it whole. `trial`, when
+ * the store has one (the plain store does), runs something and puts the state back; without it the auto-player
+ * keeps the state it read and sets it back, which a store of immutable states (the real one) allows.
+ */
 export interface AutoStore<S> {
   getState(): S;
+  trial?<T>(run: () => T): T;
 }
 
+/** The auto-player `autoPlayer` makes. */
+export interface AutoPlayer<S> {
+  /** Plays one look. */
+  look(store: AutoStore<S>): LookResult;
+  /**
+   * The moves with no `worth` of their own whose worked-out worth has never come above nothing: the auto-player
+   * has never bought them, and each wants a hand-written `worth`. Read it at the end of a run.
+   */
+  blind(): readonly string[];
+}
+
+/** Whether a move costs nothing. */
+const isFree = <S extends object>(move: Move<S>): boolean => !move.cost || move.cost.amount.lte(0);
+
 /**
- * The auto-player for a game: `look(store)` plays one look. A purchase's worth is its `value` over the
- * share of its currency it spends (`amount / balance`), so a gem and a gold purchase compare; ties go to the first
- * declared. A move whose `apply` refuses is not tried again in the look; one valued at or below 0 is never taken.
+ * The auto-player for a game: `look(store)` plays one look. A purchase's score is its worth over the share of its
+ * currency it spends (`amount / balance`), so a gem and a gold purchase compare; ties go to the first declared. A
+ * move whose `apply` refuses is not tried again in the look; one worth nothing or less is never taken; a free
+ * move is taken once a look unless it says `repeat`.
  */
 export function autoPlayer<S extends object>(
   game: Playable,
-  { balance: given, maxMoves = 1_000 }: AutoPlayerOptions<S> = {},
-): { look(store: AutoStore<S>): LookResult } {
+  { balance: given, maxMoves = 1_000, objective, worthLooks = 10, quiet = false }: AutoPlayerOptions<S> = {},
+): AutoPlayer<S> {
   const balance = given ?? currencyBalance<S>(game);
+  /** Worked-out worths kept between looks, by move id, and the looks left before they are dropped. */
+  const kept = new Map<string, number>();
+  let keptFor = 0;
+  /** Moves with no `worth` of their own, and whether their worked-out worth has ever been above nothing. */
+  const worked = new Map<string, boolean>();
+  let warned = quiet;
+
+  const warnMissing = (state: S): void => {
+    warned = true;
+    const missing = game.features
+      .filter((f) => !f.moves)
+      .filter((f) =>
+        Object.entries((state as Record<string, object | undefined>)[f.key] ?? {}).some(
+          ([name, v]) => typeof v === "function" && /^buy/i.test(name),
+        ),
+      )
+      .map((f) => f.key);
+    if (missing.length > 0)
+      console.warn(
+        `autoPlayer: ${missing.map((k) => `"${k}"`).join(", ")} can be bought from and declare${missing.length === 1 ? "s" : ""} no moves, so the auto-player will never buy there. Give the feature \`moves\` (or \`withMoves\`), or pass \`quiet\`.`,
+      );
+  };
+
+  const trial = <T>(store: AutoStore<S>, run: () => T): T => {
+    if (store.trial) return store.trial(run);
+    const before = store.getState();
+    try {
+      return run();
+    } finally {
+      (store as unknown as { setState(state: S, replace: true): void }).setState(before, true);
+    }
+  };
+
+  const worthOf = (store: AutoStore<S>, move: Move<S>, state: S): number => {
+    if (move.worth) return move.worth(state);
+    if (!objective)
+      throw new Error(
+        `autoPlayer: the move "${move.id}" states no worth and the auto-player was given no objective. Pass \`objective\` (what the player is trying to grow, read off the state), or give the move a \`worth\`.`,
+      );
+    const hit = kept.get(move.id);
+    if (hit !== undefined) return hit;
+    const before = objective(state);
+    const gain = trial(store, () => (move.apply(store as never) ? objective(store.getState()) - before : 0));
+    kept.set(move.id, gain);
+    worked.set(move.id, (worked.get(move.id) ?? false) || gain > 0);
+    return gain;
+  };
+
   return {
+    blind: () => [...worked].filter(([, seen]) => !seen).map(([id]) => id),
     look(store) {
+      if (!warned) warnMissing(store.getState());
+      if (keptFor <= 0) {
+        kept.clear();
+        keptFor = worthLooks;
+      }
+      keptFor -= 1;
       const refused = new Set<string>();
+      const taken = new Set<string>();
       const done: LookResult = { bought: 0, free: 0 };
       const total = () => done.bought + done.free;
       const take = (move: Move<S>): boolean => {
         const ok = move.apply(store as never);
-        if (ok) return true;
+        if (ok) {
+          kept.clear();
+          return true;
+        }
         refused.add(move.id);
         return false;
       };
@@ -88,10 +184,10 @@ export function autoPlayer<S extends object>(
           const state: S = store.getState();
           let best: { move: Move<S>; score: number } | null = null;
           for (const move of movesOf(game, state)) {
-            if (!move.cost || move.cost.amount.lte(0) || refused.has(move.id)) continue;
+            if (isFree(move) || !move.cost || refused.has(move.id)) continue;
             const held = balance(state, move.cost.currency);
             if (held.lt(move.cost.amount)) continue;
-            const worth = move.value(state);
+            const worth = worthOf(store, move, state);
             if (!(worth > 0)) continue;
             const score = worth / move.cost.amount.div(held).toNumber();
             if (!best || score > best.score) best = { move, score };
@@ -102,16 +198,17 @@ export function autoPlayer<S extends object>(
             round = true;
           }
         }
-        // Free moves: every one worth taking, best first, until none goes through.
+        // Free moves: each one worth taking, best first, once a look unless it repeats.
         while (total() < maxMoves) {
           const state: S = store.getState();
           const free = movesOf(game, state)
-            .filter((m) => (!m.cost || m.cost.amount.lte(0)) && !refused.has(m.id))
-            .map((move) => ({ move, worth: move.value(state) }))
+            .filter((m) => isFree(m) && !refused.has(m.id) && (m.repeat || !taken.has(m.id)))
+            .map((move) => ({ move, worth: worthOf(store, move, state) }))
             .filter((m) => m.worth > 0)
             .sort((a, b) => b.worth - a.worth);
           const next = free[0];
           if (!next) break;
+          taken.add(next.move.id);
           if (take(next.move)) {
             done.free++;
             round = true;

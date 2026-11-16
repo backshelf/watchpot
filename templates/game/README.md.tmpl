@@ -25,7 +25,8 @@ bun run lint:fix   # format
 - `src/content/` the data: the words (`words.ts`), the economy, the core's list and one file per feature;
   `pacing.ts` holds how the sim plays and the pacing contract.
 - `src/game/` the features on the engine's factories (`wallet`, `stats`, `settings`, the core and the chosen
-  features), `income.ts`, `bus.ts`, `game.ts` (`defineGame`, the feature order and the save) and the store.
+  features; `stats` is the engine's `stats`, fed by every other feature), `income.ts`, `game.ts` (`defineGame`, the
+  feature order and the save) and the store.
 - `src/app/` the page: `App.tsx` over the `Shell`, the tabs, the header, the about sheet, the icons, the sounds, and
   `hooks.ts` (`useGameState`, `useGameView`, `useGameStore`). `src/screens/` one screen per tab.
 - `src/ui/` the game's own components over the engine's headless `watchpot/ui`, each with its CSS module, and

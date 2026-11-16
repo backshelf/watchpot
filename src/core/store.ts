@@ -3,7 +3,7 @@ import { type PersistStorage, persist } from "zustand/middleware";
 import { immer } from "zustand/middleware/immer";
 import { createStore } from "zustand/vanilla";
 import { createCells } from "./cells";
-import { readClock, writeClock } from "./clock-feature";
+import { type ClockLens, readClock, writeClock } from "./clock-feature";
 import { D, type Decimal, isDecimal } from "./decimal";
 import {
   type FeatureApi,
@@ -160,6 +160,43 @@ type Slice = Record<string, unknown>;
 const plain = (value: Slice): Slice => (isDraft(value) ? current(value as Draft<Slice>) : value);
 
 /**
+ * The prestige reset over a state (a draft or a plain one): each feature by its `reset` rule, then the clock's
+ * anchors on `now` with its offset kept. The store's and the plain runner's `resetRun` are both this.
+ */
+export function runReset(
+  features: readonly FeatureSpec[],
+  clock: ClockLens,
+  s: object,
+  now: number,
+  next: RngState,
+  depth = 1,
+): void {
+  const { offsetMs } = readClock(s, clock);
+  const ctx: InitialContext = { now, wallNow: now - offsetMs, rng: next, reason: "run", depth };
+  for (const f of features) {
+    const { depth: from, rule } = resetRuleOf(f.reset);
+    if (depth < from) continue;
+    const slot = (s as Slices)[f.key] ?? {};
+    const fresh = f.initial(ctx);
+    if (rule === "run") {
+      Object.assign(slot, fresh);
+      continue;
+    }
+    const before = plain(slot);
+    if (typeof rule === "function") {
+      // Declared over the feature's own `S`, which `before` and `fresh` are.
+      Object.assign(slot, rule(before as never, fresh as never, ctx));
+      continue;
+    }
+    // A plain state hands back the slot itself: read the kept values before the fresh ones land over them.
+    const kept = rule.keep.map((k) => [k, before[k]] as const);
+    Object.assign(slot, fresh);
+    for (const [k, v] of kept) slot[k] = v;
+  }
+  writeClock(s, clock, { createdAt: now, lastSeen: now, offsetMs });
+}
+
+/**
  * Builds the zustand store a game runs from its definition: every feature's state and actions, the tick and the save.
  * Where there is a page it flushes the save itself when the page hides, clock or no clock (`registerStore`).
  */
@@ -228,27 +265,7 @@ export function createIdleStore<F extends readonly FeatureSpec[], R extends obje
   /** Draft helper: the prestige reset. Each feature by its rule; the clock's anchors on `now`, its offset kept. */
   const resetRun = (view: object, now: number, next: RngState, depth = 1): void => {
     const s = cells.raw(view);
-    const { offsetMs } = readClock(s, clock);
-    const ctx: InitialContext = { now, wallNow: now - offsetMs, rng: next, reason: "run", depth };
-    for (const f of features) {
-      const { depth: from, rule } = resetRuleOf(f.reset);
-      if (depth < from) continue;
-      const slot = (s as Slices)[f.key] ?? {};
-      const fresh = f.initial(ctx);
-      if (rule === "run") {
-        Object.assign(slot, fresh);
-        continue;
-      }
-      const before = plain(slot);
-      if (typeof rule === "function") {
-        // Declared over the feature's own `S`, which `before` and `fresh` are.
-        Object.assign(slot, rule(before as never, fresh as never, ctx));
-        continue;
-      }
-      Object.assign(slot, fresh);
-      for (const k of rule.keep) slot[k] = before[k];
-    }
-    writeClock(s, clock, { createdAt: now, lastSeen: now, offsetMs });
+    runReset(features, clock, s, now, next, depth);
     cells.touchAll();
   };
 

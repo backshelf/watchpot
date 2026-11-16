@@ -112,13 +112,13 @@ describe("the game", () => {
 
   // @if tree
   test("an upgrade rank pays from the wallet and lands on the stats", () => {
-    const { store, clock } = freshStore(game);
+    const { store } = freshStore(game);
     const node = NODES.find((n) => n.requires.length === 0 && n.effects.some((e) => e.stat === "output"));
     if (!node) throw new Error("no root output node");
     store.getState().wallet.credit(MAIN, 1e6);
     expect(store.getState().upgrades.buy(node.id).ok).toBe(true);
-    tick(store, clock, 1_000);
-    expect(store.getState().stats.output).toBeGreaterThan(1);
+    // The stats follow the ranks at once: no pass needed.
+    expect(store.getState().stats.output.toNumber()).toBeGreaterThan(1);
   });
   // @end
 
@@ -183,7 +183,7 @@ describe("the game", () => {
     for (const id of Object.keys(earned)) expect(s.achievements.earned[id]).toBeDefined();
     // @end
     tick(store, clock, 1_000);
-    expect(store.getState().stats.output).toBeGreaterThan(1);
+    expect(store.getState().stats.output.toNumber()).toBeGreaterThan(1);
   });
   // @end
 
@@ -197,9 +197,7 @@ describe("the game", () => {
     tick(store, clock, 1_000);
     expect(store.getState().achievements.earned[easy.id]).toBeDefined();
     expect(store.getState().achievements.fresh).toContain(easy.id);
-    // The wall checks after production; the stats read it on the next pass.
-    tick(store, clock, 1_000);
-    expect(store.getState().stats.output).toBeGreaterThan(1);
+    expect(store.getState().stats.output.toNumber()).toBeGreaterThan(1);
   });
   // @end
 
@@ -209,12 +207,12 @@ describe("the game", () => {
     for (let t = 0; t <= WAIT.maxMs && !store.getState().visitors.kinds[VISITOR_KIND]?.live; t += 1_000)
       tick(store, clock, 1_000);
     expect(store.getState().visitors.kinds[VISITOR_KIND]?.live).not.toBeNull();
-    const output = store.getState().stats.output;
+    const output = store.getState().stats.output.toNumber();
     expect(store.getState().visitors.catch(VISITOR_KIND)).toBe(BUFF.id);
     tick(store, clock, 1_000);
-    expect(store.getState().stats.output).toBeCloseTo(output * BUFF.mult, 5);
+    expect(store.getState().stats.output.toNumber()).toBeCloseTo(output * BUFF.mult, 5);
     tick(store, clock, BUFF.seconds * 1000);
-    expect(store.getState().stats.output).toBeCloseTo(output, 5);
+    expect(store.getState().stats.output.toNumber()).toBeCloseTo(output, 5);
   });
   // @end
 

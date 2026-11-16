@@ -1,5 +1,5 @@
 import { Decimal, type DecimalSource } from "../decimal";
-import { type LiveBreakdown, type LiveIndex, type StatPart } from "../graph/live";
+import { type StatBreakdown, type StatIndex, type StatPart } from "../graph/stats";
 import type { AnyLayerFlag, LayerBuyableDef, LayerChallengeDef, LayerDef, LayerModelDef, LayerMuteGroup, LayerResourceRef, LayerState, LayersState, LayerUpgradeDef } from "./types";
 /**
  * The query: every question the rules and a screen ask of one layer state. What a stat comes to and why, what a
@@ -19,7 +19,7 @@ export interface LayerIndex<L extends string, S extends string, B extends string
         layer: L;
         def: LayerChallengeDef<L, S, B>;
     }>;
-    readonly live: LiveIndex<S, AnyLayerFlag<L>, LayerQuery<L, S, B>, LayerMuteGroup<L>>;
+    readonly live: StatIndex<S, AnyLayerFlag<L>, LayerQuery<L, S, B>, LayerMuteGroup<L>>;
 }
 /** Indexes a model's content: every source's effects and flags, in a fixed order (per layer: holding, power, upgrades,
  * buyables, milestones, challenges and their penalties; then the extra sources). */
@@ -69,7 +69,7 @@ export declare class LayerQuery<L extends string, S extends string, B extends st
     stat(id: S): Decimal;
     /** The counting effects on a stat, in index order. */
     parts(id: S): StatPart[];
-    explain(id: S): LiveBreakdown<S>;
+    explain(id: S): StatBreakdown<S>;
     /** Whether any counting source raises the flag. Mute groups never silence a flag. */
     flag(id: AnyLayerFlag<L>): boolean;
     /** The base resource a second: `stat(rate) ^ stat(exponent)`. */

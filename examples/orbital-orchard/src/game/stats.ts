@@ -1,51 +1,47 @@
-import {
-  busOf,
-  type Contribution,
-  type Decimal,
-  type Ranks,
-  rankContributions,
-  type StatBus,
-  statValue,
-} from "watchpot/core";
+import { type Decimal, rankContributions, reach, stats as statsFeature } from "watchpot/core";
 import { ITEMS } from "../content/gacha";
 import { OFFLINE_BASE } from "../content/generators";
 import { BONUS_PER_UNIT } from "../content/prestige";
 import { NODES } from "../content/tree";
+import { WORDS } from "../content/words";
+import { collection } from "./gacha";
+import { upgrades } from "./tree";
+
+const NAMES = new Map<string, string>([
+  ...NODES.map((n) => [`upgrades:${n.id}`, n.name] as const),
+  ...ITEMS.map((i) => [`collection:${i.id}`, i.name] as const),
+]);
 
 /**
- * The stats: `output` (a multiplier on every generator), `offline` (the share paid while away) and `gain` (a
- * multiplier on what a prestige pays). Every feature that raises one adds contributions here; nothing else reads the
- * content's effects.
+ * The stats, under `stats`: `output` (a multiplier on every generator), `offline` (the share paid while away, never
+ * above all of it) and `gain` (a multiplier on what a prestige pays). Each is a Decimal worked out from the state
+ * (`s.stats.output`), never saved. Every feature that raises one feeds it here: the tree's ranks and the collection's
+ * copies as contributions, the orbits held as a source. The prestige layer reads `gain`, so it is reached by type.
  */
-
-/** What the stats are read from: each feature's part of the state, present when the game has that feature. */
-export interface StatSources {
-  /** Every caller holds the wallet; it keeps this type from being all-optional (a weak type). */
-  readonly wallet: unknown;
-  readonly upgrades?: { readonly ranks: Ranks };
-  readonly collection?: { readonly owned: Readonly<Record<string, number>> };
-  readonly prestige?: { readonly currency: Decimal };
-}
-
-/** Every contribution the game's features make to the stats, as one bus. */
-export function statBus(src: StatSources): StatBus {
-  const all: Contribution[] = [];
-  if (src.upgrades) all.push(...rankContributions("upgrades", NODES, src.upgrades.ranks));
-  if (src.collection)
-    for (const item of ITEMS)
-      for (let i = 0; i < (src.collection.owned[item.id] ?? 0); i++)
-        all.push({ source: `collection:${item.id}`, effect: item.effect });
-  if (src.prestige)
-    all.push({
-      source: "prestige",
-      effect: { stat: "output", mult: 1 + BONUS_PER_UNIT * src.prestige.currency.toNumber() },
-    });
-  return busOf(all);
-}
-
-/** The production multiplier (1 with nothing bought). */
-export const outputOf = (bus: StatBus) => statValue(bus, "output", 1);
-/** The share of production paid while away, never above all of it. */
-export const offlineOf = (bus: StatBus) => statValue(bus, "offline", OFFLINE_BASE, { hardcap: 1 });
-/** The prestige gain multiplier. */
-export const gainOf = (bus: StatBus) => statValue(bus, "gain", 1);
+export const stats = statsFeature({
+  key: "stats",
+  vocab: WORDS,
+  reach: () => [upgrades, collection, reach<{ prestige: { currency: Decimal } }>()],
+  stats: {
+    output: { base: 1 },
+    offline: { base: OFFLINE_BASE, hardcap: 1 },
+    gain: { base: 1 },
+  },
+  sources: [
+    {
+      label: "Orbits",
+      owner: "prestige",
+      effects: [{ stat: "output", mul: (q) => 1 + BONUS_PER_UNIT * q.prestige.currency.toNumber() }],
+    },
+  ],
+  contributions: (s) => [
+    ...rankContributions("upgrades", NODES, s.upgrades.ranks),
+    ...ITEMS.flatMap((item) =>
+      Array.from({ length: s.collection.owned[item.id] ?? 0 }, () => ({
+        source: `collection:${item.id}`,
+        effect: item.effect,
+      })),
+    ),
+  ],
+  label: (source) => NAMES.get(source) ?? source,
+});

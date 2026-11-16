@@ -64,7 +64,7 @@ const LIST: readonly Achievement<WallReads, Effect>[] = ACHIEVEMENTS.map((a) => 
 
 /**
  * The wall on the engine's `achievements`: rows of `COLUMNS`, each earned once and kept through a prestige, checked
- * after every pass's production. What it gives (output, from the count and the full rows) is read in `bus.ts`;
+ * after every pass's production. What it gives (output, from the count and the full rows) is read in `stats.ts`;
  * `fresh` is the queue the page toasts.
  */
 export const wall = achievements({ key: "achievements", columns: COLUMNS, list: LIST });

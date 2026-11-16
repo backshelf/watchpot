@@ -6,12 +6,12 @@ game time, so a buff runs out during an absence too, and the income step of that
 covered.
 
 ```ts
-import { buffs, type Effect, feature, overlapMs } from "watchpot/core";
+import { buffs, type Effect, feature, overlapMs, stats } from "watchpot/core";
 
-export const boosts = buffs<"boosts", Effect>({
+export const boosts = buffs<"boosts", Effect<"speed">>({
   key: "boosts",
   list: [
-    { id: "rush", durationMs: 77_000, stack: "refresh", effects: () => [{ stat: "speed", mult: 7 }] },
+    { id: "rush", durationMs: 77_000, stack: "refresh", effects: () => [{ stat: "speed", mul: 7 }] },
     { id: "focus", durationMs: 30_000, stack: "stack", maxStacks: 5, effects: (stacks) => [{ stat: "speed", add: stacks }] },
     { id: "cooldown", durationMs: 10_000, stack: "ignore" }, // a timer: no effects
   ],
@@ -30,7 +30,16 @@ export const mine = feature({
     },
   },
 });
-// store.getState().boosts.start("rush"); busOf(boosts.contributions(s.boosts, now))
+// store.getState().boosts.start("rush")
+
+/** `s.stats.speed`: every buff still listed is running, since `sync.expire` ends the rest at the start of a pass. */
+export const speed = stats({
+  key: "stats",
+  vocab: WORDS, // vocab({ currencies: ["gold"], stats: ["speed"] })
+  reach: () => [boosts],
+  stats: { speed: { base: 1 } },
+  contributions: (s) => boosts.contributions(s.boosts, Number.NEGATIVE_INFINITY),
+});
 ```
 
 Example: [`examples/buffs.ts`](examples/buffs.ts).
@@ -50,14 +59,15 @@ Example: [`examples/buffs.ts`](examples/buffs.ts).
   `onEnd(draft, id, now)` runs for each buff it ends. Actions `start(id, { durationMs?, strength? })` (false for an unknown id or an ignored start) and `end(id)`;
   on the feature itself, `start(draft, id, now, start?)` and `end(draft, id, now)` do the same inside a recipe (a
   spawn's `onCatch`, an event's handler).
-  `.contributions(state, now)` gives every running buff's effects sourced `<key>:<id>`, for `busOf`. A run reset ends
-  every buff unless `reset` says otherwise.
+  `.contributions(state, now)` gives every running buff's effects sourced `<key>:<id>`, for a `stats` feature's
+  `contributions`. A stat reads no clock, so pass `Number.NEGATIVE_INFINITY` there: the expiry step has already
+  ended every buff whose time is up. A run reset ends every buff unless `reset` says otherwise.
 
 ## A buff as a timer
 
 `effects` is optional. A buff without it is a named clock and nothing more: it starts by its stacking rule, runs out
 on game time (during an absence too), keeps the window it covered, and adds nothing to `contributions`. Read it with
 `buffActive(state, id, now)` and `buffLeftMs(state, id, now)` and decide in your own code what it means: a cooldown on
-a button, a "hot run" your own stat fold multiplies by, a window in which a spawn pays double. The `cooldown` above is
+a button, a "hot run" a source of your stats reads in its `active`, a window in which a spawn pays double. The `cooldown` above is
 one. Reach for this when the strength depends on something `effects(stacks, strength)` cannot see, such as another
 stat. [Showcase 3](showcases.md#3-a-buff-with-no-effect) shows a real game doing it.

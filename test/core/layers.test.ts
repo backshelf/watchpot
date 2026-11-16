@@ -434,7 +434,14 @@ describe("a challenge", () => {
     s.layers.a.upgrades = ["a1"];
     s.challenge = { layer: "c", id: "c.trial", since: 0 };
     const q = m.read(s);
-    expect(q.parts("speed").map((p) => p.label)).not.toContain("a1");
+    // Listed, marked muted, and not counted.
+    expect(
+      q
+        .parts("speed")
+        .filter((p) => p.muted === null)
+        .map((p) => p.label),
+    ).not.toContain("a1");
+    expect(q.parts("speed").find((p) => p.label === "a1")?.muted).toBe("a.upgrades");
     expect(q.flag("bulk:a")).toBe(true);
     s.challenge = null;
     expect(

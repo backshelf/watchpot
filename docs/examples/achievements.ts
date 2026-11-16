@@ -1,19 +1,22 @@
 import {
   type Achievement,
   achievements,
-  busOf,
   currencies,
   type Decimal,
   defineGame,
   type Effect,
+  type StatOf,
+  stats,
 } from "watchpot/core";
 import { TOY } from "./vocab";
 
 type State = { wallet: { gold: Decimal; gems: Decimal } };
+/** An effect on one of the toy's stats. */
+type Fx = Effect<StatOf<typeof TOY>>;
 
 const wallet = currencies({ key: "wallet", vocab: TOY });
 
-const LIST: Achievement<State, Effect>[] = [
+const LIST: Achievement<State, Fx>[] = [
   { id: "ten", name: "Pocket money", line: "Hold 10 gold.", when: (s) => s.wallet.gold.gte(10) },
   {
     id: "hoard",
@@ -22,7 +25,7 @@ const LIST: Achievement<State, Effect>[] = [
     reward: "+1 speed",
     when: (s) => s.wallet.gems.gte(5),
     forMs: 30_000,
-    effects: [{ stat: "speed", add: 1 }],
+    effects: [{ stat: "toy.speed", add: 1 }],
   },
   {
     id: "clean",
@@ -39,20 +42,33 @@ export const wall = achievements({
   key: "wall",
   columns: 4,
   list: LIST,
-  rowEffects: () => [{ stat: "speed", mult: 1.25 }],
+  rowEffects: (): Fx[] => [{ stat: "toy.speed", mul: 1.25 }],
+});
+
+/**
+ * What the wall gives, on the engine's `stats`: the global multiplier (the count earned and the rows) as a source,
+ * and every earned achievement's and full row's effects as contributions. `s.stats["toy.speed"]` is the result.
+ */
+export const bonuses = stats({
+  key: "stats",
+  vocab: TOY,
+  reach: () => [wall],
+  stats: { "toy.speed": { base: 1 } },
+  sources: [
+    {
+      label: "The wall",
+      owner: "wall",
+      effects: [
+        { stat: "toy.speed", mul: (q) => wall.board.power(q.wall.earned, { each: 1.03, row: 1.25 }) },
+      ],
+    },
+  ],
+  contributions: (s) => wall.board.contributions(s.wall.earned),
 });
 
 export const game = defineGame({
   id: "wall",
   save: { key: "wall.save", version: 1 },
-  features: [wallet, wall],
+  features: [wallet, wall, bonuses],
   vocab: TOY,
 });
-
-/** The global multiplier and the stat bus, read off the earned record. */
-export function bonuses(s: { wall: { earned: Record<string, number> } }) {
-  return {
-    power: wall.board.power(s.wall.earned, { each: 1.03, row: 1.25 }),
-    bus: busOf(wall.board.contributions(s.wall.earned)),
-  };
-}

@@ -29,8 +29,8 @@ import { boosts, visitors } from "./visitor";
 // @end
 
 /**
- * The game: its features in order (each phase of a pass runs their steps in this order, so the stats come before the
- * core that reads them), its words, its save. A change to the saved shape bumps `save.version` and adds a migration
+ * The game: its features in order (each phase of a pass runs their steps in this order; the stats are derived, so
+ * they need no place), its words, its save. A change to the saved shape bumps `save.version` and adds a migration
  * step (`watchpot` README › Saves).
  */
 export const game = defineGame({

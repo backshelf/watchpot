@@ -23,7 +23,7 @@ export const skills = levels({
   maxLevel: 99, // every track stops here unless its own says otherwise
   onLevel: (d: { wallet: object }, _track, from, to) => wallet.draft.credit(d, "gems", to - from), // a gem a level
   effects: (track, level): Effect[] => [
-    { stat: "toy.speed", mult: 1 + (track.id === "gather" ? 0.05 : 0.1) * level },
+    { stat: "toy.speed", mul: 1 + (track.id === "gather" ? 0.05 : 0.1) * level },
   ],
 });
 
@@ -34,7 +34,7 @@ export const game = defineGame({
   vocab: TOY,
 });
 // store.getState().skills.gain("gather", 500) → levels gained · skills.gain(draft, "trade", 20) inside a recipe
-// skills.rules.progress(state.skills, "gather") → { level, into, need, share } · busOf(skills.rules.contributions(...))
+// skills.rules.progress(state.skills, "gather") → { level, into, need, share } · skills.rules.contributions(...) feeds a `stats` feature
 export const where = (xp: number) => ({ level: levelAt(steady, xp), bar: levelProgress(steady, xp).share });
 ```
 
@@ -47,7 +47,7 @@ export const where = (xp: number) => ({ level: levelAt(steady, xp), bar: levelPr
   bisection over a function, up to `LEVEL_LIMIT`) and `levelProgress(curve, xp)` → `{ level, into, need, share }`
   (at a table's top the need is Infinity and the share 1).
 - **`levels({ key, tracks, maxLevel?, onLevel?, effects?, reset? })`** saves `{ xp }`, a Decimal total per track,
-  under `key` (the stat bus's source prefix too); levels are read off the totals, never stored. `TrackDef` is `{ id,
+  under `key` (the contributions' source prefix too); levels are read off the totals, never stored. `TrackDef` is `{ id,
   curve, maxLevel? }`; a track at its max keeps no XP past that level's total.
 - **Gaining:** the action `gain(track, amount)` and the draft helper `skills.gain(draft, track, amount)` both return
   the levels gained and run `onLevel(draft, track, from, to)` once in the same recipe when the level rises. A gain

@@ -3,12 +3,12 @@ import { dimensions } from "watchpot/core";
 import { SET, TIERS } from "../content/dimensions";
 import { OFFLINE_CAP_MS } from "../content/economy";
 import { MAIN } from "../content/words";
-import type { StatsState } from "./stats";
+import type { Stats } from "./stats";
 import { wallet } from "./wallet";
 
-/** What the chain's callbacks read: the stats, worked out earlier in the same pass. */
+/** What the chain's callbacks read: the stats, current as of the pass. */
 interface Reads {
-  stats: StatsState;
+  stats: Stats;
 }
 
 /**
@@ -25,5 +25,5 @@ export const chain = dimensions({
   set: SET,
   tiers: TIERS,
   mult: (s: Reads, _tier, index) => (index === 0 ? s.stats.output : 1),
-  away: (s: Reads) => ({ rate: s.stats.offline, capMs: OFFLINE_CAP_MS }),
+  away: (s: Reads) => ({ rate: s.stats.offline.toNumber(), capMs: OFFLINE_CAP_MS }),
 });

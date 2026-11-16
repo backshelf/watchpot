@@ -1,6 +1,6 @@
 // Written by /watchpot from .claude/specs/answers.json. It is the game's now: edit it freely.
 import type { Effect, OddsTable, PityRule } from "watchpot/core";
-import type { Rarity } from "./words";
+import type { Rarity, StatId } from "./words";
 
 export const GACHA_NAME = "Graft bench";
 /** The one box the pulls open; its id is the gacha's box key. */
@@ -37,7 +37,7 @@ export interface ItemDef {
   name: string;
   rarity: Rarity;
   /** What each copy owned adds. */
-  effect: Effect;
+  effect: Effect<StatId>;
 }
 
 export const ITEMS: readonly ItemDef[] = [
@@ -45,23 +45,23 @@ export const ITEMS: readonly ItemDef[] = [
     id: "crab-apple-scion",
     name: "Crab apple scion",
     rarity: "common",
-    effect: { stat: "output", mult: 1.01 },
+    effect: { stat: "output", mul: 1.01 },
   },
   { id: "quince-bud", name: "Quince bud", rarity: "common", effect: { stat: "offline", add: 0.01 } },
-  { id: "damson-twig", name: "Damson twig", rarity: "common", effect: { stat: "output", mult: 1.01 } },
+  { id: "damson-twig", name: "Damson twig", rarity: "common", effect: { stat: "output", mul: 1.01 } },
   {
     id: "blood-orange-scion",
     name: "Blood orange scion",
     rarity: "rare",
-    effect: { stat: "output", mult: 1.03 },
+    effect: { stat: "output", mul: 1.03 },
   },
   { id: "medlar-bud", name: "Medlar bud", rarity: "rare", effect: { stat: "offline", add: 0.02 } },
-  { id: "moon-peach", name: "Moon peach", rarity: "exotic", effect: { stat: "output", mult: 1.12 } },
-  { id: "glass-persimmon", name: "Glass persimmon", rarity: "exotic", effect: { stat: "gain", mult: 1.2 } },
+  { id: "moon-peach", name: "Moon peach", rarity: "exotic", effect: { stat: "output", mul: 1.12 } },
+  { id: "glass-persimmon", name: "Glass persimmon", rarity: "exotic", effect: { stat: "gain", mul: 1.2 } },
   {
     id: "old-earth-bramley",
     name: "Old Earth Bramley",
     rarity: "heirloom",
-    effect: { stat: "output", mult: 1.25 },
+    effect: { stat: "output", mul: 1.25 },
   },
 ];

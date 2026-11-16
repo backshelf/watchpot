@@ -6,7 +6,6 @@ import {
   buffLeftMs,
   buffStacks,
   buffs,
-  busOf,
   defineGame,
   type Effect,
   endBuff,
@@ -14,9 +13,9 @@ import {
   feature,
   overlapMs,
   startBuff,
-  statTotals,
 } from "watchpot/core";
 import { freshStore, T0 } from "watchpot/test";
+import { totals } from "./fold";
 
 const NONE: BuffsState = { active: {}, ended: {} };
 const rule = (stack: BuffRule["stack"], maxStacks?: number): BuffRule => ({
@@ -74,7 +73,7 @@ describe("the buff kernel", () => {
 const boosts = buffs<"boosts", Effect>({
   key: "boosts",
   list: [
-    { id: "rush", durationMs: 77_000, stack: "refresh", effects: () => [{ stat: "speed", mult: 7 }] },
+    { id: "rush", durationMs: 77_000, stack: "refresh", effects: () => [{ stat: "speed", mul: 7 }] },
     {
       id: "pile",
       durationMs: 10_000,
@@ -123,7 +122,7 @@ describe("buffs feature", () => {
     store.getState().boosts.start("pile", { strength: 2 });
     store.getState().boosts.start("pile");
     const now = clock.now();
-    expect(statTotals(busOf(boosts.contributions(store.getState().boosts, now)), "speed").add).toBe(4);
+    expect(totals(boosts.contributions(store.getState().boosts, now), "speed").add).toBe(4);
     expect(boosts.contributions(store.getState().boosts, now + 10_000)).toEqual([]);
     expect(boosts.contributions(store.getState().boosts, now)[0]?.source).toBe("boosts:pile");
   });

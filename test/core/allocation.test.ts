@@ -3,7 +3,6 @@ import {
   allocatedUnits,
   allocation,
   assignUnits,
-  busOf,
   D,
   defineGame,
   type Effect,
@@ -11,9 +10,9 @@ import {
   freeUnits,
   HOUR_MS,
   rebalanceUnits,
-  statTotals,
 } from "watchpot/core";
 import { freshStore, T0 } from "watchpot/test";
+import { totals } from "./fold";
 
 describe("assign, free and rebalance", () => {
   test("assign takes no more than is free or than the cap leaves room for", () => {
@@ -139,8 +138,8 @@ describe("allocation", () => {
     store.getState().catchUp();
     // One hour of 1 work a second: 3600 covers 10 x (2^8 - 1) = 2550, not 5110.
     expect(store.getState().jobs.level.forge).toBe(8);
-    const bus = busOf(jobs.rules.contributions(store.getState().jobs));
-    expect(statTotals(bus, "speed").add).toBe(8);
+    const fed = jobs.rules.contributions(store.getState().jobs);
+    expect(totals(fed, "speed").add).toBe(8);
     expect(jobs.rules.perSecond(store.getState(), "forge").toNumber()).toBe(1);
     expect(jobs.rules.perSecond(store.getState(), "haul")).toEqual(D(0));
   });

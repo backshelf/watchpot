@@ -16,8 +16,8 @@ import s from "./screens.module.css";
 export function MakeScreen() {
   const balance = useGameState((st) => st.wallet[MAIN]);
   const perSecond = useGameState((st) => st.generators.perSecond);
-  const output = useGameState((st) => st.generators.output);
-  const offline = useGameState((st) => st.generators.offline);
+  const output = useGameState((st) => st.stats.output.toNumber());
+  const offline = useGameState((st) => st.stats.offline.toNumber());
   const owned = useGameState((st) => st.generators.owned);
   const buy = useGameState((st) => st.generators.buy);
   const words = CURRENCY[MAIN];

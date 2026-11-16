@@ -1,6 +1,5 @@
 import { describe, expect, test } from "bun:test";
 import {
-  busOf,
   D,
   defineGame,
   type Effect,
@@ -8,12 +7,12 @@ import {
   levelAt,
   levelProgress,
   levels,
-  statTotals,
   totalXpAt,
   type XpCurve,
   xpForLevel,
 } from "watchpot/core";
 import { freshStore } from "watchpot/test";
+import { totals } from "./fold";
 
 const CURVES: Record<string, XpCurve> = {
   geometric: { kind: "geometric", base: 100, growth: 1.25 },
@@ -118,9 +117,9 @@ describe("levels", () => {
       gained = skills.gain(d, "mining", 30) + skills.gain(d, "fishing", 20);
     });
     expect(gained).toBe(4);
-    const bus = busOf(skills.rules.contributions(store.getState().skills));
-    expect(statTotals(bus, "speed").add).toBe(2);
-    expect(statTotals(bus, "luck").add).toBe(2);
+    const fed = skills.rules.contributions(store.getState().skills);
+    expect(totals(fed, "speed").add).toBe(2);
+    expect(totals(fed, "luck").add).toBe(2);
     expect(skills.rules.contributions(store.getState().skills)[0]?.source).toBe("skills:mining");
   });
 

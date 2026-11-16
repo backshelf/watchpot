@@ -24,6 +24,11 @@ export interface Cells {
   raw<T extends object>(view: T): T;
   /** Ends a step or a recipe: every slice taken through the view since the last close counts as written. */
   close(): void;
+  /**
+   * Whether taking a slice through the view counts as writing it (default: it does). A holder whose state is read
+   * through the view between recipes turns it off there, so a read is only a read.
+   */
+  record(on: boolean): void;
   /** Every slice counts as written: after a reset, a load or an import, which write under the view. */
   touchAll(): void;
   /** Works out every cell that is not current and writes it into its slice of `root`. */
@@ -57,6 +62,7 @@ const NONE: Cells = {
   view: (root) => root,
   raw: (view) => view,
   close: () => {},
+  record: () => {},
   touchAll: () => {},
   settle: () => {},
 };
@@ -160,6 +166,7 @@ export function createCells(features: readonly FeatureSpec[]): Cells {
   };
 
   const views = new WeakMap<object, object>();
+  let recording = true;
   const roots = new WeakMap<object, object>();
 
   return {
@@ -176,7 +183,7 @@ export function createCells(features: readonly FeatureSpec[]): Cells {
           if (typeof key !== "string") return Reflect.get(target, key);
           const read = (target as Slices)[key];
           if (read === undefined || typeof read !== "object" || read === null) return read;
-          touched.add(key);
+          if (recording) touched.add(key);
           const mine = byKey.get(key);
           if (!mine) return read;
           let sliceView = sliceViews.get(key);
@@ -206,6 +213,9 @@ export function createCells(features: readonly FeatureSpec[]): Cells {
       return view;
     },
     raw: <T extends object>(view: T): T => (roots.get(view) as T | undefined) ?? view,
+    record(on) {
+      recording = on;
+    },
     close() {
       for (const key of touched) versions.set(key, versionOf(key) + 1);
       touched.clear();

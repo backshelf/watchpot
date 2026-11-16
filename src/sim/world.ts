@@ -3,7 +3,9 @@ import {
   createGameStorage,
   createIdleStore,
   createMemoryBackend,
+  createPlainStore,
   type IdleStore,
+  type PlainStore,
   type StateOf,
 } from "../core";
 
@@ -22,6 +24,8 @@ export interface SimStore {
  */
 export interface SimWorld<S extends SimStore = SimStore> {
   store: S;
+  /** The longest tick `play` takes unless told otherwise: the world's quality. */
+  readonly tickMs: number;
   /**
    * The sim's wall time: the day loop and the samples read it. Not the game's time: `gameNow()` adds the profile's
    * clock offset, so stamp actions with `gameNow()` and measure days and hours with `now()`.
@@ -36,14 +40,23 @@ export interface SimWorld<S extends SimStore = SimStore> {
 }
 
 /**
- * The shell's tick, which the harness plays in: a minute. `playStraight` and `runFit` step a second at a time
- * instead (their own `tickMs` and `stepMs`); pass `tickMs` to match them when a run must agree with one of theirs.
+ * How finely a sim steps time: the length of one play tick. `exact` is a second, the grain the shell plays at and
+ * the one a fit is proved on; `quick` and `rough` take longer steps, so a long game can be read for its general
+ * curve and its pauses in a fraction of the time, at the cost of anything that happens inside a step (an
+ * autobuyer fires once a step, a timed window is seen a step late).
  */
-export const SIM_TICK_MS = 60_000;
+export const SIM_QUALITY = { exact: 1_000, quick: 10_000, rough: 60_000 } as const;
+/** A named sim quality: `exact`, `quick` or `rough`. */
+export type SimQuality = keyof typeof SIM_QUALITY;
 
-/** Options for `createSimWorld`: the length of one play tick. */
+/** The one default tick, everywhere in the sim: a second (`SIM_QUALITY.exact`). */
+export const SIM_TICK_MS: number = SIM_QUALITY.exact;
+
+/** Options for `createSimWorld`: the quality, or the length of one play tick outright. */
 export interface SimWorldOptions {
-  /** The longest tick `play` takes. Default `SIM_TICK_MS`. */
+  /** How finely time is stepped. Default `"exact"`. */
+  quality?: SimQuality;
+  /** The longest tick `play` takes, when a named quality will not do. Default: the quality's. */
   tickMs?: number;
 }
 
@@ -54,13 +67,14 @@ export interface SimWorldOptions {
 export function createSimWorld<S extends SimStore>(
   build: (now: () => number) => S,
   start: number,
-  { tickMs = SIM_TICK_MS }: SimWorldOptions = {},
+  { quality = "exact", tickMs = SIM_QUALITY[quality] }: SimWorldOptions = {},
 ): SimWorld<S> {
   let clock = start;
   const store = build(() => clock);
   store.getState().catchUp(store.getState().gameNow());
   return {
     store,
+    tickMs,
     now: () => clock,
     gameNow: () => store.getState().gameNow(),
     play(ms, stepMs = tickMs) {
@@ -79,10 +93,24 @@ export function createSimWorld<S extends SimStore>(
 }
 
 /**
- * A store for the sim: the game on storage that never writes (a debounce that never fires; serialising every set is
- * the slowest thing a sim could do), reading `now`, its draws seeded so one seed is one run.
+ * A store for the sim: the game on plain data (`createPlainStore`), reading `now`, its draws seeded so one seed
+ * is one run. Nothing is saved, and a pass costs the game's own code and little else. The state it hands back is
+ * changed in place: copy what a sample must keep.
  */
 export function simStore<G extends AnyGame>(
+  game: G,
+  now: () => number,
+  seed: string | number = "sim",
+): PlainStore<StateOf<G["features"]>> {
+  return createPlainStore(game, { now, seed }) as PlainStore<StateOf<G["features"]>>;
+}
+
+/**
+ * The real store for a sim, when a run must go through the very code the browser runs (immer, zustand, the save's
+ * middleware) and not only the same game: storage that never writes, reading `now`, seeded. Several times slower
+ * than `simStore`, and the same in every result.
+ */
+export function realSimStore<G extends AnyGame>(
   game: G,
   now: () => number,
   seed: string | number = "sim",

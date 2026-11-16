@@ -5,6 +5,7 @@ import { collection, summon } from "./gacha";
 import { generators } from "./generators";
 import { ascension } from "./prestige";
 import { settings } from "./settings";
+import { stats } from "./stats";
 import { upgrades } from "./tree";
 import { wallet } from "./wallet";
 
@@ -16,7 +17,7 @@ export const game = defineGame({
   id: SLUG,
   save: { key: `${SLUG}.save`, version: 1 },
   vocab: WORDS,
-  features: [wallet, upgrades, summon, collection, ascension, generators, events, settings],
+  features: [wallet, upgrades, summon, collection, ascension, stats, generators, events, settings],
 });
 
 export type GameState = StateOf<typeof game.features>;

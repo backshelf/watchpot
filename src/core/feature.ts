@@ -185,15 +185,21 @@ export interface MoveCost {
 
 /**
  * One thing a player can do now, as the sim's auto-player sees it (`watchpot/sim` › `autoPlayer`): a purchase
- * (with a `cost`) or a claim or an open that costs nothing (no `cost`). `value` is what it is worth, in whatever
- * unit the game picks (at or below 0 the auto-player never takes it); the auto-player buys the best value per share
- * of the currency held. `apply` plays it through the store's own actions and says whether it went through.
+ * (with a `cost`) or a claim or an open that costs nothing (no `cost`). `apply` plays it through the store's own
+ * actions and says whether it went through.
+ *
+ * `worth` is what it is worth, in the unit of the auto-player's objective (at or below 0 the auto-player never
+ * takes it). Leave it out and the auto-player works it out: the objective after the move less the objective
+ * before. State it for a move that does not move the objective at once (an unlock, an offline cap, a reset),
+ * which would otherwise come to nothing and never be taken. Nothing asks for it outside the sim.
  */
 export interface Move<G extends object = object> {
   /** Stable for the state it was read from: a refused move is not tried again in the same look. */
   readonly id: string;
   readonly cost?: MoveCost;
-  value(state: G): number;
+  worth?(state: G): number;
+  /** A free move is taken once a look; `repeat` lets it be taken again while it keeps going through. */
+  readonly repeat?: boolean;
   apply(store: IdleStoreApi<G>): boolean;
 }
 
@@ -201,7 +207,8 @@ export interface Move<G extends object = object> {
 export interface AnyMove {
   readonly id: string;
   readonly cost?: MoveCost;
-  value(state: never): number;
+  worth?(state: never): number;
+  readonly repeat?: boolean;
   apply(store: never): boolean;
 }
 

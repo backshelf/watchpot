@@ -1,5 +1,7 @@
+import { type ClockLens } from "./clock-feature";
 import { type FeatureSpec, type IdleStoreApi, type ResetRunContext, type StateOf } from "./feature";
 import type { Game } from "./game";
+import { type RngState } from "./rng";
 import { type GameStorage, type PersistedState } from "./storage";
 /**
  * The store over a game: every feature's state and actions under its key, the game's own actions, and the root
@@ -70,6 +72,11 @@ export declare function partializeState(features: readonly FeatureSpec[], state:
  * so a key added since the save loads as its default. The feature's `merge` then runs over the result.
  */
 export declare function mergeFeature<T extends object>(f: FeatureSpec, fresh: T, saved: unknown): T;
+/**
+ * The prestige reset over a state (a draft or a plain one): each feature by its `reset` rule, then the clock's
+ * anchors on `now` with its offset kept. The store's and the plain runner's `resetRun` are both this.
+ */
+export declare function runReset(features: readonly FeatureSpec[], clock: ClockLens, s: object, now: number, next: RngState, depth?: number): void;
 /**
  * Builds the zustand store a game runs from its definition: every feature's state and actions, the tick and the save.
  * Where there is a page it flushes the save itself when the page hides, clock or no clock (`registerStore`).

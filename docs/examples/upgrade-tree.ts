@@ -1,5 +1,4 @@
 import {
-  busOf,
   createGameStorage,
   createIdleStore,
   createMemoryBackend,
@@ -7,7 +6,7 @@ import {
   defineGame,
   type Effect,
   type GraphNode,
-  statTotals,
+  stats,
   treeMoves,
   upgradeTree,
   withMoves,
@@ -16,9 +15,9 @@ import { autoPlayer } from "watchpot/sim";
 import { wallet } from "./add-a-currency";
 import { TOY } from "./vocab";
 
-type Node = GraphNode<Effect, "gold" | "gems">;
+type Node = GraphNode<Effect<"toy.speed">, "gold" | "gems">;
 
-/** Each node: a price in currencies (growing per rank), a max rank, what it needs, and what it does to the stat bus. */
+/** Each node: a price in currencies (growing per rank), a max rank, what it needs, and what it does to the stats. */
 const NODES: readonly Node[] = [
   {
     id: "drill",
@@ -41,7 +40,7 @@ const NODES: readonly Node[] = [
     costGrowth: 1.5,
     maxLevel: 20,
     requires: ["drill"],
-    effects: [{ stat: "toy.speed", mult: 1.5 }],
+    effects: [{ stat: "toy.speed", mul: 1.5 }],
   },
 ];
 
@@ -65,10 +64,19 @@ export const mine = withMoves(
   treeMoves("mine", NODES, (node) => (node.id === "laser" ? 3 : 1)),
 );
 
+/** The ranks held, on the engine's `stats`: `s.stats["toy.speed"]`. */
+export const speed = stats({
+  key: "stats",
+  vocab: TOY,
+  reach: () => [mine],
+  stats: { "toy.speed": { base: 1 } },
+  contributions: (s) => mine.tree.contributions(s.mine.ranks),
+});
+
 export const game = defineGame({
   id: "tree",
   save: { key: "tree.save", version: 1 },
-  features: [wallet, mine],
+  features: [wallet, mine, speed],
   vocab: TOY,
 });
 
@@ -81,8 +89,9 @@ if (import.meta.main) {
   console.log("laser first:", s.mine.buy("laser")); // fails: closed until 100 gold has been earned
   console.log("laser open?", mine.open(store.getState(), "laser"), mine.check(store.getState(), "laser"));
   console.log("drill:", s.mine.buy("drill"));
-  // The bus: the tree's contributions, folded into totals per stat.
-  const totals = statTotals(busOf(mine.tree.contributions(store.getState().mine.ranks)), "toy.speed");
+  // The stats: the tree's contributions, folded into the summed adds and the multiplier of each stat.
+  const b = speed.select.explain(store.getState(), "toy.speed");
+  const totals = { add: b.add.toNumber(), mult: b.mult.toNumber() };
   console.log("speed:", totals); // { add, mult }
   // "Buy everything": the cheapest open rank first, one at a time, until the wallet runs out.
   s.wallet.credit("gold", 200);

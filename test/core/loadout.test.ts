@@ -1,6 +1,5 @@
 import { describe, expect, test } from "bun:test";
 import {
-  busOf,
   defineGame,
   type Effect,
   feature,
@@ -9,15 +8,15 @@ import {
   type LoadoutSet,
   loadout,
   loadoutFeature,
-  statTotals,
 } from "watchpot/core";
 import { freshStore } from "watchpot/test";
+import { totals } from "./fold";
 
 const SLOTS = [{ id: "head", kind: "hat" }, { id: "hand", kind: "tool" }, { id: "spare" }] as const;
 const ITEMS: readonly LoadoutItem<Effect>[] = [
   { id: "cap", kind: "hat", tags: ["wool"], effects: [{ stat: "speed", add: 1 }] },
   { id: "helm", kind: "hat", tags: ["iron"], effects: [{ stat: "speed", add: 3 }] },
-  { id: "mitt", kind: "tool", tags: ["wool"], effects: [{ stat: "speed", mult: 2 }] },
+  { id: "mitt", kind: "tool", tags: ["wool"], effects: [{ stat: "speed", mul: 2 }] },
   { id: "scarf", kind: "charm", tags: ["wool"] },
 ];
 const SETS: readonly LoadoutSet<Effect>[] = [
@@ -56,7 +55,7 @@ describe("loadout rules", () => {
     expect(rules.standings(two)[0]).toMatchObject({ count: 2, tier: 0, next: 3 });
     const three = { ...two, spare: "scarf" };
     expect(rules.standings(three)[0]).toMatchObject({ count: 3, tier: 1, next: null });
-    const speed = (s: Record<string, string | null>) => statTotals(busOf(rules.contributions(s)), "speed");
+    const speed = (s: Record<string, string | null>) => totals(rules.contributions(s), "speed");
     expect(speed({ head: "helm", hand: null, spare: null })).toEqual({ add: 3, mult: 1 });
     expect(speed(two)).toEqual({ add: 11, mult: 2 });
     expect(speed(three)).toEqual({ add: 51, mult: 2 });
@@ -112,7 +111,7 @@ describe("fillLoadout", () => {
     sets: [{ id: "kit", tag: "kit", tiers: [{ count: 3, effects: add(100) }] }],
   });
   const score = (slotted: Parameters<typeof rules.contributions>[0]) =>
-    rules.contributions(slotted).reduce((n, c) => n + (c.effect.add ?? 0), 0);
+    rules.contributions(slotted).reduce((n, c) => n + Number(c.effect.add ?? 0), 0);
   const owns = (id: string) => id !== "unowned";
 
   test("it finds a set that pays only whole, which filling one slot at a time never reaches", () => {

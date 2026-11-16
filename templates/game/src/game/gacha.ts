@@ -66,7 +66,7 @@ export const collection = withMoves(
       id: "pull",
       cost: { currency: PREMIUM, amount: D(PULL_PRICE) },
       // A pull is a slow, permanent raise: worth about a twentieth of the income a second.
-      value: (st) => incomeOf(st).toNumber() * 0.05 + 1,
+      worth: (st) => incomeOf(st).toNumber() * 0.05 + 1,
       apply: (store) => store.getState().collection.pull(1),
     },
   ],

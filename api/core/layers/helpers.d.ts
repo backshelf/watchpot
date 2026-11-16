@@ -1,5 +1,5 @@
 import { type Decimal, type DecimalSource } from "../decimal";
-import type { LiveEffect } from "../graph/live";
+import type { Effect } from "../graph/stats";
 /** Helpers for a game's layer definitions. */
 /**
  * `log10(x + 10)`: 1 at zero, about one more per tenfold. Put an effect that reads an unbounded resource through
@@ -7,6 +7,6 @@ import type { LiveEffect } from "../graph/live";
  */
 export declare const damp: (x: DecimalSource) => Decimal;
 /** An effect that multiplies a stat. `quiet` marks it for a breakdown that hides constants its text states. */
-export declare const mulStat: <S extends string, Q>(stat: S, value: (q: Q) => DecimalSource, quiet?: boolean) => LiveEffect<S, Q>;
+export declare const mulStat: <S extends string, Q>(stat: S, value: (q: Q) => DecimalSource, quiet?: boolean) => Effect<S, Q>;
 /** An effect that adds to a stat's base, before any multiplier. */
-export declare const addStat: <S extends string, Q>(stat: S, value: (q: Q) => DecimalSource, quiet?: boolean) => LiveEffect<S, Q>;
+export declare const addStat: <S extends string, Q>(stat: S, value: (q: Q) => DecimalSource, quiet?: boolean) => Effect<S, Q>;

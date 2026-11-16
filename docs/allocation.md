@@ -6,7 +6,8 @@ fills a bar: each assigned unit does `speed` work a second, and a full bar level
 the pool shrinks, the most recently assigned sink gives way first.
 
 ```ts
-import { allocation, busOf, defineGame, type Effect, feature } from "watchpot/core";
+import { allocation, defineGame, type Effect, feature, stats } from "watchpot/core";
+import { TOY } from "./vocab";
 
 type State = { crew: { size: number } };
 const crew = feature({ key: "crew", initial: () => ({ size: 12 }) });
@@ -21,21 +22,29 @@ export const jobs = allocation({
       id: "forge",
       cost: { base: 10, growth: 1.5 }, // work per level: geometric, so a long absence levels in one step
       speed: () => 1, // work per assigned worker per second
-      effects: (level): Effect[] => [{ stat: "toy.speed", add: level }],
+      effects: (level): Effect<"toy.speed">[] => [{ stat: "toy.speed", add: level }],
     },
     { id: "study", cost: (level) => 100 * (level + 1), speed: () => 2, maxLevel: 20 }, // walked
   ],
 });
 
+/** What the bars' levels give, on the engine's `stats`: `s.stats["toy.speed"]`, worked out as the levels move. */
+export const boosts = stats({
+  key: "stats",
+  vocab: TOY,
+  reach: () => [jobs],
+  stats: { "toy.speed": { base: 1 } },
+  contributions: (s) => jobs.rules.contributions(s.jobs),
+});
+
 export const game = defineGame({
   id: "jobs",
   save: { key: "jobs.save", version: 1 },
-  features: [crew, jobs],
+  vocab: TOY,
+  features: [crew, jobs, boosts],
 });
 // store.getState().jobs.assign("forge", 4) · .unassign("forge", 1) · .fill("study") · .clear()
 // jobs.rules.bar(state, "forge") → { level, into, need, share } · jobs.rules.free(state)
-export const jobBus = (s: { jobs: { level: Record<string, number> } }) =>
-  busOf(jobs.rules.contributions(s.jobs));
 ```
 
 - **Pure rules:** `assignUnits(assigned, id, n, pool, cap?)` moves `n` units in (no more than is free or than the cap leaves
@@ -43,7 +52,7 @@ export const jobBus = (s: { jobs: { level: Record<string, number> } }) =>
   trims every sink to its cap, then the total to the pool from the end of `order` (most recent last), deterministic.
   Each returns a new record.
 - **`allocation({ key, pool, sinks, away?, reset? })`** saves `{ assigned, order, progress, level }` under `key` (the
-  stat bus's source prefix too). `<key>.sync.pool` rebalances every pass, so a pool or cap that shrinks takes units
+  contributions' source prefix too). `<key>.sync.pool` rebalances every pass, so a pool or cap that shrinks takes units
   back; `<key>.produce.fill` fills the bars over a tick and over an absence (`away`, default all of it).
 - **`SinkDef<G, E>`**: `id`, `cap?(state)`, `effects?(level)`, and for a bar `cost: CostCurve` (work per level),
   `speed(state)` (work per unit a second) and `maxLevel?`. A long step levels several times at once through

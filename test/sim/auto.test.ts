@@ -59,17 +59,17 @@ const shop = feature({
     const out: Move<typeof s>[] = GOODS.filter((g) => !s.shop.bought.includes(g.id)).map((g) => ({
       id: g.id,
       cost: { currency: "gold", amount: D(g.price) },
-      value: () => g.worth,
+      worth: () => g.worth,
       apply: (store) => store.getState().shop.buy(g.id),
     }));
     out.push({
       id: "jam",
       cost: { currency: "gold", amount: D(1) },
-      value: () => 99,
+      worth: () => 99,
       apply: (store) => store.getState().shop.jammed(),
     });
     if (!s.shop.claimed)
-      out.push({ id: "bonus", value: () => 1, apply: (store) => store.getState().shop.claim() });
+      out.push({ id: "bonus", worth: () => 1, apply: (store) => store.getState().shop.claim() });
     return out;
   },
 });

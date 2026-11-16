@@ -564,19 +564,19 @@ export function contentFiles(pl: Plan, union = false): Record<string, string> {
 
   if (has("tree") && a.tree) {
     const EFFECT: Record<StatId, string> = {
-      output: '{ stat: "output", mult: 1.1 }',
+      output: '{ stat: "output", mul: 1.1 }',
       offline: '{ stat: "offline", add: 0.05 }',
-      gain: '{ stat: "gain", mult: 1.15 }',
+      gain: '{ stat: "gain", mul: 1.15 }',
     };
     const MAX: Record<StatId, number> = { output: 10, offline: 5, gain: 5 };
     out["src/content/tree.ts"] = [
       "// @feature tree",
       HEAD,
       'import type { Effect, GraphNode } from "watchpot/core";',
-      'import { type Currency, MAIN } from "./words";',
+      'import { type Currency, MAIN, type StatId } from "./words";',
       "",
       "/** A node, placed on the tree's grid: `col` its tier (left to right), `row` its place in the tier. */",
-      "export type UpgradeNode = GraphNode<Effect, Currency> & {",
+      "export type UpgradeNode = GraphNode<Effect<StatId>, Currency> & {",
       "  col: number;",
       "  row: number;",
       "};",
@@ -614,8 +614,8 @@ export function contentFiles(pl: Plan, union = false): Record<string, string> {
     const odds = ODDS[size] ?? [];
     const effect = (stat: StatId, rung: number) => {
       if (stat === "offline") return `{ stat: "offline", add: ${spread([0.01, 0.02, 0.04, 0.07, 0.1], size, rung)} }`;
-      if (stat === "gain") return `{ stat: "gain", mult: ${spread([1.02, 1.05, 1.1, 1.2, 1.35], size, rung)} }`;
-      return `{ stat: "output", mult: ${spread([1.01, 1.03, 1.06, 1.12, 1.25], size, rung)} }`;
+      if (stat === "gain") return `{ stat: "gain", mul: ${spread([1.02, 1.05, 1.1, 1.2, 1.35], size, rung)} }`;
+      return `{ stat: "output", mul: ${spread([1.01, 1.03, 1.06, 1.12, 1.25], size, rung)} }`;
     };
     const top = rarities[size - 1];
     const second = rarities[size - 2];
@@ -623,7 +623,7 @@ export function contentFiles(pl: Plan, union = false): Record<string, string> {
       "// @feature gacha",
       HEAD,
       'import type { Effect, OddsTable, PityRule } from "watchpot/core";',
-      'import type { Rarity } from "./words";',
+      'import type { Rarity, StatId } from "./words";',
       "",
       `export const GACHA_NAME = ${ts(g.name)};`,
       "/** The one box the pulls open; its id is the gacha's box key. */",
@@ -654,7 +654,7 @@ export function contentFiles(pl: Plan, union = false): Record<string, string> {
       "  name: string;",
       "  rarity: Rarity;",
       "  /** What each copy owned adds. */",
-      "  effect: Effect;",
+      "  effect: Effect<StatId>;",
       "}",
       "",
       "export const ITEMS: readonly ItemDef[] = [",

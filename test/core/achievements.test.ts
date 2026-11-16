@@ -3,15 +3,14 @@ import {
   type Achievement,
   achievementBoard,
   achievements,
-  busOf,
   currencies,
   type Decimal,
   defineGame,
   type Effect,
-  statTotals,
   vocab,
 } from "watchpot/core";
 import { freshStore, T0 } from "watchpot/test";
+import { totals } from "./fold";
 
 const WORDS = vocab({ currencies: ["gold", "gems"], stats: [], rarities: ["common"] } as const);
 const wallet = currencies({ key: "wallet", vocab: WORDS });
@@ -41,7 +40,7 @@ const LIST: Achievement<State, Effect>[] = [
     when: (s) => s.wallet.gems.lte(0),
     secret: true,
   },
-  { id: "given", name: "Given", line: "The game says so.", effects: [{ stat: "speed", mult: 2 }] },
+  { id: "given", name: "Given", line: "The game says so.", effects: [{ stat: "speed", mul: 2 }] },
   { id: "late", name: "Late", line: "Hold 1e9 gold.", when: (s) => s.wallet.gold.gte(1e9) },
 ];
 
@@ -95,9 +94,9 @@ describe("achievementBoard", () => {
       columns: 2,
       rowEffects: () => [{ stat: "speed", add: 100 }],
     });
-    const bus = busOf(narrow.contributions({ first: 1, rich: 1, given: 1 }));
-    expect(statTotals(bus, "speed")).toEqual({ add: 101, mult: 2 });
-    expect(bus.contributions.map((c) => c.source)).toEqual(["w:first", "w:given", "w:row:0"]);
+    const fed = narrow.contributions({ first: 1, rich: 1, given: 1 });
+    expect(totals(fed, "speed")).toEqual({ add: 101, mult: 2 });
+    expect(fed.map((c) => c.source)).toEqual(["w:first", "w:given", "w:row:0"]);
   });
 
   test("a repeated id throws", () => {

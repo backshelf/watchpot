@@ -1,5 +1,5 @@
 import { D, type Decimal, type DecimalSource } from "../decimal";
-import type { LiveEffect } from "../graph/live";
+import type { Effect } from "../graph/stats";
 
 /** Helpers for a game's layer definitions. */
 
@@ -14,11 +14,11 @@ export const mulStat = <S extends string, Q>(
   stat: S,
   value: (q: Q) => DecimalSource,
   quiet = false,
-): LiveEffect<S, Q> => ({ stat, op: "mul", value, quiet });
+): Effect<S, Q> => ({ stat, mul: value, quiet });
 
 /** An effect that adds to a stat's base, before any multiplier. */
 export const addStat = <S extends string, Q>(
   stat: S,
   value: (q: Q) => DecimalSource,
   quiet = false,
-): LiveEffect<S, Q> => ({ stat, op: "add", value, quiet });
+): Effect<S, Q> => ({ stat, add: value, quiet });

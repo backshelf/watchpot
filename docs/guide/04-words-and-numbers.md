@@ -179,8 +179,8 @@ The engine itself names none. Instead a game declares its words once, in a
 <!-- example-code: simmer/game-wallet.ts -->
 
 ```ts
-/** The game's words: one currency. */
-export const WORDS = vocab({ currencies: ["bubbles"] });
+/** The game's words: one currency, and the stat chapter 8 adds up. */
+export const WORDS = vocab({ currencies: ["bubbles"], stats: ["heat"] });
 
 export type Currency = CurrencyOf<typeof WORDS>; // "bubbles"
 ```
@@ -189,10 +189,10 @@ From `docs/examples/simmer/game-wallet.ts`.
 
 Line by line:
 
-- `vocab({ ... })` takes up to three lists. `currencies` is the one Simmer needs. The other two are optional:
-  `stats` names the ids of the numbers a stat system adds up, and `rarities` is a ladder of rarities, lowest first,
-  for systems that draw things at random. A game that leaves `rarities` out has an empty ladder, and a system that
-  draws rarities refuses it, with a message, when you define that system.
+- `vocab({ ... })` takes up to three lists. `currencies` is the one Simmer needs now. The other two are optional:
+  `stats` names the ids of the numbers the game's stats add up (Simmer's `heat`, from chapter 8), and `rarities` is a
+  ladder of rarities, lowest first, for systems that draw things at random. A game that leaves `rarities` out has an
+  empty ladder, and a system that draws rarities refuses it, with a message, when you define that system.
 - Written inline like this, `vocab` keeps the exact names, so the type of `WORDS` remembers that the only currency is
   `"bubbles"`. A list declared on its own line first is different: `const names = ["bubbles"]` is a `string[]`, and
   a vocabulary built from it has forgotten the names. Write `as const` on such a list.

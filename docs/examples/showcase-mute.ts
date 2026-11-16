@@ -4,8 +4,8 @@ import {
   challenges,
   D,
   type Decimal,
-  liveIndex,
   type StatGraph,
+  statIndex,
 } from "watchpot/core";
 
 type Stat = "speed";
@@ -31,13 +31,13 @@ export const trials = challenges({
   ],
 });
 
-const INDEX = liveIndex<Stat, never, Reader, Group>();
+const INDEX = statIndex<Stat, never, Reader, Group>({ base: () => 1 });
 INDEX.add(
-  { effects: [{ stat: "speed", op: "mul", value: (q) => 1 + q.s.knives }] },
+  { effects: [{ stat: "speed", mul: (q) => 1 + q.s.knives }] },
   { label: "Knives", owner: "drawer", group: "tools", active: (q) => q.s.knives > 0 },
 );
 INDEX.add(
-  { effects: [{ stat: "speed", op: "add", value: (q) => q.s.cooks }] },
+  { effects: [{ stat: "speed", add: (q) => q.s.cooks }] },
   { label: "Cooks", owner: "kitchen", group: "helpers", active: (q) => q.s.cooks > 0 },
 );
 

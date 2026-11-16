@@ -30,7 +30,7 @@ bun node_modules/watchpot/templates/game/.scaffold/new.ts my-answers.json my-gam
   README and the game's `.claude/CLAUDE.md`), compiles `src/tokens.css` and formats the result with Biome. It
   refuses the template folder itself and a non-empty folder with no `*.tmpl` in it.
 - **What it wires.** The wallet, the `stats` feature (every contribution to output, the offline share and the
-  prestige gain, worked out each pass) and the core: `generators` (3 to 8, the engine's `generators`; none beside a
+  prestige gain, derived from the state on the engine's `stats`) and the core: `generators` (3 to 8, the engine's `generators`; none beside a
   clicker) or `dimensions` (4 to 8 tiers, the engine's `dimensions`). Then any of `clicker` (`clicker`), `tree`
   (`upgradeTree`), `gacha` (the gacha kernel), `prestige` (`prestige`), `achievements` (`achievements`, eight to a
   row) and `visitor` (`spawns` paying a `buffs` buff), each with its content file, its feature, its screen or part of

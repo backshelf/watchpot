@@ -1,10 +1,7 @@
 import { D, type Decimal, feature, type Move, offlineCredit, ZERO } from "watchpot/core";
 import { COST_GROWTH, GENERATORS, type GeneratorDef, OFFLINE_CAP_MS } from "../content/generators";
 import { MAIN } from "../content/words";
-import { collection } from "./gacha";
-import { ascension } from "./prestige";
-import { offlineOf, outputOf, statBus } from "./stats";
-import { upgrades } from "./tree";
+import { stats } from "./stats";
 import { wallet } from "./wallet";
 
 /** The price of the next one of `g` when `owned` are held. */
@@ -13,18 +10,19 @@ export const generatorCost = (g: GeneratorDef, owned: number): Decimal =>
 
 /**
  * The generators: how many of each are owned (a new profile starts with one of the first), and what they make a
- * second with the stats applied. `perSecond`, `output` and `offline` are worked out at every tick and never saved.
+ * second with the `output` stat applied, worked out at every tick and never saved. `output` is the stat as the last
+ * tick read it: the generator moves value a purchase on it, so the auto-player's choices (and the pacing contract)
+ * are the ones it made before the stats were derived; reading `s.stats.output` there instead moves the contract.
  */
 export const generators = feature({
   key: "generators",
-  reach: [wallet, upgrades, collection, ascension],
+  reach: [wallet, stats],
   initial: () => ({
     owned: Object.fromEntries(GENERATORS.map((g, i) => [g.id, i === 0 ? 1 : 0])) as Record<string, number>,
     perSecond: ZERO,
     output: 1,
-    offline: 0,
   }),
-  transient: ["perSecond", "output", "offline"],
+  transient: ["perSecond", "output"],
   actions: (api) => ({
     /** Buys one of `id`; false when it is unknown or the wallet is short. */
     buy: (id: string): boolean => {
@@ -42,11 +40,9 @@ export const generators = feature({
   steps: {
     rates: {
       stats: (s) => {
-        const bus = statBus(s);
-        s.generators.output = outputOf(bus);
-        s.generators.offline = offlineOf(bus);
         const base = GENERATORS.reduce((sum, g) => sum + g.rate * (s.generators.owned[g.id] ?? 0), 0);
-        s.generators.perSecond = D(base).mul(s.generators.output);
+        s.generators.output = s.stats.output.toNumber();
+        s.generators.perSecond = D(base).mul(s.stats.output);
       },
     },
     produce: {
@@ -57,7 +53,7 @@ export const generators = feature({
       away: {
         pass: "catchUp",
         run: (s, ctx) => {
-          const span = offlineCredit(ctx.dtMs, s.generators.offline, OFFLINE_CAP_MS);
+          const span = offlineCredit(ctx.dtMs, s.stats.offline.toNumber(), OFFLINE_CAP_MS);
           wallet.draft.credit(s, MAIN, s.generators.perSecond.mul(span.creditedMs / 1000));
         },
       },
@@ -69,7 +65,7 @@ export const generators = feature({
       (g): Move<typeof s> => ({
         id: `build:${g.id}`,
         cost: { currency: MAIN, amount: generatorCost(g, s.generators.owned[g.id] ?? 0) },
-        value: (st) => g.rate * st.generators.output,
+        worth: (st) => g.rate * st.generators.output,
         apply: (store) => store.getState().generators.buy(g.id),
       }),
     ),

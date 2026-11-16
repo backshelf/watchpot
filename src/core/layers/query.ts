@@ -1,5 +1,5 @@
 import { D, Decimal, type DecimalSource, ONE, ZERO } from "../decimal";
-import { type LiveBreakdown, type LiveIndex, liveIndex, type StatGraph, type StatPart } from "../graph/live";
+import { type StatBreakdown, type StatGraph, type StatIndex, type StatPart, statIndex } from "../graph/stats";
 import type {
   AnyLayerFlag,
   LayerBuyableDef,
@@ -31,7 +31,7 @@ export interface LayerIndex<L extends string, S extends string, B extends string
   readonly byId: ReadonlyMap<string, LayerDef<L, S, B>>;
   /** Challenge id to its layer and definition. */
   readonly challenges: ReadonlyMap<string, { layer: L; def: LayerChallengeDef<L, S, B> }>;
-  readonly live: LiveIndex<S, AnyLayerFlag<L>, LayerQuery<L, S, B>, LayerMuteGroup<L>>;
+  readonly live: StatIndex<S, AnyLayerFlag<L>, LayerQuery<L, S, B>, LayerMuteGroup<L>>;
 }
 
 /** Indexes a model's content: every source's effects and flags, in a fixed order (per layer: holding, power, upgrades,
@@ -42,7 +42,7 @@ export function indexLayers<L extends string, S extends string, B extends string
   const passive = new Set<string>();
   for (const l of def.layers) if (l.passive) passive.add(l.passive);
   const stats = (def.stats ?? {}) as Partial<Record<S, DecimalSource>>;
-  const live = liveIndex<S, AnyLayerFlag<L>, LayerQuery<L, S, B>, LayerMuteGroup<L>>({
+  const live = statIndex<S, AnyLayerFlag<L>, LayerQuery<L, S, B>, LayerMuteGroup<L>>({
     base: (stat) => stats[stat] ?? (passive.has(stat) ? 0 : 1),
     caps: def.caps,
   });
@@ -218,7 +218,7 @@ export class LayerQuery<L extends string, S extends string, B extends string> {
   parts(id: S): StatPart[] {
     return this.graph.parts(id);
   }
-  explain(id: S): LiveBreakdown<S> {
+  explain(id: S): StatBreakdown<S> {
     return this.graph.explain(id);
   }
   /** Whether any counting source raises the flag. Mute groups never silence a flag. */

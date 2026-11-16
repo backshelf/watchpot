@@ -1,9 +1,9 @@
 // Written by /watchpot from .claude/specs/answers.json. It is the game's now: edit it freely.
 import type { Effect, GraphNode } from "watchpot/core";
-import { type Currency, MAIN } from "./words";
+import { type Currency, MAIN, type StatId } from "./words";
 
 /** A node, placed on the tree's grid: `col` its tier (left to right), `row` its place in the tier. */
-export type UpgradeNode = GraphNode<Effect, Currency> & {
+export type UpgradeNode = GraphNode<Effect<StatId>, Currency> & {
   col: number;
   row: number;
 };
@@ -20,7 +20,7 @@ export const NODES: readonly UpgradeNode[] = [
     costGrowth: 2.5,
     maxLevel: 10,
     requires: [],
-    effects: [{ stat: "output", mult: 1.1 }],
+    effects: [{ stat: "output", mul: 1.1 }],
     col: 0,
     row: 0,
   },
@@ -44,7 +44,7 @@ export const NODES: readonly UpgradeNode[] = [
     costGrowth: 3,
     maxLevel: 20,
     requires: ["mirror-array"],
-    effects: [{ stat: "output", mult: 1.1 }],
+    effects: [{ stat: "output", mul: 1.1 }],
     col: 1,
     row: 0,
   },
@@ -56,7 +56,7 @@ export const NODES: readonly UpgradeNode[] = [
     costGrowth: 2.5,
     maxLevel: 8,
     requires: ["drip-line"],
-    effects: [{ stat: "gain", mult: 1.15 }],
+    effects: [{ stat: "gain", mul: 1.15 }],
     col: 1,
     row: 1,
   },
@@ -68,7 +68,7 @@ export const NODES: readonly UpgradeNode[] = [
     costGrowth: 3,
     maxLevel: 20,
     requires: ["spectral-lamps"],
-    effects: [{ stat: "output", mult: 1.1 }],
+    effects: [{ stat: "output", mul: 1.1 }],
     col: 2,
     row: 0,
   },

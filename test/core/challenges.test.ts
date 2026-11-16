@@ -1,6 +1,5 @@
 import { describe, expect, test } from "bun:test";
 import {
-  busOf,
   challengeRule,
   challenges,
   currencies,
@@ -8,10 +7,10 @@ import {
   defineGame,
   type Effect,
   feature,
-  statTotals,
   vocab,
 } from "watchpot/core";
 import { freshStore, T0 } from "watchpot/test";
+import { totals } from "./fold";
 
 const WORDS = vocab({ currencies: ["gold"], stats: [], rarities: ["common"] } as const);
 const wallet = currencies({ key: "wallet", vocab: WORDS, start: { gold: 10 } });
@@ -32,7 +31,7 @@ const trials = challenges({
       id: "frugal",
       goal: (s: State) => s.wallet.gold.gte(100),
       maxCompletions: 2,
-      effects: (n): Effect[] => [{ stat: "speed", mult: 1 + n }],
+      effects: (n): Effect[] => [{ stat: "speed", mul: 1 + n }],
       rules: ["noUpgrades"],
     },
     {
@@ -67,7 +66,7 @@ describe("challenges", () => {
 
   test("the goal completes it once per completion, up to the max, and rewards each", () => {
     const { store } = freshStore(game);
-    const bus = () => busOf(trials.rules.contributions(store.getState().trials));
+    const speed = () => totals(trials.rules.contributions(store.getState().trials), "speed");
     const finish = (at: number) => {
       store.getState().wallet.credit("gold", 200);
       store.getState().tick(100, at);
@@ -79,7 +78,7 @@ describe("challenges", () => {
     expect(challengeRule(store.getState().trials, "noUpgrades")).toBe(false);
     expect(store.getState().wallet.gold.toNumber()).toBe(10); // the run reset again
     expect(store.getState().log.completed).toEqual(["frugal"]);
-    expect(statTotals(bus(), "speed").mult).toBe(2);
+    expect(speed().mult).toBe(2);
     expect(trials.rules.contributions(store.getState().trials)[0]?.source).toBe("trials:frugal");
 
     finish(T0 + 200); // outside a challenge the goal pays nothing
@@ -87,7 +86,7 @@ describe("challenges", () => {
     store.getState().trials.enter("frugal");
     finish(T0 + 300);
     expect(store.getState().trials.completions.frugal).toBe(2);
-    expect(statTotals(bus(), "speed").mult).toBe(3);
+    expect(speed().mult).toBe(3);
     expect(store.getState().trials.enter("frugal")).toBe("maxed");
   });
 
