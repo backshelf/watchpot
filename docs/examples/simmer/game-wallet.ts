@@ -151,6 +151,16 @@ export const lid = feature({
   }),
 });
 
+/**
+ * A second source of heat, for the getting-started page on stats (not in this game's sources): a thick base under
+ * the pot adds half a heat, always.
+ */
+export const THICK_BASE_HEAT = {
+  label: "A thick base",
+  owner: "pot",
+  effects: [{ stat: "heat", add: 0.5 }],
+} as const;
+
 /** The lid as a source of heat: twice the heat while it is on. */
 export const LID_HEAT = {
   label: "The lid",
