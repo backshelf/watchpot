@@ -1,6 +1,6 @@
 import type { Decimal, DecimalSource } from "./decimal";
 import { type Feature, type NeedsOf, type ReachOf, type ReachShape } from "./feature";
-import { type Effect, type ExtraEffect, type SourceMeta, type StatBreakdown, type StatCaps, type StatIndex, type StatPart, type StatSource } from "./graph/stats";
+import { type Effect, type ExtraEffect, type SourceMeta, type StatBreakdown, type StatCaps, type StatGraph, type StatIndex, type StatIndexOptions, type StatPart, type StatSource } from "./graph/stats";
 import type { AnyVocab, StatOf } from "./vocab";
 /**
  * The stats feature: the home of a game's stat graph. It is told every stat's base once, takes the game's sources
@@ -28,6 +28,14 @@ export interface Contribution<S extends string = string, Q = unknown> {
     /** How many times over it counts (default 1): the copies owned, said once and not listed one by one. */
     readonly times?: number;
 }
+/**
+ * Folds a list of contributions with no game around them: the stats a loadout would give before it is slotted, a
+ * build being compared, a test. `base` gives each stat's base (and `caps` its caps); the graph that comes back
+ * answers `stat`, `explain` and `parts` like any other. Amounts that are functions are handed `q`.
+ */
+export declare function foldContributions<S extends string, Q = null>(contributions: readonly Contribution<S, Q>[], options: StatIndexOptions<S> & {
+    q?: Q;
+}): StatGraph<S, never>;
 /** The names a stat cannot take: the feature's own derived values beside the stats. */
 export declare const RESERVED_STAT_IDS: readonly string[];
 /** The feature's slice: every stat under its id, the flags, and the contributions folded by stat. */

@@ -2,6 +2,39 @@
 
 Each release is a tag `vX.Y.Z`. A breaking change names its codemod in `codemods/` (policy in `codemods/README.md`).
 
+## 1.0.0 (unreleased)
+
+A clean break: the API a game is written against, redone in one release, with no deprecated aliases and no codemods.
+[docs/migrating-to-1.0.md](docs/migrating-to-1.0.md) lists every change as old → new, and how to bring a fitted game
+across with its numbers unchanged.
+
+- **The kernel.** `reach` is lazy and may name a feature by its state type, so two features can read each other and
+  no game writes a whole-state type by hand. `derived: { name: (s) => value }` replaces the transient field, the
+  `derive` function and the `rates` step: a derived value is typed by what it returns, never saved, and worked out
+  again only when a field it read is written. A `produce` step must name its pass (`tick`, `catchUp` or `both`). A
+  step orders itself with `after` and `before`; `defineGame`'s `order` is gone. `initial`'s `now` is always game
+  time, with `wallNow` beside it.
+- **One stat system.** `defineStats` declares every stat's base once, takes sources and contributions, and serves
+  each stat as a derived Decimal on the state, with the breakdown on request. One effect spelling: `{ stat, add }`
+  or `{ stat, mul }`, the amount a number or a function of the state. The number bus (`busOf`, `statValue`) is
+  removed and the live graph is `statIndex`.
+- **Factories.** Every feature factory is named `defineX` (`defineCurrencies`, `definePrestige`, …) and returns the
+  feature plus `select` (questions over state), `def` (fixed configuration) and `draft` (helpers that take a draft,
+  named like the actions). Each takes a `reach` option, so its callbacks are typed with no annotation.
+- **Prestige and currencies.** A layer keeps its own run start and peak pace and serves `pace`, `peakShare` and
+  `pastPeak`; `payInto` pays a reset into a wallet currency. A currency states the reset `depth` that wipes it, and
+  totals are `earnedThisRun` / `earnedEver`.
+- **Prices.** Cost curves round up by default (`round: "none"` for fractions). A node with more than one rank must
+  state `costGrowth`.
+- **The sim.** It runs on plain data (`createPlainStore`): no immer, no zustand, no save, and several times faster.
+  The auto-player works a purchase's worth out from one `objective`, takes a free move once a look, and steps a
+  second by default, with a named quality (`exact`, `quick`, `rough`). `upgradeTree` declares its own moves. The fit
+  kit ships: `fitTable`, snapshots and resuming, `proveFit` (and on workers), a profiler.
+- **Packages.** The dev panel and sound desk are `watchpot/devtools`; `watchpot/hooks` and `watchpot/env` are gone.
+  The engine is MIT licensed.
+- **Tests.** `decimalComparisons` fails a game's tests on Decimals compared with `<` or `===`. `plainParity` proves
+  a game's sim and its real store agree. The guide's examples are run against what the chapters quote.
+
 ## 0.18.0
 
 The developer-experience pass that came out of rebuilding the docs. The docs themselves are new: a guide to read front
