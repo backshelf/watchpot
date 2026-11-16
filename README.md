@@ -25,13 +25,15 @@ tarball endpoint and 404 on a private repo (oven-sh/bun#19618), so do not use th
 as the username, and `gh auth git-credential` answers only for its own login. Once per machine: `gh auth login`,
 then `gh auth setup-git`.
 
-The installed package carries `src/`, `api/`, `docs/`, `templates/`, `codemods/`, the README and the changelog, and
-nothing else. A game's typecheck needs the engine's ambient declarations (CSS modules, audio imports, `--` custom
-properties in style objects, which the dev panel and sound desk use): name them in its `tsconfig.json`,
-`"types": ["bun", "watchpot/env"]`.
+`package.json`'s `files` names what a consumer or the scaffold needs (`src/`, `api/`, `docs/`, `templates/`,
+`codemods/`, the env declarations, the README and the changelog), and a packed tarball carries only those; Bun's git
+install ignores `files` and checks out the whole tree. A game's typecheck needs the engine's ambient declarations
+(CSS modules, audio imports, `--` custom properties in style objects, which the dev panel and sound desk use): name
+them in its `tsconfig.json`, `"types": ["bun", "watchpot/env"]`.
 
-A game with no CSS modules needs no dev script: `bun ./index.html [--port=N]` serves the page and hot-reloads it. The
-template's `dev.ts` exists only for a game with CSS modules, to work around Bun's CSS-module reload.
+A page whose imports reach no CSS module needs no dev script: `bun ./index.html [--port=N]` serves it and hot-reloads
+it. `watchpot/react` reaches one (the dev panel's), as does any game CSS module, so the template's `dev.ts` serves the
+page with HMR off instead, working around Bun's CSS-module reload (oven-sh/bun#18258).
 
 ## Guide
 
