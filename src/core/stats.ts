@@ -40,6 +40,8 @@ export interface StatSourceDef<S extends string, F extends string, Q, G extends 
 export interface Contribution<S extends string = string, Q = unknown> {
   readonly source: string;
   readonly effect: Effect<S, Q>;
+  /** How many times over it counts (default 1): the copies owned, said once and not listed one by one. */
+  readonly times?: number;
 }
 
 /** The names a stat cannot take: the feature's own derived values beside the stats. */
@@ -141,33 +143,73 @@ export function stats<
     index.add({ effects, flags: raised }, meta);
 
   type Fed = Readonly<Record<string, readonly ExtraEffect<S, Q, G>[]>>;
-  /** The state's contributions by stat, the same effect from the same source counted as one row. */
+  const EMPTY: Fed = {};
+  /** What a source id comes to in a breakdown (its label and owner), worked out once per id. */
+  const named = new Map<string, { label: string; owner: string }>();
+  const nameOf = (source: string) => {
+    let hit = named.get(source);
+    if (!hit) {
+      hit = { label: def.label?.(source) ?? source, owner: source.split(":")[0] ?? source };
+      named.set(source, hit);
+    }
+    return hit;
+  };
+  /** The last feed made and what it was made from: handed back when the contributions come to the same. */
+  let last: { rows: readonly { source: string; effect: Effect<S, Q>; times: number }[]; fed: Fed } | null =
+    null;
+  /**
+   * The state's contributions by stat, the same effect from the same source counted as one row. It runs on every
+   * pass of a sim, so it is one walk with no lookups for the usual case (a source's ranks listed one after
+   * another), and hands back the feed it made last time when nothing in it differs, which leaves the stats alone.
+   */
   const feed = (q: Q): Fed => {
-    const out: Record<string, ExtraEffect<S, Q, G>[]> = {};
-    if (!def.contributions) return out;
-    const counts = new Map<string, Map<Effect<S, Q>, { times: number }>>();
-    for (const { source, effect } of def.contributions(q)) {
-      let bySource = counts.get(source);
-      if (!bySource) {
-        bySource = new Map();
-        counts.set(source, bySource);
-      }
-      const held = bySource.get(effect);
-      if (held) {
-        held.times += 1;
+    if (!def.contributions) return EMPTY;
+    const rows: { source: string; effect: Effect<S, Q>; times: number }[] = [];
+    let seen: Map<string, Map<Effect<S, Q>, { times: number }>> | null = null;
+    let row: { source: string; effect: Effect<S, Q>; times: number } | undefined;
+    for (const { source, effect, times = 1 } of def.contributions(q)) {
+      if (!(times > 0)) continue;
+      if (row && row.source === source && row.effect === effect) {
+        row.times += times;
         continue;
       }
-      const row = { times: 1 };
+      // Not next to its like: look it up among the rows so far.
+      if (!seen) {
+        seen = new Map();
+        for (const r of rows) seen.set(r.source, (seen.get(r.source) ?? new Map()).set(r.effect, r));
+      }
+      const bySource = seen.get(source) ?? new Map<Effect<S, Q>, { times: number }>();
+      seen.set(source, bySource);
+      const held = bySource.get(effect);
+      if (held) {
+        held.times += times;
+        row = undefined;
+        continue;
+      }
+      row = { source, effect, times };
       bySource.set(effect, row);
-      const owner = source.split(":")[0] ?? source;
-      const list = out[effect.stat] ?? [];
-      out[effect.stat] = list;
-      list.push({
-        effect,
-        meta: { label: def.label?.(source) ?? source, owner, group: owner as G, times: () => row.times },
-      });
+      rows.push(row);
     }
-    return out;
+    const was = last;
+    if (
+      was &&
+      was.rows.length === rows.length &&
+      rows.every((r, i) => {
+        const w = was.rows[i];
+        return w !== undefined && w.source === r.source && w.effect === r.effect && w.times === r.times;
+      })
+    )
+      return was.fed;
+    const fed: Record<string, ExtraEffect<S, Q, G>[]> = {};
+    for (const r of rows) {
+      const { label, owner } = nameOf(r.source);
+      const times = r.times;
+      const list = fed[r.effect.stat] ?? [];
+      fed[r.effect.stat] = list;
+      list.push({ effect: r.effect, meta: { label, owner, group: owner as G, times: () => times } });
+    }
+    last = { rows, fed };
+    return fed;
   };
 
   const self = (q: object) => (q as Record<K, StatsValues<S, F>>)[def.key];

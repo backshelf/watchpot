@@ -156,16 +156,32 @@ export function applySoftcap(value: Decimal, cap: Softcap | undefined): Decimal 
   return value.pow(cap.power).mul(D(cap.start).pow(1 - cap.power));
 }
 
-/** `value` to the power `times`: multiplied out for a small whole count, which keeps whole numbers whole. */
+/**
+ * `value` to the power `times`: by squaring for a whole count, which keeps whole numbers whole where `pow`
+ * (through logarithms) lands a hair off.
+ */
 function power(value: Decimal, times: number): Decimal {
-  if (!Number.isInteger(times) || times > 32) return value.pow(times);
-  let out = value;
-  for (let i = 1; i < times; i++) out = out.mul(value);
-  return out;
+  if (!Number.isInteger(times) || times > 4096) return value.pow(times);
+  let out: Decimal | null = null;
+  let square = value;
+  for (let left = times; left > 0; left = Math.floor(left / 2)) {
+    if (left % 2 === 1) out = out ? out.mul(square) : square;
+    if (left > 1) square = square.mul(square);
+  }
+  return out ?? ONE;
 }
 
-const amountOf = <Q>(amount: Amount<Q>, q: Q): Decimal =>
-  D(typeof amount === "function" ? amount(q) : amount);
+/** A fixed amount as a Decimal, made once per effect: a fold runs on every pass of a sim. */
+const fixed = new WeakMap<object, Decimal>();
+function amountOf<Q>(effect: object, amount: Amount<Q>, q: Q): Decimal {
+  if (typeof amount === "function") return D(amount(q));
+  let hit = fixed.get(effect);
+  if (!hit) {
+    hit = D(amount);
+    fixed.set(effect, hit);
+  }
+  return hit;
+}
 
 /** An empty stat index. Add content to it once, then read it over each state with `over`. */
 export function statIndex<S extends string, F extends string, Q, G extends string = string>(
@@ -231,7 +247,7 @@ export function statIndex<S extends string, F extends string, Q, G extends strin
             if (times === 0) continue;
             const muted = mutedBy(meta.group);
             const adds = effect.add !== undefined;
-            const one = amountOf(adds ? effect.add : effect.mul, q);
+            const one = amountOf(effect, adds ? effect.add : effect.mul, q);
             const value = times === 1 ? one : adds ? one.mul(times) : power(one, times);
             if (muted === null) {
               if (adds) add = add.add(value);

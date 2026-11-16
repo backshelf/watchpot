@@ -25,6 +25,8 @@ export interface StatSourceDef<S extends string, F extends string, Q, G extends 
 export interface Contribution<S extends string = string, Q = unknown> {
     readonly source: string;
     readonly effect: Effect<S, Q>;
+    /** How many times over it counts (default 1): the copies owned, said once and not listed one by one. */
+    readonly times?: number;
 }
 /** The names a stat cannot take: the feature's own derived values beside the stats. */
 export declare const RESERVED_STAT_IDS: readonly string[];

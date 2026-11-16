@@ -90,7 +90,7 @@ export function createPlainStore<F extends readonly FeatureSpec[], R extends obj
 
   const state = {} as Slices & Record<string, unknown>;
   /** The state as everything outside a recipe reads it: derived values current, a read only a read. */
-  const reader = cells.view(state);
+  const reader = cells.view(state, { precise: true });
   cells.record(false);
 
   const runRng = (): RngState => rng(`run:${readClock(state, clock).createdAt}`);

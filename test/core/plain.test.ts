@@ -137,3 +137,54 @@ describe("the plain store", () => {
     expect(drift).toMatch(/flaky\.n/);
   });
 });
+
+describe("the plain store works a derived value out only when a field it read is written", () => {
+  let runs = 0;
+  const shelf = feature({
+    key: "shelf",
+    initial: () => ({ jars: 1, dust: 0, tags: [] as string[] }),
+    derived: {
+      weight: (s) => {
+        runs += 1;
+        return s.shelf.jars * 3;
+      },
+    },
+    actions: (api) => ({
+      sweep: () =>
+        api.set((s) => {
+          s.shelf.dust = 0;
+        }),
+      add: () =>
+        api.set((s) => {
+          s.shelf.jars += 1;
+        }),
+      tag: (t: string) =>
+        api.set((s) => {
+          s.shelf.tags.push(t);
+        }),
+    }),
+    steps: {
+      settle: {
+        gather: (s) => {
+          // Reads the derived value and writes a field it never read.
+          s.shelf.dust += s.shelf.weight;
+        },
+      },
+    },
+  });
+  const game = defineGame({ id: "shelf", save: { key: "shelf", version: 1 }, features: [shelf] });
+
+  test("a write to another field, or a read alone, leaves it be", () => {
+    const store = createPlainStore(game, { now: () => 0 });
+    expect(store.getState().shelf.weight).toBe(3);
+    runs = 0;
+    for (let i = 0; i < 5; i++) store.getState().tick(1000, 1000 * i);
+    store.getState().shelf.sweep();
+    store.getState().shelf.tag("a");
+    expect(store.getState().shelf.weight).toBe(3);
+    expect(runs).toBe(0);
+    store.getState().shelf.add();
+    expect(store.getState().shelf.weight).toBe(6);
+    expect(runs).toBe(1);
+  });
+});

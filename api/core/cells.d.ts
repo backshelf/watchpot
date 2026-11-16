@@ -8,6 +8,11 @@ import type { FeatureSpec } from "./feature";
  * What "may have changed" means: every recipe and every step is handed the game through `view`, which notes the
  * slices it takes hold of. When the step ends, those slices count as written. So a cell is current as of the start
  * of the step or recipe that reads it: a step sees what every earlier step did, and not its own writes.
+ *
+ * A `precise` view (over a plain state, never an immer draft) notes less, field by field: a field counts as
+ * written when it is set, or when what it holds could be changed in place (an object or an array; not a Decimal)
+ * and is taken hold of. A cell waits on the fields it read, so a step that only reads a slice, or writes a field
+ * the cell never read, leaves the cell alone, which is most of what a sim's pass does.
  */
 export interface Cells {
     /** False when no feature declares a derived value: the game's state is then handed out as it is. */
@@ -18,7 +23,9 @@ export interface Cells {
      * The game as a step or a recipe sees it, over `root` (an immer draft or a plain state): a derived value read
      * through it is current, and the slices taken through it count as written once `close` is called.
      */
-    view<T extends object>(root: T): T;
+    view<T extends object>(root: T, options?: {
+        precise?: boolean;
+    }): T;
     /** The state under a view (or the value itself when it is not one): for the engine's own writes. */
     raw<T extends object>(view: T): T;
     /** Ends a step or a recipe: every slice taken through the view since the last close counts as written. */
