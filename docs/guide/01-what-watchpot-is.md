@@ -202,7 +202,8 @@ If you are in a hurry, read chapters 2 and 3, then jump to the chapter for whate
 
 ## Reference
 
-- [`README.md`](../../README.md): install, and the long-form reference for every entry.
+- [`README.md`](../../README.md): install, and a map of the entries; [`docs/core.md`](../core.md),
+  [`docs/react.md`](../react.md) and their siblings for the long-form reference.
 - [`docs/README.md`](../README.md): the index of the reference shelf.
 - [`templates/game/src/ui/README.md`](../../templates/game/src/ui/README.md): the copy-in components and their token
   contract.

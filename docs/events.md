@@ -211,7 +211,7 @@ the event is benched.
 
 What one event keeps beyond the shared runtime (a dig's layer, a road's token) is an `EventBoard`, registered with a
 `boardRegistry()` and composed with `composeBoards`. [A timed event with a board](timed-event.md) is the recipe, and
-the README's Events section lists the rules.
+[Core](core.md#events) lists the rules.
 
 ## Sim and tuning
 

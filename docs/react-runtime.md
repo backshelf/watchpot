@@ -201,7 +201,7 @@ Smaller hooks, each with its own reference:
 - **Layers:** `useLayerSwap` switches a window's layers, committing the store's layer when the transition ends.
 - **Sheets:** `SheetOutlet` and `SheetRegistry`, re-exported from `watchpot/ui` ([UI](ui.md)).
 
-The README's React section lists each one's options.
+[React](react.md) lists each one's options.
 
 ## Things that bite
 

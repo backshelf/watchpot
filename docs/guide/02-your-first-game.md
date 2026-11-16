@@ -824,7 +824,7 @@ the tick and its phases, the clock and the catch-up) and shows the order they ru
 - [`docs/add-a-generator.md`](../add-a-generator.md) and [`docs/generators.md`](../generators.md): generators beyond
   one hand-written burner.
 - [`docs/time-away.md`](../time-away.md): capping and reporting time away.
-- [`README.md`](../../README.md#install): install, and the React section on the store hooks.
+- [`README.md`](../../README.md#install): install; [`docs/react.md`](../react.md): the store hooks.
 - `api/core/feature.d.ts` (`feature`, steps and phases), `api/core/game.d.ts` (`defineGame`),
   `api/core/store.d.ts` (`createIdleStore`, `IdleStoreOptions`, the root actions), `api/core/storage.d.ts` (the
   save's storage), `api/core/persist.d.ts` (`clearSave`), `api/core/cost.d.ts` (`costAt`), `api/core/fmt.d.ts` (`fmt`, `fmtRate`, `fmtCounted`,

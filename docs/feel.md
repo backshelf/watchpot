@@ -14,7 +14,7 @@ look, the banner's words) is the game's.
 
 Nearby: anticipation (`Near`, `Marquee`) and printed read-outs are in [`ui.md`](ui.md); telling the player what
 happened while they were away is in [`time-away.md`](time-away.md); a slow read of the store for decorative figures
-is `useSampled` (README › React).
+is `useSampled` ([React](react.md)).
 
 ## Whose doing it was
 
