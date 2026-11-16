@@ -1,5 +1,5 @@
 // @feature achievements
-// Written by /watchpot from .claude/specs/answers.json. It is the game's now: edit it freely.
+// Written by /watchpot-init from .claude/specs/answers.json. It is the game's now: edit it freely.
 
 export const WALL_NAME = "The herbarium";
 

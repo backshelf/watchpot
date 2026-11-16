@@ -1,5 +1,5 @@
 // @feature gacha
-// Written by /watchpot from .claude/specs/answers.json. It is the game's now: edit it freely.
+// Written by /watchpot-init from .claude/specs/answers.json. It is the game's now: edit it freely.
 import type { Effect, OddsTable, PityRule } from "watchpot/core";
 import type { Rarity, StatId } from "./words";
 

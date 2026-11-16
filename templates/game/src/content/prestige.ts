@@ -1,5 +1,5 @@
 // @feature prestige
-// Written by /watchpot from .claude/specs/answers.json. It is the game's now: edit it freely.
+// Written by /watchpot-init from .claude/specs/answers.json. It is the game's now: edit it freely.
 import type { CurrencyWords } from "./words";
 
 export const PRESTIGE_NAME = "Repot";

@@ -1,6 +1,6 @@
 # Moss Garden
 
-The game's concept as `/watchpot` took it down. The answers themselves are in `answers.json` beside this file.
+The game's concept as `/watchpot-init` took it down. The answers themselves are in `answers.json` beside this file.
 
 ## Fiction
 
