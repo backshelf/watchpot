@@ -124,9 +124,9 @@ On `kit.def.loadout` (or whatever `loadout()` returned):
 ## The auto-equip
 
 **`fillLoadout(rules, { owns, score, slots?, start?, depth? })`** finds a good loadout for your `score(slotted)`
-(higher is better, over a whole slots record). From `start` (default empty) it tries every exchange of up to `depth`
-slots at once (default 3) for owned items not already slotted, takes the best one that raises the score, and repeats
-until none does. A single exchange fills and upgrades; a pair or a triple finds a set that pays only once two or three
+(higher is better, over a whole slots record). From `start` (default empty) it tries exchanges of up to `depth`
+slots at once (default 3) for owned items not already slotted, smallest first, takes any that raises the score, and
+repeats until none does. A single exchange fills and upgrades; a pair or a triple finds a set that pays only once two or three
 of it are in, which filling one slot at a time never reaches. `slots` limits it to the slots that are open.
 
 It returns a slots record and changes nothing. To use it, equip it slot by slot, clearing the slots it left empty:
@@ -142,9 +142,26 @@ It returns a slots record and changes nothing. To use it, equip it slot by slot,
   }
 ```
 
-Its cost is one `score` call per exchange it tries, which grows with the items owned to the power of `depth`. Tens of
-items and a handful of slots take milliseconds: run it on a press ("Best kit") or when the player's items change,
-never every tick.
+Its cost is one `score` call per exchange it tries, and the last pass, the one that proves no triple pays, tries
+(slots choose 3) × (spare items choose 3): seven slots and forty items is four hundred thousand. Keep `score` cheap
+(work out what each item is worth once, then add), and on a page run **`searchLoadout`** instead, which takes the
+same options and runs a slice at a time: `step(count)` runs up to that many scorings and says whether it is still
+going, `best()` and `bestScore()` are the best so far. Spread it over frames and equip each better loadout as it
+turns up, so the player watches the slots fill rather than a frozen page:
+
+```ts
+  const search = searchLoadout(kit.def.loadout, { owns, score: simmerRate });
+  let shown = search.bestScore();
+  const frame = () => {
+    const more = search.step(4000);
+    if (search.bestScore() > shown) {
+      shown = search.bestScore();
+      equipAll(search.best());
+    }
+    if (more) requestAnimationFrame(frame);
+  };
+  requestAnimationFrame(frame);
+```
 
 ## Sim and tuning
 

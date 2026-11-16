@@ -180,24 +180,36 @@ export function loadout<E>(def: LoadoutDef<E>): Loadout<E> {
   };
 }
 
+/** A loadout search under way, run a slice at a time so a page can show it working. */
+export interface LoadoutSearch {
+  /** Runs up to `count` more scorings. True while the search is not done. */
+  step(count: number): boolean;
+  /** The best loadout found so far. */
+  best(): Record<string, string | null>;
+  /** What `score` gave the best loadout. */
+  bestScore(): number;
+}
+
+/** What `fillLoadout` and `searchLoadout` take. */
+export interface LoadoutSearchOptions {
+  owns: (item: string) => boolean;
+  score: (slotted: Slotted) => number;
+  slots?: readonly string[];
+  start?: Slotted;
+  depth?: number;
+}
+
 /**
- * A good loadout for `score` (higher is better, read over a whole slots record): from `start` (default empty), the
- * best exchange of up to `depth` slots at once (default 3) for items the player owns and has not slotted, again and
- * again until none scores higher. A single exchange fills and upgrades; a pair or a triple finds a set that pays only
- * once two or three of it are in. `slots` limits it to the slots that are open (default all). The cost is a scoring
- * per exchange tried, which grows with the depth's power of the items owned: tens of items and a handful of slots
- * take milliseconds, so call it on a press or a change, never every tick.
+ * A good loadout for `score` (higher is better, read over a whole slots record), a slice at a time: from `start`
+ * (default empty), any exchange of up to `depth` slots at once (default 3) for items the player owns and has not
+ * slotted that scores higher is taken, smallest exchanges first, until none does. A single exchange fills and
+ * upgrades; a pair or a triple finds a set that pays only once two or three of it are in. `slots` limits it to the
+ * slots that are open (default all). The cost is a scoring per exchange tried: proving no triple pays costs
+ * (slots choose 3) × (spare items choose 3) of them, so a handful of slots and tens of items is a few hundred
+ * thousand. Run it over frames with `step`, keep `score` cheap (work out what each item is worth once), and never
+ * call it every tick.
  */
-export function fillLoadout<E>(
-  rules: Loadout<E>,
-  options: {
-    owns: (item: string) => boolean;
-    score: (slotted: Slotted) => number;
-    slots?: readonly string[];
-    start?: Slotted;
-    depth?: number;
-  },
-): Record<string, string | null> {
+export function searchLoadout<E>(rules: Loadout<E>, options: LoadoutSearchOptions): LoadoutSearch {
   const { owns, score, depth = 3 } = options;
   const open = options.slots ?? rules.slots.map((s) => s.id);
   const candidates = rules.items.filter((i) => owns(i.id)).map((i) => i.id);
@@ -207,55 +219,117 @@ export function fillLoadout<E>(
     slotted[slot] = id !== null && rules.check(slot, id, owns) === null ? id : null;
   }
   let best = score(slotted);
-  const chosen = (k: number, from: readonly string[] | readonly (string | null)[], at = 0): unknown[][] => {
-    if (k === 0) return [[]];
-    const out: unknown[][] = [];
-    for (let i = at; i <= from.length - k; i++)
-      for (const rest of chosen(k - 1, from, i + 1)) out.push([from[i], ...rest]);
-    return out;
-  };
-
+  let bestSlotted = { ...slotted };
   // With kinds, which slot takes which item matters: an exchange tries every order. Without, one order is enough.
   const kinds = rules.slots.some((s) => s.kind !== undefined);
-  const orders = <T>(xs: readonly T[]): T[][] =>
-    !kinds || xs.length <= 1
-      ? [[...xs]]
-      : xs.flatMap((x, i) => orders([...xs.slice(0, i), ...xs.slice(i + 1)]).map((rest) => [x, ...rest]));
+  const PERMS: Record<number, number[][]> = {
+    1: [[0]],
+    2: [
+      [0, 1],
+      [1, 0],
+    ],
+    3: [
+      [0, 1, 2],
+      [0, 2, 1],
+      [1, 0, 2],
+      [1, 2, 0],
+      [2, 0, 1],
+      [2, 1, 0],
+    ],
+  };
+  const permsOf = (k: number): number[][] => {
+    if (!kinds) return [Array.from({ length: k }, (_, i) => i)];
+    if (PERMS[k]) return PERMS[k] as number[][];
+    const all: number[][] = [];
+    const walk = (rest: number[], at: number[]) => {
+      if (rest.length === 0) all.push(at);
+      for (const [i, r] of rest.entries()) walk([...rest.slice(0, i), ...rest.slice(i + 1)], [...at, r]);
+    };
+    walk(
+      Array.from({ length: k }, (_, i) => i),
+      [],
+    );
+    PERMS[k] = all;
+    return all;
+  };
+  /** Steps a combination of `k` indices below `n` to the next, in place. False past the last. */
+  const next = (ix: number[], n: number): boolean => {
+    const k = ix.length;
+    let i = k - 1;
+    while (i >= 0 && (ix[i] as number) === n - k + i) i--;
+    if (i < 0) return false;
+    ix[i] = (ix[i] as number) + 1;
+    for (let j = i + 1; j < k; j++) ix[j] = (ix[j - 1] as number) + 1;
+    return true;
+  };
 
-  for (let guard = 0; guard < 1000; guard++) {
-    let improved = false;
-    for (let k = 1; k <= Math.min(depth, open.length) && !improved; k++) {
-      const idle = new Set(Object.values(slotted));
-      const spare = [...candidates.filter((id) => !idle.has(id)), ...Array<null>(k).fill(null)];
-      let pick: { slots: string[]; items: (string | null)[]; value: number } | null = null;
-      for (const slots of chosen(k, open) as string[][]) {
-        const was = slots.map((s) => slotted[s] ?? null);
-        for (const items of (chosen(k, spare) as (string | null)[][]).flatMap(orders)) {
-          // Every slot changes, and each takes what it fits.
-          if (items.some((id, i) => id === was[i] || (id !== null && !rules.fits(slots[i] as string, id))))
-            continue;
-          slots.forEach((s, i) => {
-            slotted[s] = items[i] ?? null;
-          });
-          const value = score(slotted);
-          if (value > best + 1e-12 && (!pick || value > pick.value)) pick = { slots, items, value };
-          slots.forEach((s, i) => {
-            slotted[s] = was[i] ?? null;
-          });
-        }
+  function* run(): Generator<undefined, void, undefined> {
+    for (let guard = 0; guard < 10_000; guard++) {
+      let improved = false;
+      for (let k = 1; k <= Math.min(depth, open.length) && !improved; k++) {
+        const used = new Set(Object.values(slotted));
+        const spare: (string | null)[] = candidates.filter((id) => !used.has(id));
+        for (let i = 0; i < k; i++) spare.push(null);
+        if (spare.length < k) continue;
+        const perms = permsOf(k);
+        const was: (string | null)[] = Array(k).fill(null);
+        const si = Array.from({ length: k }, (_, i) => i);
+        do {
+          for (let i = 0; i < k; i++) was[i] = slotted[open[si[i] as number] as string] ?? null;
+          const ii = Array.from({ length: k }, (_, i) => i);
+          do {
+            for (const perm of perms) {
+              // Every slot changes, and each takes what it fits.
+              let ok = true;
+              for (let i = 0; i < k && ok; i++) {
+                const id = spare[ii[perm[i] as number] as number] ?? null;
+                if (id === was[i] || (id !== null && !rules.fits(open[si[i] as number] as string, id)))
+                  ok = false;
+              }
+              if (!ok) continue;
+              for (let i = 0; i < k; i++)
+                slotted[open[si[i] as number] as string] = spare[ii[perm[i] as number] as number] ?? null;
+              const value = score(slotted);
+              if (value > best + 1e-12) {
+                best = value;
+                bestSlotted = { ...slotted };
+                improved = true;
+                break;
+              }
+              for (let i = 0; i < k; i++) slotted[open[si[i] as number] as string] = was[i] ?? null;
+              yield;
+            }
+          } while (!improved && next(ii, spare.length));
+        } while (!improved && next(si, open.length));
       }
-      if (pick) {
-        const { slots, items, value } = pick;
-        slots.forEach((s, i) => {
-          slotted[s] = items[i] ?? null;
-        });
-        best = value;
-        improved = true;
-      }
+      if (!improved) return;
+      yield;
     }
-    if (!improved) break;
   }
-  return slotted;
+
+  const it = run();
+  let done = false;
+  return {
+    step(count) {
+      for (let n = 0; n < count && !done; n++) done = it.next().done === true;
+      return !done;
+    },
+    best: () => ({ ...bestSlotted }),
+    bestScore: () => best,
+  };
+}
+
+/**
+ * `searchLoadout` run to the end at once: the loadout it settles on. For a sim's player or a test; a page runs
+ * `searchLoadout` over frames instead, since proving a large loadout cannot be bettered takes a while.
+ */
+export function fillLoadout<E>(
+  rules: Loadout<E>,
+  options: LoadoutSearchOptions,
+): Record<string, string | null> {
+  const search = searchLoadout(rules, options);
+  while (search.step(100_000)) {}
+  return search.best();
 }
 
 /** A loadout feature's state: what sits in each slot. */

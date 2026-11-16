@@ -34,6 +34,7 @@ across with its numbers unchanged.
   The engine is MIT licensed.
 - **Tests.** `decimalComparisons` fails a game's tests on Decimals compared with `<` or `===`. `plainParity` proves
   a game's sim and its real store agree. The guide's examples are run against what the chapters quote.
+- **`searchLoadout`**: the auto-equip a slice at a time (`step`, `best`, `bestScore`), so a page shows the slots filling instead of freezing; `fillLoadout` is it run to the end, and both now take the first exchange that pays rather than the best of a whole pass.
 
 ## 0.18.0
 
@@ -82,6 +83,10 @@ test kit's `Persona` is `FixturePlay`. The allocation kernel and its action shar
 - **Package.** `engines.bun` is `>=1.4.3`; `zzfx` is an optional peer; `watchpot/env` carries the CSS-module and
   custom-property declarations a game's typecheck needs; `api/` covers `watchpot/kit/theme` and
   `watchpot/sound/pack`; a `files` list.
+
+## 0.17.1
+
+- **`searchLoadout`**: the auto-equip a slice at a time (`step`, `best`, `bestScore`), so a page shows the slots filling instead of freezing; `fillLoadout` is it run to the end, and both now take the first exchange that pays rather than the best of a whole pass.
 
 ## 0.17.0
 
