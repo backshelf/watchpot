@@ -17,7 +17,7 @@ import {
  * consistent with each other: `totalXpAt(levelAt(x)) ≤ x < totalXpAt(levelAt(x) + 1)`. Geometric and polynomial curves
  * invert in closed form, a table by binary search, a function by bisection.
  *
- * `levels({ key, tracks })` is a feature holding the XP of several named tracks (skills), with `select`, `def` and
+ * `defineLevels({ key, tracks })` is a feature holding the XP of several named tracks (skills), with `select`, `def` and
  * `draft`, and an action (and its draft helper) to gain XP that report the levels gained.
  */
 
@@ -213,7 +213,7 @@ export type LevelsFeature<K extends string, T extends TrackDef, E> = Feature<K, 
  *
  * `select`: `level`, `progress`, `contributions`. `def`: `tracks`, `track(id)`. `draft`: `gain`.
  */
-export function levels<
+export function defineLevels<
   const K extends string,
   T extends TrackDef,
   E = never,

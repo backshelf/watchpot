@@ -10,9 +10,9 @@ The complete example is [`examples/dimensions.ts`](examples/dimensions.ts): four
 `prestige` layer above that opens the next tier and doubles them all.
 
 ```ts
-import { currencies, dimensions } from "watchpot/core";
+import { defineCurrencies, defineDimensions } from "watchpot/core";
 
-export const chain = dimensions({
+export const chain = defineDimensions({
   key: "chain",
   wallet, // a currencies feature
   makes: "gold", // what the lowest tier earns (and, without `pays`, what tiers cost)

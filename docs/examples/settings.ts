@@ -3,9 +3,9 @@ import {
   createIdleStore,
   createMemoryBackend,
   defineGame,
+  defineSeenOnce,
+  defineSettings,
   feature,
-  seenOnce,
-  settings,
   ZERO,
 } from "watchpot/core";
 
@@ -16,13 +16,13 @@ export interface Choices {
   scheme: "system" | "light" | "dark";
 }
 
-export const choices = settings({
+export const choices = defineSettings({
   key: "settings",
   initial: (): Choices => ({ sound: true, motion: "system", scheme: "system" }),
 });
 
 /** What the player has been shown once: the stove's first tip, the shop's new mark. The ids are the game's. */
-export const intro = seenOnce({ key: "intro" });
+export const intro = defineSeenOnce({ key: "intro" });
 export const TIPS = { stove: "tip.stove", shop: "tab.shop" } as const;
 
 /** Simmer's pot, so a run reset has something to clear. */

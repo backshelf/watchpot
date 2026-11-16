@@ -1,12 +1,19 @@
-import { currencies, type Decimal, defineGame, fmtWait, type StreakState, streak } from "watchpot/core";
+import {
+  type Decimal,
+  defineCurrencies,
+  defineGame,
+  defineStreak,
+  fmtWait,
+  type StreakState,
+} from "watchpot/core";
 import { TOY } from "./vocab";
 
 type State = { wallet: { gold: Decimal; gems: Decimal } };
 
-const wallet = currencies({ key: "wallet", vocab: TOY });
+const wallet = defineCurrencies({ key: "wallet", vocab: TOY });
 
 /** A week that repeats: gold rising each day, gems on the seventh. */
-export const daily = streak({
+export const daily = defineStreak({
   key: "daily",
   rewards: (day) => (day % 7 === 0 ? { gold: 0, gems: 5 } : { gold: 100 * (day % 7), gems: 0 }),
   onClaim: (draft: State, reward) => {

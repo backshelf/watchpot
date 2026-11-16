@@ -175,7 +175,7 @@ export type BoardFeature<K extends string, G, E> = Feature<K, BoardState, BoardA
  * earned however the game likes. A piece no longer held, or on a cell no longer open, simply stops counting
  * (`select.contributions` leaves it out). A prestige reset keeps the layout unless `reset` says otherwise.
  */
-export declare function boardFeature<const K extends string, E, const R extends ReachShape = readonly [], G extends object = Record<K, BoardState> & ReachOf<R>>(def: {
+export declare function defineBoard<const K extends string, E, const R extends ReachShape = readonly [], G extends object = Record<K, BoardState> & ReachOf<R>>(def: {
     readonly key: K;
     /** The features `held` and `open` read, as `feature`'s `reach`. */
     readonly reach?: R | (() => R);

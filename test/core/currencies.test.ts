@@ -3,8 +3,8 @@ import {
   createGameStorage,
   createIdleStore,
   createMemoryBackend,
-  currencies,
   D,
+  defineCurrencies,
   defineGame,
   vocab,
 } from "watchpot/core";
@@ -17,7 +17,7 @@ const TOY = vocab({
   rarities: ["common", "rare"],
 } as const);
 
-const purse = currencies({
+const purse = defineCurrencies({
   key: "purse",
   vocab: TOY,
   start: { gold: 30 },
@@ -116,26 +116,28 @@ describe("currencies", () => {
 
   test("it refuses a total for a word the vocabulary lacks, or a field taken twice", () => {
     // @ts-expect-error not a currency of the toy
-    expect(() => currencies({ key: "p", vocab: TOY, earnedThisRun: { keys: "keysThisRun" } })).toThrow(
+    expect(() => defineCurrencies({ key: "p", vocab: TOY, earnedThisRun: { keys: "keysThisRun" } })).toThrow(
       /keys/,
     );
-    expect(() => currencies({ key: "p", vocab: TOY, earnedEver: { gold: "gems" } })).toThrow(/gems/);
-    expect(() => currencies({ key: "p", vocab: TOY, earnedThisRun: { gold: "debit" } })).toThrow(/debit/);
+    expect(() => defineCurrencies({ key: "p", vocab: TOY, earnedEver: { gold: "gems" } })).toThrow(/gems/);
+    expect(() => defineCurrencies({ key: "p", vocab: TOY, earnedThisRun: { gold: "debit" } })).toThrow(
+      /debit/,
+    );
   });
 
   test("a name the wallet's own actions hold is refused at definition, wherever it is used", () => {
     const words = (c: string) => vocab({ currencies: ["gold", c], stats: [], rarities: ["common"] });
     for (const name of ["credit", "debit"])
-      expect(() => currencies({ key: "p", vocab: words(name) })).toThrow(
+      expect(() => defineCurrencies({ key: "p", vocab: words(name) })).toThrow(
         new RegExp(`currency "${name}" collides`),
       );
-    expect(() => currencies({ key: "p", vocab: TOY, spentThisRun: { gems: "credit" } })).toThrow(
+    expect(() => defineCurrencies({ key: "p", vocab: TOY, spentThisRun: { gems: "credit" } })).toThrow(
       /total "credit" collides/,
     );
-    expect(() => currencies({ key: "p", vocab: TOY, extra: () => ({ gold: D(1) }) })).toThrow(
+    expect(() => defineCurrencies({ key: "p", vocab: TOY, extra: () => ({ gold: D(1) }) })).toThrow(
       /extra field "gold"/,
     );
-    const shadowing = currencies({ key: "p", vocab: TOY, actions: () => ({ gems: () => {} }) });
+    const shadowing = defineCurrencies({ key: "p", vocab: TOY, actions: () => ({ gems: () => {} }) });
     expect(() =>
       defineGame({ id: "x", save: { key: "x", version: 1 }, features: [shadowing], vocab: TOY }),
     ).toThrow(/action "gems"/);
@@ -147,7 +149,7 @@ describe("currencies", () => {
 });
 
 describe("reset depth and the two kinds of total", () => {
-  const ledger = currencies({
+  const ledger = defineCurrencies({
     key: "ledger",
     vocab: TOY,
     start: { gold: 5 },
@@ -217,7 +219,7 @@ describe("reset depth and the two kinds of total", () => {
   });
 
   test("a currency that never resets outlives every depth; def.depth states each one", () => {
-    const keeper = currencies({ key: "k", vocab: TOY, depth: { gems: "never" } });
+    const keeper = defineCurrencies({ key: "k", vocab: TOY, depth: { gems: "never" } });
     expect(keeper.def.depth).toEqual({ gold: 1, gems: Number.POSITIVE_INFINITY });
     const g = defineGame({ id: "k", save: { key: "k", version: 1 }, features: [keeper], vocab: TOY });
     const store = createIdleStore(g, {
@@ -232,8 +234,8 @@ describe("reset depth and the two kinds of total", () => {
   });
 
   test("a depth under 1, or for a word the vocabulary lacks, is refused", () => {
-    expect(() => currencies({ key: "p", vocab: TOY, depth: { gold: 0 } })).toThrow(/depth of "gold"/);
+    expect(() => defineCurrencies({ key: "p", vocab: TOY, depth: { gold: 0 } })).toThrow(/depth of "gold"/);
     // @ts-expect-error not a currency of the toy
-    expect(() => currencies({ key: "p", vocab: TOY, depth: { keys: 2 } })).toThrow(/keys/);
+    expect(() => defineCurrencies({ key: "p", vocab: TOY, depth: { keys: 2 } })).toThrow(/keys/);
   });
 });

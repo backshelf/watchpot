@@ -1,11 +1,11 @@
-import { crafting, type Decimal, defineGame } from "watchpot/core";
+import { type Decimal, defineCrafting, defineGame } from "watchpot/core";
 import { wallet } from "./add-a-currency";
 import { TOY } from "./vocab";
 
 type State = { wallet: { gold: Decimal; gems: Decimal } };
 
 /** Three recipes: an instant one, one that gives more as gems pile up, and a timed one on a queue. */
-export const forge = crafting({
+export const forge = defineCrafting({
   key: "forge",
   wallet,
   list: [

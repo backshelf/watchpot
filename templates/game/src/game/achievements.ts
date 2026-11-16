@@ -1,5 +1,5 @@
 // @feature achievements
-import { type Achievement, achievements, type Decimal, type Effect } from "watchpot/core";
+import { type Achievement, defineAchievements, type Decimal, type Effect } from "watchpot/core";
 import { ACHIEVEMENTS, COLUMNS, type When } from "../content/achievements";
 
 /** What a condition reads: the part of each feature's state the wall can ask about. */
@@ -67,4 +67,4 @@ const LIST: readonly Achievement<WallReads, Effect>[] = ACHIEVEMENTS.map((a) => 
  * after every pass's production. What it gives (output, from the count and the full rows) is read in `stats.ts`;
  * `fresh` is the queue the page toasts.
  */
-export const wall = achievements({ key: "achievements", columns: COLUMNS, list: LIST });
+export const wall = defineAchievements({ key: "achievements", columns: COLUMNS, list: LIST });

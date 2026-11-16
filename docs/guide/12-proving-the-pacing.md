@@ -103,7 +103,7 @@ its worth stated:
 // The tree declares the moves the sim buys from. `worth` is in the unit the burners' moves use, bubbles a second; the
 // copper base changes no number the sim can see until the `copper` feature below reads it, so it is a fair guess:
 // about five burners.
-const kitchen = upgradeTree({ key: "kitchen", nodes: [COPPER], wallet, worth: () => 5 });
+const kitchen = defineUpgradeTree({ key: "kitchen", nodes: [COPPER], wallet, worth: () => 5 });
 ```
 
 `docs/examples/guide-pacing-tree.ts`

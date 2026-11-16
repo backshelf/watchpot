@@ -21,13 +21,13 @@ export interface Choices {
   scheme: "system" | "light" | "dark";
 }
 
-export const choices = settings({
+export const choices = defineSettings({
   key: "settings",
   initial: (): Choices => ({ sound: true, motion: "system", scheme: "system" }),
 });
 
 /** What the player has been shown once: the stove's first tip, the shop's new mark. The ids are the game's. */
-export const intro = seenOnce({ key: "intro" });
+export const intro = defineSeenOnce({ key: "intro" });
 export const TIPS = { stove: "tip.stove", shop: "tab.shop" } as const;
 ```
 
@@ -42,7 +42,7 @@ forgotten, the tip is new again: true
 
 ## `settings`
 
-**`settings({ key, initial })`** is a feature that saves `initial()`'s shape under `key`, with `reset: "never"`, so a
+**`defineSettings({ key, initial })`** is a feature that saves `initial()`'s shape under `key`, with `reset: "never"`, so a
 run reset leaves it alone; `resetProfile` puts it back with everything else.
 
 - **`change(patch)`**: its one action. It merges the patch into the slice, one level deep, in one change.
@@ -57,7 +57,7 @@ inference, `"system"` widens to `string`, and the runtime hook refuses it.
 
 ## `seenOnce`
 
-**`seenOnce({ key })`** is a feature that saves `{ seen: Record<string, true> }` under `key`, also kept through every
+**`defineSeenOnce({ key })`** is a feature that saves `{ seen: Record<string, true> }` under `key`, also kept through every
 run reset. The ids are yours: name them by what they mark (`"tip.stove"`, `"tab.shop"`), and keep them in one table so
 a screen and its test use the same string.
 

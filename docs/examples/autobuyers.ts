@@ -1,15 +1,15 @@
-import { autobuyers, defineGame, generators } from "watchpot/core";
+import { defineAutobuyers, defineGame, defineGenerators } from "watchpot/core";
 import { wallet } from "./add-a-currency";
 import { TOY } from "./vocab";
 
-const stalls = generators({
+const stalls = defineGenerators({
   key: "stalls",
   wallet,
   list: [{ id: "stall", cost: { base: 10, growth: 1.15 }, pays: "gold", makes: "gold", rate: 1, free: 1 }],
 });
 
 /** Two autobuyers: one stall every few seconds once ten are owned, and a gem sink every tick. */
-export const auto = autobuyers({
+export const auto = defineAutobuyers({
   key: "auto",
   reach: [wallet, stalls], // what the callbacks read: typed with no annotation
   list: [

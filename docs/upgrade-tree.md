@@ -4,7 +4,7 @@ Ranks bought one at a time over `GraphNode`s, each rank's effects handed to the 
 
 Example: [`examples/upgrade-tree.ts`](examples/upgrade-tree.ts) (`bun docs/examples/upgrade-tree.ts`).
 
-- `upgradeTree({ key, nodes, wallet, reach?, open?, worth?, milestone?, reset? })` is the tree as a feature: it saves
+- `defineUpgradeTree({ key, nodes, wallet, reach?, open?, worth?, milestone?, reset? })` is the tree as a feature: it saves
   `{ ranks }` and buys with `buy(id)` through a currencies feature. A run reset clears the ranks unless `reset` says
   otherwise. Like every factory it returns the feature plus `select` (questions over state), `def` (what it was
   given) and `draft` (helpers for a recipe, named like the actions). `reach` names the features `open` and `worth`
@@ -47,7 +47,7 @@ For those, say a `worth(state, node)` in the tree's definition, in the same unit
 currency:
 
 ```ts
-export const mine = upgradeTree({
+export const mine = defineUpgradeTree({
   key: "mine",
   nodes: NODES,
   wallet,

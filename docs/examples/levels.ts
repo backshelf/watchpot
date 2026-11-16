@@ -1,4 +1,4 @@
-import { defineGame, type Effect, levelAt, levelProgress, levels, type XpCurve } from "watchpot/core";
+import { defineGame, defineLevels, type Effect, levelAt, levelProgress, type XpCurve } from "watchpot/core";
 import { wallet } from "./add-a-currency";
 import { TOY } from "./vocab";
 
@@ -6,7 +6,7 @@ import { TOY } from "./vocab";
 const steady: XpCurve = { kind: "geometric", base: 100, growth: 1.25 };
 
 /** Two tracks: one on the steady curve, one on a hand-written table that tops out at level 5. */
-export const skills = levels({
+export const skills = defineLevels({
   key: "skills",
   tracks: [
     { id: "gather", curve: steady },

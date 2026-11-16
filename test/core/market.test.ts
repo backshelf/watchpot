@@ -1,12 +1,12 @@
 import { describe, expect, test } from "bun:test";
 import {
-  currencies,
   DAY_MS,
   type Decimal,
+  defineCurrencies,
   defineGame,
+  defineMarket,
   HOUR_MS,
   MINUTE_MS,
-  market,
   priceAt,
   priceBand,
   priceSeries,
@@ -74,9 +74,9 @@ describe("priceAt", () => {
 });
 
 const WORDS = vocab({ currencies: ["cash"], stats: [], rarities: ["common"] } as const);
-const wallet = currencies({ key: "wallet", vocab: WORDS, start: { cash: 1000 } });
+const wallet = defineCurrencies({ key: "wallet", vocab: WORDS, start: { cash: 1000 } });
 type State = { wallet: { cash: Decimal }; flags: { tinOpen: boolean; fee: number } };
-const exchange = market({
+const exchange = defineMarket({
   key: "exchange",
   wallet,
   pays: "cash",
@@ -202,7 +202,7 @@ describe("market trader", () => {
     flags: { bot: boolean };
     bot: { held: Record<string, Decimal>; realised: Decimal };
   };
-  const bot = market({
+  const bot = defineMarket({
     key: "bot",
     wallet,
     pays: "cash",
@@ -270,7 +270,7 @@ describe("market trader", () => {
 
   test("a spend read from the state is clamped to 0..1, and a zero share buys nothing", () => {
     const share = { v: 0 };
-    const fn = market({
+    const fn = defineMarket({
       key: "bot",
       wallet,
       pays: "cash",
@@ -303,7 +303,7 @@ describe("market trader", () => {
   });
 
   test("with everyMs it looks once an interval, however short the ticks", () => {
-    const paced = market({
+    const paced = defineMarket({
       key: "bot",
       wallet,
       pays: "cash",
@@ -316,7 +316,7 @@ describe("market trader", () => {
       features: [wallet, paced],
       vocab: WORDS,
     });
-    const fast = market({ key: "bot", wallet, pays: "cash", tickers: [OATS], trader: {} });
+    const fast = defineMarket({ key: "bot", wallet, pays: "cash", tickers: [OATS], trader: {} });
     const fastGame = defineGame({
       id: "fast",
       save: { key: "fast.save", version: 1 },
@@ -341,7 +341,7 @@ describe("market trader", () => {
 describe("reach", () => {
   test("a callback reads a reached feature with no annotation, and not one that was not reached", () => {
     const door = feature({ key: "door", initial: () => ({ open: true }) });
-    const gated = market({
+    const gated = defineMarket({
       key: "gated",
       wallet,
       pays: "cash",

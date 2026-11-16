@@ -3,9 +3,9 @@ import {
   createGameStorage,
   createIdleStore,
   createMemoryBackend,
+  defineGacha,
   defineGame,
   freshPity,
-  gacha,
   type PityRule,
   publishedOdds,
   pullsUntilPity,
@@ -27,7 +27,7 @@ const RULE: PityRule<Rarity> = [
 ];
 
 /** A feature owning one box, "banner": its pity, its rng stream and its opens. The roll turns a rarity into a hero. */
-export const summon = gacha({
+export const summon = defineGacha({
   key: "summon",
   ladder: TOY.rarities,
   vocab: TOY,

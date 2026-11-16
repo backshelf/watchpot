@@ -11,7 +11,7 @@ import { type Feature, type NeedsOf, type ReachOf, type ReachShape, type ResetRu
  * `global` milestones do the same for every generator once the lowest owned count across the list reaches them.
  *
  * `cyclesIn` is the pure kernel for a cycle: how many complete over a stretch, in closed form, so a tick of 50 ms and
- * an absence of a week land the same. `generators({ key, wallet, list })` is the feature: its `select` answers
+ * an absence of a week land the same. `defineGenerators({ key, wallet, list })` is the feature: its `select` answers
  * questions over state (`burners.select.price(s, "stove")`), its `def` holds the list, and its `draft` buys inside
  * a recipe (`burners.draft.buy(d, "stove")`).
  */
@@ -211,7 +211,7 @@ export interface GeneratorsDef<K extends string, T extends GeneratorDef<C>, WK e
  * `reset` says otherwise. The callbacks read the whole game state (the feature's own slice, the wallet's and what
  * `reach` names), typed with no annotation.
  */
-export declare function generators<const K extends string, T extends GeneratorDef<C>, WK extends string, C extends string, WS extends object, WA extends object, const R extends ReachShape = readonly [], G extends object = Record<K, GeneratorsState> & Record<WK, WS> & ReachOf<R>>(def: GeneratorsDef<K, T, WK, C, WS, WA, G, R>): GeneratorsFeature<K, G, T> & {
+export declare function defineGenerators<const K extends string, T extends GeneratorDef<C>, WK extends string, C extends string, WS extends object, WA extends object, const R extends ReachShape = readonly [], G extends object = Record<K, GeneratorsState> & Record<WK, WS> & ReachOf<R>>(def: GeneratorsDef<K, T, WK, C, WS, WA, G, R>): GeneratorsFeature<K, G, T> & {
     readonly needs?: NeedsOf<R>;
 };
 export {};

@@ -1,7 +1,7 @@
 import {
   type BoardPiece,
   type BoardState,
-  boardFeature,
+  defineBoard,
   defineGame,
   defineStats,
   type Effect,
@@ -31,7 +31,7 @@ export const shed = feature({
 });
 
 /** A 4 x 4 bed of which the top-left `beds` x `beds` is dug, planted from the seeds in the shed. */
-export const garden = boardFeature({
+export const garden = defineBoard({
   key: "garden",
   reach: [shed],
   width: 4,

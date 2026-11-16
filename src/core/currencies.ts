@@ -23,7 +23,7 @@ import type { AnyVocab, CurrencyOf } from "./vocab";
  * actions `credit` and `debit` work from outside.
  *
  * ```ts
- * const wallet = currencies({
+ * const wallet = defineCurrencies({
  *   key: "wallet",
  *   vocab: TOY,
  *   start: { gold: 30 },
@@ -166,7 +166,7 @@ export type TotalsOf<E, EE, P, PE> = FieldOf<E> | FieldOf<EE> | FieldOf<P> | Fie
  * like a balance, a total or `debit` throws when the game is defined (`defineGame` builds the actions once to check
  * them).
  */
-export function currencies<
+export function defineCurrencies<
   const K extends string,
   V extends AnyVocab,
   const E extends TotalsMap<CurrencyOf<V>> = Record<never, never>,

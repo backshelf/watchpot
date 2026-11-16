@@ -1,5 +1,5 @@
 // @feature tree
-import { type Balances, type TreeActions, type TreeState, upgradeTree } from "watchpot/core";
+import { type Balances, type TreeActions, type TreeState, defineUpgradeTree } from "watchpot/core";
 import { NODES } from "../content/tree";
 import type { Currency } from "../content/words";
 import { type IncomeSources, incomeOf } from "./income";
@@ -16,7 +16,7 @@ interface TreeReads extends IncomeSources {
  * cleared by a prestige. Its effects reach the stats as contributions (`stats.ts`). It declares the auto-player's
  * moves itself, one per rank that can be bought; `worth` says what a rank adds in the sim's unit.
  */
-export const upgrades = upgradeTree({
+export const upgrades = defineUpgradeTree({
   key: "upgrades",
   nodes: NODES,
   wallet,

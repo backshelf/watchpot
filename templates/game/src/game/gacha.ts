@@ -1,12 +1,12 @@
 // @feature gacha
-import { type Balances, catalogueRoll, D, feature, gacha, type Move, withMoves } from "watchpot/core";
+import { type Balances, catalogueRoll, D, feature, defineGacha, type Move, withMoves } from "watchpot/core";
 import { BOX, DRIP_MS, ITEMS, ODDS, PITY, PULL_PRICE } from "../content/gacha";
 import { type Currency, PREMIUM, WORDS } from "../content/words";
 import { type IncomeSources, incomeOf } from "./income";
 import { wallet } from "./wallet";
 
 /** The draw, on the engine's gacha: the ladder, the odds and the guarantees, each pull's item from the catalogue. */
-export const summon = gacha({
+export const summon = defineGacha({
   key: "summon",
   ladder: WORDS.rarities,
   vocab: WORDS,

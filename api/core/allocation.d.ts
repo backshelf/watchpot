@@ -124,7 +124,7 @@ export type AllocationFeature<K extends string, G, E> = Feature<K, AllocationSta
  * levels in one step when the work covers them. A run reset clears it unless `reset` says otherwise. The callbacks
  * read the whole game state (the feature's own slice and what `reach` names), typed with no annotation.
  */
-export declare function allocation<const K extends string, E = never, const R extends ReachShape = readonly [], G extends object = Record<K, AllocationState> & ReachOf<R>>(def: {
+export declare function defineAllocation<const K extends string, E = never, const R extends ReachShape = readonly [], G extends object = Record<K, AllocationState> & ReachOf<R>>(def: {
     readonly key: K;
     /** The features the callbacks read, as `feature`'s `reach`. */
     readonly reach?: R | (() => R);

@@ -1,11 +1,11 @@
 import {
   type Balances,
   type Decimal,
+  defineUpgradeTree,
   type Move,
   rankCost,
   type TreeActions,
   type TreeState,
-  upgradeTree,
   withMoves,
 } from "watchpot/core";
 import { NODES } from "../content/tree";
@@ -24,7 +24,7 @@ interface TreeMoveState {
  * reach the stats as contributions (`stats.ts`).
  */
 export const upgrades = withMoves(
-  upgradeTree({ key: "upgrades", nodes: NODES, wallet }),
+  defineUpgradeTree({ key: "upgrades", nodes: NODES, wallet }),
   (s: TreeMoveState): Move<TreeMoveState>[] =>
     NODES.flatMap((node) => {
       const owned = s.upgrades.ranks[node.id] ?? 0;

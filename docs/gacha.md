@@ -4,7 +4,7 @@ A rarity draw over the game's ladder with hard and soft pity, and a feature that
 
 Example: [`examples/gacha.ts`](examples/gacha.ts) (`bun docs/examples/gacha.ts`).
 
-- `gacha({ key, ladder, odds, pity, roll, vocab })`; the keys of `odds` are the boxes. `catalogueRoll(entries)` picks
+- `defineGacha({ key, ladder, odds, pity, roll, vocab })`; the keys of `odds` are the boxes. `catalogueRoll(entries)` picks
   evenly among the entries of the drawn rarity, so each entry names its `rarity`.
 - A `PityRule` is a list of floors on the ladder: `{ rarity: "rare", within: 10 }` guarantees a rare or better within
   10 pulls; `softFrom` ramps the chance up before the floor.

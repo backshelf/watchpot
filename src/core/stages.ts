@@ -16,7 +16,7 @@ import {
  * Stages: a track of walls, each with more resistance than the last, worn down by a force. The stage in front takes
  * `force` a second; when what it has taken reaches its resistance it falls and the next one stands. Zones, floors,
  * waves, a front line on a map. A stretch of any length is exact: one long step clears what many short ones would.
- * `advanceTrack` is the kernel; `stages({ key, tracks, force })` is a feature with a track state each, and `select`,
+ * `advanceTrack` is the kernel; `defineStages({ key, tracks, force })` is a feature with a track state each, and `select`,
  * `def` and `draft` beside it. What a fallen
  * stage pays is the game's (`onClear`).
  */
@@ -184,7 +184,7 @@ export type StagesFeature<K extends string, G> = Feature<K, StagesState, StagesA
  * `select`: `force`, `fill`, `passable`, `secondsToClear`, `ended`. `def`: `tracks`, `track(id)`, `resistance(id,
  * stage)`. `draft`: empty.
  */
-export function stages<
+export function defineStages<
   const K extends string,
   const R extends ReachShape = readonly [],
   G extends object = Record<K, StagesState> & ReachOf<R>,

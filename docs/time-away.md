@@ -21,7 +21,7 @@ Example: [`examples/time-away.ts`](examples/time-away.ts) (`bun docs/examples/ti
 - `fillDeep(saved, fresh)` is for a feature's `merge`: it fills a key a newer build added at any depth, keeps a saved
   key `fresh` lacks (an id-keyed record), coerces a saved number or string where `fresh` holds a Decimal, and treats an
   array as a leaf.
-- `settings({ key, initial })` is the feature every game writes by hand: it never resets with a run and has one action,
+- `defineSettings({ key, initial })` is the feature every game writes by hand: it never resets with a run and has one action,
   `change(patch)`.
 - `fmt` takes `notation: "scientific"`, `plainBelow` and `decimalsBelow`; `formatter(options)` binds `num`, `times`,
   `plus`, `rate` and `counted` to one set of them.

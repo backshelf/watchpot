@@ -18,7 +18,7 @@ import { nextFloat, pickWeighted, type RngState, seedRng } from "./rng";
  * random-arrival model: the wait is at least `minMs` and at most `maxMs`, and past the minimum the chance it comes
  * rises steeply (`ramp`), so most arrive late in the window. Every draw is on the kind's own saved rng stream.
  *
- * `drawSpawnWait`, `drawOutcome` and `advanceSpawn` are the pure kernel; `spawns({ key, kinds })` is the feature.
+ * `drawSpawnWait`, `drawOutcome` and `advanceSpawn` are the pure kernel; `defineSpawns({ key, kinds })` is the feature.
  */
 
 /**
@@ -229,7 +229,7 @@ export type SpawnsFeature<K extends string, G> = Feature<K, SpawnsState, SpawnsA
  * The auto-player catches whatever is live. The kinds' callbacks and `onCatch` see the feature's own slice and what
  * `reach` names; `draft.catch` is the same catch inside a recipe.
  */
-export function spawns<
+export function defineSpawns<
   const K extends string,
   const R extends ReachShape = readonly [],
   G extends object = Record<K, SpawnsState> & ReachOf<R>,

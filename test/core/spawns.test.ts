@@ -3,6 +3,7 @@ import {
   advanceSpawn,
   D,
   defineGame,
+  defineSpawns,
   drawOutcome,
   drawSpawnWait,
   feature,
@@ -10,7 +11,6 @@ import {
   type RngState,
   type SpawnState,
   seedRng,
-  spawns,
 } from "watchpot/core";
 import { autoPlayer, createSimWorld, simStore } from "watchpot/sim";
 import { freshStore, T0 } from "watchpot/test";
@@ -83,7 +83,7 @@ describe("the spawn kernel", () => {
 const purse = feature({ key: "purse", initial: () => ({ gold: 0, gems: 0 }) });
 /** A copy of a state without its actions: what a recipe is handed, for calling a draft helper directly. */
 const plain = <T>(state: T): T => JSON.parse(JSON.stringify(state));
-const fair = spawns({
+const fair = defineSpawns({
   key: "fair",
   reach: [purse],
   kinds: [
@@ -189,7 +189,7 @@ describe("spawns feature", () => {
 
   test("a callback reads a reached feature; one it does not reach is a type error", () => {
     const other = feature({ key: "other", initial: () => ({ m: 0 }) });
-    const peek = spawns({
+    const peek = defineSpawns({
       key: "peek",
       reach: [purse],
       kinds: [

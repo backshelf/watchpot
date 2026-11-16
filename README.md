@@ -212,7 +212,7 @@ export const store = createIdleStore(toy, {
   long frame: an alt-tab is not time away. Only a longer gap goes to `onAway` and the catch-up, at the offline rate.
 - **Resets.** `resetRun` follows each feature's `reset`: `"run"` (the default, back to `initial`), `"never"`,
   `{ keep }`, `(before, fresh, ctx) => after`, or `{ depth, rule }`: untouched by a reset shallower than `depth`
-  (`resetRun({ depth })`, 1 by default; `prestige({ depth: 2 })` is a layer above another, and the lower layer says
+  (`resetRun({ depth })`, 1 by default; `definePrestige({ depth: 2 })` is a layer above another, and the lower layer says
   `reset: { depth: 2 }` so the higher one starts it over); the clock's anchors land on now, its offset kept. `resetProfile`
   puts everything back and zeroes the offset. `initial(ctx)` sees `now`, an `rng` (seeded from the store's `seed`)
   and why it is being made (`new`, `reset`, `run`, `import`). A run reset with no `rng` draws `rng("run:<createdAt>")`,
@@ -287,11 +287,11 @@ export const store = createIdleStore(toy, {
   store (`store.profileSwaps()` counts them): for `settleMs` (and `startMs` at the start) nothing they
   emit goes out, and their bests and streaks are forgotten; rules run meanwhile unless `whileSettling: "skip"` (a
   rule given as `{ rule, whileSettling }` decides for itself). Each rule gets `tools`: `settling`, `spare(kind, ms)`,
-  `best(kind, value)` (the best it beat, or undefined; Decimals, so any size), `streak(kind, windowMs)`. A rule that throws is reported, never thrown into the action that changed the
+  `best(kind, value)` (the best it beat, or undefined; Decimals, so any size), `defineStreak(kind, windowMs)`. A rule that throws is reported, never thrown into the action that changed the
   store. `crossedMark(marks, before, after)` and `newKeys(before, after)` are the usual reads (`docs/feel.md`).
-- **Settings.** `settings({ key, initial })` is the feature every game writes: the player's choices under `key`, kept
+- **Settings.** `defineSettings({ key, initial })` is the feature every game writes: the player's choices under `key`, kept
   through a run reset, with one action, `change(patch)`. `resetProfile` puts them back with everything else.
-- **Seen once.** `seenOnce({ key })` is the other one: the saved set of what has been shown the first time (a
+- **Seen once.** `defineSeenOnce({ key })` is the other one: the saved set of what has been shown the first time (a
   page that introduces itself, a tip, a new tab's mark, a tutorial card), kept through every run reset. The ids are
   the game's; `state[key].seen[id] === true` is the read. `see(id)` marks one and returns whether it was new,
   `seeAll(ids)` marks several in one change, `forget(id)` makes one new again; an action that changes nothing
@@ -336,19 +336,19 @@ export const toy = defineGame({ id: "toy", save: { key: "toy.save", version: 1 }
 - **The game holds it.** `defineGame({ vocab })` carries it as `game.vocab` (`undefined` without one), and
   `GameVocab<typeof game>` types it back. A feature built over a vocabulary records it in `vocab`, and
   `defineGame` refuses that feature unless the game declares the same object. A feature is typed by its words
-  through the factory that builds it (`currencies({ vocab })`); `feature()` takes no vocabulary type parameter.
+  through the factory that builds it (`defineCurrencies({ vocab })`); `feature()` takes no vocabulary type parameter.
 
 ## Prestige
 
-`prestige({ key, gain, … })` is a feature factory for a layer above the run. It owns `runs`, `lifetime` (every unit
+`definePrestige({ key, gain, … })` is a feature factory for a layer above the run. It owns `runs`, `lifetime` (every unit
 paid while its own state lasts), `runStart`, the run's best reset `peak`, and `currency` unless it pays into a wallet;
 and one action that pays the gain and calls the store's `resetRun`. Everything else in the layer (a tree to spend on,
 offers, a phase) is the feature's own state and actions beside it:
 
 ```ts
-import { powerGain, prestige } from "watchpot/core";
+import { powerGain, definePrestige } from "watchpot/core";
 
-const ascension = prestige({
+const ascension = definePrestige({
   key: "ascension",
   action: "ascend", // the reset action's name; default "reset"
   reach: [wallet],
@@ -390,14 +390,14 @@ A rarity draw over the game's ladder, with hard pity floors, soft pity ramps and
 that owns a set of boxes around it. The kernel names no rarity: a box's guarantees are floors on the ladder.
 
 ```ts
-import { catalogueRoll, gacha, type PityRule } from "watchpot/core";
+import { catalogueRoll, defineGacha, type PityRule } from "watchpot/core";
 
 const RULE: PityRule<"common" | "rare" | "epic"> = [
   { rarity: "rare", within: 10 }, // a rare or better within 10 pulls
   { rarity: "epic", within: 50, softFrom: 40 }, // an epic within 50, its chance ramping up from pull 41
 ];
 
-export const summon = gacha({
+export const summon = defineGacha({
   key: "summon",
   ladder: TOY.rarities,
   vocab: TOY,
@@ -418,7 +418,7 @@ export const summon = gacha({
   first, empty rows dropped), `pullsUntilPity(ladder, pity, rule, odds)` (the countdown per reachable floor),
   `canReach`, and `drawMany(ladder, box, odds, rule, pity, rng, count, roll)`: pulls in sequence, each a rarity then
   the post-draw roll, for a game that keeps its own state.
-- **`gacha({ key, ladder, odds, pity, roll?, reset?, vocab? })`** is a feature over `GachaState`: `pity`, `rng` (its
+- **`defineGacha({ key, ladder, odds, pity, roll?, reset?, vocab? })`** is a feature over `GachaState`: `pity`, `rng` (its
   own stream, seeded from the profile's first draws and its key), `opened`, `tokens` and `lastOpen`, per box (the
   odds table's keys). Actions: `open(box, count)` (free: tokens first) and `grant(box, count)`. It charges nothing:
   a game's paying action takes its price and calls `summon.draft.open(draft, box, count)` in the same recipe
@@ -432,13 +432,13 @@ post-draw roll through `drawMany`.
 
 ## Currencies
 
-`currencies({ key, vocab })` is a feature holding a Decimal balance per currency of the vocabulary, at the top of its
+`defineCurrencies({ key, vocab })` is a feature holding a Decimal balance per currency of the vocabulary, at the top of its
 state (`s.wallet.gold`), with the totals the game names kept beside them:
 
 ```ts
-import { currencies } from "watchpot/core";
+import { defineCurrencies } from "watchpot/core";
 
-export const wallet = currencies({
+export const wallet = defineCurrencies({
   key: "wallet",
   vocab: TOY,
   start: { gold: 30 }, // every other currency starts at zero
@@ -485,7 +485,7 @@ Ranks bought one at a time over `GraphNode`s (`rankCost`, `checkRank`), each ran
 - **`treeMoves(key, nodes, worth?)`** is the auto-player's moves over a feature that keeps ranks as `TreeState`
   (`upgradeTree` declares these itself): one per node whose next rank can be bought, with no `worth` unless
   `worth(state, node)` is given. For a hand-written feature: `withMoves(feature, treeMoves(...))`.
-- **`upgradeTree({ key, nodes, wallet, reach?, milestone?, open?, worth?, reset? })`** is a tree as a feature: it saves
+- **`defineUpgradeTree({ key, nodes, wallet, reach?, milestone?, open?, worth?, reset? })`** is a tree as a feature: it saves
   `{ ranks }` under `key`, buys with `buy(id)`, `buyMax(id, limit?)` and `buyAll(limit?)` (`buyCheapest` through the
   feature's `open`) from a currencies feature, and hands the game's `stats` feature its ranks
   (`contributions: (s) => mine.select.contributions(s)`). `open(state, node)` holds a node back until the game offers
@@ -504,11 +504,11 @@ the game keeps; the effect type is the game's own (with the engine's `Effect`, `
 Shelf page: [docs/loadouts.md](docs/loadouts.md).
 
 ```ts
-import { type Effect, feature, loadoutFeature } from "watchpot/core";
+import { type Effect, feature, defineLoadout } from "watchpot/core";
 
 export const bag = feature({ key: "bag", initial: () => ({ held: ["cap", "mitt"] as string[] }) });
 
-export const kit = loadoutFeature({
+export const kit = defineLoadout({
   key: "kit",
   slots: [{ id: "head", kind: "hat" }, { id: "hand", kind: "tool" }, { id: "spare" }],
   items: [
@@ -532,7 +532,7 @@ export const kit = loadoutFeature({
   reached, and only that tier. `standings` gives each set's `count`, `tier` (-1 for none) and `next` (the count the
   next tier needs, null at the last) for a screen to print. Sources of its contributions are `<id>:<item>` and
   `<id>:set:<set>`.
-- **`loadoutFeature({ key, slots, items, sets?, owns, reach?, reset? })`** saves `{ slotted }` under `key` with the actions
+- **`defineLoadout({ key, slots, items, sets?, owns, reach?, reset? })`** saves `{ slotted }` under `key` with the actions
   `equip(slot, item)` and `clear(slot)`, and carries the rules as `def.loadout` (`select` and `draft` are empty). `owns(state, item)` is the game's rule
   for what the player holds, read off its own slice and what `reach` names. A prestige reset keeps the slots unless `reset` says
   otherwise.
@@ -548,9 +548,9 @@ A bounded level that a rate fills or drains, and that trips at the top: the risk
 (heat, pressure, strain). A trip locks the gauge for a while and drops the level; what a lock means is the game's.
 
 ```ts
-import { gauge, gaugeLocked } from "watchpot/core";
+import { defineGauge, gaugeLocked } from "watchpot/core";
 
-export const boiler = gauge({
+export const boiler = defineGauge({
   key: "boiler",
   max: 100,
   trip: { lockMs: 60_000, dropTo: 0.25 },
@@ -567,7 +567,7 @@ export const boiler = gauge({
   trips }`. `nudgeGauge(state, amount, now, rules)` is the press kernel, with the same clamp, trip and lock.
 - **Readers:** `gaugeLocked(state, now)`, `gaugeFill(state, max)` (0 to 1) and `secondsToTrip(state, perSecond, max)`
   (null when it is not rising).
-- **`gauge({ key, max, trip?, rate, awayRate?, onTrip?, reset? })`** is the feature. Its step is `<key>.rates.level`,
+- **`defineGauge({ key, max, trip?, rate, awayRate?, onTrip?, reset? })`** is the feature. Its step is `<key>.rates.level`,
   ahead of `produce`, so an income step already sees a lock. `rate(state, { now })` applies on a tick;
   `awayRate(state, { now })` over a catch-up (default: drains at `max` per hour, so a player comes back to a cool
   gauge and an absence never trips it). `now` is game time (`CallbackContext`), so a buff or a lock can be read

@@ -1,10 +1,10 @@
-import { currencies, defineGame, stages } from "watchpot/core";
+import { defineCurrencies, defineGame, defineStages } from "watchpot/core";
 import { TOY } from "./vocab";
 
-const wallet = currencies({ key: "wallet", vocab: TOY });
+const wallet = defineCurrencies({ key: "wallet", vocab: TOY });
 
 /** Two roads: one that only ever gets harder, and a short one with a clock on every stage. */
-export const roads = stages({
+export const roads = defineStages({
   key: "roads",
   reach: [wallet],
   tracks: [

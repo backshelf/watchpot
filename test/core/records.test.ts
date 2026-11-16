@@ -1,8 +1,8 @@
 import { describe, expect, test } from "bun:test";
-import { D, defineGame, feature, records } from "watchpot/core";
+import { D, defineGame, defineRecords, feature } from "watchpot/core";
 import { freshStore, T0 } from "watchpot/test";
 
-const stats = records({
+const stats = defineRecords({
   key: "stats",
   keepRuns: 3,
   track: {

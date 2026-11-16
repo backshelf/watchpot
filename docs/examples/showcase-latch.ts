@@ -1,12 +1,12 @@
 import {
-  achievements,
   createGameStorage,
   createIdleStore,
   createMemoryBackend,
   type Decimal,
+  defineAchievements,
   defineGame,
+  definePrestige,
   powerGain,
-  prestige,
 } from "watchpot/core";
 import { wallet } from "./add-a-currency";
 import { TOY } from "./vocab";
@@ -17,7 +17,7 @@ type State = { wallet: { gold: Decimal }; rebirth: { runs: number } };
  * The doors of the game, as achievements nobody sees on a wall: each opens the first pass its condition holds and,
  * because an achievement is never un-earned, stays open after a reset wipes what opened it.
  */
-export const doors = achievements({
+export const doors = defineAchievements({
   key: "doors",
   columns: 2,
   list: [
@@ -31,7 +31,7 @@ export const isOpen = (s: { doors: { earned: Record<string, number> } }, id: str
   s.doors.earned[id] !== undefined;
 
 /** A reset that pays for the gold held and takes it all back. */
-export const rebirth = prestige({
+export const rebirth = definePrestige({
   key: "rebirth",
   action: "rebirth",
   reach: [wallet],

@@ -1,9 +1,9 @@
-import { defineGame, HOUR_MS, MINUTE_MS, market } from "watchpot/core";
+import { defineGame, defineMarket, HOUR_MS, MINUTE_MS } from "watchpot/core";
 import { wallet } from "./add-a-currency";
 import { TOY } from "./vocab";
 
 /** Two tickers priced in gold: a quick cheap one that pays a dividend, and a slow dear one that opens later. */
-export const exchange = market({
+export const exchange = defineMarket({
   key: "exchange",
   wallet,
   pays: "gold",

@@ -3,10 +3,10 @@ import {
   type CostCurve,
   costAt,
   costOfMany,
-  currencies,
   D,
+  defineCurrencies,
   defineGame,
-  generators,
+  defineGenerators,
   maxAffordable,
   oldestReadable,
   vocab,
@@ -61,8 +61,8 @@ describe("a rounded geometric curve", () => {
 
 describe("withMigrations", () => {
   const WORDS = vocab({ currencies: ["gold"], stats: [], rarities: ["plain"] } as const);
-  const wallet = currencies({ key: "wallet", vocab: WORDS });
-  const list = generators({
+  const wallet = defineCurrencies({ key: "wallet", vocab: WORDS });
+  const list = defineGenerators({
     key: "list",
     wallet,
     list: [{ id: "first", cost: FLOORED, pays: "gold", makes: "gold", rate: 1 }],

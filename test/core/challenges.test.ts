@@ -1,10 +1,18 @@
 import { describe, expect, test } from "bun:test";
-import { challenges, currencies, type Decimal, defineGame, type Effect, feature, vocab } from "watchpot/core";
+import {
+  type Decimal,
+  defineChallenges,
+  defineCurrencies,
+  defineGame,
+  type Effect,
+  feature,
+  vocab,
+} from "watchpot/core";
 import { freshStore, T0 } from "watchpot/test";
 import { totals } from "./fold";
 
 const WORDS = vocab({ currencies: ["gold"], stats: [], rarities: ["common"] } as const);
-const wallet = currencies({ key: "wallet", vocab: WORDS, start: { gold: 10 } });
+const wallet = defineCurrencies({ key: "wallet", vocab: WORDS, start: { gold: 10 } });
 const log = feature({
   key: "log",
   initial: () => ({ completed: [] as string[] }),
@@ -15,7 +23,7 @@ type State = {
   trials: { completions: Record<string, number> };
   log: { completed: string[] };
 };
-const trials = challenges({
+const trials = defineChallenges({
   key: "trials",
   list: [
     {
@@ -147,7 +155,7 @@ describe("challenges", () => {
   });
 
   test("`reach` types the callbacks: a reached feature reads, an unreached one does not", () => {
-    const reached = challenges({
+    const reached = defineChallenges({
       key: "quests",
       reach: () => [wallet, log],
       list: [
@@ -161,7 +169,7 @@ describe("challenges", () => {
         d.log.completed.push("q");
       },
     });
-    challenges({
+    defineChallenges({
       key: "bad",
       reach: [wallet],
       // @ts-expect-error log was not reached

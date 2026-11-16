@@ -1,7 +1,7 @@
 // What types `achievements`' callbacks: the state from an annotation or from `reach`, the effect from the list. The
 // checks are the compiler's: a wrong type fails `bun check`, and the runtime test only keeps the file in the suite.
 import { expect, test } from "bun:test";
-import { type AchievementsFeature, achievements, feature } from "watchpot/core";
+import { type AchievementsFeature, defineAchievements, feature } from "watchpot/core";
 
 type Reads = { sky: { stars: number } };
 
@@ -9,14 +9,14 @@ const sky = feature({ key: "sky", initial: () => ({ stars: 0 }) });
 const moon = feature({ key: "moon", initial: () => ({ phase: 0 }) });
 
 test("an annotated callback gives the state, and a wrong read fails", () => {
-  const wall = achievements({
+  const wall = defineAchievements({
     key: "wall",
     columns: 2,
     list: [{ id: "first", name: "First", line: "A star.", when: (s: Reads) => s.sky.stars > 0 }],
   });
   const typed: AchievementsFeature<"wall", Reads, never> = wall;
 
-  achievements({
+  defineAchievements({
     key: "bad",
     columns: 1,
     // @ts-expect-error the state is `Reads`, which has no `moon`
@@ -24,7 +24,7 @@ test("an annotated callback gives the state, and a wrong read fails", () => {
   });
 
   // Inferred: the state from the annotated callback, the effect from the list.
-  const inferred = achievements({
+  const inferred = defineAchievements({
     key: "inf",
     columns: 1,
     list: [
@@ -42,7 +42,7 @@ test("an annotated callback gives the state, and a wrong read fails", () => {
 });
 
 test("`reach` types the callbacks: a reached feature reads, an unreached one does not", () => {
-  const wall = achievements({
+  const wall = defineAchievements({
     key: "wall",
     reach: () => [sky],
     columns: 2,
@@ -53,7 +53,7 @@ test("`reach` types the callbacks: a reached feature reads, an unreached one doe
     },
   });
 
-  achievements({
+  defineAchievements({
     key: "bad",
     reach: [sky],
     columns: 1,
@@ -69,7 +69,7 @@ test("`reach` types the callbacks: a reached feature reads, an unreached one doe
   });
 
   // Its own slice is always there.
-  achievements({
+  defineAchievements({
     key: "own",
     columns: 1,
     list: [{ id: "z", name: "Z", line: "z", when: (s) => Object.keys(s.own.earned).length > 3 }],

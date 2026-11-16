@@ -5,18 +5,18 @@ writes each purchase (`run`, inside the tick's recipe, returning how many it bou
 switches, the schedule on game time and the count, and fires the due ones highest priority first.
 
 ```ts
-import { autobuyers, defineGame, generators } from "watchpot/core";
+import { defineAutobuyers, defineGame, defineGenerators } from "watchpot/core";
 import { wallet } from "./add-a-currency";
 import { TOY } from "./vocab";
 
-const stalls = generators({
+const stalls = defineGenerators({
   key: "stalls",
   wallet,
   list: [{ id: "stall", cost: { base: 10, growth: 1.15 }, pays: "gold", makes: "gold", rate: 1, free: 1 }],
 });
 
 /** Two autobuyers: one stall every few seconds once ten are owned, and a gem sink every tick. */
-export const auto = autobuyers({
+export const auto = defineAutobuyers({
   key: "auto",
   reach: [wallet, stalls], // what the callbacks read: typed with no annotation
   list: [
@@ -49,7 +49,7 @@ export const game = defineGame({
 // store.getState().auto.toggle("stall") · .setAll(false) · auto.select.nextInMs(state, "stall", now)
 ```
 
-- **`autobuyers({ key, reach?, list, reset? })`** saves `{ on, lastAt, bought }` under `key` and fires in one step,
+- **`defineAutobuyers({ key, reach?, list, reset? })`** saves `{ on, lastAt, bought }` under `key` and fires in one step,
   `<key>.automate.fire`, after production. An autobuyer fires when `unlocked(state)`, switched on (every one starts
   on) and due; `priority` orders a tick (higher first, ties in list order), so a scarce balance goes where the game
   says. A run reset keeps the switches (`{ keep: ["on"] }`) unless `reset` says otherwise.

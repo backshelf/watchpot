@@ -1,4 +1,4 @@
-import { defineGame, type Effect, feature, levels, type XpCurve } from "watchpot/core";
+import { defineGame, defineLevels, type Effect, feature, type XpCurve } from "watchpot/core";
 
 /** A minute for the first level, each after it half again as long. */
 const SLOW: XpCurve = { kind: "geometric", base: 60, growth: 1.5 };
@@ -6,7 +6,7 @@ const SLOW: XpCurve = { kind: "geometric", base: 60, growth: 1.5 };
 const DISHES = ["soup", "stew", "broth"] as const;
 
 /** One track per dish. Its XP is seconds: how long the dish has sat in the window. */
-export const fame = levels({
+export const fame = defineLevels({
   key: "fame",
   tracks: DISHES.map((id) => ({ id, curve: SLOW })),
   maxLevel: 10,

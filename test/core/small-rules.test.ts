@@ -1,20 +1,20 @@
 import { describe, expect, test } from "bun:test";
 import {
-  challenges,
-  currencies,
   D,
+  defineChallenges,
+  defineCurrencies,
   defineGame,
+  defineSpawns,
+  defineUpgradeTree,
   feature,
   type GraphNode,
   powerGain,
-  spawns,
-  upgradeTree,
   vocab,
 } from "watchpot/core";
 import { freshStore, T0 } from "watchpot/test";
 
 const WORDS = vocab({ currencies: ["gold"], stats: [], rarities: ["common"] } as const);
-const wallet = currencies({ key: "wallet", vocab: WORDS, start: { gold: 100 } });
+const wallet = defineCurrencies({ key: "wallet", vocab: WORDS, start: { gold: 100 } });
 
 describe("an upgrade tree with an open rule", () => {
   type State = { door: { open: boolean } };
@@ -30,7 +30,7 @@ describe("an upgrade tree with an open rule", () => {
       effects: [],
     },
   ];
-  const shop = upgradeTree({ key: "shop", nodes: NODES, wallet, open: (s: State) => s.door.open });
+  const shop = defineUpgradeTree({ key: "shop", nodes: NODES, wallet, open: (s: State) => s.door.open });
   const game = defineGame({
     id: "open",
     save: { key: "open.save", version: 1 },
@@ -60,7 +60,7 @@ describe("powerGain", () => {
 describe("challenges at a depth", () => {
   const shallow = feature({ key: "shallow", initial: () => ({ n: 0 }) });
   const deep = feature({ key: "deep", initial: () => ({ n: 0 }), reset: { depth: 2 } });
-  const trials = challenges({ key: "trials", depth: 2, list: [{ id: "t", goal: () => false }] });
+  const trials = defineChallenges({ key: "trials", depth: 2, list: [{ id: "t", goal: () => false }] });
   const game = defineGame({
     id: "depth",
     save: { key: "depth.save", version: 1 },
@@ -80,7 +80,7 @@ describe("challenges at a depth", () => {
 
 describe("a spawn taken inside a recipe", () => {
   const tally = feature({ key: "tally", initial: () => ({ caught: [] as string[] }) });
-  const birds = spawns({
+  const birds = defineSpawns({
     key: "birds",
     reach: [tally],
     kinds: [

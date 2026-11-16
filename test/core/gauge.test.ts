@@ -1,9 +1,9 @@
 import { describe, expect, test } from "bun:test";
 import {
   defineGame,
+  defineGauge,
   feature,
   type GaugeState,
-  gauge,
   gaugeFill,
   gaugeLocked,
   secondsToTrip,
@@ -69,7 +69,7 @@ describe("gauge feature", () => {
         }),
     }),
   });
-  const heat = gauge({
+  const heat = defineGauge({
     key: "heat",
     max: 100,
     trip: { lockMs: 30_000 },
@@ -132,7 +132,7 @@ describe("gauge feature", () => {
   });
 
   test("`reach` types the callbacks: a reached feature reads, an unreached one does not", () => {
-    const reached = gauge({
+    const reached = defineGauge({
       key: "steam",
       reach: () => [knob],
       max: 10,
@@ -141,7 +141,7 @@ describe("gauge feature", () => {
         d.knob.tripsSeen += 1;
       },
     });
-    gauge({
+    defineGauge({
       key: "bad",
       reach: [knob],
       max: 10,

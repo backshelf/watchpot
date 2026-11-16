@@ -5,7 +5,7 @@ import { type GraphNode, type NodeFailure } from "./graph/nodes";
 /**
  * Upgrade trees: ranks bought one at a time over `GraphNode`s, paid from a `Purse`, and every rank held as a
  * contribution (`{ source, effect }`) for the `stats` feature's `contributions`. `tree({ id, nodes })` is the pure
- * rules over a ranks record the game keeps wherever it saves it; `upgradeTree({ key, nodes, wallet })` is a feature
+ * rules over a ranks record the game keeps wherever it saves it; `defineUpgradeTree({ key, nodes, wallet })` is a feature
  * that owns its ranks and pays from a currencies feature: its `select` answers questions over state, its `def`
  * holds the nodes and the `tree` kernel, and its `draft` buys inside a recipe.
  */
@@ -176,7 +176,7 @@ export type UpgradeTreeFeature<K extends string, N extends GraphNode<unknown, st
  * auto-player works it out from its objective. State `worth(state, node)` for a node that does not move the
  * objective at once (an unlock, an offline cap), and it is used for every node (return a number for those that do).
  */
-export declare function upgradeTree<const K extends string, N extends GraphNode<unknown, string>, WK extends string, WS extends object, WA extends object, const R extends ReachShape = readonly [], G extends object = Record<K, TreeState> & Record<WK, WS> & ReachOf<R>>(def: {
+export declare function defineUpgradeTree<const K extends string, N extends GraphNode<unknown, string>, WK extends string, WS extends object, WA extends object, const R extends ReachShape = readonly [], G extends object = Record<K, TreeState> & Record<WK, WS> & ReachOf<R>>(def: {
     readonly key: K;
     /** The features `open` and `worth` read, as `feature`'s `reach`; the wallet is reached already. */
     readonly reach?: R | (() => R);

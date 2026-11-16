@@ -4,11 +4,11 @@ import {
   createIdleStore,
   createMemoryBackend,
   defineGame,
+  defineSettings,
   feature,
-  settings,
 } from "watchpot/core";
 
-const prefs = settings({
+const prefs = defineSettings({
   key: "prefs",
   initial: () => ({ sound: true, theme: "dusk" as "dusk" | "dawn" }),
 });

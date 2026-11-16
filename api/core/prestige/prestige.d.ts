@@ -216,7 +216,7 @@ export type PrestigeFeature<K extends string, N extends string, W extends string
  * `afterReset`. Throws at definition when `payInto` names a currency the wallet lacks or one the layer's own reset
  * would wipe, when `pace.past` is outside (0, 1], or when the game's steps take the `settle.pace` name.
  */
-export declare function prestige<const K extends string, X extends object = Record<never, never>, A extends object = Record<never, never>, const N extends string = "reset", W extends string = never, const R extends ReachShape = readonly [], G extends object = Record<K, PrestigeState<W, X> & PrestigePaceValues> & ReachOf<R>>(def: PrestigeDef<K, N, W, X, A, R, G>): PrestigeFeature<K, N, W, X, A, R, G>;
+export declare function definePrestige<const K extends string, X extends object = Record<never, never>, A extends object = Record<never, never>, const N extends string = "reset", W extends string = never, const R extends ReachShape = readonly [], G extends object = Record<K, PrestigeState<W, X> & PrestigePaceValues> & ReachOf<R>>(def: PrestigeDef<K, N, W, X, A, R, G>): PrestigeFeature<K, N, W, X, A, R, G>;
 /** The standing multiplier lifetime currency gives: `1 + k × lifetime ^ exp`. Exactly 1 with nothing earned. */
 export declare function lifetimeMultiplier(lifetime: Decimal, t: {
     k: number;

@@ -103,4 +103,4 @@ export declare function catalogueRoll<R extends string, T extends {
     readonly rarity: R;
 }>(catalogue: readonly T[]): GachaRoll<R, string, T>;
 /** Declares a gacha. Its rng stream is seeded from the profile's first draws and its key, so a seeded store replays it. */
-export declare function gacha<const K extends string, R extends string, B extends string, P = R>(def: GachaDef<K, R, B, P>): GachaFeature<K, R, B, P>;
+export declare function defineGacha<const K extends string, R extends string, B extends string, P = R>(def: GachaDef<K, R, B, P>): GachaFeature<K, R, B, P>;

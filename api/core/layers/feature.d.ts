@@ -60,4 +60,4 @@ export type LayersFeature<K extends string, L extends string, S extends string, 
  * highest first), taken when a static layer is not `auto:` (or is switched to manual), or when a normal layer is not
  * established yet or would pay at least what it holds. Challenges are never entered.
  */
-export declare function layers<const K extends string, L extends string, S extends string, const B extends string>(def: LayersDef<K, L, S, B>): LayersFeature<K, L, S, B>;
+export declare function defineLayers<const K extends string, L extends string, S extends string, const B extends string>(def: LayersDef<K, L, S, B>): LayersFeature<K, L, S, B>;

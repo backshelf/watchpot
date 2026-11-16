@@ -6,9 +6,9 @@ player's own calendar days, found by the calendar (`dayKey`, `previousDayKey`, `
 two days in a row. The kernel is pure over the state and the `now` it is handed.
 
 ```ts
-import { streak } from "watchpot/core";
+import { defineStreak } from "watchpot/core";
 
-export const daily = streak({
+export const daily = defineStreak({
   key: "daily",
   rewards: (day) => (day % 7 === 0 ? { gold: 0, gems: 5 } : { gold: 100 * (day % 7), gems: 0 }),
   onClaim: (draft: State, reward) => {
@@ -31,7 +31,7 @@ Example: [`examples/streak.ts`](examples/streak.ts).
   (a clock set back) blocks claiming until that day and breaks nothing.
 - **`claimStreak(state, now, { grace?, keep? })`** → `{ state, day, kept }`, or null when today is claimed: the run
   goes up by one, or starts again at 1 when broken, unless `keep(missed)` returns true.
-- **`streak({ key, reach?, rewards, onClaim?, grace?, keep?, reset? })`** saves `StreakState` and has one action, `claim()`,
+- **`defineStreak({ key, reach?, rewards, onClaim?, grace?, keep?, reset? })`** saves `StreakState` and has one action, `claim()`,
   which returns `{ day, reward, kept }` (the reward `rewards(day)` for the day of the run claimed) and runs
   `onClaim(draft, reward, day, now)` in the same recipe; `keep(draft, missed)` may charge in that recipe to save a run.
   `daily.select.status(state, now)` reads the status with the feature's grace; `daily.def` is `{ grace, rewards }`; `draft` is empty. No steps; `reset` defaults to `"never"`.

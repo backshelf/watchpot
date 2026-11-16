@@ -6,9 +6,9 @@ game time, so a buff runs out during an absence too, and the income step of that
 covered.
 
 ```ts
-import { buffs, type Effect, feature, defineStats } from "watchpot/core";
+import { defineBuffs, type Effect, feature, defineStats } from "watchpot/core";
 
-export const boosts = buffs<"boosts", Effect<"speed">>({
+export const boosts = defineBuffs<"boosts", Effect<"speed">>({
   key: "boosts",
   list: [
     { id: "rush", durationMs: 77_000, stack: "refresh", effects: () => [{ stat: "speed", mul: 7 }] },
@@ -58,7 +58,7 @@ Example: [`examples/buffs.ts`](examples/buffs.ts).
 - **Readers** over a `BuffsState`: `buffActive`, `buffLeftMs`, `buffStacks` (each at `now`) and `overlapMs(state, id,
   from, to)`, the part of the stretch the buff's window (running or ended) covered. The feature has the same four
   state-first over the whole game, under `select`.
-- **`buffs({ key, list, onEnd?, reach?, reset? })`** saves `BuffsState`; `BuffDef<E>` adds an optional
+- **`defineBuffs({ key, list, onEnd?, reach?, reset? })`** saves `BuffsState`; `BuffDef<E>` adds an optional
   `effects(stacks, strength)` to the rule. Its step `<key>.sync.expire` runs before `rates` and `produce`;
   `onEnd(draft, id, now)` runs for each buff it ends, and sees the buffs' own slice and what `reach` names. Actions
   `start(id, { durationMs?, strength? })` (false for an unknown id or an ignored start) and `end(id)`. Beside them

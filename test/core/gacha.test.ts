@@ -4,12 +4,12 @@ import {
   createGameStorage,
   createIdleStore,
   createMemoryBackend,
+  defineGacha,
   defineGame,
   drawMany,
   drawRarity,
   feature,
   freshPity,
-  gacha,
   ladder,
   type OddsTable,
   type PityRule,
@@ -141,7 +141,7 @@ describe("drawMany", () => {
 });
 
 /** A toy gacha: two boxes over the stones, gems that pay for the shiny box. */
-const bag = gacha({
+const bag = defineGacha({
   key: "bag",
   ladder: STONES,
   odds: { plain: ODDS, shiny: { pebble: 0, quartz: 60, opal: 30, ruby: 8, star: 2 } },
@@ -183,7 +183,7 @@ describe("gacha()", () => {
   test("refuses a vocabulary with no rarities at definition", () => {
     const bare = vocab({ currencies: ["gold"] });
     expect(() =>
-      gacha({ key: "empty", ladder: bare.rarities, odds: { box: {} }, pity: { box: [] } }),
+      defineGacha({ key: "empty", ladder: bare.rarities, odds: { box: {} }, pity: { box: [] } }),
     ).toThrow(/gacha "empty": its ladder has no rungs/);
   });
 

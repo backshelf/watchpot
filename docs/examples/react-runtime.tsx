@@ -3,10 +3,10 @@ import {
   createIdleStore,
   createMemoryBackend,
   defineGame,
+  defineSettings,
   feature,
   fmt,
   localStorageBackend,
-  settings,
   ZERO,
 } from "watchpot/core";
 import { DevPanel } from "watchpot/devtools";
@@ -55,7 +55,7 @@ export const pot = feature({
 /** The runtime options' own types, so the settings hand straight to `usePageRuntime`. */
 type Look = Required<Pick<PageRuntimeOptions, "motion" | "scheme">>;
 
-export const choices = settings({
+export const choices = defineSettings({
   key: "settings",
   initial: (): Look => ({ motion: "system", scheme: "system" }),
 });

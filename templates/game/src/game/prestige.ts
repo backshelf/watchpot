@@ -1,5 +1,5 @@
 // @feature prestige
-import { type Decimal, powerGain, prestige } from "watchpot/core";
+import { type Decimal, powerGain, definePrestige } from "watchpot/core";
 import { GAIN } from "../content/prestige";
 import { stats } from "./stats";
 import { wallet } from "./wallet";
@@ -19,7 +19,7 @@ export const prestigeGain = (s: GainReads) => powerGain(s.wallet.earned, { ...GA
  * the premium and the achievements stay). Each unit held raises output for good. Its slice also says when a run is
  * past its best (`s.prestige.pastPeak`), for a light on the page.
  */
-export const ascension = prestige({
+export const ascension = definePrestige({
   key: "prestige",
   action: "ascend",
   reach: [wallet, stats],

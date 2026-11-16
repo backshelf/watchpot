@@ -7,7 +7,7 @@ import {
   feature,
   HOUR_MS,
   type InitialReason,
-  prestige as prestigeLayer,
+  definePrestige as prestigeLayer,
   ZERO,
 } from "watchpot/core";
 import { generator, prestige, T0, toyStore, wallet } from "./toy";

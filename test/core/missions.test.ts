@@ -1,14 +1,14 @@
 import { describe, expect, test } from "bun:test";
 import {
-  currencies,
   D,
   type Decimal,
+  defineCurrencies,
   defineGame,
+  defineMissions,
   HOUR_MS,
   MINUTE_MS,
   missionLeftMs,
   missionReady,
-  missions,
   nextInt,
   vocab,
 } from "watchpot/core";
@@ -25,10 +25,10 @@ describe("missionLeftMs and missionReady", () => {
 });
 
 const WORDS = vocab({ currencies: ["gold", "gems"], stats: [], rarities: ["common"] } as const);
-const wallet = currencies({ key: "wallet", vocab: WORDS, start: { gold: 100 } });
+const wallet = defineCurrencies({ key: "wallet", vocab: WORDS, start: { gold: 100 } });
 type State = { wallet: { gold: Decimal; gems: Decimal } };
 type Price = { gold: number };
-const trips = missions({
+const trips = defineMissions({
   key: "trips",
   slots: (s: State) => (s.wallet.gems.gte(10) ? 3 : 2),
   list: [
@@ -146,7 +146,7 @@ describe("missions namespaces and reach", () => {
   });
 
   test("`reach` types the callbacks: a reached feature reads, an unreached one does not", () => {
-    const reached = missions({
+    const reached = defineMissions({
       key: "errands",
       reach: () => [wallet],
       slots: (s) => (s.wallet.gems.gte(1) ? 2 : 1),
@@ -160,7 +160,7 @@ describe("missions namespaces and reach", () => {
       ],
       onClaim: (d) => wallet.draft.credit(d, "gems", 1),
     });
-    missions({
+    defineMissions({
       key: "bad",
       reach: [wallet],
       // @ts-expect-error nothing reached a "moon"

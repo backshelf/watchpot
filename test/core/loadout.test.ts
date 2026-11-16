@@ -1,13 +1,13 @@
 import { describe, expect, test } from "bun:test";
 import {
   defineGame,
+  defineLoadout,
   type Effect,
   feature,
   fillLoadout,
   type LoadoutItem,
   type LoadoutSet,
   loadout,
-  loadoutFeature,
 } from "watchpot/core";
 import { freshStore } from "watchpot/test";
 import { totals } from "./fold";
@@ -72,7 +72,7 @@ describe("loadoutFeature", () => {
     key: "bag",
     initial: () => ({ held: ["cap", "mitt"] as string[] }),
   });
-  const kit = loadoutFeature({
+  const kit = defineLoadout({
     key: "kit",
     reach: [bag],
     slots: SLOTS,
@@ -103,7 +103,7 @@ describe("loadoutFeature", () => {
 
   test("`owns` reads a reached feature; one it does not reach is a type error", () => {
     const other = feature({ key: "other", initial: () => ({ m: 0 }) });
-    const peek = loadoutFeature({
+    const peek = defineLoadout({
       key: "peek",
       reach: [bag],
       slots: SLOTS,

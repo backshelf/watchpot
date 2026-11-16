@@ -1,5 +1,5 @@
 // @feature generators
-import { type GeneratorDef as Generator, generators } from "watchpot/core";
+import { type GeneratorDef as Generator, defineGenerators } from "watchpot/core";
 import { OFFLINE_CAP_MS } from "../content/economy";
 import { GENERATORS, type GeneratorDef } from "../content/generators";
 import { type Currency, MAIN } from "../content/words";
@@ -16,7 +16,7 @@ interface Reads {
  * first one owned from the start of every run. `output` multiplies them all; away, they pay the `offline` share for
  * at most `OFFLINE_CAP_MS`. Buy with `buy(id, count)` and `buyMax(id)`; read prices and rates off `producers.select`.
  */
-export const producers = generators({
+export const producers = defineGenerators({
   key: "generators",
   wallet,
   list: GENERATORS.map(

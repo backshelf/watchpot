@@ -1,4 +1,4 @@
-import { type GaugeState, gauge, gaugeFill, type SpawnsState, spawns } from "watchpot/core";
+import { defineGauge, defineSpawns, type GaugeState, gaugeFill, type SpawnsState } from "watchpot/core";
 import { compose, GLOW, ShaderCanvas, UV, uniformDecls } from "watchpot/shader";
 
 /** The state the gauge reads: its own level and a dial the player turns, 0 to 100. */
@@ -8,14 +8,14 @@ type Stove = { warmth: GaugeState; dial: { setting: number } };
  * A gauge with no trip, used as a thermostat: each second it closes half the gap to the dial's setting, so it eases
  * up or down to wherever the player set it and holds there.
  */
-export const warmth = gauge({
+export const warmth = defineGauge({
   key: "warmth",
   max: 100,
   rate: (s: Stove) => (s.dial.setting - s.warmth.level) * 0.5,
 });
 
 /** Something that turns up every few minutes and lingers eight seconds. */
-export const drips = spawns({
+export const drips = defineSpawns({
   key: "drips",
   kinds: [
     {

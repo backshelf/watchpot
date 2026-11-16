@@ -207,7 +207,7 @@ type Station = GeneratorDef<Currency> & StationDef & { n: number; rate: number }
  * The stations, on the engine's `generators`: each makes labels a second and doubles at its milestones; the floor
  * triples each time every station reaches a full shift. ...
  */
-export const stations = generators({
+export const stations = defineGenerators({
   key: "stations",
   wallet,
   list: STATIONS.map(
@@ -277,7 +277,7 @@ export function shop<const K extends string>(key: K, def: Shop) {
   SHOP_LIST.push({ key, area: def.area });
   const nodes = def.items.map((it) => nodeOf(def, it));
   type MoveState = Reads & Record<K, TreeState & TreeActions<Currency>>;
-  const tree = upgradeTree({
+  const tree = defineUpgradeTree({
     key,
     nodes,
     wallet,
@@ -526,7 +526,7 @@ You have now been through every layer once. When you open a game you have not se
 
 - **A word, a name, a line of flavour?** `src/content/`. In this game every word on the page comes from there, down to the button labels in `copy.ts`.
 - **A number: a rate, a base price, a multiplier on an item?** `src/content/` too. If a price is missing from the content, look for a fitted table beside it (here `gates.ts` and `fit.ts`) and the sim that writes it.
-- **A rule: how something pays, when it opens, what a button does?** `src/game/`. Search that folder for the engine factory you expect (`generators(`, `upgradeTree(`, `prestige(`, `achievements(`); the feature's `key` is the name its state has in the store.
+- **A rule: how something pays, when it opens, what a button does?** `src/game/`. Search that folder for the engine factory you expect (`defineGenerators(`, `defineUpgradeTree(`, `definePrestige(`, `defineAchievements(`); the feature's `key` is the name its state has in the store.
 - **Why a number is the size it is?** The stat bus: `src/game/bus.ts` and the `stats` feature, then whatever rule reads the stat.
 - **What is on screen?** `src/app/screens.tsx` maps each page to its screen in `src/screens/`.
 - **How it looks?** The component in `src/ui/` and its `.module.css`, then the theme tokens.

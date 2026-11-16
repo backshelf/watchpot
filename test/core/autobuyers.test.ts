@@ -1,8 +1,8 @@
 import { describe, expect, test } from "bun:test";
 import {
-  autobuyers,
-  currencies,
   type Decimal,
+  defineAutobuyers,
+  defineCurrencies,
   defineGame,
   everyMs,
   feature,
@@ -39,7 +39,7 @@ describe("everyMs", () => {
 });
 
 const WORDS = vocab({ currencies: ["gold"], stats: [], rarities: ["common"] } as const);
-const wallet = currencies({ key: "wallet", vocab: WORDS, start: { gold: 10 } });
+const wallet = defineCurrencies({ key: "wallet", vocab: WORDS, start: { gold: 10 } });
 const shop = feature({
   key: "shop",
   initial: () => ({ carts: 0, mills: 0, unlocked: true }),
@@ -56,7 +56,7 @@ const buyOne = (d: State, item: "carts" | "mills", price: number): number => {
   d.shop[item] += 1;
   return 1;
 };
-const auto = autobuyers({
+const auto = defineAutobuyers({
   key: "auto",
   list: [
     {
@@ -148,7 +148,7 @@ describe("autobuyers", () => {
       lastAt: Record<string, number>;
       bought: Record<string, number>;
     };
-    const swap = autobuyers({
+    const swap = defineAutobuyers({
       key: "swap",
       list: [
         {
@@ -173,7 +173,7 @@ describe("autobuyers", () => {
 describe("reach", () => {
   test("a callback reads a reached feature with no annotation, and not one that was not reached", () => {
     const door = feature({ key: "door", initial: () => ({ open: true }) });
-    const gated = autobuyers({
+    const gated = defineAutobuyers({
       key: "gated",
       reach: [wallet, door],
       list: [

@@ -3,17 +3,17 @@ import {
   createGameStorage,
   createIdleStore,
   createMemoryBackend,
-  currencies,
   D,
   type Decimal,
+  defineCurrencies,
   defineGame,
+  defineUpgradeTree,
   type Effect,
   feature,
   type GraphNode,
   type Purse,
   tree,
   treeMoves,
-  upgradeTree,
   vocab,
   withMoves,
 } from "watchpot/core";
@@ -216,8 +216,8 @@ describe("tree", () => {
 });
 
 describe("upgradeTree", () => {
-  const wallet = currencies({ key: "wallet", vocab: TOY, start: { gold: 12 } });
-  const mine = upgradeTree({ key: "mine", nodes: NODES, wallet });
+  const wallet = defineCurrencies({ key: "wallet", vocab: TOY, start: { gold: 12 } });
+  const mine = defineUpgradeTree({ key: "mine", nodes: NODES, wallet });
   const game = defineGame({
     id: "toy",
     save: { key: "toy.save", version: 1 },
@@ -245,7 +245,7 @@ describe("upgradeTree", () => {
     store.getState().wallet.credit("gold", 100); // 112: ranks of 10, 20 and 40 cost 70, and the last rank is 3
     expect(store.getState().mine.buyMax("drill")).toBe(3);
     expect(store.getState().wallet.gold.eq(42)).toBe(true);
-    const shut = upgradeTree({ key: "mine", nodes: NODES, wallet, open: () => false });
+    const shut = defineUpgradeTree({ key: "mine", nodes: NODES, wallet, open: () => false });
     const closed = createIdleStore(
       defineGame({ id: "toy", save: { key: "toy.save", version: 1 }, features: [wallet, shut], vocab: TOY }),
       { storage: createGameStorage(createMemoryBackend(), { debounceMs: 0 }), now: () => T0 },
@@ -255,7 +255,7 @@ describe("upgradeTree", () => {
   });
 
   test("its readers answer as its actions do: a closed node is neither offered nor bought", () => {
-    const gated = upgradeTree({
+    const gated = defineUpgradeTree({
       key: "mine",
       nodes: NODES,
       wallet,
@@ -298,8 +298,8 @@ describe("upgradeTree moves", () => {
   const storage = () => createGameStorage(createMemoryBackend(), { debounceMs: 0 });
 
   test("it declares one move per buyable node, with a cost and no worth, and the auto-player works it out", () => {
-    const wallet = currencies({ key: "wallet", vocab: TOY, start: { gold: 40, gems: 3 } });
-    const mine = upgradeTree({ key: "mine", nodes: NODES, wallet });
+    const wallet = defineCurrencies({ key: "wallet", vocab: TOY, start: { gold: 40, gems: 3 } });
+    const mine = defineUpgradeTree({ key: "mine", nodes: NODES, wallet });
     const game = defineGame({
       id: "moves",
       save: { key: "moves", version: 1 },
@@ -323,8 +323,8 @@ describe("upgradeTree moves", () => {
   });
 
   test("a stated worth stands in for a node that does not move the objective, and a closed node has no move", () => {
-    const wallet = currencies({ key: "wallet", vocab: TOY, start: { gold: 40, gems: 3 } });
-    const mine = upgradeTree({
+    const wallet = defineCurrencies({ key: "wallet", vocab: TOY, start: { gold: 40, gems: 3 } });
+    const mine = defineUpgradeTree({
       key: "mine",
       nodes: NODES,
       wallet,
@@ -350,9 +350,9 @@ describe("upgradeTree moves", () => {
 
 describe("treeMoves", () => {
   test("serves a hand-written feature that keeps ranks: one move per buyable node, the worth only if given", () => {
-    const wallet = currencies({ key: "wallet", vocab: TOY, start: { gold: 40, gems: 3 } });
+    const wallet = defineCurrencies({ key: "wallet", vocab: TOY, start: { gold: 40, gems: 3 } });
     const mine = withMoves(
-      upgradeTree({ key: "mine", nodes: NODES, wallet }),
+      defineUpgradeTree({ key: "mine", nodes: NODES, wallet }),
       treeMoves("mine", NODES, (_s, node) => (node.id === "drill" ? 2 : 1)),
     );
     const game = defineGame({
@@ -382,9 +382,9 @@ describe("treeMoves", () => {
 
 describe("upgradeTree reach", () => {
   test("a callback reads a reached feature with no annotation, and not one that was not reached", () => {
-    const wallet = currencies({ key: "wallet", vocab: TOY });
+    const wallet = defineCurrencies({ key: "wallet", vocab: TOY });
     const door = feature({ key: "door", initial: () => ({ open: true }) });
-    const gated = upgradeTree({
+    const gated = defineUpgradeTree({
       key: "gated",
       nodes: NODES,
       wallet,
@@ -402,8 +402,8 @@ describe("upgradeTree reach", () => {
 });
 
 describe("upgradeTree draft helpers and select", () => {
-  const wallet = currencies({ key: "wallet", vocab: TOY, start: { gold: 100, gems: 5 } });
-  const mine = upgradeTree({ key: "mine", nodes: NODES, wallet });
+  const wallet = defineCurrencies({ key: "wallet", vocab: TOY, start: { gold: 100, gems: 5 } });
+  const mine = defineUpgradeTree({ key: "mine", nodes: NODES, wallet });
   const game = defineGame({
     id: "toy",
     save: { key: "toy.save", version: 1 },

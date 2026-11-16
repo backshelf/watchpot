@@ -17,7 +17,7 @@ Example: [`examples/board.ts`](examples/board.ts).
   `contributions` (sourced `<id>:<piece>@<x>,<y>`) and `settle` (the cells with whatever the limits no longer allow
   taken up). Every call takes `BoardLimits`: `open(x, y)` for which cells are unlocked and `held(piece)` for how many
   the player has.
-- **`boardFeature({ key, width, height, pieces, held?, open?, reach?, reset? })`** saves `{ cells }` with the actions `place`,
+- **`defineBoard({ key, width, height, pieces, held?, open?, reach?, reset? })`** saves `{ cells }` with the actions `place`,
   `lift`, `move`, `clear` and `lay(cells)` (a whole layout at once: a preset, an auto-arrange), and carries the rules
   as `def.board`, with `select.limits(s)` (the `BoardLimits` the game gives) and `select.contributions(s)` (every effect
   on the board; `draft` is empty, the actions are the changes). `held(state, piece)` and `open(state, x, y)` read the

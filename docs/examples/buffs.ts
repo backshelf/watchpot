@@ -1,8 +1,8 @@
-import { buffs, defineGame, defineStats, type Effect, feature, vocab } from "watchpot/core";
+import { defineBuffs, defineGame, defineStats, type Effect, feature, vocab } from "watchpot/core";
 
 const WORDS = vocab({ currencies: ["gold"], stats: ["speed"] });
 
-export const boosts = buffs<"boosts", Effect<"speed">>({
+export const boosts = defineBuffs<"boosts", Effect<"speed">>({
   key: "boosts",
   list: [
     { id: "rush", durationMs: 77_000, stack: "refresh", effects: () => [{ stat: "speed", mul: 7 }] },

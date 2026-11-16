@@ -14,8 +14,8 @@ import {
   createGameStorage,
   createIdleStore,
   createMemoryBackend,
-  currencies,
   D,
+  defineCurrencies,
   defineGame,
   type FeatureSpec,
   feature,
@@ -55,7 +55,7 @@ export const WORDS = vocab({ currencies: ["bubbles"], stats: ["heat"] });
 export type Currency = CurrencyOf<typeof WORDS>; // "bubbles"
 
 /** The wallet: a balance per currency, and `earned`, every bubble credited since the last reset. */
-export const wallet = currencies({
+export const wallet = defineCurrencies({
   key: "wallet",
   vocab: WORDS,
   earnedThisRun: { bubbles: "earned" },

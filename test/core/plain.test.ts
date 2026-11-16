@@ -1,5 +1,13 @@
 import { describe, expect, test } from "bun:test";
-import { createPlainStore, currencies, D, defineGame, feature, generators, vocab } from "watchpot/core";
+import {
+  createPlainStore,
+  D,
+  defineCurrencies,
+  defineGame,
+  defineGenerators,
+  feature,
+  vocab,
+} from "watchpot/core";
 import { autoPlayer } from "watchpot/sim";
 import { plainParity } from "watchpot/test";
 
@@ -8,8 +16,8 @@ const save = { key: "plain.save", version: 1 } as const;
 
 const SHARED: readonly string[] = [];
 
-const wallet = currencies({ key: "wallet", vocab: WORDS, start: { bubbles: 15 } });
-const kettles = generators({
+const wallet = defineCurrencies({ key: "wallet", vocab: WORDS, start: { bubbles: 15 } });
+const kettles = defineGenerators({
   key: "kettles",
   wallet,
   list: [

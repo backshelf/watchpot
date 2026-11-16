@@ -2,17 +2,17 @@
 // every rule in it is an engine system: `currencies`, `generators`, `prestige`, the store, the clock, the save.
 // The same definition is played by the visitor (or the auto-player) above and by the sim lab further down.
 import {
-  currencies,
   D,
   type Decimal,
+  defineCurrencies,
   defineGame,
+  defineGenerators,
+  definePrestige,
   feature,
-  generators,
   HOUR_MS,
   lifetimeMultiplier,
   type Move,
   powerGain,
-  prestige,
   type StateOf,
   vocab,
   withMoves,
@@ -22,7 +22,7 @@ import {
 export const WORDS = vocab({ currencies: ["steam"], stats: [], rarities: ["plain"] } as const);
 
 /** Steam, and a total of all of it boiled this run (what the valve reads). */
-export const wallet = currencies({ key: "wallet", vocab: WORDS, earnedThisRun: { steam: "boiled" } });
+export const wallet = defineCurrencies({ key: "wallet", vocab: WORDS, earnedThisRun: { steam: "boiled" } });
 
 /** What venting has earned so far multiplies everything under the pot. */
 export const pressureBonus = (lifetime: Decimal, k = 0.25) => lifetimeMultiplier(lifetime, { k, exp: 0.9 });
@@ -72,7 +72,7 @@ export interface Tuning {
 }
 
 function build({ pressure = 0.25 }: Tuning = {}) {
-  const heat = generators({
+  const heat = defineGenerators({
     key: "heat",
     wallet,
     list: HEAT.map((g) => ({
@@ -103,7 +103,7 @@ function build({ pressure = 0.25 }: Tuning = {}) {
     }),
   });
 
-  const valveBase = prestige({
+  const valveBase = definePrestige({
     key: "valve",
     action: "vent",
     reach: [wallet],

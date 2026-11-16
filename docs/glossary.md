@@ -244,7 +244,7 @@ the top. Taught in [chapter 6](guide/06-the-first-page.md#the-meter-gauge). Refe
 
 The building every idle game has: bought with a currency, at a price that grows with each one owned, and making a
 currency every second. Simmer's is the burner. Taught by hand in
-[chapter 2](guide/02-your-first-game.md#step-6-a-burner-you-can-buy) and on the `generators` factory in
+[chapter 2](guide/02-your-first-game.md#step-6-a-burner-you-can-buy) and on the `defineGenerators` factory in
 [chapter 6](guide/06-the-first-page.md#the-generators-generators). Reference: [generators](generators.md),
 [add a generator](add-a-generator.md).
 

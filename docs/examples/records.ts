@@ -1,6 +1,6 @@
-import { defineGame, feature, fmtPlayed, type RecordsState, records } from "watchpot/core";
+import { defineGame, defineRecords, feature, fmtPlayed, type RecordsState } from "watchpot/core";
 
-export const stats = records({
+export const stats = defineRecords({
   key: "stats",
   track: {
     presses: { kind: "sum", scope: ["run", "life"] },

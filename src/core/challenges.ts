@@ -105,7 +105,7 @@ export type ChallengesFeature<K extends string, G, E> = Feature<K, ChallengesSta
  * `select`: `check`, `maxed`, `rule` (is a rule flag in force: the restriction a buy or a rate checks),
  * `contributions`. `def`: `list`, `challenge(id)`. `draft`: empty.
  */
-export function challenges<
+export function defineChallenges<
   const K extends string,
   E = never,
   const R extends ReachShape = readonly [],

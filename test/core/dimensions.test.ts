@@ -1,11 +1,11 @@
 import { describe, expect, test } from "bun:test";
 import {
   advanceChain,
-  currencies,
   D,
   type Decimal,
+  defineCurrencies,
+  defineDimensions,
   defineGame,
-  dimensions,
   feature,
   HOUR_MS,
   vocab,
@@ -51,9 +51,9 @@ describe("advanceChain", () => {
 });
 
 const WORDS = vocab({ currencies: ["gold", "gems"], stats: [], rarities: ["plain"] } as const);
-const wallet = currencies({ key: "wallet", vocab: WORDS, start: { gold: 10 } });
+const wallet = defineCurrencies({ key: "wallet", vocab: WORDS, start: { gold: 10 } });
 type State = { wallet: { gold: Decimal }; chain: { bought: Record<string, number> } };
-const chain = dimensions({
+const chain = defineDimensions({
   key: "chain",
   wallet,
   makes: "gold",
@@ -203,7 +203,7 @@ describe("dimensions", () => {
 
   test("a repeated tier id throws", () => {
     expect(() =>
-      dimensions({
+      defineDimensions({
         key: "twice",
         wallet,
         makes: "gold",
@@ -231,7 +231,7 @@ describe("dimensions", () => {
 describe("reach", () => {
   test("a callback reads a reached feature with no annotation, and not one that was not reached", () => {
     const door = feature({ key: "door", initial: () => ({ open: true }) });
-    const gated = dimensions({
+    const gated = defineDimensions({
       key: "gated",
       wallet,
       makes: "gold",

@@ -93,7 +93,7 @@ the whole of "what counts as news" in one file, beside the content it names.
 - **Tools.** `spare(kind, ms)` is yes at most once per window per kind (a machine's win, now and then);
   `best(kind, value)` is the best it beat when the value beats the best seen since the start or the last jump, else
   undefined (the first sighting only sets it; Decimals, so a best past 1e308 compares, and a beaten 0 is still
-  truthy), for "up from the old best"; `streak(kind, windowMs)` is 0, then one more each time the
+  truthy), for "up from the old best"; `defineStreak(kind, windowMs)` is 0, then one more each time the
   kind comes back within the window (a sound climbing a ladder through a quick run of buys).
 - **Reads.** `crossedMark(marks, before, after)` is the highest mark the change crossed (a milestone, a release at a
   count of runs), undefined for none; `newKeys(before, after)` the ids that appeared in a record (a first).

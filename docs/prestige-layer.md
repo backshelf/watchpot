@@ -1,6 +1,6 @@
 # A prestige layer
 
-`prestige({ key, gain })` is a feature factory for a layer above the run. It owns `runs`, `lifetime` (every unit it has
+`definePrestige({ key, gain })` is a feature factory for a layer above the run. It owns `runs`, `lifetime` (every unit it has
 paid while its own state lasts), `runStart` and the run's best reset pace, holds its currency (or pays it into a wallet
 with `payInto`), and has one action that pays the gain and calls the store's `resetRun`.
 
@@ -15,7 +15,7 @@ Example: [`examples/prestige-layer.ts`](examples/prestige-layer.ts) (`bun docs/e
   is reset, so the wallet's totals count it) and the slice has no `currency` field: one ledger. The wallet must keep
   that currency through the layer's own reset (`depth: { shards: "never" }`, or deeper than the layer); the factory
   throws otherwise. `layer.select.held(state)` reads what is held, either way.
-- **A layer above a layer.** `prestige({ depth: 2 })` resets deeper: it also resets every feature whose rule says
+- **A layer above a layer.** `definePrestige({ depth: 2 })` resets deeper: it also resets every feature whose rule says
   `{ depth: 2 }` (or `{ depth: 2, rule }`), which an ordinary reset leaves alone. The lower layer itself takes
   `reset: { depth: 2 }` so the higher layer starts its currency and its count over; a function rule reads
   `ctx.depth` to keep less the deeper the reset.

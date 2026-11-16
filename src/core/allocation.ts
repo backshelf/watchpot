@@ -21,7 +21,7 @@ import {
  *
  * `assignUnits`, `freeUnits`, `allocatedUnits` and `rebalanceUnits` are the pure rules over an assigned record (the
  * `Units` suffix marks the kernel; the feature's action of the same stem, `assign(id, n)`, is `assignUnits` over its
- * own record, pool and caps); `allocation({ key, pool, sinks })` is the feature. When the pool shrinks, what no longer
+ * own record, pool and caps); `defineAllocation({ key, pool, sinks })` is the feature. When the pool shrinks, what no longer
  * fits is taken back from the most recently assigned sink first.
  */
 
@@ -192,7 +192,7 @@ export type AllocationFeature<K extends string, G, E> = Feature<K, AllocationSta
  * levels in one step when the work covers them. A run reset clears it unless `reset` says otherwise. The callbacks
  * read the whole game state (the feature's own slice and what `reach` names), typed with no annotation.
  */
-export function allocation<
+export function defineAllocation<
   const K extends string,
   E = never,
   const R extends ReachShape = readonly [],

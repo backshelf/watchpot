@@ -1,11 +1,11 @@
-import { clicker, clickShare, currencies, type Decimal, defineGame, fmt } from "watchpot/core";
+import { clickShare, type Decimal, defineClicker, defineCurrencies, defineGame, fmt } from "watchpot/core";
 import { TOY } from "./vocab";
 
 type State = { wallet: { gold: Decimal; gems: Decimal }; mine: { perSecond: Decimal } };
 
-const wallet = currencies({ key: "wallet", vocab: TOY });
+const wallet = defineCurrencies({ key: "wallet", vocab: TOY });
 
-export const tap = clicker({
+export const tap = defineClicker({
   key: "tap",
   wallet,
   currency: "gold",

@@ -23,7 +23,7 @@ in the first hour), the reference game in `examples/orbital-orchard`, and small 
 **The use:** an [autobuyer](glossary.md#autobuyer) that never buys anything; it takes the
 [prestige](glossary.md#prestige) for the player once the run has passed its best.
 
-**Why it works.** The `autobuyers` factory owns three things: the player's on/off switches, the schedule, and a count.
+**Why it works.** The `defineAutobuyers` factory owns three things: the player's on/off switches, the schedule, and a count.
 It does not know what "buying" is. Each autobuyer's `run` is any change to the draft that returns a number, and the
 feature only adds that number to its count. Separately, every `prestige` carries the reset as a draft helper, under the
 action's name (`rebirth.draft.rebirth`), which runs the same reset as the button from inside a recipe, and keeps the
@@ -31,7 +31,7 @@ run's best reset pace, serving `pastPeak` on its slice. Put the two together and
 
 ```ts
 /** The layer keeps this run's best reset pace itself, and says when the run is past it (`pastPeak`). */
-export const rebirth = prestige({
+export const rebirth = definePrestige({
   key: "rebirth",
   action: "rebirth",
   reach: [wallet],
@@ -41,7 +41,7 @@ export const rebirth = prestige({
 
 type State = { rebirth: { currency: Decimal; pastPeak: boolean } };
 
-export const auto = autobuyers({
+export const auto = defineAutobuyers({
   key: "auto",
   list: [
     { id: "stall", unlocked: () => true, intervalMs: () => 1000, run: (d) => stalls.draft.buy(d, "stall") },
@@ -193,7 +193,7 @@ type Stove = { warmth: GaugeState; dial: { setting: number } };
  * A gauge with no trip, used as a thermostat: each second it closes half the gap to the dial's setting, so it eases
  * up or down to wherever the player set it and holds there.
  */
-export const warmth = gauge({
+export const warmth = defineGauge({
   key: "warmth",
   max: 100,
   rate: (s: Stove) => (s.dial.setting - s.warmth.level) * 0.5,
@@ -255,7 +255,7 @@ exact behaviour of a page tab that, once open, must stay open after a reset wipe
 idea on its own:
 
 ```ts
-export const doors = achievements({
+export const doors = defineAchievements({
   key: "doors",
   columns: 2,
   list: [
@@ -319,7 +319,7 @@ group and the two systems join with no code in between. (A `stats` feature takes
 ``muted: (s, group) => trials.select.rule(s, `mute:${group}`)``.)
 
 ```ts
-export const trials = challenges({
+export const trials = defineChallenges({
   key: "trials",
   list: [
     { id: "bare-hands", goal: (s: Kitchen) => s.gold.gte(1e6), rules: ["mute:tools"] },
@@ -349,13 +349,13 @@ they count for nothing until the challenge ends, because a mute silences effects
 **The use:** [levels](glossary.md#levels) whose experience is seconds: each dish gains a level for the time it spends
 in the shop window.
 
-**Why it works.** The `levels` factory does not care where experience comes from. `gain(draft, track, amount)` takes any
+**Why it works.** The `defineLevels` factory does not care where experience comes from. `gain(draft, track, amount)` takes any
 amount, and the curves read both ways (level from XP and XP from level). A [step](glossary.md#step) is handed `dtMs`,
 the length of the pass, so "seconds on display" is one loop.
 
 ```ts
 /** One track per dish. Its XP is seconds: how long the dish has sat in the window. */
-export const fame = levels({
+export const fame = defineLevels({
   key: "fame",
   tracks: DISHES.map((id) => ({ id, curve: SLOW })),
   maxLevel: 10,

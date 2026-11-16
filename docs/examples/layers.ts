@@ -1,4 +1,4 @@
-import { addStat, damp, fmt, type LayerDef, layers, mulStat } from "watchpot/core";
+import { addStat, damp, defineLayers, fmt, type LayerDef, mulStat } from "watchpot/core";
 
 /**
  * The toy's words: three layers over a base resource, and the stats their effects land on. Typed once, every effect
@@ -78,7 +78,7 @@ const C: Layer = {
 };
 
 /** The feature: saves under `climb`, steps every tick and over an absence. */
-export const climb = layers({
+export const climb = defineLayers({
   key: "climb",
   base: { id: "points", rate: "speed" },
   layers: [A, B, C],

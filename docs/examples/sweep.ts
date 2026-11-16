@@ -1,10 +1,10 @@
-import { currencies, defineGame, passesIn, sweep } from "watchpot/core";
+import { defineCurrencies, defineGame, defineSweep, passesIn } from "watchpot/core";
 import { TOY } from "./vocab";
 
-const wallet = currencies({ key: "wallet", vocab: TOY });
+const wallet = defineCurrencies({ key: "wallet", vocab: TOY });
 
 /** A fishing line: a float crossing the water, three fish under it, a strike graded by how close. */
-export const line = sweep({
+export const line = defineSweep({
   key: "line",
   reach: [wallet],
   setup: (s) => ({

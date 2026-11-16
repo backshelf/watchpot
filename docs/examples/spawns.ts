@@ -1,11 +1,11 @@
-import { currencies, type Decimal, defineGame, MINUTE_MS, spawns } from "watchpot/core";
+import { type Decimal, defineCurrencies, defineGame, defineSpawns, MINUTE_MS } from "watchpot/core";
 import { TOY } from "./vocab";
 
 type State = { wallet: { gold: Decimal; gems: Decimal }; mine: { perSecond: Decimal } };
 
-const wallet = currencies({ key: "wallet", vocab: TOY });
+const wallet = defineCurrencies({ key: "wallet", vocab: TOY });
 
-export const visitors = spawns({
+export const visitors = defineSpawns({
   key: "visitors",
   kinds: [
     {

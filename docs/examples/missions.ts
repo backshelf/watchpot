@@ -1,9 +1,9 @@
 import {
   type Decimal,
   defineGame,
+  defineMissions,
   HOUR_MS,
   MINUTE_MS,
-  missions,
   pickWeighted,
   type RngState,
 } from "watchpot/core";
@@ -26,7 +26,7 @@ const roll =
   };
 
 /** Two slots (three at 100 gems); a short trip, a long one that costs gold, and one that opens later. */
-export const trips = missions({
+export const trips = defineMissions({
   key: "trips",
   slots: (s: State) => (s.wallet.gems.gte(100) ? 3 : 2),
   list: [

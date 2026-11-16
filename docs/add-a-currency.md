@@ -1,6 +1,6 @@
 # Add a currency
 
-Declare the game's words once with `vocab`, then `currencies({ key, vocab })` gives a feature holding a Decimal balance
+Declare the game's words once with `vocab`, then `defineCurrencies({ key, vocab })` gives a feature holding a Decimal balance
 per currency at the top of its state (`s.wallet.gold`).
 
 Example: [`examples/add-a-currency.ts`](examples/add-a-currency.ts), with the shared words in

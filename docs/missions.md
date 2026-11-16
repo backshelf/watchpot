@@ -11,7 +11,7 @@ import {
   defineGame,
   HOUR_MS,
   MINUTE_MS,
-  missions,
+  defineMissions,
   pickWeighted,
   type RngState,
 } from "watchpot/core";
@@ -34,7 +34,7 @@ const roll =
   };
 
 /** Two slots (three at 100 gems); a short trip, a long one that costs gold, and one that opens later. */
-export const trips = missions({
+export const trips = defineMissions({
   key: "trips",
   slots: (s: State) => (s.wallet.gems.gte(100) ? 3 : 2),
   list: [
@@ -56,7 +56,7 @@ export const game = defineGame({
 // store.getState().trips.claim(entry.id) · .cancel(entry.id) · missionLeftMs(entry, store.getState().gameNow())
 ```
 
-- **`missions({ key, reach?, slots, list, pay?, onClaim?, reset? })`** saves `{ active, done, rng, serial }` under `key` and
+- **`defineMissions({ key, reach?, slots, list, pay?, onClaim?, reset? })`** saves `{ active, done, rng, serial }` under `key` and
   adds no step: an entry is back once game time passes its `endsAt`, tab open or not. `slots(state)` is read at each
   start, so a slot the game takes away never cancels what is under way. A run reset clears the entries unless
   `reset` says otherwise.

@@ -216,7 +216,7 @@ A [wallet](../glossary.md#wallet) is a feature that does that for every currency
 
 ```ts
 /** The wallet: a balance per currency, and `earned`, every bubble credited since the last reset. */
-export const wallet = currencies({
+export const wallet = defineCurrencies({
   key: "wallet",
   vocab: WORDS,
   earnedThisRun: { bubbles: "earned" },
@@ -460,7 +460,7 @@ When you also want a total that survives, ask for the other kind:
 <!-- example-code: guide-words-and-numbers.ts -->
 
 ```ts
-export const keepingWallet = currencies({
+export const keepingWallet = defineCurrencies({
   key: "wallet",
   vocab: WORDS,
   earnedThisRun: { bubbles: "earned" },

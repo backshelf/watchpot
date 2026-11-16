@@ -18,7 +18,7 @@ import { pushLine } from "./journal";
  * (`when`), some must hold for a while first (`forMs`), some are only true at a moment and are checked when the game
  * says that moment came (`on` with `notify`), and the rest the game awards itself (`award`).
  *
- * `achievementBoard({ id, list, columns })` is the pure kernel over an earned record; `achievements({ key, list,
+ * `achievementBoard({ id, list, columns })` is the pure kernel over an earned record; `defineAchievements({ key, list,
  * columns })` is a feature that owns the record and checks the list, with `select` (the board's questions over the
  * game state), `def` (the list, the width, the board) and `draft` (`earn`).
  */
@@ -238,7 +238,7 @@ export interface AchievementsDef<K extends string, G, E, R extends ReachShape = 
  * `select`: `rows`, `count`, `rowsComplete`, `contributions`, `power`, each over the game state. `def`: `list`,
  * `columns` and the pure `board` kernel. `draft`: `earn`.
  */
-export function achievements<
+export function defineAchievements<
   const K extends string,
   E = never,
   const R extends ReachShape = readonly [],

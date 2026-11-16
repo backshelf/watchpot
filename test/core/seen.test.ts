@@ -4,11 +4,11 @@ import {
   createIdleStore,
   createMemoryBackend,
   defineGame,
+  defineSeenOnce,
   feature,
-  seenOnce,
 } from "watchpot/core";
 
-const guide = seenOnce({ key: "guide" });
+const guide = defineSeenOnce({ key: "guide" });
 const run = feature({
   key: "run",
   initial: () => ({ n: 0 }),

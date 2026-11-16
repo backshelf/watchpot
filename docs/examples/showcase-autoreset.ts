@@ -1,8 +1,15 @@
-import { autobuyers, type Decimal, defineGame, generators, powerGain, prestige } from "watchpot/core";
+import {
+  type Decimal,
+  defineAutobuyers,
+  defineGame,
+  defineGenerators,
+  definePrestige,
+  powerGain,
+} from "watchpot/core";
 import { wallet } from "./add-a-currency";
 import { TOY } from "./vocab";
 
-const stalls = generators({
+const stalls = defineGenerators({
   key: "stalls",
   wallet,
   list: [{ id: "stall", cost: { base: 10, growth: 1.15 }, pays: "gold", makes: "gold", rate: 1, free: 1 }],
@@ -12,7 +19,7 @@ const stalls = generators({
 const gainOf = (gold: Decimal) => powerGain(gold, { k: 1, exp: 0.5, per: 100 });
 
 /** The layer keeps this run's best reset pace itself, and says when the run is past it (`pastPeak`). */
-export const rebirth = prestige({
+export const rebirth = definePrestige({
   key: "rebirth",
   action: "rebirth",
   reach: [wallet],
@@ -22,7 +29,7 @@ export const rebirth = prestige({
 
 type State = { rebirth: { currency: Decimal; pastPeak: boolean } };
 
-export const auto = autobuyers({
+export const auto = defineAutobuyers({
   key: "auto",
   list: [
     { id: "stall", unlocked: () => true, intervalMs: () => 1000, run: (d) => stalls.draft.buy(d, "stall") },

@@ -2,18 +2,18 @@
 
 Crafting: inputs to outputs. A recipe takes amounts of some currencies and gives amounts of others, all or nothing,
 as many times over as asked, with a yield multiplier on what it gives. The pure rules work over a `Purse` that can be
-credited; `crafting({ key, wallet, list })` is the feature over a currencies feature, with an optional timed queue
+credited; `defineCrafting({ key, wallet, list })` is the feature over a currencies feature, with an optional timed queue
 that makes one at a time on game time.
 
 ```ts
-import { crafting, type Decimal, defineGame } from "watchpot/core";
+import { defineCrafting, type Decimal, defineGame } from "watchpot/core";
 import { wallet } from "./add-a-currency";
 import { TOY } from "./vocab";
 
 type State = { wallet: { gold: Decimal; gems: Decimal } };
 
 /** Three recipes: an instant one, one that gives more as gems pile up, and a timed one on a queue. */
-export const forge = crafting({
+export const forge = defineCrafting({
   key: "forge",
   wallet,
   list: [
@@ -49,7 +49,7 @@ export const game = defineGame({
   bounded by `limit` alone), `craft(recipe, purse, times = 1, yieldMult = 1)` → what was made per currency, or null
   with nothing touched. `payRecipe` and `giveRecipe` are its two halves. Amounts are Decimals; a recipe is
   `{ inputs, outputs }`, each an amount per currency.
-- **`crafting({ key, wallet, list, reset?, onCraft? })`** saves `{ made, queue }` under `key`; `made` counts crafts
+- **`defineCrafting({ key, wallet, list, reset?, onCraft? })`** saves `{ made, queue }` under `key`; `made` counts crafts
   given per recipe (Decimals). A run reset clears it unless `reset` says otherwise.
 - **`RecipeDef<C, G>`**: `id`, `inputs`, `outputs`, `unlocked?(state)`, `yield?(state)` (read when the outputs are
   given) and `takesMs?` (a number, or `(state) => number`).

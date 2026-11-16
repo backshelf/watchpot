@@ -1,11 +1,11 @@
-import { challenges, type Decimal, defineGame, defineStats, type Effect, feature } from "watchpot/core";
+import { type Decimal, defineChallenges, defineGame, defineStats, type Effect, feature } from "watchpot/core";
 import { wallet } from "./add-a-currency";
 import { TOY } from "./vocab";
 
 type State = { wallet: { gold: Decimal }; trials: { active: string | null; rules: string[] } };
 
 /** Two challenges: a run with no gem spending, then a harder one it opens. */
-export const trials = challenges({
+export const trials = defineChallenges({
   key: "trials",
   list: [
     {

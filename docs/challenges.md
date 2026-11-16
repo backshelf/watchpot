@@ -7,7 +7,7 @@ the record, so it never resets with the run and survives the very reset it trigg
 
 ```ts
 import {
-  challenges,
+  defineChallenges,
   type Decimal,
   defineGame,
   type Effect,
@@ -20,7 +20,7 @@ import { TOY } from "./vocab";
 type State = { wallet: { gold: Decimal }; trials: { active: string | null; rules: string[] } };
 
 /** Two challenges: a run with no gem spending, then a harder one it opens. */
-export const trials = challenges({
+export const trials = defineChallenges({
   key: "trials",
   list: [
     {
@@ -68,7 +68,7 @@ export const game = defineGame({
 // store.getState().trials.exit()
 ```
 
-- **`challenges({ key, reach?, list, onComplete?, depth? })`** saves `{ active, startedAt, rules, completions, bestMs }` under
+- **`defineChallenges({ key, reach?, list, onComplete?, depth? })`** saves `{ active, startedAt, rules, completions, bestMs }` under
   `key` (the contributions' source prefix too) with `reset: "never"`. A profile reset clears it; a run reset never
   does. `depth` (default 1) is how deep entering, leaving and completing reset: challenges of a higher layer reset at
   its depth.

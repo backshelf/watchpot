@@ -12,7 +12,7 @@ import {
 /**
  * Gauges: a bounded level that a rate fills or drains over time, and that trips at the top. A trip locks the gauge
  * for a while and drops the level; what a lock means (no output, a closed shop) is the game's to read. The risk
- * meter of a push-your-luck loop: heat, pressure, suspicion, strain. `stepGauge` is the pure kernel; `gauge({ key,
+ * meter of a push-your-luck loop: heat, pressure, suspicion, strain. `stepGauge` is the pure kernel; `defineGauge({ key,
  * max, rate, trip })` is a feature that steps its level every tick and over an absence, with `select`, `def` and
  * `draft` beside it. Without a `trip` a gauge is a
  * plain bounded meter (fill, mood, stamina) that holds at `max`: a supported use, not a half-made one.
@@ -182,7 +182,7 @@ export type GaugeFeature<K extends string> = Feature<K, GaugeState, GaugeActions
  *
  * `select`: `locked`, `fill`, `secondsToTrip`. `def`: `max`, `trip`. `draft`: `nudge`.
  */
-export function gauge<
+export function defineGauge<
   const K extends string,
   const R extends ReachShape = readonly [],
   G extends object = Record<K, GaugeState> & ReachOf<R>,

@@ -1,8 +1,8 @@
 import {
   type Achievement,
-  achievements,
-  currencies,
   type Decimal,
+  defineAchievements,
+  defineCurrencies,
   defineGame,
   defineStats,
   type Effect,
@@ -14,7 +14,7 @@ type State = { wallet: { gold: Decimal; gems: Decimal } };
 /** An effect on one of the toy's stats. */
 type Fx = Effect<StatOf<typeof TOY>>;
 
-const wallet = currencies({ key: "wallet", vocab: TOY });
+const wallet = defineCurrencies({ key: "wallet", vocab: TOY });
 
 const LIST: Achievement<State, Fx>[] = [
   { id: "ten", name: "Pocket money", line: "Hold 10 gold.", when: (s) => s.wallet.gold.gte(10) },
@@ -38,7 +38,7 @@ const LIST: Achievement<State, Fx>[] = [
   { id: "found", name: "Found it", line: "Open the hidden door." }, // the game calls award("found")
 ];
 
-export const wall = achievements({
+export const wall = defineAchievements({
   key: "wall",
   columns: 4,
   list: LIST,

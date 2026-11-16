@@ -28,7 +28,7 @@ export const cupboard = feature({
 });
 
 /** The kit: a lid slot, a spoon slot and a spare that takes anything. Three copper pieces make a set. */
-export const kit = loadoutFeature({
+export const kit = defineLoadout({
   key: "kit",
   reach: [cupboard],
   slots: [{ id: "lid", kind: "lid" }, { id: "spoon", kind: "spoon" }, { id: "spare" }],
@@ -86,7 +86,7 @@ The loadout comes in two layers, so a game that already keeps its own slots reco
 
 - **`loadout({ id, slots, items, sets? })`** is the rules, pure, over a slots record the game keeps wherever it
   likes. `id` is the source prefix of its contributions (`<id>:<item>`).
-- **`loadoutFeature({ key, slots, items, sets?, owns, reach?, reset? })`** is a feature that owns the record: it saves
+- **`defineLoadout({ key, slots, items, sets?, owns, reach?, reset? })`** is a feature that owns the record: it saves
   `{ slotted }` under `key`, carries the rules as `def.loadout` (`select` and `draft` are empty: the actions are the
   changes), and uses `key` as the source prefix.
 

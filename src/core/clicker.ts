@@ -175,7 +175,7 @@ export interface ClickerDef<
  * cadence is the click rate. The callbacks read the whole game state (the feature's own slice, the wallet's and what
  * `reach` names), typed with no annotation.
  */
-export function clicker<
+export function defineClicker<
   const K extends string,
   WK extends string,
   C extends string,

@@ -3,14 +3,14 @@ import {
   createGameStorage,
   createIdleStore,
   createMemoryBackend,
-  currencies,
   D,
+  defineCurrencies,
   defineGame,
+  definePrestige,
   feature,
   lifetimeMultiplier,
   nextFloat,
   powerGain,
-  prestige,
   type RngState,
   resetPace,
   vocab,
@@ -23,7 +23,7 @@ const memory = () => createGameStorage(createMemoryBackend(), { debounceMs: 0, o
 
 function toyWithLayer(extra: { canReset?: boolean } = {}) {
   const seen: { run: number; gain: string; draw: number }[] = [];
-  const layer = prestige({
+  const layer = definePrestige({
     key: "ascension",
     action: "ascend",
     reach: [wallet, generator],
@@ -113,7 +113,7 @@ describe("the prestige primitive", () => {
 describe("the draft helper", () => {
   test("resets inside a step with the action's checks, gain and hooks", () => {
     const hooks: number[] = [];
-    const layer = prestige({
+    const layer = definePrestige({
       key: "ascension",
       reach: [wallet, generator],
       gain: (s) => powerGain(s.wallet.lifetime, { k: 1, exp: 1, per: 100 }),
@@ -162,7 +162,7 @@ describe("the draft helper", () => {
 describe("the reset pace", () => {
   /** A layer paying one unit per gold earned this run, over the toy's generator (a gold a second). */
   function paced() {
-    const layer = prestige({
+    const layer = definePrestige({
       key: "ascension",
       reach: [wallet, generator],
       gain: (s) => powerGain(s.wallet.lifetime, { k: 1, exp: 1, per: 1 }),
@@ -231,13 +231,13 @@ describe("the reset pace", () => {
   });
 
   test("a deeper reset starts a shallower layer's run too; a shallower one leaves a deeper layer's run alone", () => {
-    const low = prestige({
+    const low = definePrestige({
       key: "low",
       reach: [wallet],
       gain: (s) => powerGain(s.wallet.lifetime, { k: 1, exp: 1, per: 1 }),
       reset: { depth: 2 },
     });
-    const high = prestige({
+    const high = definePrestige({
       key: "high",
       reach: [low],
       gain: (s) => s.low.lifetime,
@@ -264,9 +264,9 @@ describe("the reset pace", () => {
 
   test("refuses a past share outside (0, 1] and a game step that takes the layer's own name", () => {
     const gain = () => D(0);
-    expect(() => prestige({ key: "p", gain, pace: { past: 0 } })).toThrow(/pace.past/);
-    expect(() => prestige({ key: "p", gain, pace: { past: 1.5 } })).toThrow(/pace.past/);
-    expect(() => prestige({ key: "p", gain, steps: { settle: { pace: () => {} } } })).toThrow(
+    expect(() => definePrestige({ key: "p", gain, pace: { past: 0 } })).toThrow(/pace.past/);
+    expect(() => definePrestige({ key: "p", gain, pace: { past: 1.5 } })).toThrow(/pace.past/);
+    expect(() => definePrestige({ key: "p", gain, steps: { settle: { pace: () => {} } } })).toThrow(
       /settle step "pace"/,
     );
   });
@@ -274,9 +274,9 @@ describe("the reset pace", () => {
 
 describe("the auto-player's move", () => {
   test("a layer with no worth declares no move; with one, a free move that presses the reset", () => {
-    const bare = prestige({ key: "ascension", reach: [wallet], gain: (s) => s.wallet.lifetime });
+    const bare = definePrestige({ key: "ascension", reach: [wallet], gain: (s) => s.wallet.lifetime });
     expect(bare.moves).toBeUndefined();
-    const layer = prestige({
+    const layer = definePrestige({
       key: "ascension",
       action: "ascend",
       reach: [wallet],
@@ -302,14 +302,14 @@ describe("the auto-player's move", () => {
 
 describe("paying into a wallet", () => {
   const WORDS = vocab({ currencies: ["gold", "shards"], stats: [], rarities: ["common"] } as const);
-  const purse = currencies({
+  const purse = defineCurrencies({
     key: "purse",
     vocab: WORDS,
     depth: { shards: "never" },
     earnedThisRun: { gold: "goldThisRun" },
     earnedEver: { shards: "shardsEver" },
   });
-  const layer = prestige({
+  const layer = definePrestige({
     key: "ascension",
     action: "ascend",
     reach: [purse],
@@ -340,19 +340,21 @@ describe("paying into a wallet", () => {
   });
 
   test("refuses a currency the wallet lacks, or one the layer's own reset would wipe", () => {
-    const shallow = currencies({ key: "shallow", vocab: WORDS });
+    const shallow = defineCurrencies({ key: "shallow", vocab: WORDS });
     const gain = () => D(0);
-    expect(() => prestige({ key: "p", gain, payInto: { wallet: shallow, currency: "shards" } })).toThrow(
-      /wiped by a reset of depth 1/,
-    );
+    expect(() =>
+      definePrestige({ key: "p", gain, payInto: { wallet: shallow, currency: "shards" } }),
+    ).toThrow(/wiped by a reset of depth 1/);
     expect(() =>
       // @ts-expect-error not a currency of the wallet
-      prestige({ key: "p", gain, payInto: { wallet: shallow, currency: "keys" } }),
+      definePrestige({ key: "p", gain, payInto: { wallet: shallow, currency: "keys" } }),
     ).toThrow(/no currency "keys"/);
-    const two = currencies({ key: "two", vocab: WORDS, depth: { shards: 2 } });
-    expect(() => prestige({ key: "p", gain, payInto: { wallet: two, currency: "shards" } })).not.toThrow();
+    const two = defineCurrencies({ key: "two", vocab: WORDS, depth: { shards: 2 } });
     expect(() =>
-      prestige({ key: "p", gain, depth: 2, payInto: { wallet: two, currency: "shards" } }),
+      definePrestige({ key: "p", gain, payInto: { wallet: two, currency: "shards" } }),
+    ).not.toThrow();
+    expect(() =>
+      definePrestige({ key: "p", gain, depth: 2, payInto: { wallet: two, currency: "shards" } }),
     ).toThrow();
   });
 });

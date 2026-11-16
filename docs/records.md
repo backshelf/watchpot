@@ -6,9 +6,9 @@ pushes the ending run onto that list with its length in game time and starts the
 clears. The game notes what it counts where it happens, from a recipe, a step or an action.
 
 ```ts
-import { records } from "watchpot/core";
+import { defineRecords } from "watchpot/core";
 
-export const stats = records({
+export const stats = defineRecords({
   key: "stats",
   track: {
     presses: { kind: "sum", scope: ["run", "life"] },
@@ -26,7 +26,7 @@ Example: [`examples/records.ts`](examples/records.ts).
 - **Kinds:** `sum` adds, `max` keeps the highest, `min` the lowest, `last` the latest. A `sum` starts at zero at every
   scope it keeps; the others have no value (undefined) until noted. `decimal: true` keeps a record as a Decimal, else
   a number; the names and their value types are read off `track`.
-- **`records({ key, track, keepRuns? })`** saves `{ values: { run, life, best }, runs, runStart, bestRunMs }`. Actions:
+- **`defineRecords({ key, track, keepRuns? })`** saves `{ values: { run, life, best }, runs, runStart, bestRunMs }`. Actions:
   `add(name, n)` (for a sum; on another kind the same as `note`), `note(name, value)` (folds by the kind at every scope
   the record keeps), `run(name)`, `life(name)`, `best(name)`. The draft helpers `stats.draft.add(draft, name, n)` and
   `stats.draft.note(draft, name, value)` do the same inside a recipe or step, `stats.select.value(state, scope, name)` reads one off the game state and `stats.def.track` holds the tracks.

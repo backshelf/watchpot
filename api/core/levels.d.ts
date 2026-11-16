@@ -7,7 +7,7 @@ import { type Feature, type NeedsOf, type ReachOf, type ReachShape, type ResetRu
  * consistent with each other: `totalXpAt(levelAt(x)) ≤ x < totalXpAt(levelAt(x) + 1)`. Geometric and polynomial curves
  * invert in closed form, a table by binary search, a function by bisection.
  *
- * `levels({ key, tracks })` is a feature holding the XP of several named tracks (skills), with `select`, `def` and
+ * `defineLevels({ key, tracks })` is a feature holding the XP of several named tracks (skills), with `select`, `def` and
  * `draft`, and an action (and its draft helper) to gain XP that report the levels gained.
  */
 /**
@@ -110,7 +110,7 @@ export type LevelsFeature<K extends string, T extends TrackDef, E> = Feature<K, 
  *
  * `select`: `level`, `progress`, `contributions`. `def`: `tracks`, `track(id)`. `draft`: `gain`.
  */
-export declare function levels<const K extends string, T extends TrackDef, E = never, const R extends ReachShape = readonly [], G extends object = Record<K, LevelsState> & ReachOf<R>>(def: {
+export declare function defineLevels<const K extends string, T extends TrackDef, E = never, const R extends ReachShape = readonly [], G extends object = Record<K, LevelsState> & ReachOf<R>>(def: {
     readonly key: K;
     /** The features `onLevel` reads, as `feature`'s `reach`. */
     readonly reach?: R | (() => R);

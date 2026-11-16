@@ -9,7 +9,7 @@ import { type Feature, type NeedsOf, type ReachOf, type ReachShape, type ResetRu
  * `set.mult` (ten bought doubles it), and the game multiplies further through `mult` and `speed`.
  *
  * `advanceChain` is the pure kernel: the exact amounts after any stretch of time, in one step, so a tick of 50 ms
- * and an absence of a week follow the same curve. `dimensions({ key, tiers, wallet, makes })` is the feature.
+ * and an absence of a week follow the same curve. `defineDimensions({ key, tiers, wallet, makes })` is the feature.
  */
 /** What `advanceChain` returns: the amounts after the stretch, and what the lowest tier made over it. */
 export interface ChainStep {
@@ -154,6 +154,6 @@ export interface DimensionsDef<K extends string, T extends DimensionTier<C>, WK 
  * otherwise. The callbacks read the whole game state (the feature's own slice, the wallet's and what `reach` names),
  * typed with no annotation.
  */
-export declare function dimensions<const K extends string, T extends DimensionTier<C>, WK extends string, C extends string, WS extends object, WA extends object, const R extends ReachShape = readonly [], G extends object = Record<K, DimensionsState> & Record<WK, WS> & ReachOf<R>>(def: DimensionsDef<K, T, WK, C, WS, WA, G, R>): DimensionsFeature<K, G, T> & {
+export declare function defineDimensions<const K extends string, T extends DimensionTier<C>, WK extends string, C extends string, WS extends object, WA extends object, const R extends ReachShape = readonly [], G extends object = Record<K, DimensionsState> & Record<WK, WS> & ReachOf<R>>(def: DimensionsDef<K, T, WK, C, WS, WA, G, R>): DimensionsFeature<K, G, T> & {
     readonly needs?: NeedsOf<R>;
 };

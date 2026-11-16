@@ -20,7 +20,7 @@ export type SettingsFeature<K extends string, S extends object> = Feature<
  * `change(patch)`, that merges a patch in. `select`, `def` and `draft` are empty: it has nothing but state and its
  * action.
  */
-export function settings<const K extends string, S extends object>(def: {
+export function defineSettings<const K extends string, S extends object>(def: {
   readonly key: K;
   readonly initial: () => S;
 }): SettingsFeature<K, S> {

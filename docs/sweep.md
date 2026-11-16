@@ -12,7 +12,7 @@ Example: [`examples/sweep.ts`](examples/sweep.ts).
   (a share of the target's half width); null is a miss. `drawTarget(rng, width, taken, kind?)` places one more target
   clear of the rest where there is room. `passesIn(dtMs, motion)` is how often the cursor passes a point, for paying
   an automatic striker by the stretch.
-- **`sweep({ key, setup, grades, kind?, onStrike?, reach?, reset? })`** saves `{ targets, streak, best, strikes, misses, hits,
+- **`defineSweep({ key, setup, grades, kind?, onStrike?, reach?, reset? })`** saves `{ targets, streak, best, strikes, misses, hits,
   since, rng }`. `setup(state)` gives `{ motion, count, width }`, read each pass, so an upgrade can speed the cursor or
   widen and add targets; the track is topped up in `<key>.sync.targets` and after every hit, on the feature's own saved
   stream. `strike()` grades the cursor at the game time of the call: a hit removes its target and extends the streak,

@@ -151,7 +151,7 @@ const perBox = <B extends string, T>(boxes: readonly B[], make: (box: B) => T): 
   Object.fromEntries(boxes.map((b) => [b, make(b)])) as Record<B, T>;
 
 /** Declares a gacha. Its rng stream is seeded from the profile's first draws and its key, so a seeded store replays it. */
-export function gacha<const K extends string, R extends string, B extends string, P = R>(
+export function defineGacha<const K extends string, R extends string, B extends string, P = R>(
   def: GachaDef<K, R, B, P>,
 ): GachaFeature<K, R, B, P> {
   if (def.ladder.size === 0)

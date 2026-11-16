@@ -2,13 +2,13 @@ import { describe, expect, test } from "bun:test";
 import {
   type BuffsState,
   buffActive,
-  buffs,
-  clicker,
   clickShare,
   comboAt,
-  currencies,
   D,
   type Decimal,
+  defineBuffs,
+  defineClicker,
+  defineCurrencies,
   defineGame,
   feature,
   vocab,
@@ -17,10 +17,10 @@ import { autoPlayer, createSimWorld, simStore } from "watchpot/sim";
 import { freshStore, T0 } from "watchpot/test";
 
 const WORDS = vocab({ currencies: ["gold", "gems"], stats: [], rarities: ["common"] } as const);
-const wallet = currencies({ key: "wallet", vocab: WORDS });
+const wallet = defineCurrencies({ key: "wallet", vocab: WORDS });
 type State = { wallet: { gold: Decimal; gems: Decimal } };
 
-const tap = clicker({
+const tap = defineClicker({
   key: "tap",
   wallet,
   currency: "gold",
@@ -35,7 +35,7 @@ const game = defineGame({
   vocab: WORDS,
 });
 
-const lucky = clicker({
+const lucky = defineClicker({
   key: "lucky",
   wallet,
   currency: "gold",
@@ -140,8 +140,11 @@ describe("clicker", () => {
   });
 
   test("power reads a buff at the press's game time", () => {
-    const timers = buffs({ key: "timers", list: [{ id: "rush", durationMs: 10_000, stack: "refresh" }] });
-    const rushed = clicker({
+    const timers = defineBuffs({
+      key: "timers",
+      list: [{ id: "rush", durationMs: 10_000, stack: "refresh" }],
+    });
+    const rushed = defineClicker({
       key: "rushed",
       wallet,
       currency: "gold",
@@ -167,7 +170,7 @@ describe("clicker", () => {
 describe("reach", () => {
   test("a callback reads a reached feature with no annotation, and not one that was not reached", () => {
     const door = feature({ key: "door", initial: () => ({ open: true }) });
-    const gated = clicker({
+    const gated = defineClicker({
       key: "gated",
       wallet,
       currency: "gold",

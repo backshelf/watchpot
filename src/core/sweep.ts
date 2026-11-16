@@ -13,7 +13,7 @@ import { nextFloat, type RngState, seedRng } from "./rng";
 /**
  * Sweeps: a timing bar. A cursor crosses a track whose length is 1, its place a pure function of game time; targets
  * sit on the track; a strike is graded by how near the cursor is to a target's centre, and a run of hits is a streak.
- * A scanner, a fishing line, a perfect-press meter. `sweepAt` and `gradeStrike` are the kernel; `sweep({ key, setup,
+ * A scanner, a fishing line, a perfect-press meter. `sweepAt` and `gradeStrike` are the kernel; `defineSweep({ key, setup,
  * grades })` is a feature that keeps the targets, the streak and the tallies and takes `strike()`. What a
  * hit pays is the game's (`onStrike`).
  */
@@ -193,7 +193,7 @@ export type SweepFeature<K extends string, G> = Feature<K, SweepState, SweepActi
  * tallies and clears the streak unless `reset` says otherwise. The callbacks see the feature's own slice and what
  * `reach` names; `select.cursor` and `draft.strike` are the cursor and the strike for steps and recipes.
  */
-export function sweep<
+export function defineSweep<
   const K extends string,
   const R extends ReachShape = readonly [],
   G extends object = Record<K, SweepState> & ReachOf<R>,

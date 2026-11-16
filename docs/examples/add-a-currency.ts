@@ -2,14 +2,14 @@ import {
   createGameStorage,
   createIdleStore,
   createMemoryBackend,
-  currencies,
   D,
+  defineCurrencies,
   defineGame,
 } from "watchpot/core";
 import { TOY } from "./vocab";
 
 /** A balance per currency of the vocabulary, with the totals the game wants kept beside them. */
-export const wallet = currencies({
+export const wallet = defineCurrencies({
   key: "wallet",
   vocab: TOY,
   start: { gold: 30 }, // every other currency starts at zero

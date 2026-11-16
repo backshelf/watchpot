@@ -1,9 +1,9 @@
 import { describe, expect, test } from "bun:test";
 import {
   allocatedUnits,
-  allocation,
   assignUnits,
   D,
+  defineAllocation,
   defineGame,
   type Effect,
   feature,
@@ -63,7 +63,7 @@ const crew = feature({
       }),
   }),
 });
-const jobs = allocation({
+const jobs = defineAllocation({
   key: "jobs",
   pool: (s: State) => s.crew.size,
   sinks: [
@@ -145,13 +145,15 @@ describe("allocation", () => {
   });
 
   test("a repeated sink throws", () => {
-    expect(() => allocation({ key: "x", pool: () => 1, sinks: [{ id: "a" }, { id: "a" }] })).toThrow(/twice/);
+    expect(() => defineAllocation({ key: "x", pool: () => 1, sinks: [{ id: "a" }, { id: "a" }] })).toThrow(
+      /twice/,
+    );
   });
 });
 
 describe("reach", () => {
   test("a callback reads a reached feature with no annotation, and not one that was not reached", () => {
-    const gated = allocation({
+    const gated = defineAllocation({
       key: "gated",
       reach: [crew],
       pool: (s) => s.crew.size,

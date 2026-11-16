@@ -1,16 +1,24 @@
-import { currencies, D, type Decimal, defineGame, dimensions, HOUR_MS, prestige } from "watchpot/core";
+import {
+  D,
+  type Decimal,
+  defineCurrencies,
+  defineDimensions,
+  defineGame,
+  definePrestige,
+  HOUR_MS,
+} from "watchpot/core";
 import { TOY } from "./vocab";
 
 /** What the chain's callbacks read: the wallet, and the boosts the layer above has paid. */
 type State = { wallet: { gold: Decimal }; boost: { runs: number } };
 
-export const wallet = currencies({ key: "wallet", vocab: TOY, start: { gold: 10 } });
+export const wallet = defineCurrencies({ key: "wallet", vocab: TOY, start: { gold: 10 } });
 
 /**
  * Four tiers: the first makes gold, each other makes the tier below it. Ten of a tier are bought at one price, then
  * the price steps; every ten bought double that tier.
  */
-export const chain = dimensions({
+export const chain = defineDimensions({
   key: "chain",
   wallet,
   makes: "gold",
@@ -28,7 +36,7 @@ export const chain = dimensions({
 });
 
 /** The reset above the chain: it needs twenty of the highest open tier, pays one boost and starts the chain over. */
-export const boost = prestige({
+export const boost = definePrestige({
   key: "boost",
   reach: [chain],
   gain: (s) => {

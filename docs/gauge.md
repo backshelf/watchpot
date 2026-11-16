@@ -17,10 +17,10 @@ the flame is lit and blows at the top, a vent lets it out, and a whistle is a me
 type Reads = { kettle: { lit: boolean }; boosts: BuffsState };
 
 /** Opening the vent lets pressure out for ten seconds. No `effects`: it is a timer the pressure's rate reads. */
-export const boosts = buffs({ key: "boosts", list: [{ id: "vent", durationMs: 10_000, stack: "refresh" }] });
+export const boosts = defineBuffs({ key: "boosts", list: [{ id: "vent", durationMs: 10_000, stack: "refresh" }] });
 
 /** The pressure: it climbs while the flame is lit and blows at the top, which puts the flame out. */
-export const pressure = gauge({
+export const pressure = defineGauge({
   key: "pressure",
   max: PRESSURE.max,
   trip: { lockMs: 30_000, dropTo: 0.25 }, // 30 s to recover, back at a quarter
@@ -34,7 +34,7 @@ export const pressure = gauge({
 });
 
 /** A meter with no trip: the whistle's volume, 0 to 1, for the page to draw. It holds at the top. */
-export const whistle = gauge({
+export const whistle = defineGauge({
   key: "whistle",
   max: 1,
   rate: (s: Reads) => (s.kettle.lit ? 0.1 : -0.2),
@@ -82,7 +82,7 @@ kernel: 95 + 10 → level 25 | tripped true | locked for 30000 ms
 
 ## The factory
 
-**`gauge({ key, reach?, max, rate, trip?, awayRate?, onTrip?, reset? })`** saves a `GaugeState` under `key`:
+**`defineGauge({ key, reach?, max, rate, trip?, awayRate?, onTrip?, reset? })`** saves a `GaugeState` under `key`:
 `{ level, lockedUntil, trips }`. `lockedUntil` is the game time the lock ends (0 when it never tripped), and `trips`
 counts every trip since the gauge last started over.
 

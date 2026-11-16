@@ -256,7 +256,7 @@ const runLabelOf = (run: number): string => `run${run}`;
  * `afterReset`. Throws at definition when `payInto` names a currency the wallet lacks or one the layer's own reset
  * would wipe, when `pace.past` is outside (0, 1], or when the game's steps take the `settle.pace` name.
  */
-export function prestige<
+export function definePrestige<
   const K extends string,
   X extends object = Record<never, never>,
   A extends object = Record<never, never>,

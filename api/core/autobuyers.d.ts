@@ -6,7 +6,7 @@ import { type Feature, type NeedsOf, type ReachOf, type ReachShape, type ResetRu
  * writes the purchase (`run`, inside the tick's recipe); the feature owns the switches, the schedule and the count.
  *
  * `everyMs` is the pure schedule: firing is on game time from the last fire, not accumulated per tick, so an
- * interval of 2 s fires at 2, 4, 6 s whatever the tick length. `autobuyers({ key, list })` is the feature: its `select`
+ * interval of 2 s fires at 2, 4, 6 s whatever the tick length. `defineAutobuyers({ key, list })` is the feature: its `select`
  * answers questions over state, its `def` holds the list, and its `draft` flips the switches inside a recipe.
  */
 /**
@@ -80,7 +80,7 @@ export type AutobuyersFeature<K extends string, G> = Feature<K, AutobuyersState,
  * state: the feature's own slice and whatever `reach` names (the wallet and the generators a `run` buys from), typed
  * with no annotation.
  */
-export declare function autobuyers<const K extends string, const R extends ReachShape = readonly [], G extends object = Record<K, AutobuyersState> & ReachOf<R>>(def: {
+export declare function defineAutobuyers<const K extends string, const R extends ReachShape = readonly [], G extends object = Record<K, AutobuyersState> & ReachOf<R>>(def: {
     readonly key: K;
     /** The features the callbacks read and write, as `feature`'s `reach`. */
     readonly reach?: R | (() => R);

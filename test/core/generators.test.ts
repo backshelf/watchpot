@@ -1,12 +1,12 @@
 import { describe, expect, test } from "bun:test";
 import {
-  currencies,
   cyclesIn,
   D,
   type Decimal,
+  defineCurrencies,
   defineGame,
+  defineGenerators,
   feature,
-  generators,
   HOUR_MS,
   vocab,
 } from "watchpot/core";
@@ -41,12 +41,12 @@ describe("cyclesIn", () => {
 });
 
 const WORDS = vocab({ currencies: ["gold", "gems"], stats: [], rarities: ["common"] } as const);
-const wallet = currencies({ key: "wallet", vocab: WORDS, start: { gold: 10 } });
+const wallet = defineCurrencies({ key: "wallet", vocab: WORDS, start: { gold: 10 } });
 type State = {
   wallet: { gold: Decimal; gems: Decimal };
   works: { owned: Record<string, number> };
 };
-const works = generators({
+const works = defineGenerators({
   key: "works",
   wallet,
   list: [
@@ -219,7 +219,7 @@ describe("generators", () => {
 
   test("a repeated id or an empty cycle throws", () => {
     const twice = () =>
-      generators({
+      defineGenerators({
         key: "x",
         wallet,
         list: [
@@ -229,7 +229,7 @@ describe("generators", () => {
       });
     expect(twice).toThrow(/appears twice/);
     const empty = () =>
-      generators({
+      defineGenerators({
         key: "x",
         wallet,
         list: [
@@ -255,7 +255,7 @@ describe("generators", () => {
 
 describe("generators: game time, the milestone gate, the away rate and buy rows", () => {
   const RUSH_UNTIL = T0 + 5000;
-  const timed = generators({
+  const timed = defineGenerators({
     key: "works",
     wallet,
     list: [
@@ -324,7 +324,7 @@ describe("generators: game time, the milestone gate, the away rate and buy rows"
 describe("reach", () => {
   test("a callback reads a reached feature with no annotation, and not one that was not reached", () => {
     const door = feature({ key: "door", initial: () => ({ open: true }) });
-    const gated = generators({
+    const gated = defineGenerators({
       key: "gated",
       wallet,
       reach: [door],

@@ -17,7 +17,7 @@ import { nextFloat, type RngState, seedRng } from "./rng";
  * too, on the feature's own saved rng, and stored with it: a reload cannot reroll it, and a screen can show it before
  * it lands. Missions run on game time, so they finish during an absence like any other time.
  *
- * `missionLeftMs` and `missionReady` read one entry (pure kernels, no state); `missions({ key, slots, list })` is the
+ * `missionLeftMs` and `missionReady` read one entry (pure kernels, no state); `defineMissions({ key, slots, list })` is the
  * feature, with `select`, `def` and `draft`.
  */
 
@@ -123,7 +123,7 @@ export type MissionsFeature<K extends string, G, R, X> = Feature<K, MissionsStat
  *
  * `select`: `slots`, `freeSlots`, `ready`. `def`: `list`, `mission(id)`. `draft`: empty.
  */
-export function missions<
+export function defineMissions<
   const K extends string,
   R,
   X = never,

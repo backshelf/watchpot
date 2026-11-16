@@ -282,7 +282,7 @@ export interface FeatureDef<
   /** Runs over the default merge's result on load and import: drop or rename what this build does not know. */
   readonly merge?: (merged: S, fresh: S) => S;
   /**
-   * The vocabulary this feature speaks, when it is built over one (a primitive made with `currencies({ vocab })`):
+   * The vocabulary this feature speaks, when it is built over one (a primitive made with `defineCurrencies({ vocab })`):
    * `defineGame` refuses it unless the game declares the same vocabulary. Its words type the feature through the
    * factory that made it; `feature()` itself takes no vocabulary type parameter.
    */

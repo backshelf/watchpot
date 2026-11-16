@@ -123,6 +123,6 @@ export interface ClickerDef<K extends string, WK extends string, C extends strin
  * cadence is the click rate. The callbacks read the whole game state (the feature's own slice, the wallet's and what
  * `reach` names), typed with no annotation.
  */
-export declare function clicker<const K extends string, WK extends string, C extends string, WS extends object, WA extends object, const R extends ReachShape = readonly [], G extends object = Record<K, ClickerState> & Record<WK, WS> & ReachOf<R>>(def: ClickerDef<K, WK, C, WS, WA, G, R>): ClickerFeature<K, G> & {
+export declare function defineClicker<const K extends string, WK extends string, C extends string, WS extends object, WA extends object, const R extends ReachShape = readonly [], G extends object = Record<K, ClickerState> & Record<WK, WS> & ReachOf<R>>(def: ClickerDef<K, WK, C, WS, WA, G, R>): ClickerFeature<K, G> & {
     readonly needs?: NeedsOf<R>;
 };

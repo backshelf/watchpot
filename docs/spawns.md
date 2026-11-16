@@ -8,9 +8,9 @@ from the store's seed, the key and the kind alone, so a save from before the spa
 the same seed, arrives as the run that carried on does.
 
 ```ts
-import { MINUTE_MS, spawns } from "watchpot/core";
+import { MINUTE_MS, defineSpawns } from "watchpot/core";
 
-export const visitors = spawns({
+export const visitors = defineSpawns({
   key: "visitors",
   kinds: [
     {
@@ -45,7 +45,7 @@ Example: [`examples/spawns.ts`](examples/spawns.ts).
 - **`advanceSpawn(state, now, timing)`** is the kernel, pure: the live one dies at `diesAt` (missed), the next arrives
   at `nextAt`, its wait counted from the moment the last died or was caught, as often as fit before `now`, leaving at
   most one live. It walks `SPAWN_WALK_LIMIT` (10,000) arrivals in one pass at most, then starts the wait over.
-- **`spawns({ key, kinds, onCatch?, reach?, reset? })`** saves `{ kinds: { [id]: { nextAt, live, caught, missed, born, last,
+- **`defineSpawns({ key, kinds, onCatch?, reach?, reset? })`** saves `{ kinds: { [id]: { nextAt, live, caught, missed, born, last,
   rng } } }`. Its step `<key>.sync.arrive` brings every kind up to the pass's end on game time; over a catch-up the
   arrivals in the gap are counted missed, never paid. A quick tab switch (up to `awayAfterMs`, 5 s by default) is not a
   catch-up: the clock pays it as live ticks, so an arrival in it can still be caught. A kind's `active(state)` false

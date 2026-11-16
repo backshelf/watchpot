@@ -6,13 +6,13 @@ may ride a combo that grows while presses land close together and falls back to 
 presses past it, against an auto-clicker. Every time is game time.
 
 ```ts
-import { clicker, clickShare, currencies, type Decimal } from "watchpot/core";
+import { defineClicker, clickShare, defineCurrencies, type Decimal } from "watchpot/core";
 
-const wallet = currencies({ key: "wallet", vocab: TOY });
+const wallet = defineCurrencies({ key: "wallet", vocab: TOY });
 
 type State = { wallet: { gold: Decimal; gems: Decimal }; mine: { perSecond: Decimal } };
 
-export const tap = clicker({
+export const tap = defineClicker({
   key: "tap",
   wallet,
   currency: "gold",
@@ -26,7 +26,7 @@ export const tap = clicker({
 
 Example: [`examples/clicker.ts`](examples/clicker.ts).
 
-- **`clicker({ key, wallet, currency, power, crit?, combo?, maxPerSecond?, onClick?, reset? })`** saves `{ clicks,
+- **`defineClicker({ key, wallet, currency, power, crit?, combo?, maxPerSecond?, onClick?, reset? })`** saves `{ clicks,
   earned, best, crits, runClicks, runEarned, combo, lastAt, rng, windowAt, windowCount }` and has no steps. One action,
   `click()`, pays `power(state) × combo × (crit ? mult : 1)` into `wallet` and returns `{ amount, crit, combo }`, or
   null when the cap dropped it (a dropped press pays nothing and moves no combo). `onClick(draft, result, now)` runs in

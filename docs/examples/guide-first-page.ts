@@ -10,32 +10,32 @@
 import {
   type BuffsState,
   buffActive,
-  buffs,
   type ClickerState,
-  clicker,
   clickShare,
   createGameStorage,
   createIdleStore,
   createMemoryBackend,
   type Draft,
+  defineBuffs,
+  defineClicker,
   defineGame,
+  defineGauge,
+  defineGenerators,
+  defineSpawns,
+  defineUpgradeTree,
   type Effect,
   fmt,
   type GaugeState,
   type GeneratorsState,
   type GraphNode,
-  gauge,
   gaugeFill,
   gaugeLocked,
-  generators,
   HOUR_MS,
   reach,
   type SpawnsState,
   type StateOf,
-  spawns,
   statIndex,
   type TreeState,
-  upgradeTree,
   ZERO,
 } from "watchpot/core";
 import type { BuyMode } from "watchpot/ui";
@@ -98,7 +98,7 @@ const UPGRADES: readonly Upgrade[] = [
   },
 ];
 
-export const kitchen = upgradeTree({
+export const kitchen = defineUpgradeTree({
   key: "kitchen",
   nodes: UPGRADES,
   wallet,
@@ -124,7 +124,7 @@ export const statOf = (s: Pick<Page, "kitchen">, stat: Stat): number => KITCHEN.
 export const FOAM = { max: 100, perStir: 4, settle: 6, spillMs: 10_000 };
 
 /** Foam on the pot, 0 to 100. Stirring raises it; it settles on its own; at the top it spills and sits flat a while. */
-export const foam = gauge({
+export const foam = defineGauge({
   key: "foam",
   max: FOAM.max,
   rate: () => -FOAM.settle,
@@ -137,7 +137,7 @@ export const foam = gauge({
 export const ROLLING_BOIL = { seconds: 30, mult: 3 };
 
 /** The rolling boil is a timer: the kettles ask whether it is running, where they work out their rate. */
-export const boosts = buffs({
+export const boosts = defineBuffs({
   key: "boosts",
   list: [{ id: "rolling-boil", durationMs: ROLLING_BOIL.seconds * 1000, stack: "refresh" }],
 });
@@ -147,7 +147,7 @@ export const boosts = buffs({
 
 const DOUBLINGS = [10, 25, 50, 100].map((at) => ({ at, gives: { mult: 2 } }));
 
-export const kettles = generators({
+export const kettles = defineGenerators({
   key: "kettles",
   wallet,
   reach: () => [kitchen, boosts],
@@ -184,7 +184,7 @@ const income = (s: Page) => s.stove.perSecond.add(s.kettles.perSecond.bubbles ??
 // ---------------------------------------------------------------------------------------------------------------
 // The spoon: a clicker
 
-export const spoon = clicker({
+export const spoon = defineClicker({
   key: "spoon",
   wallet,
   currency: "bubbles",
@@ -201,7 +201,7 @@ export const spoon = clicker({
   },
 });
 
-export const surface = spawns({
+export const surface = defineSpawns({
   key: "surface",
   kinds: [
     {

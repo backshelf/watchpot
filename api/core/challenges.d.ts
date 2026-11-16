@@ -88,7 +88,7 @@ export type ChallengesFeature<K extends string, G, E> = Feature<K, ChallengesSta
  * `select`: `check`, `maxed`, `rule` (is a rule flag in force: the restriction a buy or a rate checks),
  * `contributions`. `def`: `list`, `challenge(id)`. `draft`: empty.
  */
-export declare function challenges<const K extends string, E = never, const R extends ReachShape = readonly [], G extends object = Record<K, ChallengesState> & ReachOf<R>>(def: {
+export declare function defineChallenges<const K extends string, E = never, const R extends ReachShape = readonly [], G extends object = Record<K, ChallengesState> & ReachOf<R>>(def: {
     readonly key: K;
     /** The features the callbacks read, as `feature`'s `reach`. */
     readonly reach?: R | (() => R);

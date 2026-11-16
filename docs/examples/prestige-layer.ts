@@ -3,9 +3,9 @@ import {
   createIdleStore,
   createMemoryBackend,
   defineGame,
+  definePrestige,
   lifetimeMultiplier,
   powerGain,
-  prestige,
 } from "watchpot/core";
 import { wallet } from "./add-a-currency";
 import { generator } from "./add-a-generator";
@@ -15,7 +15,7 @@ import { TOY } from "./vocab";
  * A layer above the run. `prestige` owns `runs`, the layer's currency and its lifetime total (never reset) and one
  * action that pays `gain` and resets the run. `gain` here is `floor(1 x (gold / 1000) ^ 0.5)`.
  */
-export const ascension = prestige({
+export const ascension = definePrestige({
   key: "ascension",
   action: "ascend", // the reset action's name; default "reset"
   reach: [wallet],

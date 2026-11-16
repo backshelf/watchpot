@@ -17,7 +17,7 @@ import {
  * Markets: things with a price that wanders on its own, to buy low and sell high. A ticker's price is a pure function
  * of game time and the market's saved seed (smooth noise around a base, never outside its band), so it needs no
  * simulation: the price after a week away is read, not replayed, a chart of any stretch is free, and a reload cannot
- * reroll it. `priceAt` is the kernel; `market({ key, wallet, pays, tickers })` is a feature that holds the positions,
+ * reroll it. `priceAt` is the kernel; `defineMarket({ key, wallet, pays, tickers })` is a feature that holds the positions,
  * trades through a currencies feature and pays each holding's yield over a tick and over an absence.
  */
 
@@ -247,7 +247,7 @@ export interface MarketTrader<G> extends Omit<MarketPlayer, "spend"> {
  * holdings and draws a new seed unless `reset` says otherwise. The callbacks read the whole game state (the
  * feature's own slice, the wallet's and what `reach` names), typed with no annotation.
  */
-export function market<
+export function defineMarket<
   const K extends string,
   T extends TickerDef,
   WK extends string,

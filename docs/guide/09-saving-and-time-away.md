@@ -525,13 +525,13 @@ cap cut the absence short, which is worth telling the player (below).
 
 ### When the step is a factory's
 
-Most games do not write this step by hand, because their generators come from the engine's `generators` factory,
+Most games do not write this step by hand, because their generators come from the engine's `defineGenerators` factory,
 which has it built in. You pass `away`, and the factory's `produce` step does the split above for you. VOID IF
 REMOVED's stations, the generators the player buys from the opening page (the whole feature is in
 [chapter 5](05-a-real-game.md#2-features-the-content-on-engine-factories)), pass this:
 
 ```ts
-export const stations = generators({
+export const stations = defineGenerators({
   key: "stations",
   // ...
   away: () => ({ rate: 0.5, capMs: 8 * HOUR_MS }),

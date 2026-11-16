@@ -14,7 +14,7 @@ A system has three layers.
 1. **A [kernel](../glossary.md#kernel).** Pure functions that do the arithmetic and touch nothing else: what the next
    ten kettles cost, how far a meter moves in 250 milliseconds, when the next surprise arrives. You can call them from
    anywhere, including a test or a sim, because they take numbers and return numbers.
-2. **A [feature](../glossary.md#feature) over the kernel.** A factory such as `generators({ ... })` returns a feature
+2. **A [feature](../glossary.md#feature) over the kernel.** A factory such as `defineGenerators({ ... })` returns a feature
    (chapter 3's unit of state plus behaviour) that saves the system's state under its `key`, gives the store its
    actions (`buy`, `click`, `catch`), and adds the [steps](../glossary.md#step) that move it on every tick and over a
    [catch-up](../glossary.md#catch-up). You list it in `defineGame` like any feature you wrote yourself.
@@ -90,7 +90,7 @@ running or a meter that is locked. You will see it used twice below.
 label, and the label counter goes up. Now and then a press comes out as a "clean print" and pays ten times as much.
 Hammering the pad faster than a person could is quietly ignored.
 
-**The factory.** `clicker({ key, wallet, currency, power, crit?, combo?, maxPerSecond?, onClick?, reset? })` makes a
+**The factory.** `defineClicker({ key, wallet, currency, power, crit?, combo?, maxPerSecond?, onClick?, reset? })` makes a
 feature with one action, `click()`. A click pays `power(state, { now })` into the wallet, multiplied by the
 [crit](../glossary.md#crit) multiplier when the crit roll succeeds. It returns what it paid as
 `{ amount, crit, combo }`, or `null` when `maxPerSecond` dropped the press. The crit roll uses the feature's own saved
@@ -110,7 +110,7 @@ export function pressPower(s: Reads): Decimal {
 // ...
 
 /** A tap, on the engine's `clicker`: pays a press, may print clean, warms the head. */
-export const press = clicker({
+export const press = defineClicker({
   key: "press",
   wallet,
   currency: MAIN,
@@ -163,7 +163,7 @@ plus 2% of everything the pot makes a second, more on a full head of foam (the f
 <!-- example-code: guide-first-page.ts -->
 
 ```ts
-export const spoon = clicker({
+export const spoon = defineClicker({
   key: "spoon",
   wallet,
   currency: "bubbles",
@@ -208,7 +208,7 @@ The rest of the clicker, including the combo and the reset rule, is on the shelf
 **What the player sees.** The FEED pad glows with the printhead's heat, which climbs as you press and sinks when you
 stop. A hot head prints more: at full heat, up to twice as much.
 
-**The factory.** `gauge({ key, max, rate, trip?, awayRate?, onTrip?, reset? })` is a bounded level, a
+**The factory.** `defineGauge({ key, max, rate, trip?, awayRate?, onTrip?, reset? })` is a bounded level, a
 [gauge](../glossary.md#gauge). Every tick its step moves the level by `rate(state, { now })` per second and clamps it
 between 0 and `max`. With a `trip`, reaching the top locks the gauge for a while and drops the level, which is how you
 build a boiler that can blow. Without one, the level just stays at `max`, which is a meter in its own right. Over a
@@ -224,7 +224,7 @@ press, a catch) the feature's draft helper `draft.nudge(draft, amount, now)` doe
 The game's heat never trips and survives the first reset:
 
 ```ts
-export const heat = gauge({
+export const heat = defineGauge({
   key: "heat",
   max: HEAT.max,
   reset: "never",
@@ -263,7 +263,7 @@ without it. So stirring hard pays, up to a point.
 export const FOAM = { max: 100, perStir: 4, settle: 6, spillMs: 10_000 };
 
 /** Foam on the pot, 0 to 100. Stirring raises it; it settles on its own; at the top it spills and sits flat a while. */
-export const foam = gauge({
+export const foam = defineGauge({
   key: "foam",
   max: FOAM.max,
   rate: () => -FOAM.settle,
@@ -288,7 +288,7 @@ many a press buys: one, ten, up to the next doubling, or as many as you can affo
 not own yet is shown in full; the two after it are blacked out. When every station reaches a "full shift" count, the whole
 floor's output triples. Close the game, and the stations keep working at half rate, for up to eight hours.
 
-**The factory.** `generators({ key, wallet, list, global?, mult?, open?, milestones?, automated?, away?, reset? })` is
+**The factory.** `defineGenerators({ key, wallet, list, global?, mult?, open?, milestones?, automated?, away?, reset? })` is
 the building list every idle game has. Each entry in `list` is a `RateGeneratorDef` (an `id`, a `cost` curve, the
 currency it `pays` with and the one it `makes`, and a `rate` per one owned, per second) or a `CycleGeneratorDef`, which
 pays on a timed `cycle` instead of a rate; `GeneratorDef` is either. [`milestones`](../glossary.md#milestone) on the
@@ -352,7 +352,7 @@ reach 25, and boiling three times as fast while a rolling boil runs:
 ```ts
 const DOUBLINGS = [10, 25, 50, 100].map((at) => ({ at, gives: { mult: 2 } }));
 
-export const kettles = generators({
+export const kettles = defineGenerators({
   key: "kettles",
   wallet,
   reach: () => [kitchen, boosts],
@@ -436,7 +436,7 @@ until the run reaches a later stage.
 Everything on it is gone again after the first reset.
 
 **The factory.** An [upgrade tree](../glossary.md#upgrade-tree) is a set of nodes, each bought one rank at a time.
-`upgradeTree({ key, nodes, wallet, open?, milestone?, reset? })` saves the ranks under `key`, and its actions are
+`defineUpgradeTree({ key, nodes, wallet, open?, milestone?, reset? })` saves the ranks under `key`, and its actions are
 `buy(id)`, `buyMax(id, limit?)` and `buyAll(limit?)`, which buys the cheapest rank on offer, then the next cheapest,
 until the wallet runs dry. Each node is a `GraphNode`: an `id`, `name` and `line`, a `cost` in one or more currencies,
 a `costGrowth` per rank, a `maxLevel`, the node ids it `requires`, and its `effects`. A tree does not need to look like
@@ -503,7 +503,7 @@ const UPGRADES: readonly Upgrade[] = [
   // ...
 ];
 
-export const kitchen = upgradeTree({
+export const kitchen = defineUpgradeTree({
   key: "kitchen",
   nodes: UPGRADES,
   wallet,
@@ -575,7 +575,7 @@ run's name, its multiplier and the seconds left.
 
 **The factories.** These are two systems that work as a pair.
 
-`spawns({ key, kinds, onCatch?, reset? })` is random arrivals, each a [spawn](../glossary.md#spawn). Each kind has a
+`defineSpawns({ key, kinds, onCatch?, reset? })` is random arrivals, each a [spawn](../glossary.md#spawn). Each kind has a
 `wait` between arrivals (`minMs`, `maxMs`, and an optional `ramp` that makes late arrivals likelier), a `lifeMs` it
 stays catchable, an `outcomes` table of weights, and an optional `active(state, { now })` that holds it back. The
 `wait` and `lifeMs` may be functions of the state too. Its step brings every kind up to the current game time, and its
@@ -583,7 +583,7 @@ action `catch(kind)` draws an outcome and runs your `onCatch(draft, outcome, now
 is on the kind's own saved random stream. The screen reads `state.<key>.kinds[kind].live`, which is `null` or
 `{ id, bornAt, diesAt }`.
 
-`buffs({ key, list, onEnd?, reset? })` is timed boosts, each a [buff](../glossary.md#buff). Each entry has an `id`, a
+`defineBuffs({ key, list, onEnd?, reset? })` is timed boosts, each a [buff](../glossary.md#buff). Each entry has an `id`, a
 `durationMs`, a `stack` rule for starting it while it runs (`"refresh"`, `"extend"`, `"stack"` or `"ignore"`) and,
 if it should feed a stat bus, its `effects`. Without `effects` a buff is a timer that your own rules ask about. The
 readers are `boosts.select.active(state, id, now)`, `boosts.select.leftMs(state, id, now)` and `boosts.select.overlapMs(state, id,
@@ -592,7 +592,7 @@ from, to)`, which says how much of a stretch of time the buff covered.
 The game calls its arrivals misfeeds:
 
 ```ts
-export const misfeeds = spawns({
+export const misfeeds = defineSpawns({
   key: "misfeeds",
   kinds: [
     {
@@ -631,7 +631,7 @@ The trimmed `onCatch` line starts the buff named by the outcome with the buffs f
 sooner. The buffs themselves:
 
 ```ts
-export const boosts = buffs<"boosts", Fx>({
+export const boosts = defineBuffs<"boosts", Fx>({
   key: "boosts",
   list: [
     { id: "hot-run", durationMs: MISFEED.hotRun.seconds * 1000, stack: "refresh", effects: () => [] },
@@ -675,7 +675,7 @@ as fast). The rolling boil is a timer, with no `effects`:
 export const ROLLING_BOIL = { seconds: 30, mult: 3 };
 
 /** The rolling boil is a timer: the kettles ask whether it is running, where they work out their rate. */
-export const boosts = buffs({
+export const boosts = defineBuffs({
   key: "boosts",
   list: [{ id: "rolling-boil", durationMs: ROLLING_BOIL.seconds * 1000, stack: "refresh" }],
 });
@@ -688,7 +688,7 @@ and the big bubble:
 <!-- example-code: guide-first-page.ts -->
 
 ```ts
-export const surface = spawns({
+export const surface = defineSpawns({
   key: "surface",
   kinds: [
     {

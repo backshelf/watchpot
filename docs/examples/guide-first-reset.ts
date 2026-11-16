@@ -8,13 +8,13 @@
  */
 import {
   type Achievement,
-  achievements,
   type Decimal,
+  defineAchievements,
   defineGame,
+  definePrestige,
   feature,
   lifetimeMultiplier,
   powerGain,
-  prestige,
   type StateOf,
 } from "watchpot/core";
 import { lid, SIMMER_PER_SECOND, scriptStore, stove, WORDS, wallet } from "./simmer/game-wallet";
@@ -55,7 +55,7 @@ type Run = StateOf<readonly [typeof wallet]>;
 /** Steam a boil-over pays: none under 1,000 bubbles this run, then the square root of how many thousands. */
 export const steamGain = (s: Run): Decimal => powerGain(s.wallet.earned, { k: 1, exp: 0.5, per: 1000 });
 
-export const steam = prestige({
+export const steam = definePrestige({
   key: "steam",
   action: "boilOver",
   reach: [wallet, pot, stove],
@@ -95,7 +95,7 @@ const MEDALS: Achievement<Kitchen>[] = [
 ];
 
 /** The medal wall: earned once, kept through every boil-over (the default for achievements). */
-export const medals = achievements({ key: "medals", columns: 4, list: MEDALS });
+export const medals = defineAchievements({ key: "medals", columns: 4, list: MEDALS });
 
 const PAGES: Achievement<Kitchen>[] = [
   { id: "pot", name: "Pot", line: "", when: () => true },
@@ -104,7 +104,7 @@ const PAGES: Achievement<Kitchen>[] = [
 ];
 
 /** The pages, on the same factory: a page opens the first pass its condition holds and never shuts. */
-export const pages = achievements({ key: "pages", columns: PAGES.length, list: PAGES });
+export const pages = defineAchievements({ key: "pages", columns: PAGES.length, list: PAGES });
 
 export const isOpen = (s: { pages: { earned: Record<string, number> } }, id: string): boolean =>
   s.pages.earned[id] !== undefined;

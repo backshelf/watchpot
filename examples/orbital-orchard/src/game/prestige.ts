@@ -1,4 +1,4 @@
-import { type Decimal, powerGain, prestige } from "watchpot/core";
+import { type Decimal, definePrestige, powerGain } from "watchpot/core";
 import { GAIN } from "../content/prestige";
 import { stats } from "./stats";
 import { wallet } from "./wallet";
@@ -26,7 +26,7 @@ export const nextOrbitAt = (s: GainReads) => {
  * The prestige layer: `ascend()` pays the gain into `prestige.currency` and resets the run (the wallet, the
  * generators and the upgrade tree; the collection and the premium stay). Each unit held raises output for good.
  */
-export const ascension = prestige({
+export const ascension = definePrestige({
   key: "prestige",
   action: "ascend",
   reach: [wallet, stats],

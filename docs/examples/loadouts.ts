@@ -3,11 +3,11 @@ import {
   createIdleStore,
   createMemoryBackend,
   defineGame,
+  defineLoadout,
   type Effect,
   feature,
   fillLoadout,
   type LoadoutItem,
-  loadoutFeature,
   type Slotted,
   statIndex,
 } from "watchpot/core";
@@ -28,7 +28,7 @@ export const cupboard = feature({
 });
 
 /** The kit: a lid slot, a spoon slot and a spare that takes anything. Three copper pieces make a set. */
-export const kit = loadoutFeature({
+export const kit = defineLoadout({
   key: "kit",
   reach: [cupboard],
   slots: [{ id: "lid", kind: "lid" }, { id: "spoon", kind: "spoon" }, { id: "spare" }],

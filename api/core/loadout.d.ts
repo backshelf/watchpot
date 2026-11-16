@@ -3,7 +3,7 @@ import { type Feature, type NeedsOf, type ReachOf, type ReachShape, type ResetRu
  * Loadouts: a few slots, the items a player holds, and what the items in the slots do together. An item fits a slot
  * of its `kind`; every slotted item gives its own effects, and a `LoadoutSet` gives more once enough slotted items
  * carry its tag. `loadout({ id, slots, items, sets })` is the rules over a slots record the game keeps wherever it
- * saves it; `loadoutFeature({ key, …, owns })` is a feature that owns the record, with the rules under `def.loadout`.
+ * saves it; `defineLoadout({ key, …, owns })` is a feature that owns the record, with the rules under `def.loadout`.
  * The effects are the game's own type: with the stats feature's `{ stat, add }` / `{ stat, mul }` effects,
  * `contributions` feeds its `contributions` as a tree's do.
  */
@@ -124,7 +124,7 @@ export type LoadoutFeature<K extends string, E> = Feature<K, LoadoutState, Loado
  * the game's rule for what the player holds, read off the whole game state (its own slice plus what `reach` names). A
  * prestige reset keeps the slots unless `reset` says otherwise.
  */
-export declare function loadoutFeature<const K extends string, E, const R extends ReachShape = readonly [], G extends object = Record<K, LoadoutState> & ReachOf<R>>(def: {
+export declare function defineLoadout<const K extends string, E, const R extends ReachShape = readonly [], G extends object = Record<K, LoadoutState> & ReachOf<R>>(def: {
     readonly key: K;
     /** The features `owns` reads, as `feature`'s `reach`. */
     readonly reach?: R | (() => R);

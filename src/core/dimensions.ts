@@ -21,7 +21,7 @@ import {
  * `set.mult` (ten bought doubles it), and the game multiplies further through `mult` and `speed`.
  *
  * `advanceChain` is the pure kernel: the exact amounts after any stretch of time, in one step, so a tick of 50 ms
- * and an absence of a week follow the same curve. `dimensions({ key, tiers, wallet, makes })` is the feature.
+ * and an absence of a week follow the same curve. `defineDimensions({ key, tiers, wallet, makes })` is the feature.
  */
 
 /** What `advanceChain` returns: the amounts after the stretch, and what the lowest tier made over it. */
@@ -223,7 +223,7 @@ export interface DimensionsDef<
  * otherwise. The callbacks read the whole game state (the feature's own slice, the wallet's and what `reach` names),
  * typed with no annotation.
  */
-export function dimensions<
+export function defineDimensions<
   const K extends string,
   T extends DimensionTier<C>,
   WK extends string,

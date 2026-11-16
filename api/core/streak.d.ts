@@ -4,7 +4,7 @@ import { type Feature, type NeedsOf, type ReachOf, type ReachShape, type ResetRu
  * The daily streak: one claim a local calendar day, and a run of consecutive days that a missed day breaks. Days are
  * the player's local calendar days (`dayKey`), so a day of 23 or 25 hours across a daylight-saving change is still one
  * day. `grace` lets a run survive that many missed days; `keep` lets a game charge to save a run that would break.
- * The kernel is pure over the state and the `now` it is handed; `streak({ key, rewards })` is the feature.
+ * The kernel is pure over the state and the `now` it is handed; `defineStreak({ key, rewards })` is the feature.
  */
 /** The streak's saved state: the day last claimed, the current run, the longest run and the claims ever. */
 export interface StreakState {
@@ -97,7 +97,7 @@ export type StreakFeature<K extends string, R> = Feature<K, StreakState, StreakA
  *
  * `select`: `status(state, now)`. `def`: `grace`, `rewards`. `draft`: empty.
  */
-export declare function streak<const K extends string, R, const Re extends ReachShape = readonly [], G extends object = Record<K, StreakState> & ReachOf<Re>>(def: {
+export declare function defineStreak<const K extends string, R, const Re extends ReachShape = readonly [], G extends object = Record<K, StreakState> & ReachOf<Re>>(def: {
     readonly key: K;
     /** The features the callbacks read, as `feature`'s `reach`. */
     readonly reach?: Re | (() => Re);

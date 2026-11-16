@@ -149,7 +149,7 @@ function beats(a: RecordValue, b: RecordValue, way: "high" | "low"): boolean {
  * the run scope onto `runs` (`keepRuns`, default 10) with the run's length, folds it into `best` and `bestRunMs`, and
  * clears it; the life scope stays. No steps: the game notes what it counts where it happens.
  */
-export function records<const K extends string, const T extends Record<string, RecordTrack>>(def: {
+export function defineRecords<const K extends string, const T extends Record<string, RecordTrack>>(def: {
   readonly key: K;
   readonly track: T;
   readonly keepRuns?: number;

@@ -3,8 +3,8 @@ import {
   catalogueRoll,
   D,
   type Decimal,
+  defineGacha,
   feature,
-  gacha,
   type Move,
   withMoves,
 } from "watchpot/core";
@@ -13,7 +13,7 @@ import { type Currency, PREMIUM, WORDS } from "../content/words";
 import { wallet } from "./wallet";
 
 /** The draw: the ladder, the odds and the guarantees, each pull's item from the catalogue. */
-export const summon = gacha({
+export const summon = defineGacha({
   key: "summon",
   ladder: WORDS.rarities,
   vocab: WORDS,

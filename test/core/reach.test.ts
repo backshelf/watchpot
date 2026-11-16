@@ -3,11 +3,11 @@ import {
   createGameStorage,
   createIdleStore,
   createMemoryBackend,
-  currencies,
+  defineCurrencies,
   defineGame,
+  defineGenerators,
   feature,
   type GeneratorsState,
-  generators,
   reach,
   vocab,
 } from "../../src/core";
@@ -110,9 +110,9 @@ test("a type reach is checked against the game", () => {
 
 // 4. An engine factory in a cycle: the generators' callbacks read the kitchen, and the kitchen reads the generators.
 const WORDS = vocab({ currencies: ["bubbles"], stats: [], rarities: ["common"] } as const);
-const wallet = currencies({ key: "wallet", vocab: WORDS, start: { bubbles: 100 } });
+const wallet = defineCurrencies({ key: "wallet", vocab: WORDS, start: { bubbles: 100 } });
 
-const burners = generators({
+const burners = defineGenerators({
   key: "burners",
   wallet,
   reach: () => [kitchen],

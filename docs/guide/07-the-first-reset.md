@@ -165,7 +165,7 @@ All the balances live in one `currencies` feature, so one rule has to treat each
 can, because the reset's depth is on its `ctx`:
 
 ```ts
-export const wallet = currencies({
+export const wallet = defineCurrencies({
   key: "wallet",
   vocab: WORDS,
   earned: { [MAIN]: "earned" },
@@ -189,7 +189,7 @@ Shops follow the same idea with the shorthand form. The game builds every shop o
 the shop's depth straight through:
 
 ```ts
-  const tree = upgradeTree({
+  const tree = defineUpgradeTree({
     key,
     nodes,
     wallet,
@@ -261,7 +261,7 @@ type Run = StateOf<readonly [typeof wallet]>;
 /** Steam a boil-over pays: none under 1,000 bubbles this run, then the square root of how many thousands. */
 export const steamGain = (s: Run): Decimal => powerGain(s.wallet.earned, { k: 1, exp: 0.5, per: 1000 });
 
-export const steam = prestige({
+export const steam = definePrestige({
   key: "steam",
   action: "boilOver",
   reach: [wallet, pot, stove],
@@ -415,7 +415,7 @@ Put it behind a confirmation. Nothing in the engine asks the player twice.
 ## Achievements
 
 A medal wall gives the player small goals between resets and a reason to look back at the run. Each medal is an
-[achievement](../glossary.md#achievement), and the engine's `achievements` factory is a feature that owns a record of what is earned and when, and checks the list for you.
+[achievement](../glossary.md#achievement), and the engine's `defineAchievements` factory is a feature that owns a record of what is earned and when, and checks the list for you.
 
 <!-- example-code: guide-first-reset.ts -->
 
@@ -434,7 +434,7 @@ const MEDALS: Achievement<Kitchen>[] = [
 ];
 
 /** The medal wall: earned once, kept through every boil-over (the default for achievements). */
-export const medals = achievements({ key: "medals", columns: 4, list: MEDALS });
+export const medals = defineAchievements({ key: "medals", columns: 4, list: MEDALS });
 ```
 
 `docs/examples/guide-first-reset.ts`
@@ -481,7 +481,7 @@ The game keeps its own `StampDef` (with the page each stamp belongs to, for draw
 and maps it to the engine's shape in one line:
 
 ```ts
-export const stamps = achievements<"stamps", Reads, never>({
+export const stamps = defineAchievements<"stamps", Reads, never>({
   key: "stamps",
   columns: STAMP_COLUMNS,
   list: STAMPS.map((s) => ({ id: s.id, name: s.name, line: s.line, secret: s.secret, when: s.when })),
@@ -492,7 +492,7 @@ VOID IF REMOVED, `src/game/stamps.ts`
 
 The game is still on an older engine, whose type arguments ran key, state, effect; on the current engine they run key,
 effect, reach, state, so nobody writes them by hand. `achievements` works out the state type from `reach` (or from an
-annotated `when`) and the effect type from `effects`, so `achievements({ key: "stamps", ... })` with an annotated
+annotated `when`) and the effect type from `effects`, so `defineAchievements({ key: "stamps", ... })` with an annotated
 list, as Simmer writes it, is the usual form.
 
 ## The same factory opens pages
@@ -528,7 +528,7 @@ export const PAGES: readonly PageDef[] = [
 VOID IF REMOVED, `src/content/pages.ts`
 
 ```ts
-export const pages = achievements<"pages", Reads, never>({
+export const pages = defineAchievements<"pages", Reads, never>({
   key: "pages",
   columns: PAGES.length,
   list: PAGES.map((p) => ({ id: p.id, name: p.name, line: p.line, when: p.opens })),
@@ -557,7 +557,7 @@ const PAGES: Achievement<Kitchen>[] = [
 ];
 
 /** The pages, on the same factory: a page opens the first pass its condition holds and never shuts. */
-export const pages = achievements({ key: "pages", columns: PAGES.length, list: PAGES });
+export const pages = defineAchievements({ key: "pages", columns: PAGES.length, list: PAGES });
 ```
 
 `docs/examples/guide-first-reset.ts`

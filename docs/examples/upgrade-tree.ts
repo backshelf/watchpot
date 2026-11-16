@@ -4,9 +4,9 @@ import {
   createMemoryBackend,
   defineGame,
   defineStats,
+  defineUpgradeTree,
   type Effect,
   type GraphNode,
-  upgradeTree,
 } from "watchpot/core";
 import { autoPlayer } from "watchpot/sim";
 import { wallet } from "./add-a-currency";
@@ -45,7 +45,7 @@ const NODES: readonly Node[] = [
  * A tree as a feature: it saves `{ ranks }` and buys through the wallet. `open` holds the laser back until the
  * player has swept up some dust: a closed node refuses with `closed`, and the feature's own readers say so too.
  */
-export const mine = upgradeTree({
+export const mine = defineUpgradeTree({
   key: "mine",
   nodes: NODES,
   wallet,

@@ -3,12 +3,12 @@ import {
   advanceTrack,
   D,
   defineGame,
+  defineStages,
   feature,
   passable,
   resistanceAt,
   type StageTrack,
   secondsToClear,
-  stages,
   type TrackState,
   trackFill,
   ZERO,
@@ -66,7 +66,7 @@ describe("advanceTrack", () => {
 
 describe("stages feature", () => {
   const army = feature({ key: "army", initial: () => ({ force: 5, loot: 0, unlocked: false }) });
-  const front = stages({
+  const front = defineStages({
     reach: [army],
     key: "front",
     tracks: [ROAD, { id: "side", resistance: { base: 1, growth: 10 } }],
@@ -112,7 +112,7 @@ describe("stages feature", () => {
   });
 
   test("`reach` types the callbacks: a reached feature reads, an unreached one does not", () => {
-    stages({
+    defineStages({
       key: "bad",
       reach: [army],
       tracks: [],

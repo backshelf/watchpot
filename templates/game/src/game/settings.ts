@@ -1,4 +1,4 @@
-import { settings as playerSettings } from "watchpot/core";
+import { defineSettings as playerSettings } from "watchpot/core";
 import type { GameRuntimeOptions } from "watchpot/react";
 
 /** The player's choices: sound on or off, and the motion ("system" follows the OS, "reduced" stills it). */

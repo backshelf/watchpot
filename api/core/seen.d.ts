@@ -27,6 +27,6 @@ export type SeenFeature<K extends string> = Feature<K, SeenState, SeenActions> &
  * is `state[key].seen[id] === true`. An action that changes nothing writes nothing, so a caller may mark on every
  * render of the thing. `select`, `def` and `draft` are empty: it has nothing but state and actions.
  */
-export declare function seenOnce<const K extends string>(def: {
+export declare function defineSeenOnce<const K extends string>(def: {
     readonly key: K;
 }): SeenFeature<K>;

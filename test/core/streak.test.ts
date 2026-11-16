@@ -3,10 +3,10 @@ import {
   claimStreak,
   DAY_MS,
   defineGame,
+  defineStreak,
   feature,
   NO_STREAK,
   type StreakState,
-  streak,
   streakStatus,
 } from "watchpot/core";
 import { freshStore } from "watchpot/test";
@@ -115,7 +115,7 @@ describe("the streak kernel", () => {
 
 describe("streak feature", () => {
   const bank = feature({ key: "bank", initial: () => ({ gems: 10, gold: 0 }) });
-  const daily = streak({
+  const daily = defineStreak({
     key: "daily",
     rewards: (day) => Math.min(day, 7) * 100,
     onClaim: (d: { bank: { gems: number; gold: number } }, reward) => {
@@ -151,7 +151,7 @@ describe("streak feature", () => {
   });
 
   test("`reach` types the callbacks: a reached feature reads, an unreached one does not", () => {
-    const reached = streak({
+    const reached = defineStreak({
       key: "visits",
       reach: () => [bank],
       grace: 1,
@@ -160,7 +160,7 @@ describe("streak feature", () => {
         d.bank.gold += reward + d.visits.count;
       },
     });
-    streak({
+    defineStreak({
       key: "bad",
       reach: [bank],
       rewards: (day) => day,

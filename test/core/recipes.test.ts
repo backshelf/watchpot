@@ -3,10 +3,10 @@ import {
   type CraftPurse,
   canCraft,
   craft,
-  crafting,
-  currencies,
   D,
   type Decimal,
+  defineCrafting,
+  defineCurrencies,
   defineGame,
   feature,
   HOUR_MS,
@@ -69,9 +69,9 @@ describe("canCraft, maxCraftable and craft", () => {
 });
 
 const WORDS = vocab({ currencies: ["gold", "gems"], stats: [], rarities: ["common"] } as const);
-const wallet = currencies({ key: "wallet", vocab: WORDS, start: { gold: 100 } });
+const wallet = defineCurrencies({ key: "wallet", vocab: WORDS, start: { gold: 100 } });
 type State = { wallet: { gold: Decimal; gems: Decimal } };
-const forge = crafting({
+const forge = defineCrafting({
   key: "forge",
   wallet,
   list: [
@@ -136,7 +136,7 @@ describe("crafting", () => {
 
   test("a time that reads the state: the craft under way keeps its progress and the rest runs at the new pace", () => {
     const heard: [string, number][] = [];
-    const quick = crafting({
+    const quick = defineCrafting({
       key: "forge",
       wallet,
       list: [
@@ -184,15 +184,15 @@ describe("crafting", () => {
 
   test("a repeated id or a zero time throws", () => {
     const one = { id: "a", inputs: {}, outputs: {} };
-    expect(() => crafting({ key: "x", wallet, list: [one, one] })).toThrow(/twice/);
-    expect(() => crafting({ key: "x", wallet, list: [{ ...one, takesMs: 0 }] })).toThrow(/above zero/);
+    expect(() => defineCrafting({ key: "x", wallet, list: [one, one] })).toThrow(/twice/);
+    expect(() => defineCrafting({ key: "x", wallet, list: [{ ...one, takesMs: 0 }] })).toThrow(/above zero/);
   });
 });
 
 describe("reach", () => {
   test("a callback reads a reached feature with no annotation, and not one that was not reached", () => {
     const door = feature({ key: "door", initial: () => ({ open: true }) });
-    const gated = crafting({
+    const gated = defineCrafting({
       key: "gated",
       wallet,
       reach: [door],

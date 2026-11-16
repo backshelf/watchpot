@@ -1,4 +1,11 @@
-import { type ChallengesState, challenges, D, type Decimal, type StatGraph, statIndex } from "watchpot/core";
+import {
+  type ChallengesState,
+  D,
+  type Decimal,
+  defineChallenges,
+  type StatGraph,
+  statIndex,
+} from "watchpot/core";
 
 type Stat = "speed";
 type Group = "tools" | "helpers";
@@ -14,7 +21,7 @@ interface Kitchen {
  * Challenges whose rule flags name a group of the stat graph: `mute:tools` switches every tool off for the run. A
  * new restriction is one more list entry; no rule anywhere in the game has to learn about it.
  */
-export const trials = challenges({
+export const trials = defineChallenges({
   key: "trials",
   list: [
     { id: "bare-hands", goal: (s: Kitchen) => s.gold.gte(1e6), rules: ["mute:tools"] },

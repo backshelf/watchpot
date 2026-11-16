@@ -2,23 +2,23 @@ import {
   type BuffsState,
   buffActive,
   createIdleStore,
-  currencies,
   type Decimal,
+  defineCurrencies,
   defineGame,
-  generators,
+  defineGenerators,
   HOUR_MS,
 } from "watchpot/core";
 import { boosts } from "./buffs";
 import { TOY } from "./vocab";
 
-const wallet = currencies({ key: "wallet", vocab: TOY, start: { gold: 10 } });
+const wallet = defineCurrencies({ key: "wallet", vocab: TOY, start: { gold: 10 } });
 type State = { wallet: { gems: Decimal }; boosts: BuffsState };
 
 /** The rush buff (`buffs.ts`) multiplies every building by 7 while it runs. */
 const rush = (s: State, now: number) => (buffActive(s.boosts, "rush", now) ? 7 : 1);
 
 /** Three buildings: a steady earner, a timed cycle a manager automates, and one that makes gems. */
-export const buildings = generators({
+export const buildings = defineGenerators({
   key: "buildings",
   wallet,
   list: [

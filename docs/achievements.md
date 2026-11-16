@@ -6,7 +6,7 @@ a row), and effects for the game's stats while earned. Most are checked by the f
 a while first, some are only true at a moment the game names, and the rest the game awards itself.
 
 ```ts
-import { type Achievement, achievements, type Decimal, type Effect, defineStats } from "watchpot/core";
+import { type Achievement, defineAchievements, type Decimal, type Effect, defineStats } from "watchpot/core";
 
 type State = { wallet: { gold: Decimal; gems: Decimal } };
 type Fx = Effect<"toy.speed">;
@@ -20,7 +20,7 @@ const LIST: Achievement<State, Fx>[] = [
   { id: "found", name: "Found it", line: "Open the hidden door." }, // award("found")
 ];
 
-export const wall = achievements({
+export const wall = defineAchievements({
   key: "wall",
   columns: 4,
   list: LIST,
@@ -55,7 +55,7 @@ Example: [`examples/achievements.ts`](examples/achievements.ts).
   a short last row included), `count`, `rowsComplete`, `contributions(earned)` (sourced `<id>:<achievement>`, then
   `<id>:row:<index>` from 0 for each complete row's `rowEffects(row)`) and `power(earned, { each, row? })` =
   `each^count × row^rowsComplete` as a Decimal. A repeated id throws.
-- **`achievements({ key, reach?, list, columns, rowEffects?, keepFresh?, onEarn?, reset? })`** saves `{ earned, fresh, holding
+- **`defineAchievements({ key, reach?, list, columns, rowEffects?, keepFresh?, onEarn?, reset? })`** saves `{ earned, fresh, holding
   }`. Its step `<key>.settle.check` checks every unearned achievement with a `when`
   and no `on`, after the pass's production. With `forMs` the timer (`holding`) starts the first pass the condition
   holds and clears the first pass it is broken; over a catch-up the gap counts only if it holds at the end.

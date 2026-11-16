@@ -32,7 +32,7 @@ export type SeenFeature<K extends string> = Feature<K, SeenState, SeenActions> &
  * is `state[key].seen[id] === true`. An action that changes nothing writes nothing, so a caller may mark on every
  * render of the thing. `select`, `def` and `draft` are empty: it has nothing but state and actions.
  */
-export function seenOnce<const K extends string>(def: { readonly key: K }): SeenFeature<K> {
+export function defineSeenOnce<const K extends string>(def: { readonly key: K }): SeenFeature<K> {
   // `feature` types its draft over a record keyed by `K`; the slice is the one thing the actions touch.
   const slice = (state: unknown): SeenState => (state as Record<K, SeenState>)[def.key];
   const made = feature({

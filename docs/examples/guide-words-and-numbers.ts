@@ -5,7 +5,7 @@
  * Run it with `bun docs/examples/guide-words-and-numbers.ts`: it prints a few Decimals, the printers, and the
  * wallet before and after a reset.
  */
-import { currencies, D, fmt, fmtFull, formatter, take } from "watchpot/core";
+import { D, defineCurrencies, fmt, fmtFull, formatter, take } from "watchpot/core";
 import { game, scriptStore, WORDS } from "./simmer/game-wallet";
 
 // ---------------------------------------------------------------------------------------------------------------
@@ -49,7 +49,7 @@ export function printing(): void {
 // ---------------------------------------------------------------------------------------------------------------
 // A total that outlives the reset
 
-export const keepingWallet = currencies({
+export const keepingWallet = defineCurrencies({
   key: "wallet",
   vocab: WORDS,
   earnedThisRun: { bubbles: "earned" },

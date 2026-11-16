@@ -6,13 +6,13 @@ fills a bar: each assigned unit does `speed` work a second, and a full bar level
 the pool shrinks, the most recently assigned sink gives way first.
 
 ```ts
-import { allocation, defineGame, type Effect, feature, defineStats } from "watchpot/core";
+import { defineAllocation, defineGame, type Effect, feature, defineStats } from "watchpot/core";
 import { TOY } from "./vocab";
 
 const crew = feature({ key: "crew", initial: () => ({ size: 12 }) });
 
 /** Twelve workers across three sinks: one that only counts, two bars that level up as they fill. */
-export const jobs = allocation({
+export const jobs = defineAllocation({
   key: "jobs",
   reach: [crew], // what the callbacks read, typed with no annotation
   pool: (s) => s.crew.size, // the game's number; shrink it and the newest assignments give way
@@ -51,7 +51,7 @@ export const game = defineGame({
   room for) or, negative, out; `freeUnits(assigned, pool)`; `allocatedUnits(assigned)`; `rebalanceUnits(assigned, pool, order, caps?)`
   trims every sink to its cap, then the total to the pool from the end of `order` (most recent last), deterministic.
   Each returns a new record.
-- **`allocation({ key, pool, sinks, away?, reset? })`** saves `{ assigned, order, progress, level }` under `key` (the
+- **`defineAllocation({ key, pool, sinks, away?, reset? })`** saves `{ assigned, order, progress, level }` under `key` (the
   contributions' source prefix too). `<key>.sync.pool` rebalances every pass, so a pool or cap that shrinks takes units
   back; `<key>.produce.fill` fills the bars over a tick and over an absence (`away`, default all of it).
 - **`SinkDef<G, E>`**: `id`, `cap?(state)`, `effects?(level)`, and for a bar `cost: CostCurve` (work per level),

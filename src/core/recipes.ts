@@ -14,7 +14,7 @@ import {
 /**
  * Recipes: crafting, inputs to outputs. A recipe takes amounts of some currencies and gives amounts of others, all
  * or nothing, as many times over as asked; a yield multiplier scales what it gives. The pure rules work over a
- * `Purse` that can also be credited; `crafting({ key, wallet, list })` is a feature over a currencies feature, with
+ * `Purse` that can also be credited; `defineCrafting({ key, wallet, list })` is a feature over a currencies feature, with
  * an optional timed queue: a recipe with `takesMs` makes one at a time on game time, so a queue finishes during an
  * absence.
  */
@@ -225,7 +225,7 @@ export type CraftingFeature<K extends string, C extends string, G> = Feature<
  * `reset` says otherwise. The callbacks read the whole game state (the feature's own slice, the wallet's and what
  * `reach` names), typed with no annotation.
  */
-export function crafting<
+export function defineCrafting<
   const K extends string,
   WK extends string,
   C extends string,

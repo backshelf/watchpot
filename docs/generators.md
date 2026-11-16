@@ -6,18 +6,18 @@ cost curve (`cost.ts`, so bulk buys are closed-form). A generator pays a steady 
 once the game's `automated` says so. Milestones on the owned count multiply the output or speed the cycle.
 
 ```ts
-import { type BuffsState, buffActive, currencies, type Decimal, defineGame, generators, HOUR_MS } from "watchpot/core";
+import { type BuffsState, buffActive, defineCurrencies, type Decimal, defineGame, defineGenerators, HOUR_MS } from "watchpot/core";
 import { boosts } from "./buffs";
 import { TOY } from "./vocab";
 
-const wallet = currencies({ key: "wallet", vocab: TOY, start: { gold: 10 } });
+const wallet = defineCurrencies({ key: "wallet", vocab: TOY, start: { gold: 10 } });
 type State = { wallet: { gems: Decimal }; boosts: BuffsState };
 
 /** The rush buff (`buffs.ts`) multiplies every building by 7 while it runs. */
 const rush = (s: State, now: number) => (buffActive(s.boosts, "rush", now) ? 7 : 1);
 
 /** Three buildings: a steady earner, a timed cycle a manager automates, and one that makes gems. */
-export const buildings = generators({
+export const buildings = defineGenerators({
   key: "buildings",
   wallet,
   list: [
@@ -62,7 +62,7 @@ export const game = defineGame({
 Example: [`examples/generators.ts`](examples/generators.ts) (`bun docs/examples/generators.ts` prints a buy row per
 mode).
 
-- **`generators({ key, wallet, list, mult?, global?, milestones?, open?, automated?, away?, reset? })`** saves
+- **`defineGenerators({ key, wallet, list, mult?, global?, milestones?, open?, automated?, away?, reset? })`** saves
   `{ owned, progress, running }` under `key`; `perSecond` (per currency, Decimals) is transient, worked out in
   `<key>.rates.perSecond` so screens and later features read it. Production is `<key>.produce.make`: a live tick
   pays its `dtMs`, a catch-up pays what `offlineCredit` credits through `away(state) → { rate, capMs? }` (default:
@@ -98,4 +98,4 @@ mode).
   argument `{ now }` in game time, so a buff can multiply or open where it applies (`buffActive(s.boosts, "rush",
   now)`, as above). Steps pass the pass's `now`; `select` and the draft helpers take an optional trailing `now`, which
   defaults to the state's `gameNow()`; a screen that reads a buff passes the `now` it renders at.
-- **A save step** for the list (a renamed id, a field added): `withMigrations(generators({ … }), { 2: step })`.
+- **A save step** for the list (a renamed id, a field added): `withMigrations(defineGenerators({ … }), { 2: step })`.

@@ -31,7 +31,7 @@ import {
  * `global` milestones do the same for every generator once the lowest owned count across the list reaches them.
  *
  * `cyclesIn` is the pure kernel for a cycle: how many complete over a stretch, in closed form, so a tick of 50 ms and
- * an absence of a week land the same. `generators({ key, wallet, list })` is the feature: its `select` answers
+ * an absence of a week land the same. `defineGenerators({ key, wallet, list })` is the feature: its `select` answers
  * questions over state (`burners.select.price(s, "stove")`), its `def` holds the list, and its `draft` buys inside
  * a recipe (`burners.draft.buy(d, "stove")`).
  */
@@ -270,7 +270,7 @@ export interface GeneratorsDef<
  * `reset` says otherwise. The callbacks read the whole game state (the feature's own slice, the wallet's and what
  * `reach` names), typed with no annotation.
  */
-export function generators<
+export function defineGenerators<
   const K extends string,
   T extends GeneratorDef<C>,
   WK extends string,

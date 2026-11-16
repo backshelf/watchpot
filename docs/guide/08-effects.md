@@ -89,7 +89,7 @@ const COPPER: GraphNode<Effect<"heat">, "bubbles"> = {
   requires: [],
   effects: [{ stat: "heat", mul: 1.25 }],
 };
-export const kitchen = upgradeTree({ key: "kitchen", nodes: [COPPER], wallet });
+export const kitchen = defineUpgradeTree({ key: "kitchen", nodes: [COPPER], wallet });
 ```
 
 `docs/examples/guide-effects.ts`
@@ -124,7 +124,7 @@ The medal:
 <!-- example-code: guide-effects.ts -->
 
 ```ts
-export const medals = achievements({
+export const medals = defineAchievements({
   key: "medals",
   columns: 5,
   list: [
@@ -473,7 +473,7 @@ going to copy a game, copy the shape, not the file.
 - **Feature order is step order.** Within a phase, steps run in feature-list order unless a step says `after` or
   `before` (chapter 3). A step that multiplies a rate must run after the step that sets it. Nothing warns you when it
   does not; the rate is just wrong. A derived stat has no such order: it is current wherever it is read.
-- **Generator milestones are not in the stats.** `generators({ list: [{ milestones }] })` multiplies inside the
+- **Generator milestones are not in the stats.** `defineGenerators({ list: [{ milestones }] })` multiplies inside the
   generator, so the breakdown never sees it. Simmer writes its milestone as a contribution for exactly that reason. If
   you use the built-in milestones, show them in the tooltip yourself (the list's `rules.boost(state, id)` gives their
   product).

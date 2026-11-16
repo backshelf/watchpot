@@ -23,7 +23,7 @@ works it out from its objective. Say a `worth(state, node)` in the tree's defini
 objective at once ([an upgrade tree](upgrade-tree.md)):
 
 ```ts
-export const mine = upgradeTree({
+export const mine = defineUpgradeTree({
   key: "mine",
   nodes: NODES,
   wallet,

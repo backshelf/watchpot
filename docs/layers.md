@@ -1,6 +1,6 @@
 # Layers
 
-`layers({ key, base, layers })` is a layer system in the style of The Prestige Tree: rows of layers stacked over a
+`defineLayers({ key, base, layers })` is a layer system in the style of The Prestige Tree: rows of layers stacked over a
 base resource. A layer's amount is earned by resetting everything in the rows beneath it; it carries one-time
 upgrades, levelled buyables, milestones that are never lost and challenges, and every one of those is a source of
 effects on stats (through the [live stat graph](stat-graph.md)) and of flags the rules read. The layers beneath read
@@ -10,7 +10,7 @@ those stats, so content is data and the rules never name a layer. The rules are 
 Example: [`examples/layers.ts`](examples/layers.ts) (`bun docs/examples/layers.ts`).
 
 ```ts
-import { addStat, damp, type LayerDef, layers, mulStat } from "watchpot/core";
+import { addStat, damp, type LayerDef, defineLayers, mulStat } from "watchpot/core";
 
 type Id = "a" | "b" | "c";
 type Stat = "speed" | "gain" | "cost" | "passive";
@@ -81,7 +81,7 @@ const C: Layer = {
   milestones: [{ id: "c1", at: 1, flags: ["auto:b", "quiet:b", "bulk:b"] }],
 };
 
-export const climb = layers({ key: "climb", base: { id: "points", rate: "speed" }, layers: [A, B, C] });
+export const climb = defineLayers({ key: "climb", base: { id: "points", rate: "speed" }, layers: [A, B, C] });
 ```
 
 - **The base** rises at `stat(rate) ^ stat(exponent)` a second and is wiped by every reset. `baseTotal` never is.
@@ -135,7 +135,7 @@ export const climb = layers({ key: "climb", base: { id: "points", rate: "speed" 
   `milestone`, `challenge`, `penalty`, and `label` the default to fall back on.
 - **A game with state of its own beside the layers** (a log, an ending, a report of the last absence) writes its own
   `feature` over `layerModel`: `initial` spreads `model.fresh()` under its own fields, its actions and steps call
-  the model's rules on the slice, and `onEvent` receives that same slice, so it can write to them. `layers()` is the
+  the model's rules on the slice, and `onEvent` receives that same slice, so it can write to them. `defineLayers()` is the
   feature for a game that keeps nothing beside the engine's state.
 - **The auto-player** reads its moves: every affordable upgrade and level is worth 1 (cheapest share of a balance
   first), a reset is a free move worth its row, taken for a static layer that is not automated and for a normal

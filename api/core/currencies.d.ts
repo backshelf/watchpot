@@ -11,7 +11,7 @@ import type { AnyVocab, CurrencyOf } from "./vocab";
  * actions `credit` and `debit` work from outside.
  *
  * ```ts
- * const wallet = currencies({
+ * const wallet = defineCurrencies({
  *   key: "wallet",
  *   vocab: TOY,
  *   start: { gold: 30 },
@@ -134,4 +134,4 @@ export type TotalsOf<E, EE, P, PE> = FieldOf<E> | FieldOf<EE> | FieldOf<P> | Fie
  * like a balance, a total or `debit` throws when the game is defined (`defineGame` builds the actions once to check
  * them).
  */
-export declare function currencies<const K extends string, V extends AnyVocab, const E extends TotalsMap<CurrencyOf<V>> = Record<never, never>, const EE extends TotalsMap<CurrencyOf<V>> = Record<never, never>, const P extends TotalsMap<CurrencyOf<V>> = Record<never, never>, const PE extends TotalsMap<CurrencyOf<V>> = Record<never, never>, X extends object = Record<never, never>, A extends object = Record<never, never>, const R extends ReachShape = readonly [], G extends object = Record<K, CurrenciesState<CurrencyOf<V>, TotalsOf<E, EE, P, PE>, X>> & ReachOf<R>>(def: CurrenciesDef<K, V, E, EE, P, PE, X, A, R, G>): CurrenciesFeature<K, CurrencyOf<V>, CurrenciesState<CurrencyOf<V>, TotalsOf<NoInfer<E>, NoInfer<EE>, NoInfer<P>, NoInfer<PE>>, NoInfer<X>>, A>;
+export declare function defineCurrencies<const K extends string, V extends AnyVocab, const E extends TotalsMap<CurrencyOf<V>> = Record<never, never>, const EE extends TotalsMap<CurrencyOf<V>> = Record<never, never>, const P extends TotalsMap<CurrencyOf<V>> = Record<never, never>, const PE extends TotalsMap<CurrencyOf<V>> = Record<never, never>, X extends object = Record<never, never>, A extends object = Record<never, never>, const R extends ReachShape = readonly [], G extends object = Record<K, CurrenciesState<CurrencyOf<V>, TotalsOf<E, EE, P, PE>, X>> & ReachOf<R>>(def: CurrenciesDef<K, V, E, EE, P, PE, X, A, R, G>): CurrenciesFeature<K, CurrencyOf<V>, CurrenciesState<CurrencyOf<V>, TotalsOf<NoInfer<E>, NoInfer<EE>, NoInfer<P>, NoInfer<PE>>, NoInfer<X>>, A>;

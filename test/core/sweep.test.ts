@@ -1,13 +1,13 @@
 import { describe, expect, test } from "bun:test";
 import {
   defineGame,
+  defineSweep,
   drawTarget,
   feature,
   gradeStrike,
   passesIn,
   type SweepTarget,
   seedRng,
-  sweep,
   sweepAt,
 } from "watchpot/core";
 import { freshStore, T0 } from "watchpot/test";
@@ -66,7 +66,7 @@ describe("sweep kernel", () => {
 
 describe("sweep feature", () => {
   const purse = feature({ key: "purse", initial: () => ({ paid: 0, wide: 0.2 }) });
-  const line = sweep({
+  const line = defineSweep({
     key: "line",
     reach: [purse],
     setup: (s) => ({ motion: { periodMs: 2000 }, count: 3, width: s.purse.wide }),
@@ -116,7 +116,7 @@ describe("sweep feature", () => {
 
   test("a callback reads a reached feature; one it does not reach is a type error", () => {
     const other = feature({ key: "other", initial: () => ({ m: 0 }) });
-    const peek = sweep({
+    const peek = defineSweep({
       key: "peek",
       reach: [purse],
       grades: GRADES,

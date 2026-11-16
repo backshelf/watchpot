@@ -1,10 +1,10 @@
-import { allocation, defineGame, defineStats, type Effect, feature } from "watchpot/core";
+import { defineAllocation, defineGame, defineStats, type Effect, feature } from "watchpot/core";
 import { TOY } from "./vocab";
 
 const crew = feature({ key: "crew", initial: () => ({ size: 12 }) });
 
 /** Twelve workers across three sinks: one that only counts, two bars that level up as they fill. */
-export const jobs = allocation({
+export const jobs = defineAllocation({
   key: "jobs",
   reach: [crew], // what the callbacks read, typed with no annotation
   pool: (s) => s.crew.size, // the game's number; shrink it and the newest assignments give way

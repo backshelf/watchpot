@@ -6,13 +6,13 @@ around a base, never outside its band), so nothing is simulated: the price after
 a chart of any stretch costs nothing to draw, and a reload cannot reroll it.
 
 ```ts
-import { type Decimal, defineGame, HOUR_MS, market } from "watchpot/core";
+import { type Decimal, defineGame, HOUR_MS, defineMarket } from "watchpot/core";
 import { wallet } from "./add-a-currency";
 import { TOY } from "./vocab";
 
 type State = { wallet: { gold: Decimal; gems: Decimal } };
 
-export const exchange = market({
+export const exchange = defineMarket({
   key: "exchange",
   wallet,
   pays: "gold",
@@ -34,7 +34,7 @@ Example: [`examples/market.ts`](examples/market.ts).
   unit held pays a second, as a share of `base`).
 - **The kernel, pure:** `priceAt(seed, ticker, at)`, `tickerLean(seed, ticker, at)` (where it stands in its band,
   -1 to 1), `priceBand(ticker)` (`{ low, high }`) and `priceSeries(seed, ticker, from, to, points)` for a chart.
-- **`market({ key, reach?, wallet, pays, tickers, open?, fee?, yieldMult?, away?, player?, trader?, reset? })`** saves `{ seed, held,
+- **`defineMarket({ key, reach?, wallet, pays, tickers, open?, fee?, yieldMult?, away?, player?, trader?, reset? })`** saves `{ seed, held,
   paid, realised, yielded, trades }` under `key`. `fee(state)` is the share of every trade the market keeps (on the
   way in and on the way out), `yieldMult(state)` the game's multiplier on every yield, `open(state, ticker)` which
   tickers trade. The step `<key>.produce.yield` pays the holdings' yield over a tick and over an absence (`away`,

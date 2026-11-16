@@ -2,11 +2,11 @@ import { describe, expect, test } from "bun:test";
 import {
   D,
   defineGame,
+  defineLevels,
   type Effect,
   feature,
   levelAt,
   levelProgress,
-  levels,
   totalXpAt,
   type XpCurve,
   xpForLevel,
@@ -78,7 +78,7 @@ describe("xp curves", () => {
 
 const log = feature({ key: "log", initial: () => ({ ups: [] as string[] }) });
 type State = { log: { ups: string[] } };
-const skills = levels({
+const skills = defineLevels({
   key: "skills",
   tracks: [
     { id: "mining", curve: { kind: "geometric", base: 10, growth: 2 } },
@@ -140,7 +140,7 @@ describe("levels", () => {
   });
 
   test("`reach` types onLevel: a reached feature reads, an unreached one does not", () => {
-    const reached = levels({
+    const reached = defineLevels({
       key: "craft",
       reach: () => [log],
       tracks: [{ id: "smith", curve: { kind: "polynomial", base: 1, power: 1 } }],
@@ -148,7 +148,7 @@ describe("levels", () => {
         d.log.ups.push(`${track}:${d.craft.xp.smith?.toString()}`);
       },
     });
-    levels({
+    defineLevels({
       key: "bad",
       reach: [log],
       tracks: [],

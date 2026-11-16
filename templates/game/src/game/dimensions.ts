@@ -1,5 +1,5 @@
 // @feature dimensions
-import { dimensions } from "watchpot/core";
+import { defineDimensions } from "watchpot/core";
 import { SET, TIERS } from "../content/dimensions";
 import { OFFLINE_CAP_MS } from "../content/economy";
 import { MAIN } from "../content/words";
@@ -18,7 +18,7 @@ interface Reads {
  * for at most `OFFLINE_CAP_MS`. Buy with `buy`, `buySet`, `buyMax` and `maxAll`; read prices and rates off
  * `chain.chain`.
  */
-export const chain = dimensions({
+export const chain = defineDimensions({
   key: "dimensions",
   wallet,
   makes: MAIN,

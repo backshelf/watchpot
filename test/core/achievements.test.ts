@@ -2,9 +2,9 @@ import { describe, expect, test } from "bun:test";
 import {
   type Achievement,
   achievementBoard,
-  achievements,
-  currencies,
   type Decimal,
+  defineAchievements,
+  defineCurrencies,
   defineGame,
   type Effect,
   vocab,
@@ -13,7 +13,7 @@ import { freshStore, T0 } from "watchpot/test";
 import { totals } from "./fold";
 
 const WORDS = vocab({ currencies: ["gold", "gems"], stats: [], rarities: ["common"] } as const);
-const wallet = currencies({ key: "wallet", vocab: WORDS });
+const wallet = defineCurrencies({ key: "wallet", vocab: WORDS });
 type State = { wallet: { gold: Decimal; gems: Decimal } };
 
 const LIST: Achievement<State, Effect>[] = [
@@ -44,7 +44,7 @@ const LIST: Achievement<State, Effect>[] = [
   { id: "late", name: "Late", line: "Hold 1e9 gold.", when: (s) => s.wallet.gold.gte(1e9) },
 ];
 
-const wall = achievements({
+const wall = defineAchievements({
   key: "wall",
   list: LIST,
   columns: 3,
@@ -172,7 +172,7 @@ describe("achievements feature", () => {
   });
 
   test("fresh is capped, oldest first out", () => {
-    const capped = achievements({ key: "capped", list: LIST, columns: 3, keepFresh: 2 });
+    const capped = defineAchievements({ key: "capped", list: LIST, columns: 3, keepFresh: 2 });
     const g = defineGame({
       id: "c",
       save: { key: "c.save", version: 1 },

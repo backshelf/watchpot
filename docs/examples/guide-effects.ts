@@ -7,13 +7,14 @@
  * and prints the stove's rate on two passes and the tooltip's lines.
  */
 import {
-  achievements,
-  buffs,
   type Contribution,
   D,
   type Decimal,
+  defineAchievements,
+  defineBuffs,
   defineGame,
   defineStats,
+  defineUpgradeTree,
   type Effect,
   feature,
   fmtPlus,
@@ -23,7 +24,6 @@ import {
   type StatCaps,
   type StateOf,
   statIndex,
-  upgradeTree,
 } from "watchpot/core";
 import { SIMMER, type Simmer, scriptStore, WORDS, wallet } from "./simmer/game-wallet";
 
@@ -40,10 +40,10 @@ const COPPER: GraphNode<Effect<"heat">, "bubbles"> = {
   requires: [],
   effects: [{ stat: "heat", mul: 1.25 }],
 };
-export const kitchen = upgradeTree({ key: "kitchen", nodes: [COPPER], wallet });
+export const kitchen = defineUpgradeTree({ key: "kitchen", nodes: [COPPER], wallet });
 
 /** A buff: a rolling boil, three times the heat for thirty seconds. Starting it again restarts the clock. */
-export const boosts = buffs<"boosts", Effect<"heat">>({
+export const boosts = defineBuffs<"boosts", Effect<"heat">>({
   key: "boosts",
   list: [
     { id: "rolling-boil", durationMs: 30_000, stack: "refresh", effects: () => [{ stat: "heat", mul: 3 }] },
@@ -51,7 +51,7 @@ export const boosts = buffs<"boosts", Effect<"heat">>({
 });
 
 /** An achievement: ten burners lit. While it is earned, heat is 10% higher. */
-export const medals = achievements({
+export const medals = defineAchievements({
   key: "medals",
   columns: 5,
   list: [

@@ -8,12 +8,12 @@
  */
 import {
   defineGame,
+  defineUpgradeTree,
   type Effect,
   feature,
   type GraphNode,
   HOUR_MS,
   type TreeState,
-  upgradeTree,
 } from "watchpot/core";
 import { autoPlayer, createSimWorld, fmtClock, playStraight, simStore } from "watchpot/sim";
 import { playablePot } from "./guide-pacing";
@@ -33,7 +33,7 @@ const COPPER: GraphNode<Effect, "bubbles"> = {
 // The tree declares the moves the sim buys from. `worth` is in the unit the burners' moves use, bubbles a second; the
 // copper base changes no number the sim can see until the `copper` feature below reads it, so it is a fair guess:
 // about five burners.
-const kitchen = upgradeTree({ key: "kitchen", nodes: [COPPER], wallet, worth: () => 5 });
+const kitchen = defineUpgradeTree({ key: "kitchen", nodes: [COPPER], wallet, worth: () => 5 });
 
 const hasCopper = (s: { kitchen: TreeState }) => (s.kitchen.ranks.copper ?? 0) > 0;
 

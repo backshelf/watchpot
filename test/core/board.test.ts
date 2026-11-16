@@ -3,7 +3,7 @@ import {
   type BoardCells,
   type BoardPiece,
   board,
-  boardFeature,
+  defineBoard,
   defineGame,
   feature,
   fillBoard,
@@ -113,7 +113,7 @@ describe("board", () => {
 
 describe("boardFeature", () => {
   const bag = feature({ key: "bag", initial: () => ({ pairs: 1, size: 2 }) });
-  const sheet = boardFeature({
+  const sheet = defineBoard({
     key: "sheet",
     reach: [bag],
     width: 3,
@@ -156,7 +156,7 @@ describe("boardFeature", () => {
 
   test("a callback reads a reached feature; one it does not reach is a type error", () => {
     const other = feature({ key: "other", initial: () => ({ m: 0 }) });
-    const peek = boardFeature({
+    const peek = defineBoard({
       key: "peek",
       reach: [bag],
       width: 1,

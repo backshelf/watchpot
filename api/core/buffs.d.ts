@@ -8,7 +8,7 @@ import { type Feature, type NeedsOf, type ReachOf, type ReachShape, type ResetRu
  * buff that ran out half way through an absence paid for half of it.
  *
  * `startBuff`, `endBuff`, `expireBuffs` and the readers (`buffActive`, `buffLeftMs`, `buffStacks`, `overlapMs`) are
- * the pure kernel over `{ active, ended }`; `buffs({ key, list })` is a feature that owns it and expires on game
+ * the pure kernel over `{ active, ended }`; `defineBuffs({ key, list })` is a feature that owns it and expires on game
  * time, with the readers state-first under `select`, the list under `def` and `start` / `end` over a draft under
  * `draft`.
  */
@@ -129,7 +129,7 @@ export type BuffsFeature<K extends string, E> = Feature<K, BuffsState, BuffsActi
  * ends one and sees the feature's own slice and what `reach` names. A run reset ends every buff unless `reset` says
  * otherwise.
  */
-export declare function buffs<const K extends string, E, const R extends ReachShape = readonly [], G extends object = Record<K, BuffsState> & ReachOf<R>>(def: {
+export declare function defineBuffs<const K extends string, E, const R extends ReachShape = readonly [], G extends object = Record<K, BuffsState> & ReachOf<R>>(def: {
     readonly key: K;
     /** The features `onEnd` reads, as `feature`'s `reach`. */
     readonly reach?: R | (() => R);

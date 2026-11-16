@@ -1,5 +1,13 @@
 import { describe, expect, test } from "bun:test";
-import { damp, defineGame, isDecimal, type LayerDef, type LayerQuery, layers, mulStat } from "watchpot/core";
+import {
+  damp,
+  defineGame,
+  defineLayers,
+  isDecimal,
+  type LayerDef,
+  type LayerQuery,
+  mulStat,
+} from "watchpot/core";
 import { autoPlayer, createSimWorld, simStore } from "watchpot/sim";
 import { freshStore, T0 } from "watchpot/test";
 
@@ -34,7 +42,7 @@ const B: Layer = { id: "b", row: 2, kind: "static", from: "points", requires: 20
 const C: Layer = { id: "c", row: 2, kind: "normal", from: "points", requires: 1e4, parents: ["a"] };
 
 const climbOf = (list: Layer[]) =>
-  layers({ key: "climb", base: { id: "points", rate: "speed" }, layers: list });
+  defineLayers({ key: "climb", base: { id: "points", rate: "speed" }, layers: list });
 const gameOf = (list: Layer[]) =>
   defineGame({ id: "climb", save: { key: "climb.save", version: 1 }, features: [climbOf(list)] });
 

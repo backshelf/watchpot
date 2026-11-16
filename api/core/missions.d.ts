@@ -7,7 +7,7 @@ import { type RngState } from "./rng";
  * too, on the feature's own saved rng, and stored with it: a reload cannot reroll it, and a screen can show it before
  * it lands. Missions run on game time, so they finish during an absence like any other time.
  *
- * `missionLeftMs` and `missionReady` read one entry (pure kernels, no state); `missions({ key, slots, list })` is the
+ * `missionLeftMs` and `missionReady` read one entry (pure kernels, no state); `defineMissions({ key, slots, list })` is the
  * feature, with `select`, `def` and `draft`.
  */
 /** One mission: how long it takes, when it can be sent, its cost (the game's own shape) and its reward roll. */
@@ -95,7 +95,7 @@ export type MissionsFeature<K extends string, G, R, X> = Feature<K, MissionsStat
  *
  * `select`: `slots`, `freeSlots`, `ready`. `def`: `list`, `mission(id)`. `draft`: empty.
  */
-export declare function missions<const K extends string, R, X = never, const Re extends ReachShape = readonly [], G extends object = Record<K, MissionsState<R>> & ReachOf<Re>>(def: {
+export declare function defineMissions<const K extends string, R, X = never, const Re extends ReachShape = readonly [], G extends object = Record<K, MissionsState<R>> & ReachOf<Re>>(def: {
     readonly key: K;
     /** The features the callbacks read, as `feature`'s `reach`. */
     readonly reach?: Re | (() => Re);

@@ -5,7 +5,7 @@ import {
   buffActive,
   buffLeftMs,
   buffStacks,
-  buffs,
+  defineBuffs,
   defineGame,
   type Effect,
   endBuff,
@@ -70,7 +70,7 @@ describe("the buff kernel", () => {
   });
 });
 
-const boosts = buffs<"boosts", Effect>({
+const boosts = defineBuffs<"boosts", Effect>({
   key: "boosts",
   list: [
     { id: "rush", durationMs: 77_000, stack: "refresh", effects: () => [{ stat: "speed", mul: 7 }] },
@@ -167,7 +167,7 @@ describe("buffs reach", () => {
   const other = feature({ key: "other", initial: () => ({ m: 0 }) });
 
   test("onEnd reads a reached feature; one it does not reach is a type error", () => {
-    const reached = buffs({
+    const reached = defineBuffs({
       key: "reached",
       reach: [gold],
       list: [{ id: "x", durationMs: 1000, stack: "refresh" }],
@@ -175,7 +175,7 @@ describe("buffs reach", () => {
         d.gold.n += 1;
       },
     });
-    const unreached = buffs({
+    const unreached = defineBuffs({
       key: "unreached",
       reach: [gold],
       list: [],
