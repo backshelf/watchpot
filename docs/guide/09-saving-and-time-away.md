@@ -27,16 +27,17 @@ into a Decimal on the way in. Here is a Simmer save after five taps, exactly as 
 <!-- example-output: guide-saving.ts lines=3-3 -->
 
 ```json
-{"state":{"wallet":{"bubbles":{"$d":"5"},"earned":{"$d":"5"}},"pot":{"presses":5},"stove":{"burners":0,"off":false},"lid":{"on":false},"clock":{"lastSeen":1793235600000,"createdAt":1793235600000,"offsetMs":0}},"version":2}
+{"state":{"wallet":{"bubbles":{"$d":"5"},"earned":{"$d":"5"}},"pot":{"presses":5},"stove":{"burners":0,"off":false},"lid":{"on":false},"stats":{},"clock":{"lastSeen":1793235600000,"createdAt":1793235600000,"offsetMs":0}},"version":2}
 ```
 
 *Printed by [`docs/examples/guide-saving.ts`](../examples/guide-saving.ts).*
 
 Three things are worth noticing. Each feature has its own entry. The engine's own `clock` feature is saved too: its
-`lastSeen` is how the game knows how long the player was gone. And the stove's `perSecond` is missing. It is a
-[derived value](../glossary.md#derived-value), as chapter 3 set it up: worked out from `burners` and the lid whenever
-they change, so there is nothing to keep. (A rate saved by last month's build would also carry last month's rules into
-today's.) A field listed in `transient` is left out the same way.
+`lastSeen` is how the game knows how long the player was gone. And the stove's `nextPrice` and `perSecond` are
+missing, as is the heat: the stats feature's entry is empty. They are [derived values](../glossary.md#derived-value), as
+chapter 3 set them up: worked out from `burners` and the lid whenever they change, so there is nothing to keep. (A
+rate saved by last month's build would also carry last month's rules into today's.) A field listed in `transient` is
+left out the same way.
 
 The functions that do the writing are `serialize` and `deserialize`. You rarely call them yourself; the store does.
 
@@ -232,14 +233,14 @@ export const simmerV2 = defineGame({
   id: "simmer",
   save: { key: "simmer.save", version: 2 },
   vocab: WORDS,
-  features: [wallet, pot, stove, lid],
+  features: [wallet, pot, stove, lid, stats],
 });
 ```
 
 *From [`docs/examples/guide-saving.ts`](../examples/guide-saving.ts).*
 
 Compared with chapter 2's pot, three things changed: `initial` says `presses` where it said `taps`, `tap` counts into
-`presses`, and the feature carries `migrations`. The wallet, the stove and the lid are Simmer's own, imported.
+`presses`, and the feature carries `migrations`. The wallet, the stove, the lid and the stats are Simmer's own, imported.
 
 A [migration](../glossary.md#migration) is a function from the saved data at one version to the saved data at the
 next. Line by line:

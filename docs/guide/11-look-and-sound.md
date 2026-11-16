@@ -43,7 +43,7 @@ export function warmthOf(bubblesPerSecond: number): number {
   return Math.round(Math.min(1, Math.max(0, t)) * 100) / 100;
 }
 
-/** The selector the page hands `useGameState`: the stove's own rate (lid included) as warmth, cold while it is off. */
+/** The selector the page hands `useGameState`: the stove's own rate (heat included) as warmth, cold while it is off. */
 export const potWarmth = (s: State): number => warmthOf(s.stove.off ? 0 : s.stove.perSecond.toNumber());
 ```
 <sub>`docs/examples/guide-look-and-sound.tsx`</sub>
@@ -60,7 +60,7 @@ Line by line:
   plain number, never a fresh object or Decimal: the store compares answers by identity, so a new object every tick is
   a new answer every tick.
 
-The selector reads `s.stove.perSecond`, the stove's own rate with the lid's doubling already in it, and reads zero
+The selector reads `s.stove.perSecond`, the stove's own rate with the heat (the lid and all) already in it, and reads zero
 while the switch is off: a stove that is off is a cold pot. `State` is the store's type.
 
 ## The fragment

@@ -34,7 +34,7 @@ put their questions on `.select`, their list or nodes on `.def`, and a clicker o
 ### Where this chapter's Simmer starts
 
 Every Simmer example from here on starts from chapter 4's game, `docs/examples/simmer/game-wallet.ts`: the wallet,
-the pot you tap, the stove with its burners, and the lid. This chapter adds six features beside them and lists all of
+the pot you tap, the stove with its burners, the lid and the stats. This chapter adds six features beside them and lists all of
 them in one `defineGame`:
 
 <!-- example-code: guide-first-page.ts -->
@@ -44,14 +44,14 @@ export const game = defineGame({
   id: "simmer",
   save: { key: "simmer.save", version: 1 },
   vocab: WORDS,
-  features: [...SIMMER, kitchen, foam, kettles, spoon, boosts, surface],
+  features: [...SIMMER, stats, kitchen, foam, kettles, spoon, boosts, surface],
 });
 ```
 
 `docs/examples/guide-first-page.ts`
 
-`SIMMER` is chapter 4's features in their order. Spreading it keeps the core exactly as it was and puts the new
-features after it.
+`SIMMER` is chapter 4's features in their order, the stats aside, and `stats` is chapter 4's stats feature (the lid as
+its one source of heat). Spreading them keeps the core exactly as it was and puts the new features after it.
 
 Several factories take callbacks such as `power`, `mult` or `open` that read the game state. Each factory takes the
 same `reach` a feature does (chapter 3), and its callbacks are typed from it: the spoon says
@@ -510,8 +510,10 @@ An [effect](../glossary.md#effect) is `{ stat, add }` or `{ stat, mul }`, and `E
 name. `kitchen.select.contributions(s)` hands back every rank held as a [contribution](../glossary.md#contribution)
 (an effect and where it came from), and `foldContributions` folds a list of them with a base of 1:
 `.stat("stir")` gives `(1 + adds) × muls` as a Decimal. That is where the spoon's `statOf(s, "stir")` and the kettles'
-`statOf(s, "kettle")` came from. A fold per call is fine for four upgrades; chapter 8 declares the stats once as a
-feature the whole game reads.
+`statOf(s, "kettle")` came from. Why not the stats feature from chapter 3? Its stats come from the game's words,
+and Simmer's words name one stat, `heat`; a game that wants `stir` and `kettle` served on the state names them in its
+`vocab` and gives them sources there. For a guide example that adds them after the fact, a fold per call is fine for
+four upgrades. Chapter 8 feeds heat from the engine's systems.
 
 The screen asks the feature itself. `kitchen.select.open(state, id)` says whether a node is on offer by your `open`,
 `kitchen.select.check(state, id)` says why `buy(id)` would refuse it now (`"closed"` first, then the price or a missing

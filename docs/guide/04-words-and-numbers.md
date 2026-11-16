@@ -174,12 +174,13 @@ one. Several engine systems need to know their names. A shop's prices are in one
 a time-away report lists what each one earned.
 
 The engine itself names none. Instead a game declares its words once, in a
-[vocabulary](../glossary.md#vocabulary), and every engine type that names a currency reads it from there:
+[vocabulary](../glossary.md#vocabulary), and every engine type that names a currency reads it from there. Chapter 3
+wrote Simmer's already, for its stat:
 
 <!-- example-code: simmer/game-wallet.ts -->
 
 ```ts
-/** The game's words: one currency, and the stat chapter 8 adds up. */
+/** The game's words: one currency, and the one stat every multiplier on the stove goes into. */
 export const WORDS = vocab({ currencies: ["bubbles"], stats: ["heat"] });
 
 export type Currency = CurrencyOf<typeof WORDS>; // "bubbles"
@@ -190,7 +191,7 @@ From `docs/examples/simmer/game-wallet.ts`.
 Line by line:
 
 - `vocab({ ... })` takes up to three lists. `currencies` is the one Simmer needs now. The other two are optional:
-  `stats` names the ids of the numbers the game's stats add up (Simmer's `heat`, from chapter 8), and `rarities` is a
+  `stats` names the ids of the numbers the game's stats feature serves (Simmer's `heat`, from chapter 3), and `rarities` is a
   ladder of rarities, lowest first, for systems that draw things at random. A game that leaves `rarities` out has an
   empty ladder, and a system that draws rarities refuses it, with a message, when you define that system.
 - Written inline like this, `vocab` keeps the exact names, so the type of `WORDS` remembers that the only currency is
@@ -258,9 +259,9 @@ total, and only a reset ever lowers them (more on that below).
 
 ### Moving Simmer's bubbles into the wallet
 
-Open your `game.ts`. Five changes move the bubbles; the lid does not change at all.
+Open your `game.ts`. Five changes move the bubbles; the lid and the stats do not change.
 
-**1. Import `defineCurrencies`, `vocab` and `type CurrencyOf`** from `watchpot/core`, and add `WORDS`, `Currency` and
+**1. Import `defineCurrencies` and `type CurrencyOf`** from `watchpot/core`, and add `Currency` and
 `wallet` (the two blocks above) after `flameOf`.
 
 **2. The pot.** Before, from chapter 2, it held the bubbles:
@@ -329,15 +330,26 @@ From `docs/examples/simmer/game-wallet.ts`.
 Because the pot now reaches the wallet, move the pot below `wallet` in the file: a feature can only reach one
 declared before it.
 
-**3. The stove.** Its `reach` becomes `() => [wallet, lid]`. Before, from chapter 3, `buyBurner` compared, subtracted and
-reassigned:
+**3. The stove.** Its `reach` becomes:
+
+<!-- example-code: simmer/game-wallet.ts -->
+
+```ts
+// The stats by their state type, so any game that lists a stats feature with a `heat` stat can hold this stove.
+reach: () => [wallet, reach<{ stats: { heat: Decimal } }>()],
+```
+
+The wallet replaces the pot. The stats are now named by their state type (chapter 3's type reach, with `reach` and
+`type Decimal` imported from `watchpot/core`): later chapters list a stats feature of their own, with more sources of
+heat, and the stove must take whichever one the game lists. Before, from chapter 3, `buyBurner` compared, subtracted
+and reassigned:
 
 <!-- example-code: guide-mental-model.ts -->
 
 ```ts
 buyBurner: () =>
   api.set((s) => {
-    const price = burnerPrice(s.stove.burners);
+    const price = s.stove.nextPrice;
     if (s.pot.bubbles.lt(price)) return false;
     s.pot.bubbles = s.pot.bubbles.sub(price);
     s.stove.burners += 1;
@@ -354,7 +366,7 @@ After, one `wallet.draft.debit` checks and pays together, and answers whether it
 ```ts
 buyBurner: () =>
   api.set((s) => {
-    if (!wallet.draft.debit(s, "bubbles", burnerPrice(s.stove.burners))) return false;
+    if (!wallet.draft.debit(s, "bubbles", s.stove.nextPrice)) return false;
     s.stove.burners += 1;
     return true;
   }),
@@ -388,19 +400,45 @@ produce: {
 
 From `docs/examples/simmer/game-wallet.ts`.
 
-Everything else in the stove (`off`, `perSecond`, `toggle` and the guard) stays as chapter 3 left it.
+Everything else in the stove (`off`, both derived values, `toggle` and the guard) stays as chapter 3 left it. The
+lid and the stats do not change at all, except that the stats' lid source now has a name, `LID_HEAT`, so a later
+chapter's stats can list it too.
+
+<!-- example-code: simmer/game-wallet.ts -->
+
+```ts
+/** The lid as a source of heat: twice the heat while it is on. */
+export const LID_HEAT = {
+  label: "The lid",
+  owner: "lid",
+  active: (q: { lid: { on: boolean } }) => q.lid.on,
+  effects: [{ stat: "heat", mul: 2 }],
+} as const;
+
+/** The stats: `s.stats.heat`, a base of 1 and every source multiplied in. So far the one source is the lid. */
+export const stats = defineStats({
+  key: "stats",
+  vocab: WORDS,
+  reach: [lid],
+  stats: { heat: { base: 1 } },
+  sources: [LID_HEAT],
+});
+```
+
+From `docs/examples/simmer/game-wallet.ts`. Declared on its own, the source says what state it reads (`q`), since no
+`reach` types it there.
 
 **4. The game** takes the vocabulary and lists the wallet first:
 
 <!-- example-code: simmer/game-wallet.ts -->
 
 ```ts
-/** The game: the wallet first, then the pot, the stove and the lid. */
+/** The game: the wallet first, then the pot, the stove, the lid and the stats. */
 export const game = defineGame({
   id: "simmer",
   save: { key: "simmer.save", version: 1 },
   vocab: WORDS,
-  features: [wallet, pot, stove, lid],
+  features: [wallet, pot, stove, lid, stats],
 });
 ```
 

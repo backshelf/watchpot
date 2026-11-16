@@ -1,7 +1,7 @@
 /**
  * Chapter 12 of the guide, "Proving the pacing": Simmer played by the sim lab instead of by you. Simmer is imported
- * from `simmer/game-wallet.ts` with one change the sim needs: the pot carries `moves`, the menu the auto-player
- * buys from. Then a run on `activeSchedule`, the firsts it saw, a pacing contract judged on it, and the test kit's
+ * from `simmer/game-wallet.ts` with one change the sim needs: the stove carries `moves`, the menu the auto-player
+ * buys from, and the game names the objective it buys for. Then a run on `activeSchedule`, the firsts it saw, a pacing contract judged on it, and the test kit's
  * fresh store and fixture save.
  *
  * Run it with `bun docs/examples/guide-pacing.ts`: it plays one played day of Simmer (well under a second) and
@@ -26,7 +26,7 @@ import {
   type Verdict,
 } from "watchpot/sim";
 import { fixtureSave, freshStore } from "watchpot/test";
-import { burnerPrice, lid, pot, type Simmer, stove, WORDS, wallet } from "./simmer/game-wallet";
+import { lid, pot, type Simmer, stats, stove, WORDS, wallet } from "./simmer/game-wallet";
 
 // --- Simmer, playable ------------------------------------------------------------------------------------------
 
@@ -38,7 +38,7 @@ import { burnerPrice, lid, pot, type Simmer, stove, WORDS, wallet } from "./simm
 export const playableStove = withMoves(stove, (s: Simmer) => [
   {
     id: "buy-burner",
-    cost: { currency: "bubbles", amount: burnerPrice(s.stove.burners) },
+    cost: { currency: "bubbles", amount: s.stove.nextPrice },
     apply: (store) => store.getState().stove.buyBurner(),
   },
 ]);
@@ -48,7 +48,7 @@ export const game = defineGame({
   id: "simmer",
   save: { key: "simmer.save", version: 1 },
   vocab: WORDS,
-  features: [wallet, pot, playableStove, lid],
+  features: [wallet, pot, playableStove, lid, stats],
 });
 
 /** What the player is trying to grow: the stove's bubbles a second. */

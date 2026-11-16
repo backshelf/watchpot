@@ -6,8 +6,9 @@ part of the rate comes from. You will also know why the real game built on this 
 and which of the two approaches to reach for in a game of your own.
 
 Everything here is in one file you can run: `docs/examples/guide-effects.ts`. It starts from chapter 4's Simmer
-(`docs/examples/simmer/game-wallet.ts`: the wallet, the pot, the stove and the lid), adds an upgrade tree, a buff and
-a medal beside it (chapters 6 and 7), then the stats, and a stove whose rate reads them.
+(`docs/examples/simmer/game-wallet.ts`: the wallet, the pot, the stove, the lid and the stats), adds an upgrade tree,
+a buff and a medal beside it (chapters 6 and 7), and a stats feature that counts them all. The stove does not change:
+since chapter 3 its rate has been its flame times `s.stats.heat`.
 
 ```sh
 bun docs/examples/guide-effects.ts
@@ -160,8 +161,10 @@ times 1.25", and that is the whole of its job.
 
 ## The stats feature
 
-The [stats feature](../glossary.md#stats-feature) is where the claims meet. `defineStats` declares each stat once, with its
-base and caps, takes every contribution in one list, and serves each stat on the state as a Decimal: `s.stats.heat`.
+The [stats feature](../glossary.md#stats-feature) is where the claims meet. You have had one since chapter 3, with the
+lid as its one source. `defineStats` declares each stat once, with its base and caps, takes declared `sources` and
+every contribution in one list, and serves each stat on the state as a Decimal: `s.stats.heat`. This chapter's game
+lists a bigger one in place of chapter 4's:
 
 <!-- example-code: guide-effects.ts -->
 
@@ -177,8 +180,11 @@ export const HEAT: StatCaps = { softcap: { start: 20, power: 0.5, label: "The po
 export const heat = defineStats({
   key: "stats",
   vocab: WORDS,
-  reach: () => [stove, kitchen, boosts, medals],
+  reach: () => [lid, stove, kitchen, boosts, medals],
   stats: { heat: { base: 1, ...HEAT } },
+  // Chapter 3's lid, declared here as a source...
+  sources: [LID_HEAT],
+  // ...and the four sources above, handed over as contributions.
   contributions: (s) => [
     ...kitchen.select.contributions(s),
     // Every buff still held: the buffs' own step ends the expired ones at the start of each pass.
@@ -199,7 +205,9 @@ Line by line:
   line a player reads while the softcap is biting. A `hardcap` would be a ceiling it never passes. Heat has no hardcap.
 - `vocab: WORDS` is chapter 4's words, whose `stats: ["heat"]` names the one stat; `stats` must give every stat
   its `base`. There is no default base: 1 here, because heat multiplies.
-- `reach` is the state the contributions read: the stove (for the milestone) and the three sources above.
+- `reach` is the state the sources read: the lid, the stove (for the milestone) and the three sources above.
+- `sources: [LID_HEAT]` is chapter 3's lid, unchanged. A declared source says when it counts (`active`); a
+  contribution comes ready-made from a feature that knows its own effects.
 - `kitchen.select.contributions(state)` is every rank held, sourced `kitchen:<node>`.
 - `boosts.select.contributions(state)` is every buff held, sourced `boosts:<id>`. A stat reads the state and never
   the clock, and the buffs end themselves at the start of each pass, so every buff still held counts.
@@ -222,38 +230,28 @@ it came from, because every add lands before every multiplier.
 
 ## Reading the stat where it applies
 
-The stove's rate is a derived value (chapter 3), so heat applies where the rate is worked out: this chapter's stove is
-chapter 4's, with heat in its `derived` and the stats in its `reach`.
+The stove is chapter 4's, imported as it is. Its rate has read heat since chapter 3:
 
-<!-- example-code: guide-effects.ts -->
+<!-- example-code: simmer/game-wallet.ts -->
 
 ```ts
-export const stove = feature({
-  key: "stove",
-  reach: () => [wallet, lid, reach<{ stats: { heat: Decimal } }>()],
-  initial: () => ({ burners: 0, off: false }),
-  derived: {
-    // Chapter 4's rate, times heat. The stove knows no copper, buff or medal.
-    perSecond: (s) =>
-      flameOf(s.stove.burners)
-        .mul(s.lid.on ? 2 : 1)
-        .mul(s.stats.heat),
-  },
-  // ...
-});
+// The stats by their state type, so any game that lists a stats feature with a `heat` stat can hold this stove.
+reach: () => [wallet, reach<{ stats: { heat: Decimal } }>()],
+// ...
+// The burners' flame, times heat: the one number every multiplier on the stove goes into.
+perSecond: (s) => flameOf(s.stove.burners).mul(s.stats.heat),
 ```
 
-`docs/examples/guide-effects.ts`
+`docs/examples/simmer/game-wallet.ts`
 
-- The stove names the stats by their state type, `reach<{ stats: { heat: Decimal } }>()`, not by value. The stats read
-  the stove (the milestone counts burners) and the medal reads it too, so naming the stats feature itself here would
-  make each one's type depend on the other's. One side of such a pair names the other by type, and `defineGame`
-  checks that a feature with that key and that state is in the game.
+- The stove names the stats by their state type, not by value. That is what lets this chapter list its own stats
+  feature in place of chapter 4's: any feature under the key `stats` with a `heat` stat will do. It is also needed
+  here for a second reason: this stats feature reads the stove (the milestone counts burners), and two features that
+  read each other cannot both name the other by value.
 - Nothing orders the two. Heat is a derived value of the stats feature and the rate is a derived value of the stove;
   the engine works heat out first because the rate reads it, and both are current wherever they are read.
-- The rest of the stove (the actions, the guard, `burn` and `away`) is chapter 4's, unchanged.
 
-The game lists the stats beside the rest:
+The game lists chapter 4's features, the three new sources and the bigger stats feature:
 
 <!-- example-code: guide-effects.ts -->
 
@@ -262,14 +260,15 @@ export const game = defineGame({
   id: "simmer",
   save: { key: "simmer.save", version: 1 },
   vocab: WORDS,
-  features: [wallet, pot, stove, lid, kitchen, boosts, medals, heat],
+  features: [...SIMMER, kitchen, boosts, medals, heat],
 });
 ```
 
 `docs/examples/guide-effects.ts`
 
-A factory with a callback reads a stat the same way: a `defineGenerators` list's `mult: (s) => s.stats.heat` applies
-heat where the generators make their rate, with the stats in its `reach`.
+`SIMMER` is chapter 4's features without their stats. A factory with a callback reads a stat the same way the stove
+does: a `defineGenerators` list's `mult: (s) => s.stats.heat` applies heat where the generators make their rate, with
+the stats in its `reach`.
 ## The tooltip
 
 Now the third problem: telling the player why. `heat.select.explain(state, "heat")` returns a `StatBreakdown`: the

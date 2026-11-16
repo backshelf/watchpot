@@ -43,7 +43,7 @@ moves)`, which hands back the same feature with the moves attached. It also name
 export const playableStove = withMoves(stove, (s: Simmer) => [
   {
     id: "buy-burner",
-    cost: { currency: "bubbles", amount: burnerPrice(s.stove.burners) },
+    cost: { currency: "bubbles", amount: s.stove.nextPrice },
     apply: (store) => store.getState().stove.buyBurner(),
   },
 ]);
@@ -53,7 +53,7 @@ export const game = defineGame({
   id: "simmer",
   save: { key: "simmer.save", version: 1 },
   vocab: WORDS,
-  features: [wallet, pot, playableStove, lid],
+  features: [wallet, pot, playableStove, lid, stats],
 });
 
 /** What the player is trying to grow: the stove's bubbles a second. */
@@ -66,7 +66,7 @@ A [move](../glossary.md#move) has three parts here:
 
 - `id` names it. If its `apply` refuses, the auto-player does not try that id again in the same look.
 - `cost` says what it costs and in which currency. A move with no cost is a free move: a claim, an open, a toggle.
-  `burnerPrice` is the core's own price (`costAt`, rounded up), so the sim pays exactly what the page charges.
+  `s.stove.nextPrice` is the stove's own derived price, so the sim pays exactly what the page charges.
 - `apply` plays it through the store's own actions and says whether it went through. `buyBurner` already returns
   that, so the move hands it straight back.
 
@@ -88,7 +88,8 @@ the first hours of a person who is paying attention.
 Several of the engine's ready-made systems carry their moves already: a generators list offers one purchase per
 generator, an upgrade tree one per node whose next rank can be bought, and a clicker one press per look. None of them
 needs a worth: the objective prices them. The second example file adds a kitchen to Simmer: an upgrade tree with one
-upgrade, a copper base that doubles the stove, which that file's stove reads in its rate. The tree is listed as it is,
+upgrade, a copper base whose effect is `{ stat: "heat", mul: 2 }`, counted by that file's stats feature beside the
+lid, so it doubles the stove. The tree is listed as it is,
 with no moves written:
 
 <!-- example-code: guide-pacing-tree.ts -->

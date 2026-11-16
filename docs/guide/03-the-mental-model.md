@@ -5,13 +5,14 @@ of the guide can use those names without stopping to explain them. By the end yo
 the store is made from features, what happens in one tick and in what order, how the engine tells time, and where a
 reset and a save fit in.
 
-Along the way your Simmer grows. The stove learns to work out its rate from its state, to pay less for time away,
-and to be switched off; and a new feature, a lid, makes the stove work twice as hard. The last section lists every
+Along the way your Simmer grows. The stove learns to work out its price and its rate from its state, to pay less for time
+away, and to be switched off; a new feature, a lid, makes the stove work twice as hard; and a small stats feature
+becomes the one place every multiplier on the stove goes. The last section lists every
 change to your `game.ts` in one place, so you can read first and type after, or type as you go.
 
 The runnable copy of this chapter's Simmer is [`docs/examples/guide-mental-model.ts`](../examples/guide-mental-model.ts).
 It imports chapter 2's pot and burner price from [`docs/examples/simmer/game.ts`](../examples/simmer/game.ts), adds
-the new stove and the lid, and plays a few seconds on a fake clock:
+the new stove, the lid and the stats, and plays a few seconds on a fake clock:
 
 ```sh
 bun docs/examples/guide-mental-model.ts
@@ -69,7 +70,8 @@ exactly one slice, under its key.
 
 ## The game and the store
 
-`defineGame` collects the features into a [game](../glossary.md#game). With the lid added, Simmer's reads:
+`defineGame` collects the features into a [game](../glossary.md#game). With the lid and the stats added, Simmer's
+reads:
 
 <!-- example-code: guide-mental-model.ts -->
 
@@ -77,13 +79,15 @@ exactly one slice, under its key.
 export const game = defineGame({
   id: "simmer",
   save: { key: "simmer.save", version: 1 },
-  features: [pot, stove, lid],
+  vocab: WORDS,
+  features: [pot, stove, lid, stats],
 });
 ```
 
 <sub>`docs/examples/guide-mental-model.ts`</sub>
 
-The game is only a description. Nothing runs yet. `defineGame` checks the description and throws, naming the
+`vocab: WORDS` is the game's words, the next chapter's subject; for now they name the one stat, `heat`. The game is
+only a description. Nothing runs yet. `defineGame` checks the description and throws, naming the
 feature, if something is wrong: two features with one key, a feature that reaches one the game does not list, an
 action named like a piece of state, or a step that says it runs after a step nobody declares. It also adds one feature
 you did not write, the clock, under the key `clock`. You will meet it later in this chapter.
@@ -177,7 +181,7 @@ they need no special care.
 ```ts
 buyBurner: () =>
   api.set((s) => {
-    const price = burnerPrice(s.stove.burners);
+    const price = s.stove.nextPrice;
     if (s.pot.bubbles.lt(price)) return false;
     s.pot.bubbles = s.pot.bubbles.sub(price);
     s.stove.burners += 1;
@@ -187,7 +191,8 @@ buyBurner: () =>
 
 <sub>`docs/examples/guide-mental-model.ts`</sub>
 
-The recipe runs straight away, inside `api.set`, so the answer is there when the action returns. Returning early from
+`s.stove.nextPrice` is the price of the next burner, which the stove works out for itself (a derived value: its own
+section is below). The recipe runs straight away, inside `api.set`, so the answer is there when the action returns. Returning early from
 a recipe (`return false`) leaves the draft as it was, which is how a refused purchase changes nothing.
 
 A recipe cannot call another action: the engine throws if you try, because the inner change would be lost. When two
@@ -196,8 +201,8 @@ both recipes. Chapter 4's wallet is built that way.
 
 ## Reach: one feature touching another
 
-The stove spends the pot's bubbles and pays bubbles back, and with the lid on it works twice as hard. For that its
-recipes need `s.pot` and `s.lid`. A feature says which other features it touches with
+The stove spends the pot's bubbles and pays bubbles back, and how fast it burns depends on the heat, a number another
+feature keeps (below). For that it needs `s.pot` and `s.stats`. A feature says which other features it touches with
 [`reach`](../glossary.md#reach):
 
 <!-- example-code: guide-mental-model.ts -->
@@ -205,8 +210,8 @@ recipes need `s.pot` and `s.lid`. A feature says which other features it touches
 ```ts
 export const stove = feature({
   key: "stove",
-  // A function, so it may name the lid, which is declared further down.
-  reach: () => [pot, lid],
+  // A function, so it may name the stats, which are declared further down.
+  reach: () => [pot, stats],
   initial: () => ({ burners: 0, off: false }),
   // ...
 });
@@ -216,12 +221,12 @@ export const stove = feature({
 
 `reach` does two things:
 
-1. It types the draft. Inside the stove's actions and steps, `s` has `s.stove`, `s.pot` and `s.lid`, all fully
+1. It types the draft. Inside the stove's actions and steps, `s` has `s.stove`, `s.pot` and `s.stats`, all fully
    typed, with no annotation from you. Without the `reach`, `s.pot` is a type error.
 2. It is checked. If the game lists the stove but not the pot, `defineGame` throws.
 
 `reach` may be a plain list (`reach: [pot]`) or a function that returns one. The function form is read only when the
-game is defined, so it may name a feature further down the file, as the stove names the lid here.
+game is defined, so it may name a feature further down the file, as the stove names the stats here.
 
 The stove's slice has grown a field since chapter 2: `off`, a switch you will meet under "What stop does".
 
@@ -244,16 +249,16 @@ export const lid = feature({
 
 <sub>`docs/examples/guide-mental-model.ts`</sub>
 
-The lid knows nothing of the stove. The stove reads the lid, and the doubling is written where the stove's rate is
-(under "Derived values" below). That is the usual direction: the thing a number belongs to reads what changes it.
+The lid knows nothing of the stove, and the stove knows nothing of the lid. The lid's doubling is a source of heat,
+declared in the stats feature (under "A first stat" below), and the stove reads only the heat.
 
-`reach` is not transitive. The stove reaches the pot and the lid, but the lid reaches nothing, so the lid's draft has
-only `s.lid`. Each feature lists what it touches itself.
+`reach` is not transitive. The stove reaches the stats and the stats reach the lid, but the stove's draft has no
+`s.lid`. Each feature lists what it touches itself.
 
 Two features that read each other cannot both name the other: each one's type would depend on the other's. One side
 names the other by value, and the other names it by its state type, `reach<{ stove: { burners: number } }>()`.
-`defineGame` checks that a feature with that key and that state is really in the game. Most games meet this once or
-twice; [chapter 8](08-effects.md) has one.
+`defineGame` checks that a feature with that key and that state is really in the game. From chapter 4 on, Simmer's
+stove names the stats this way, because later chapters' stats read the stove (a medal for ten burners, in chapter 8).
 
 ## The tick
 
@@ -320,24 +325,56 @@ produce: {
 
 <sub>`docs/examples/guide-mental-model.ts`</sub>
 
+Where `s.stove.perSecond` comes from is the next two sections.
+
 ### Derived values
 
-`s.stove.perSecond` is not saved and no step sets it. It is a [derived value](../glossary.md#derived-value): a number
-the stove works out from the state, declared once beside `initial`:
+The stove now has two numbers that no step sets and the save never holds: the price of the next burner, and the rate.
+Each is a [derived value](../glossary.md#derived-value): a number the stove works out from the state, declared once
+beside `initial`:
 
 <!-- example-code: guide-mental-model.ts -->
 
 ```ts
 initial: () => ({ burners: 0, off: false }),
 derived: {
-  // The burners' flame, doubled while the lid is on. Worked out from the state, never saved.
-  perSecond: (s) => flameOf(s.stove.burners).mul(s.lid.on ? 2 : 1),
+  // The price of the next burner, worked out from how many are lit. Never saved.
+  nextPrice: (s) => burnerPrice(s.stove.burners),
+  // The burners' flame, times heat: the one number every multiplier on the stove goes into.
+  perSecond: (s) => flameOf(s.stove.burners).mul(s.stats.heat),
 },
 ```
 
 <sub>`docs/examples/guide-mental-model.ts`</sub>
 
-`flameOf` is a small helper beside the stove: the stove's own rate, before anything multiplies it.
+Take `nextPrice` first. It is chapter 2's `burnerPrice(burners)`, but it lives on the state: `s.stove.nextPrice` in a
+recipe (as `buyBurner` reads it above), `store.getState().stove.nextPrice` on the page. Its type is whatever the
+function returns, here a Decimal. Four things make it different from a field in `initial`:
+
+- **It is never saved.** A save holds `burners` and `off`; the price comes back from them on load.
+- **It cannot be written.** Assigning to it throws. To change it, change what it reads: buy a burner.
+- **It is always current.** The engine works it out on load and on reset, and again whenever a slice it read has been
+  changed. Buy a burner and the next thing that reads `s.stove.nextPrice` sees the new price, whether that is a step,
+  an action or the page. (Within one step it is as of the start of that step: a step sees what earlier steps did, not
+  its own writes.)
+- **It reads, and nothing else.** The function sees the feature's saved state and what it reaches. It must not write,
+  draw a random number or read the clock.
+
+The example prints the price right after buying the first burner, with no pass in between:
+
+<!-- example-prints: guide-mental-model.ts | the next one costs: 12 -->
+
+`the next one costs: 12`: ten bubbles times 1.15, rounded up.
+
+A number that needs the time (a buff that ends at a given moment) or the pass (a different rate while away) cannot be
+a derived value, because a derived value never reads the clock. That is what the `rates` phase is for: a step there
+works the number out with `ctx` in hand, into a field listed as `transient` (below). The engine's generators do this,
+because a running buff can change their rate. Most numbers are like the stove's and need neither.
+
+### A first stat
+
+The rate is the stove's flame times `s.stats.heat`. `flameOf` is a small helper beside the stove: the stove's own
+rate, before anything multiplies it.
 
 <!-- example-code: guide-mental-model.ts -->
 
@@ -348,33 +385,39 @@ export const flameOf = (burners: number) => D(burners * BURNER_PER_SECOND);
 
 <sub>`docs/examples/guide-mental-model.ts`</sub>
 
-A derived value joins the slice under its name and is read like any field: `s.stove.perSecond` in a step,
-`store.getState().stove.perSecond` on the page. Its type is whatever the function returns, here a Decimal. Four things
-make it different from a field in `initial`:
+Heat is a [stat](../glossary.md#stat): a named number that many things can change. Right now one thing does, the
+lid. Later chapters add an upgrade, a timed boost, a medal and a reset bonus, and every one of them changes heat, not
+the stove. The stove reads heat and never needs to know what raised it. The stats live in one feature of their own,
+made by the engine's `defineStats`:
 
-- **It is never saved.** A save holds `burners` and `off`; the rate comes back from them on load.
-- **It cannot be written.** Assigning to it throws. To change it, change what it reads.
-- **It is always current.** The engine works it out on load and on reset, and again whenever a slice it read has been
-  changed. Toggle the lid and the next thing that reads `s.stove.perSecond` sees the doubled rate, whether that is a
-  step, an action or the page. (Within one step it is as of the start of that step: a step sees what earlier steps
-  did, not its own writes.)
-- **It reads, and nothing else.** The function sees the feature's saved state and what it reaches. It must not write,
-  draw a random number or read the clock.
+<!-- example-code: guide-mental-model.ts -->
 
-One derived value may read another, the stove's or another feature's; the engine works them out in the order they
-read each other, and throws, naming the loop, if two read each other.
+```ts
+export const stats = defineStats({
+  key: "stats",
+  vocab: WORDS,
+  reach: [lid],
+  stats: { heat: { base: 1 } },
+  sources: [{ label: "The lid", owner: "lid", active: (q) => q.lid.on, effects: [{ stat: "heat", mul: 2 }] }],
+});
+```
 
-The example prints the rate right after the lid goes on, with no pass in between:
+<sub>`docs/examples/guide-mental-model.ts`</sub>
 
-<!-- example-prints: guide-mental-model.ts | the stove's rate: 2 -->
+- `stats: { heat: { base: 1 } }` declares the stat and what it is with nothing raising it: 1, because heat multiplies.
+- `sources` is what raises it. The lid's is one line: while `active` says the lid is on, heat is multiplied by 2.
+- `reach: [lid]` lets the source read `q.lid`, as any feature's reach does.
 
-`the stove's rate: 2`: one burner, doubled.
+Each stat is a derived value of the stats feature, `s.stats.heat`, a Decimal. So the stove's `perSecond` is one
+derived value reading another. You never say which goes first: the engine works them out in the order they read each
+other (heat, then the rate), and throws, naming the loop, if two read each other. The example prints both right after
+the lid goes on:
 
-A rate that needs the time (a buff that ends at a given moment) or the pass (a different rate while away) cannot be a
-derived value, because a derived value never reads the clock. That is what the `rates` phase is for: a step there
-works the number out with `ctx` in hand, into a field listed as `transient` (below). The engine's generators do this,
-because a running buff can change their rate. Most rates are like the stove's and need neither.
+<!-- example-prints: guide-mental-model.ts | heat: 2 | the stove's rate: 2 -->
 
+`heat: 2` and `the stove's rate: 2`: the lid doubled the heat, and one burner at double heat makes two bubbles a second.
+[Chapter 8](08-effects.md) is about stats in depth: adding sources from upgrades and boosts, and a tooltip that says
+where a number came from.
 ### Order inside a phase
 
 Several features can have steps in the same phase. Inside one phase the steps run in the order the features are
@@ -394,7 +437,7 @@ works a number out before another reads it, make the number a derived value inst
 When you want to see the real order, `resolvedSteps(game, pass)` returns every step id a pass runs, in order. The
 example prints it. For a live tick it reads:
 
-<!-- example-output: guide-mental-model.ts lines=6-6 -->
+<!-- example-output: guide-mental-model.ts lines=8-8 -->
 
 ```text
 tick: stove.guard.cold, clock.guard.dt, pot.produce.simmer, stove.produce.burn, clock.commit.lastSeen
@@ -511,8 +554,10 @@ const play = store.getState;
 play().catchUp(); // the first catch-up: no gap yet, so nothing is paid
 for (let i = 0; i < 10; i++) play().pot.tap();
 console.log("bought a burner:", play().stove.buyBurner()); // true: 10 bubbles spent
+console.log("the next one costs:", fmt(play().stove.nextPrice).text); // 12: worked out from one burner lit
 play().lid.toggle();
-console.log("the stove's rate:", fmt(play().stove.perSecond).text); // 2: one burner, doubled by the lid
+console.log("heat:", fmt(play().stats.heat).text); // 2: the lid doubles it
+console.log("the stove's rate:", fmt(play().stove.perSecond).text); // 2: one burner at double heat
 
 wall += 1000;
 play().tick(1000); // one second live: the pot's 1, plus the stove's 2
@@ -615,30 +660,33 @@ A transient key never reaches the save. After a load it comes back as whatever `
 
 ## Your `game.ts` after this chapter
 
-Open the `game.ts` you wrote in chapter 2 and make four changes. The pot does not change.
+Open the `game.ts` you wrote in chapter 2 and make five changes. The pot does not change.
 
 1. **Add the stove's numbers and its rate helper** below `burnerPrice`: `OFFLINE_RATE` and `AWAY_CAP_MS` (from "Two
-   passes") and `flameOf` (from "Derived values").
-2. **Replace the stove** with this one. Compared with chapter 2's, it reaches the lid too; it has a new field, `off`,
-   and a derived value, `perSecond`; a second action, `toggle`; and its one `produce` step, `burn`, has become the
-   guard `cold` and two pass-limited payments, `burn` and `away`. `buyBurner` is unchanged.
+   passes") and `flameOf` (from "A first stat"), and the game's words, `WORDS` (below).
+2. **Replace the stove** with this one. Compared with chapter 2's, it reaches the stats too; it has a new field, `off`,
+   and two derived values, `nextPrice` and `perSecond`; a second action, `toggle`; and its one `produce` step, `burn`,
+   has become the guard `cold` and two pass-limited payments, `burn` and `away`. `buyBurner` reads the price off the
+   state.
 
    <!-- example-code: guide-mental-model.ts -->
 
    ```ts
    export const stove = feature({
      key: "stove",
-     // A function, so it may name the lid, which is declared further down.
-     reach: () => [pot, lid],
+     // A function, so it may name the stats, which are declared further down.
+     reach: () => [pot, stats],
      initial: () => ({ burners: 0, off: false }),
      derived: {
-       // The burners' flame, doubled while the lid is on. Worked out from the state, never saved.
-       perSecond: (s) => flameOf(s.stove.burners).mul(s.lid.on ? 2 : 1),
+       // The price of the next burner, worked out from how many are lit. Never saved.
+       nextPrice: (s) => burnerPrice(s.stove.burners),
+       // The burners' flame, times heat: the one number every multiplier on the stove goes into.
+       perSecond: (s) => flameOf(s.stove.burners).mul(s.stats.heat),
      },
      actions: (api) => ({
        buyBurner: () =>
          api.set((s) => {
-           const price = burnerPrice(s.stove.burners);
+           const price = s.stove.nextPrice;
            if (s.pot.bubbles.lt(price)) return false;
            s.pot.bubbles = s.pot.bubbles.sub(price);
            s.stove.burners += 1;
@@ -675,28 +723,38 @@ Open the `game.ts` you wrote in chapter 2 and make four changes. The pot does no
 
    <sub>`docs/examples/guide-mental-model.ts`</sub>
 
-3. **Add the lid** (from "Reach") after the stove.
-4. **Change `defineGame`** to list `[pot, stove, lid]`, as in "The game and the store".
+3. **Add the lid** (from "Reach") and **the stats** (from "A first stat") after the stove.
+4. **Add the words** above the stove:
 
-`D` was already imported for chapter 2's stove; nothing new is needed from `watchpot/core`. Your save keeps working:
-the new field is not in it yet, so it starts at its `initial` value.
+   <!-- example-code: guide-mental-model.ts -->
+
+   ```ts
+   export const WORDS = vocab({ currencies: ["bubbles"], stats: ["heat"] });
+   ```
+
+5. **Change `defineGame`** to take `vocab: WORDS` and list `[pot, stove, lid, stats]`, as in "The game and the store".
+
+Add `defineStats` and `vocab` to the import from `watchpot/core` (`D` was already there for chapter 2's stove). Your
+save keeps working: the new field is not in it yet, so it starts at its `initial` value.
 
 Your page needs no change, and it still runs. Two things on it are not aware of this chapter yet: it has no buttons
-for the lid or the stove's switch, and its rate line, `perSecond(burners)`, does not count the lid. That is fine for
+for the lid or the stove's switch, and its rate line, `perSecond(burners)`, does not count the heat. That is fine for
 now; to try them, run the example. [Chapter 6](06-the-first-page.md) builds the page properly.
-
 ## Things that bite
 
 - **Forgetting to reassign a Decimal.** `s.x.add(1)` alone does nothing and raises nothing, because Decimals never
   change. Always `s.x = s.x.add(1)`.
 - **`pass: "both"` on a payment pays time away in full.** A `produce` step that runs in the catch-up at the live rate
   pays a week away at the live rate with no cap. Decide on purpose.
-- **A derived value cannot be written, or read the clock.** Assigning to `s.stove.perSecond` throws. A number that
+- **A derived value cannot be written, or read the clock.** Assigning to `s.stove.nextPrice` throws. A number that
   needs `now` (a buff running, a timer) belongs in a `rates` step and a `transient` field instead.
 - **The clock's steps run last in their phase.** So your `guard` steps run before the clock refuses a zero-length
   tick, and on a catch-up with no gap your `produce` steps run with `dtMs` 0 before the clock stops the pass. Write
   steps that do nothing when `dtMs` is 0 (multiplying by it does that for you) and do not count on a guard of your own
   running after the clock's.
+- **A derived value reads its own feature's other derived values only with help.** The function is typed with the
+  feature's saved state and its reach, so `nextPrice` cannot see `perSecond` without annotating `s`. A value of
+  another feature (`s.stats.heat`) reads plainly.
 - **The default reset is `"run"`.** A feature that should survive a run reset has to say so.
 - **The key `clock` is taken,** and feature keys cannot contain a dot.
 
@@ -712,6 +770,7 @@ naming your currencies once so the whole game agrees on them. Simmer's bubbles m
 - `api/core/feature.d.ts`: `feature`, `reach`, `FeatureDef` (`derived`, `transient`), `FeatureApi`, `Step`,
   `StepDef` (`pass`, `after`, `before`), `StepContext`, `PHASES`, `EARNING_PHASES`, `Pass`, `ResetRule`, `StateOf`.
 - `api/core/game.d.ts`: `defineGame`, `GameDef`.
+- `api/core/stats.d.ts`: `defineStats`; `api/core/vocab.d.ts`: `vocab`.
 - `api/core/store.d.ts`: `createIdleStore`, `IdleStoreOptions`, `RootActions`.
 - `api/core/tick.d.ts`: `resolvedSteps`, `passSteps`.
 - `api/core/clock-feature.d.ts`: `clockFeature`, `ClockState`, `startGameClock`, `GameClockOptions`.
