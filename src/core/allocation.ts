@@ -11,8 +11,10 @@ import { type Feature, type FeatureApi, feature, type ResetRule } from "./featur
  * it (the game reads `assigned` as a rate) or fills a bar: each assigned unit does `speed` work a second, and a full
  * bar levels the sink up and starts the next, whose cost climbs on a cost curve.
  *
- * `assign`, `free` and `rebalance` are the pure rules over an assigned record; `allocation({ key, pool, sinks })` is
- * the feature. When the pool shrinks, what no longer fits is taken back from the most recently assigned sink first.
+ * `assignUnits`, `freeUnits`, `allocatedUnits` and `rebalanceUnits` are the pure rules over an assigned record (the
+ * `Units` suffix marks the kernel; the feature's action of the same stem, `assign(id, n)`, is `assignUnits` over its
+ * own record, pool and caps); `allocation({ key, pool, sinks })` is the feature. When the pool shrinks, what no longer
+ * fits is taken back from the most recently assigned sink first.
  */
 
 /** Whole units, never negative. */
@@ -115,9 +117,9 @@ export interface AllocationState {
 
 /** The feature's actions. Each returns the units it moved. */
 export interface AllocationActions {
-  /** Moves `n` free units into a sink, clamped to what is free and to its cap. */
+  /** Moves `n` free units into a sink, clamped to what is free and to its cap: `assignUnits` on the saved record. */
   assign(id: string, n: number): number;
-  /** Takes `n` units back out of a sink. */
+  /** Takes `n` units back out of a sink: `assignUnits` with `-n`. */
   unassign(id: string, n: number): number;
   /** Takes every unit back. */
   clear(): number;
@@ -152,7 +154,7 @@ export type AllocationFeature<K extends string, G, E> = Feature<K, AllocationSta
  * A pool split between sinks, as a feature. It saves `{ assigned, order, progress, level }` under `key` (the stat bus's
  * source prefix too). `<key>.sync.pool` trims the record when the pool or a cap shrinks; `<key>.produce.fill` fills the
  * bars over a tick, and over an absence through `away` (default: all of it), several levels in one step when the work
- * covers them. A prestige reset clears it unless `reset` says otherwise. The callbacks read the whole game state, so
+ * covers them. A run reset clears it unless `reset` says otherwise. The callbacks read the whole game state, so
  * annotate one of them with the game's state type.
  */
 export function allocation<const K extends string, E = never, G extends object = object>(def: {

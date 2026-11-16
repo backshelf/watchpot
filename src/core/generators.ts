@@ -51,15 +51,39 @@ interface GeneratorBase<C extends string> {
   readonly free?: number;
 }
 
+/** A generator that makes `rate` a second per one owned. Extend it for a game's own fields on a rate list. */
+export type RateGeneratorDef<C extends string = string> = GeneratorBase<C> & {
+  readonly rate: DecimalSource;
+  readonly cycle?: undefined;
+};
+
+/** A generator that completes a cycle of `cycle.ms` and pays `cycle.pays` per one owned. */
+export type CycleGeneratorDef<C extends string = string> = GeneratorBase<C> & {
+  readonly cycle: GeneratorCycle;
+  readonly rate?: undefined;
+};
+
 /**
  * One generator. With `rate` it makes that much a second per one owned; with `cycle` it completes a cycle of
- * `cycle.ms` and pays `cycle.pays` per one owned. The game's own fields (a name, a line) ride along.
+ * `cycle.ms` and pays `cycle.pays` per one owned. The game's own fields (a name, a line) ride along: a game that adds
+ * them writes `(RateGeneratorDef<C> | CycleGeneratorDef<C>) & Extra`, or extends one of the two.
  */
-export type GeneratorDef<C extends string = string> = GeneratorBase<C> &
-  (
-    | { readonly rate: DecimalSource; readonly cycle?: undefined }
-    | { readonly cycle: GeneratorCycle; readonly rate?: undefined }
-  );
+export type GeneratorDef<C extends string = string> = RateGeneratorDef<C> | CycleGeneratorDef<C>;
+
+/** What every generators callback is given after its own arguments: game time now (a buff's clock). */
+export interface GeneratorsCallbackContext {
+  readonly now: number;
+}
+
+/** A buy mode, as `watchpot/ui`'s `BuyMode`: a fixed count, as many as affordable, or up to the next milestone. */
+export type GeneratorBuyMode = number | "max" | "next";
+
+/** One buy row, worked out: how many the mode buys (at least 1, for the price shown), their price, and whether it can. */
+export interface GeneratorRow {
+  readonly count: number;
+  readonly price: Decimal;
+  readonly canBuy: boolean;
+}
 
 /** What `cyclesIn` returns: cycles completed over the stretch and the progress into the next. */
 export interface CycleStep {
@@ -104,41 +128,62 @@ export interface GeneratorActions {
   run(id: string): boolean;
 }
 
-/** A generator list's rules, read off the game state. */
+/**
+ * A generator list's rules, read off the game state. A rule that reads a callback takes game time as a trailing
+ * `now`, handed to the callback as `{ now }`: default the state's `gameNow()` when it carries one (a store's state
+ * does), else 0. A screen that reads a buff in `mult` passes the `now` it renders at.
+ */
 export interface GeneratorRules<G, T extends GeneratorDef> {
   readonly list: readonly T[];
   /** A generator by id. */
   generator(id: string): T | undefined;
   /** Whether it can be bought now. */
-  open(state: G, id: string): boolean;
+  open(state: G, id: string, now?: number): boolean;
   /** How many are owned. */
   owned(state: G, id: string): number;
   /** The price of the next `count` (default 1). */
   price(state: G, id: string, count?: number): Decimal;
   /** How many more the balance covers (0 when it is not open). */
-  affordable(state: G, id: string): number;
-  /** Every milestone reached, its own and the global ones, folded: the product of the mults and of the speeds. */
-  boost(state: G, id: string): { readonly mult: number; readonly speed: number };
+  affordable(state: G, id: string, now?: number): number;
+  /**
+   * Every milestone reached, its own and the global ones, folded: the product of the mults and of the speeds (1 and
+   * 1 while the definition's `milestones` gate is shut).
+   */
+  boost(state: G, id: string, now?: number): { readonly mult: number; readonly speed: number };
   /** The cycle's length now, after the speed (null for a rate generator). */
-  cycleMs(state: G, id: string): number | null;
+  cycleMs(state: G, id: string, now?: number): number | null;
   /** Whether a cycle generator restarts itself. */
-  automated(state: G, id: string): boolean;
+  automated(state: G, id: string, now?: number): boolean;
   /** What one cycle pays now, all owned (zero for a rate generator). */
-  cyclePays(state: G, id: string): Decimal;
+  cyclePays(state: G, id: string, now?: number): Decimal;
   /** What the generator makes a second, all owned, every multiplier applied; a cycle by its average rate. */
-  rate(state: G, id: string): Decimal;
+  rate(state: G, id: string, now?: number): Decimal;
   /** How many more reach its next milestone, or null past the last. */
   untilMilestone(state: G, id: string): number | null;
   /** What the list makes a second, per currency: rate generators and automated cycles (a hand cycle is not income). */
-  perSecond(state: G): Record<string, Decimal>;
+  perSecond(state: G, now?: number): Record<string, Decimal>;
+  /**
+   * How an absence counts now: the definition's `away`, or all of it (`{ rate: 1 }`). A game's own produce step runs
+   * its catch-up through `catchUp(dtMs, away.rate, away.capMs)` to credit what the list is credited.
+   */
+  away(state: G, now?: number): GeneratorAway;
+  /**
+   * One buy row for `mode` (`watchpot/ui`'s `BuyMode`): `count` is what the mode buys, at least 1 so the row always
+   * shows a price; `price` is the price of `count`; `canBuy` is whether the mode buys anything and the balance covers
+   * it (false when it is closed, or for `"next"` past the last milestone).
+   */
+  row(state: G, id: string, mode: GeneratorBuyMode, now?: number): GeneratorRow;
 }
 
-/** The draft helpers, for a recipe or a step (an autobuyer's purchase). Each returns how many it bought. */
+/**
+ * The draft helpers, for a recipe or a step (an autobuyer's purchase). Each returns how many it bought. `now` reaches
+ * the `open` callback (default as the rules').
+ */
 export interface GeneratorHelpers {
   /** Buys exactly `count` (default 1) inside a recipe, or nothing. */
-  buy(draft: object, id: string, count?: number): number;
+  buy(draft: object, id: string, count?: number, now?: number): number;
   /** Buys as many as the balance covers inside a recipe, `limit` at most. */
-  buyMax(draft: object, id: string, limit?: number): number;
+  buyMax(draft: object, id: string, limit?: number, now?: number): number;
 }
 
 /** A `generators` feature, carrying its rules as `.rules` and the draft helpers `buy` and `buyMax`. */
@@ -167,16 +212,24 @@ export interface GeneratorsDef<
   /** The currencies feature the list buys from and pays into. */
   readonly wallet: CurrenciesFeature<WK, C, WS, WA>;
   readonly list: readonly T[];
-  /** The game's multiplier on one generator's output (its stat bus), read off the whole game state. */
-  readonly mult?: (state: G, def: T) => DecimalSource;
+  /**
+   * The game's multiplier on one generator's output (its stat bus), read off the whole game state. `ctx.now` is game
+   * time, so a buff multiplies here: `(s, g, { now }) => buffActive(s.buffs, "rush", now) ? 2 : 1`.
+   */
+  readonly mult?: (state: G, def: T, ctx: GeneratorsCallbackContext) => DecimalSource;
   /** Milestones every generator gets once the lowest owned count across the list reaches them. */
   readonly global?: readonly Threshold<GeneratorBoost>[];
+  /**
+   * Whether a generator's milestones count, its own and the global ones: a rule of the game's that turns them off
+   * (a challenge). Default: always.
+   */
+  readonly milestones?: (state: G, def: T, ctx: GeneratorsCallbackContext) => boolean;
   /** Whether a generator can be bought. Default: always. */
-  readonly open?: (state: G, def: T) => boolean;
+  readonly open?: (state: G, def: T, ctx: GeneratorsCallbackContext) => boolean;
   /** Whether a cycle generator restarts itself (a manager bought). Default: never; `run(id)` starts each cycle. */
-  readonly automated?: (state: G, def: T) => boolean;
+  readonly automated?: (state: G, def: T, ctx: GeneratorsCallbackContext) => boolean;
   /** How an absence counts. Default: all of it. */
-  readonly away?: (state: G) => GeneratorAway;
+  readonly away?: (state: G, ctx: GeneratorsCallbackContext) => GeneratorAway;
   readonly reset?: ResetRule<GeneratorsState>;
 }
 
@@ -184,7 +237,7 @@ export interface GeneratorsDef<
  * A building list as a feature. It saves `{ owned, progress, running }` under `key`, works out `perSecond` in the
  * step `<key>.rates.perSecond` and pays in `<key>.produce.make` (over a tick, and over an absence through `away`),
  * buys from `wallet` and carries its rules as `.rules`. Its auto-player moves buy one of each open generator,
- * valued at the income it adds a second, and start every idle hand cycle for free. A prestige reset starts the list
+ * valued at the income it adds a second, and start every idle hand cycle for free. A run reset starts the list
  * over (the `free` ones owned again) unless `reset` says otherwise. The callbacks read the whole game state, so
  * annotate one of them with the game's state type.
  */
@@ -207,17 +260,23 @@ export function generators<
   }
 
   type Own = Record<K, GeneratorsState> & CurrencyDraft<WK>;
+  type At = GeneratorsCallbackContext;
   const own = (state: unknown): GeneratorsState => (state as Record<K, GeneratorsState>)[def.key];
   const ownedOf = (state: unknown, g: T): number => own(state).owned[g.id] ?? 0;
   const lowest = (state: unknown): number =>
     list.length === 0 ? 0 : Math.min(...list.map((g) => ownedOf(state, g)));
+  /** The callbacks' context: `now` as given, else the state's own game clock, else 0. */
+  const at = (state: unknown, now?: number): At => ({
+    now: now ?? (state as { gameNow?: () => number }).gameNow?.() ?? 0,
+  });
 
-  const open = (state: G, g: T): boolean => def.open?.(state, g) ?? true;
-  const automated = (state: G, g: T): boolean =>
-    g.cycle !== undefined && (def.automated?.(state, g) ?? false);
-  const boost = (state: G, g: T): { mult: number; speed: number } => {
+  const open = (state: G, g: T, c: At): boolean => def.open?.(state, g, c) ?? true;
+  const automated = (state: G, g: T, c: At): boolean =>
+    g.cycle !== undefined && (def.automated?.(state, g, c) ?? false);
+  const boost = (state: G, g: T, c: At): { mult: number; speed: number } => {
     let mult = 1;
     let speed = 1;
+    if (def.milestones && !def.milestones(state, g, c)) return { mult, speed };
     const gives = [
       ...reached(g.milestones ?? [], ownedOf(state, g)),
       ...reached(def.global ?? [], lowest(state)),
@@ -229,27 +288,28 @@ export function generators<
     return { mult, speed };
   };
   /** The output multiplier: milestones and the game's own. */
-  const multOf = (state: G, g: T): Decimal => D(def.mult?.(state, g) ?? 1).mul(boost(state, g).mult);
-  const cycleMs = (state: G, g: T): number | null =>
-    g.cycle ? g.cycle.ms / Math.max(Number.MIN_VALUE, boost(state, g).speed) : null;
+  const multOf = (state: G, g: T, c: At): Decimal =>
+    D(def.mult?.(state, g, c) ?? 1).mul(boost(state, g, c).mult);
+  const cycleMs = (state: G, g: T, c: At): number | null =>
+    g.cycle ? g.cycle.ms / Math.max(Number.MIN_VALUE, boost(state, g, c).speed) : null;
   /** What one owned makes a second, or pays a cycle. */
-  const unit = (state: G, g: T): Decimal =>
+  const unit = (state: G, g: T, c: At): Decimal =>
     g.cycle
-      ? D(g.cycle.pays).mul(multOf(state, g))
+      ? D(g.cycle.pays).mul(multOf(state, g, c))
       : D(g.rate ?? 0)
-          .mul(multOf(state, g))
-          .mul(boost(state, g).speed);
+          .mul(multOf(state, g, c))
+          .mul(boost(state, g, c).speed);
   /** What one owned makes a second, a cycle by its average. */
-  const unitRate = (state: G, g: T): Decimal => {
-    const ms = cycleMs(state, g);
-    return ms === null ? unit(state, g) : unit(state, g).mul(1000 / ms);
+  const unitRate = (state: G, g: T, c: At): Decimal => {
+    const ms = cycleMs(state, g, c);
+    return ms === null ? unit(state, g, c) : unit(state, g, c).mul(1000 / ms);
   };
-  const rate = (state: G, g: T): Decimal => unitRate(state, g).mul(ownedOf(state, g));
-  const perSecond = (state: G): Record<string, Decimal> => {
+  const rate = (state: G, g: T, c: At): Decimal => unitRate(state, g, c).mul(ownedOf(state, g));
+  const perSecond = (state: G, c: At): Record<string, Decimal> => {
     const out: Record<string, Decimal> = {};
     for (const g of list) {
-      if (g.cycle && !automated(state, g)) continue;
-      out[g.makes] = (out[g.makes] ?? ZERO).add(rate(state, g));
+      if (g.cycle && !automated(state, g, c)) continue;
+      out[g.makes] = (out[g.makes] ?? ZERO).add(rate(state, g, c));
     }
     return out;
   };
@@ -258,13 +318,19 @@ export function generators<
     const next = nextThreshold(g.milestones ?? [], owned);
     return next ? next.at - owned : null;
   };
+  const affordable = (state: G, g: T, c: At): number => {
+    if (!open(state, g, c)) return 0;
+    const held = wallet.balance(state as unknown as CurrencyDraft<WK>, g.pays);
+    return maxAffordable(g.cost, ownedOf(state, g), held);
+  };
+  const away = (state: G, c: At): GeneratorAway => def.away?.(state, c) ?? { rate: 1 };
 
   const rules: GeneratorRules<G, T> = {
     list,
     generator: (id) => byId.get(id),
-    open: (state, id) => {
+    open: (state, id, now) => {
       const g = byId.get(id);
-      return g !== undefined && open(state, g);
+      return g !== undefined && open(state, g, at(state, now));
     },
     owned: (state, id) => {
       const g = byId.get(id);
@@ -274,43 +340,54 @@ export function generators<
       const g = byId.get(id);
       return g ? costOfMany(g.cost, ownedOf(state, g), count) : ZERO;
     },
-    affordable: (state, id) => {
+    affordable: (state, id, now) => {
       const g = byId.get(id);
-      if (!g || !open(state, g)) return 0;
-      const held = wallet.balance(state as unknown as CurrencyDraft<WK>, g.pays);
-      return maxAffordable(g.cost, ownedOf(state, g), held);
+      return g ? affordable(state, g, at(state, now)) : 0;
     },
-    boost: (state, id) => {
+    boost: (state, id, now) => {
       const g = byId.get(id);
-      return g ? boost(state, g) : { mult: 1, speed: 1 };
+      return g ? boost(state, g, at(state, now)) : { mult: 1, speed: 1 };
     },
-    cycleMs: (state, id) => {
+    cycleMs: (state, id, now) => {
       const g = byId.get(id);
-      return g ? cycleMs(state, g) : null;
+      return g ? cycleMs(state, g, at(state, now)) : null;
     },
-    automated: (state, id) => {
+    automated: (state, id, now) => {
       const g = byId.get(id);
-      return g !== undefined && automated(state, g);
+      return g !== undefined && automated(state, g, at(state, now));
     },
-    cyclePays: (state, id) => {
+    cyclePays: (state, id, now) => {
       const g = byId.get(id);
-      return g?.cycle ? unit(state, g).mul(ownedOf(state, g)) : ZERO;
+      return g?.cycle ? unit(state, g, at(state, now)).mul(ownedOf(state, g)) : ZERO;
     },
-    rate: (state, id) => {
+    rate: (state, id, now) => {
       const g = byId.get(id);
-      return g ? rate(state, g) : ZERO;
+      return g ? rate(state, g, at(state, now)) : ZERO;
     },
     untilMilestone: (state, id) => {
       const g = byId.get(id);
       return g ? untilMilestone(state, g) : null;
     },
-    perSecond,
+    perSecond: (state, now) => perSecond(state, at(state, now)),
+    away: (state, now) => away(state, at(state, now)),
+    row: (state, id, mode, now) => {
+      const g = byId.get(id);
+      const can = g ? affordable(state, g, at(state, now)) : 0;
+      const want = mode === "max" ? can : mode === "next" ? (g ? (untilMilestone(state, g) ?? 0) : 0) : mode;
+      const whole = Number.isFinite(want) ? Math.max(0, Math.floor(want)) : 0;
+      const count = Math.max(1, whole);
+      return {
+        count,
+        price: g ? costOfMany(g.cost, ownedOf(state, g), count) : ZERO,
+        canBuy: whole > 0 && can >= whole,
+      };
+    },
   };
 
   /** Buys up to `count` inside a recipe: all of them, or (`partial`) what the balance covers. */
-  const buyDraft = (draft: Draft<Own>, id: string, count: number, partial: boolean): number => {
+  const buyDraft = (draft: Draft<Own>, id: string, count: number, partial: boolean, c: At): number => {
     const g = byId.get(id);
-    if (!g || !open(draft as unknown as G, g)) return 0;
+    if (!g || !open(draft as unknown as G, g, c)) return 0;
     const want = Math.max(0, Math.floor(count));
     const purse = draft as unknown as CurrencyDraft<WK>;
     const had = ownedOf(draft, g);
@@ -321,7 +398,7 @@ export function generators<
   };
 
   /** Pays every generator over `ms` of credited time. */
-  const make = (draft: Draft<Own>, ms: number): void => {
+  const make = (draft: Draft<Own>, ms: number, c: At): void => {
     if (!(ms > 0)) return;
     const state = draft as unknown as G;
     const purse = draft as unknown as CurrencyDraft<WK>;
@@ -329,17 +406,17 @@ export function generators<
     for (const g of list) {
       const owned = ownedOf(draft, g);
       if (owned <= 0) continue;
-      const length = cycleMs(state, g);
+      const length = cycleMs(state, g, c);
       if (length === null) {
-        wallet.credit(purse, g.makes, rate(state, g).mul(ms / 1000));
+        wallet.credit(purse, g.makes, rate(state, g, c).mul(ms / 1000));
         continue;
       }
-      const auto = automated(state, g);
+      const auto = automated(state, g, c);
       if (!auto && !s.running[g.id]) continue;
       const step = cyclesIn(s.progress[g.id] ?? 0, ms, length, !auto);
       s.progress[g.id] = step.progress;
       if (step.completed > 0) {
-        wallet.credit(purse, g.makes, unit(state, g).mul(owned).mul(step.completed));
+        wallet.credit(purse, g.makes, unit(state, g, c).mul(owned).mul(step.completed));
         if (!auto) s.running[g.id] = false;
       }
     }
@@ -363,8 +440,9 @@ export function generators<
     actions: (api: FeatureApi<Own>): GeneratorActions => {
       const run = (id: string, count: number, partial: boolean): number => {
         let n = 0;
+        const c = { now: api.now() };
         api.set((d) => {
-          n = buyDraft(d, id, count, partial);
+          n = buyDraft(d, id, count, partial, c);
         });
         return n;
       };
@@ -378,10 +456,12 @@ export function generators<
         },
         run: (id) => {
           let ok = false;
+          const c = { now: api.now() };
           api.set((d) => {
             const g = byId.get(id);
             const s = own(d);
-            if (!g?.cycle || ownedOf(d, g) <= 0 || s.running[g.id] || automated(d as unknown as G, g)) return;
+            if (!g?.cycle || ownedOf(d, g) <= 0 || s.running[g.id] || automated(d as unknown as G, g, c))
+              return;
             s.running[g.id] = true;
             s.progress[g.id] = 0;
             ok = true;
@@ -392,15 +472,16 @@ export function generators<
     },
     steps: {
       rates: {
-        perSecond: (d: Draft<Own>) => {
-          own(d).perSecond = perSecond(d as unknown as G);
+        perSecond: (d: Draft<Own>, ctx) => {
+          own(d).perSecond = perSecond(d as unknown as G, { now: ctx.now });
         },
       },
       produce: {
         make: (d: Draft<Own>, ctx) => {
-          if (ctx.pass === "tick") return make(d, ctx.dtMs);
-          const away = def.away?.(d as unknown as G) ?? { rate: 1 };
-          make(d, catchUp(ctx.dtMs, away.rate, away.capMs ?? Number.POSITIVE_INFINITY).creditedMs);
+          const c = { now: ctx.now };
+          if (ctx.pass === "tick") return make(d, ctx.dtMs, c);
+          const a = away(d as unknown as G, c);
+          make(d, catchUp(ctx.dtMs, a.rate, a.capMs ?? Number.POSITIVE_INFINITY).creditedMs, c);
         },
       },
     },
@@ -410,19 +491,19 @@ export function generators<
       const actions = (store: { getState(): unknown }) =>
         (store.getState() as Record<K, GeneratorActions>)[def.key];
       for (const g of list) {
-        if (!open(state, g)) continue;
+        if (!open(state, g, at(s))) continue;
         out.push({
           id: `${def.key}:${g.id}`,
           cost: { currency: g.pays, amount: costAt(g.cost, ownedOf(s, g)) },
-          value: (st) => toNumber(unitRate(st as unknown as G, g)),
+          value: (st) => toNumber(unitRate(st as unknown as G, g, at(st))),
           apply: (store) => actions(store).buy(g.id),
         });
-        if (g.cycle && ownedOf(s, g) > 0 && !own(s).running[g.id] && !automated(state, g))
+        if (g.cycle && ownedOf(s, g) > 0 && !own(s).running[g.id] && !automated(state, g, at(s)))
           out.push({
             id: `${def.key}:run:${g.id}`,
             // Worth what the cycle pays; never nothing, so the auto-player starts even a cycle that pays little.
             value: (st) =>
-              Math.max(Number.MIN_VALUE, toNumber(unit(st as unknown as G, g).mul(ownedOf(st, g)))),
+              Math.max(Number.MIN_VALUE, toNumber(unit(st as unknown as G, g, at(st)).mul(ownedOf(st, g)))),
             apply: (store) => actions(store).run(g.id),
           });
       }
@@ -430,8 +511,9 @@ export function generators<
     },
   });
   const helpers: GeneratorHelpers = {
-    buy: (draft, id, count = 1) => buyDraft(draft as Draft<Own>, id, count, false),
-    buyMax: (draft, id, limit = Number.POSITIVE_INFINITY) => buyDraft(draft as Draft<Own>, id, limit, true),
+    buy: (draft, id, count = 1, now) => buyDraft(draft as Draft<Own>, id, count, false, at(draft, now)),
+    buyMax: (draft, id, limit = Number.POSITIVE_INFINITY, now) =>
+      buyDraft(draft as Draft<Own>, id, limit, true, at(draft, now)),
   };
   return Object.assign(made, helpers, { rules });
 }
