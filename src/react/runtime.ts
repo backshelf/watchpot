@@ -2,7 +2,7 @@ import { useEffect, useLayoutEffect } from "react";
 import type { RootActions } from "../core/store";
 import { type MotionOverride, setReducedMotion, useReducedMotion } from "../kit/fx/motion";
 import { applyColorScheme, type SchemePreference } from "../kit/fx/scheme";
-import { useGameClock } from "./gameClock";
+import { type GameClockHookOptions, useGameClock } from "./gameClock";
 
 /** The two calls of a game's sound engine (`createSound` from `watchpot/sound`) the runtime makes. */
 export interface RuntimeSound {
@@ -20,8 +20,8 @@ export interface PageRuntimeOptions {
   sound?: { engine: RuntimeSound; on: boolean };
 }
 
-/** Options for `useGameRuntime`: the page's (`usePageRuntime`). */
-export type GameRuntimeOptions = PageRuntimeOptions;
+/** Options for `useGameRuntime`: the page's (`usePageRuntime`) and the clock's (`useGameClock`). */
+export type GameRuntimeOptions = PageRuntimeOptions & GameClockHookOptions;
 
 /** What `usePageRuntime` returns: whether motion is reduced. */
 export interface PageRuntime {
@@ -87,7 +87,7 @@ export function useGameRuntime(
   store: { getState(): RootActions },
   options: GameRuntimeOptions = {},
 ): GameRuntime {
-  const { taken } = useGameClock(store);
+  const { taken } = useGameClock(store, { away: options.away });
   const { reduced } = usePageRuntime(options);
   return { reduced, taken };
 }

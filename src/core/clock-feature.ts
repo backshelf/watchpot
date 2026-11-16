@@ -1,7 +1,7 @@
 import type { Clock, ClockOptions } from "./clock";
-import { createClock } from "./clock";
+import { AWAY_AFTER_MS, createClock } from "./clock";
 import { type FeatureSpec, type FeatureSteps, feature, type SavedOf } from "./feature";
-import { flushSave } from "./persist";
+import { flushSave, storeMeta } from "./persist";
 import type { RootActions } from "./store";
 
 /**
@@ -111,10 +111,36 @@ export const clockSteps = (lens: ClockLens): FeatureSteps<object> => ({
 /** Handler throws in a row the clock survives: about a second of live ticks. At the limit it stops. */
 export const CLOCK_FAILURE_LIMIT = 10;
 
-/** Options for `startGameClock`: the engine clock's, plus `onFail` when it gives up. */
+/**
+ * An absence the clock is about to credit with a catch-up, as `GameClockOptions.away` is told of it: the opening one
+ * (the save was last seen more than `awayAfterMs` ago) or a hidden spell or stalled frame longer than that.
+ */
+export interface AwayGap {
+  /** How long the game was not running, ms. */
+  readonly elapsedMs: number;
+  /** Game time the absence ends at: what the catch-up would be run to. */
+  readonly at: number;
+  /** True for the absence between the save and this load; false for one inside the session. */
+  readonly opening: boolean;
+  /**
+   * Ends a hold taken on this absence: the clock ticks again from now. Does nothing for an absence that was not
+   * held, or a second time.
+   */
+  release(): void;
+}
+
+/** Options for `startGameClock`: the engine clock's, plus `onFail` when it gives up and `away` to take an absence. */
 export interface GameClockOptions extends Partial<ClockOptions> {
   /** Called once when the clock stops at `CLOCK_FAILURE_LIMIT` throws in a row. */
   onFail?: (error: unknown) => void;
+  /**
+   * Told of each absence before the clock credits it. Return `"hold"` to take it: the clock runs no catch-up for
+   * it, and neither ticks nor flushes until `gap.release()`, so the store stays exactly as the absence left it
+   * (its `lastSeen` still at the moment the player left, in memory and in the save). The game then owns the
+   * absence: it brings the store forward itself (its own `catchUp(gap.at)`, an import, an adopted branch) and
+   * releases. Time that passes while held is not credited. Anything else returned lets the catch-up run as ever.
+   */
+  away?: (gap: AwayGap) => unknown;
 }
 
 /**
@@ -123,14 +149,18 @@ export interface GameClockOptions extends Partial<ClockOptions> {
  * start; the returned clock stops it. It runs on the store's game clock, read on every call so an offset that moves
  * is seen at the next step. Every handler runs through one guard: a
  * throw is logged and counted, a success resets the count, and at the limit the clock stops and `onFail` is told.
- * The first catch-up and flush stay unguarded, so the caller sees their throw.
+ * The first catch-up and flush stay unguarded, so the caller sees their throw. `away` may hold an absence instead
+ * (`GameClockOptions.away`).
  */
 export function startGameClock(store: { getState(): RootActions }, options: GameClockOptions = {}): Clock {
-  const { onFail, ...clockOptions } = options;
+  const { onFail, away, ...clockOptions } = options;
   const now = clockOptions.now ?? (() => store.getState().gameNow());
+  const awayAfterMs = clockOptions.awayAfterMs ?? AWAY_AFTER_MS;
   let failures = 0;
+  /** The absence being held, if any: while it is, the handlers do nothing. */
+  let held: object | null = null;
   const guard = (run: () => void) => {
-    if (!clock.running) return;
+    if (!clock.running || held) return;
     try {
       run();
       failures = 0;
@@ -142,11 +172,30 @@ export function startGameClock(store: { getState(): RootActions }, options: Game
       onFail?.(error);
     }
   };
+  /** Offers an absence to `away`; true when the game holds it. */
+  const offered = (elapsedMs: number, at: number, opening: boolean): boolean => {
+    if (!away) return false;
+    const token = {};
+    const gap: AwayGap = {
+      elapsedMs,
+      at,
+      opening,
+      release: () => {
+        if (held === token) held = null;
+      },
+    };
+    // Held from before the call, so a game that releases inside it is not left held.
+    held = token;
+    if (away(gap) === "hold") return true;
+    if (held === token) held = null;
+    return false;
+  };
   const clock: Clock = createClock(
     {
       onTick: (dt, at) => guard(() => store.getState().tick(dt, at)),
-      onAway: (_elapsed, at) =>
+      onAway: (elapsed, at) =>
         guard(() => {
+          if (offered(elapsed, at, false)) return;
           store.getState().catchUp(at);
           flushSave(store);
         }),
@@ -158,8 +207,13 @@ export function startGameClock(store: { getState(): RootActions }, options: Game
     },
     { ...clockOptions, now },
   );
-  store.getState().catchUp(now());
-  flushSave(store);
+  const start = now();
+  const lens = storeMeta(store)?.game.clock ?? BUILT_IN_CLOCK;
+  const last = away ? readClock(store.getState(), lens).lastSeen : 0;
+  if (!(last > 0 && start - last > awayAfterMs && offered(start - last, start, true))) {
+    store.getState().catchUp(start);
+    flushSave(store);
+  }
   clock.start();
   return clock;
 }

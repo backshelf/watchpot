@@ -1,6 +1,7 @@
 import type { RootActions } from "../core/store";
 import { type MotionOverride } from "../kit/fx/motion";
 import { type SchemePreference } from "../kit/fx/scheme";
+import { type GameClockHookOptions } from "./gameClock";
 /** The two calls of a game's sound engine (`createSound` from `watchpot/sound`) the runtime makes. */
 export interface RuntimeSound {
     armUnlock(): () => void;
@@ -18,8 +19,8 @@ export interface PageRuntimeOptions {
         on: boolean;
     };
 }
-/** Options for `useGameRuntime`: the page's (`usePageRuntime`). */
-export type GameRuntimeOptions = PageRuntimeOptions;
+/** Options for `useGameRuntime`: the page's (`usePageRuntime`) and the clock's (`useGameClock`). */
+export type GameRuntimeOptions = PageRuntimeOptions & GameClockHookOptions;
 /** What `usePageRuntime` returns: whether motion is reduced. */
 export interface PageRuntime {
     /** Motion is reduced: the setting says so, or it says "system" and the OS does. */

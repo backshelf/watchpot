@@ -3,6 +3,7 @@ export * from "./allocation";
 export * from "./annotate";
 export * from "./autobuyers";
 export * from "./board";
+export * from "./branch";
 export * from "./buffs";
 export * from "./challenges";
 export * from "./clicker";

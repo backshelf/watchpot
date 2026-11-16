@@ -1,5 +1,6 @@
 import { afterEach, describe, expect, mock, spyOn, test } from "bun:test";
 import {
+  type AwayGap,
   CLOCK_FAILURE_LIMIT,
   createGameStorage,
   createIdleStore,
@@ -170,6 +171,66 @@ describe("startGameClock", () => {
     for (let i = 0; i < CLOCK_FAILURE_LIMIT; i++) step();
     expect(clock.running).toBe(false);
     expect(onFail).toHaveBeenCalledTimes(1);
+  });
+
+  test("an absence the game holds is not caught up, and nothing ticks until it is released", () => {
+    const { store, backend } = toyStore();
+    store.getState().catchUp(T0);
+    let at = T0;
+    let fire = () => {};
+    const gaps: AwayGap[] = [];
+    startGameClock(store, {
+      visibility: null,
+      now: () => at,
+      schedule: (fn) => {
+        fire = fn;
+        return 1;
+      },
+      cancel: () => {},
+      away: (gap) => {
+        gaps.push(gap);
+        return "hold";
+      },
+    });
+    // No opening gap on a profile seen a moment ago: the opening catch-up ran, and `away` was not asked.
+    expect(gaps).toHaveLength(0);
+    at += 60_000;
+    fire();
+    expect(gaps).toHaveLength(1);
+    expect(gaps[0]).toMatchObject({ elapsedMs: 60_000, at: T0 + 60_000, opening: false });
+    // Held: the store is as the absence left it, in memory and in the save.
+    expect(store.getState().wallet.gold.eq(10)).toBe(true);
+    expect(store.getState().clock.lastSeen).toBe(T0);
+    const saved = backend.getItem("toy.save");
+    at += 100;
+    fire();
+    expect(store.getState().wallet.gold.eq(10)).toBe(true);
+    expect(backend.getItem("toy.save")).toBe(saved);
+    // The game brings the store forward itself, then releases: ticks carry on from there.
+    store.getState().catchUp(gaps[0]?.at);
+    gaps[0]?.release();
+    const before = store.getState().wallet.gold;
+    at += 100;
+    fire();
+    expect(store.getState().wallet.gold.sub(before).toNumber()).toBeCloseTo(0.1, 9);
+  });
+
+  test("the opening absence is offered too, and one not held is caught up as ever", () => {
+    const first = toyStore();
+    first.store.getState().catchUp(T0);
+    flushSave(first.store);
+    const { store } = toyStore({ at: T0 + 60_000, backend: first.backend });
+    const seen: AwayGap[] = [];
+    startGameClock(store, {
+      visibility: null,
+      now: () => T0 + 60_000,
+      schedule: () => 1,
+      cancel: () => {},
+      away: (gap) => void seen.push(gap),
+    });
+    expect(seen).toHaveLength(1);
+    expect(seen[0]).toMatchObject({ elapsedMs: 60_000, opening: true });
+    expect(store.getState().wallet.gold.eq(10 + 30)).toBe(true);
   });
 
   test("stop ends the ticking", () => {

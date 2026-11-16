@@ -100,6 +100,7 @@ The engine's systems, one page each:
 | Spawns: random catchable arrivals | [spawns](spawns.md) | `spawns.ts` |
 | Allocation: a pool split between sinks | [allocation](allocation.md) | `allocation.ts` |
 | A board: pieces on a grid that read their neighbours | [board](board.md) | `board.ts` |
+| Branches: the game copied, played on several ways, one adopted | [branches](branches.md) | `branches.ts` |
 | A sweep: a timing bar with graded strikes | [sweep](sweep.md) | `sweep.ts` |
 | Stages: tracks of walls worn down by a force | [stages](stages.md) | `stages.ts` |
 | Missions | [missions](missions.md) | `missions.ts` |

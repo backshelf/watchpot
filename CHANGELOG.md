@@ -34,6 +34,7 @@ across with its numbers unchanged.
   The engine is MIT licensed.
 - **Tests.** `decimalComparisons` fails a game's tests on Decimals compared with `<` or `===`. `plainParity` proves
   a game's sim and its real store agree. The guide's examples are run against what the chapters quote.
+- **Branches**: `branchStore(game, store, options)` copies a store's state into a plain store to be played on by itself, and `adoptBranch(store, branch)` takes one back as a profile swap. `startGameClock`, `useGameClock` and `useGameRuntime` take `away`: told of each absence before it is credited (`AwayGap`), a game returns `"hold"` to keep the clock from catching up or ticking until `gap.release()`. [docs/branches.md](docs/branches.md).
 - **`searchLoadout`**: the auto-equip a slice at a time (`step`, `best`, `bestScore`), so a page shows the slots filling instead of freezing; `fillLoadout` is it run to the end, and both now take the first exchange that pays rather than the best of a whole pass.
 
 ## 0.18.0

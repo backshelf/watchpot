@@ -10,6 +10,9 @@ Example: [`examples/time-away.ts`](examples/time-away.ts) (`bun docs/examples/ti
   live ticks in `maxStepMs` slices, the same way it pays a long frame, so a quick tab switch earns at the full rate
   and a spawn in that gap is not missed. Only a longer absence, or the time since the save on load, goes to the
   catch-up and the steps below.
+- An absence the game wants to handle itself (several ways it could have gone, a choice before it is credited) is
+  held: `startGameClock(store, { away })` offers each one first, and returning `"hold"` keeps the clock from catching
+  up or ticking until `gap.release()`. [Branches](branches.md) is the page for it.
 - `offlineSteps(elapsedMs, { capMs, rate?, maxSteps?, minStepMs? })` is `offlineCredit` plus `steps` and `stepMs`:
   `steps` is 0 when nothing is credited, else `max(1, min(maxSteps, ceil(creditedMs / minStepMs)))` (defaults 240 and
   1,000 ms), and `stepMs` is the credited time over `steps`. Run the tick rule `steps` times with `stepMs`.

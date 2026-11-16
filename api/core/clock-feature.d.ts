@@ -50,10 +50,35 @@ export declare function writeClock(draft: object, lens: ClockLens, next: Partial
 export declare const clockSteps: (lens: ClockLens) => FeatureSteps<object>;
 /** Handler throws in a row the clock survives: about a second of live ticks. At the limit it stops. */
 export declare const CLOCK_FAILURE_LIMIT = 10;
-/** Options for `startGameClock`: the engine clock's, plus `onFail` when it gives up. */
+/**
+ * An absence the clock is about to credit with a catch-up, as `GameClockOptions.away` is told of it: the opening one
+ * (the save was last seen more than `awayAfterMs` ago) or a hidden spell or stalled frame longer than that.
+ */
+export interface AwayGap {
+    /** How long the game was not running, ms. */
+    readonly elapsedMs: number;
+    /** Game time the absence ends at: what the catch-up would be run to. */
+    readonly at: number;
+    /** True for the absence between the save and this load; false for one inside the session. */
+    readonly opening: boolean;
+    /**
+     * Ends a hold taken on this absence: the clock ticks again from now. Does nothing for an absence that was not
+     * held, or a second time.
+     */
+    release(): void;
+}
+/** Options for `startGameClock`: the engine clock's, plus `onFail` when it gives up and `away` to take an absence. */
 export interface GameClockOptions extends Partial<ClockOptions> {
     /** Called once when the clock stops at `CLOCK_FAILURE_LIMIT` throws in a row. */
     onFail?: (error: unknown) => void;
+    /**
+     * Told of each absence before the clock credits it. Return `"hold"` to take it: the clock runs no catch-up for
+     * it, and neither ticks nor flushes until `gap.release()`, so the store stays exactly as the absence left it
+     * (its `lastSeen` still at the moment the player left, in memory and in the save). The game then owns the
+     * absence: it brings the store forward itself (its own `catchUp(gap.at)`, an import, an adopted branch) and
+     * releases. Time that passes while held is not credited. Anything else returned lets the catch-up run as ever.
+     */
+    away?: (gap: AwayGap) => unknown;
 }
 /**
  * Binds the engine clock to a store: live ticks, and a hidden spell up to `awayAfterMs`, call `tick`; a longer gap
@@ -61,7 +86,8 @@ export interface GameClockOptions extends Partial<ClockOptions> {
  * start; the returned clock stops it. It runs on the store's game clock, read on every call so an offset that moves
  * is seen at the next step. Every handler runs through one guard: a
  * throw is logged and counted, a success resets the count, and at the limit the clock stops and `onFail` is told.
- * The first catch-up and flush stay unguarded, so the caller sees their throw.
+ * The first catch-up and flush stay unguarded, so the caller sees their throw. `away` may hold an absence instead
+ * (`GameClockOptions.away`).
  */
 export declare function startGameClock(store: {
     getState(): RootActions;

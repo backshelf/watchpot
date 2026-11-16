@@ -40,6 +40,7 @@ mechanic you want is not here, see "When the engine lacks it" below.
 | Choices that belong to the device (quality, volume) | `prefs` | `prefs.md` |
 | Prices, bulk buys, "how many can I afford", milestone ladders | `costAt`, `costOfMany`, `maxAffordable`, `reached` | never hand-write these |
 | Big numbers in five notations | `fmt`, `formatter`, `NOTATIONS` | `notations.md` |
+| An absence that could have gone several ways; a preview played ahead and taken or dropped | `branchStore`, `adoptBranch`, the clock's `away` hold | `branches.md` |
 | Offline progress, a journal of it | each system's `away` option; `catchUp`, `catchUpSteps` | `time-away.md` |
 | A pacing contract and an auto-player | `watchpot/sim` | `pacing-contract.md`, `persona.md` |
 | Fitting a big game's prices, snapshots, the proof, a profiler | `watchpot/sim`: `fitTable`, `runFit`, `proveFit`, `profileSim` | `plan-and-fit.md`, `fit-kit.md` |
