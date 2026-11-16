@@ -356,7 +356,7 @@ export function Live() {
         </div>
         <div>
           <dt className="lettering">The whole game</dt>
-          <dd>about a hundred lines</dd>
+          <dd>about 140 lines</dd>
         </div>
       </dl>
     </section>
