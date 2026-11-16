@@ -130,6 +130,41 @@ named like the actions). Actions on the state (`s.wallet.credit(c, n)`) are unch
 | `actions: (api, helpers) => …` with `helpers.credit(s, …)` | `actions: (api, { draft }) => …` with `draft.credit(s, …)` |
 | `CurrencyHelpers<K, C>` (the flat helpers) | the bundle `{ select, def, draft }`; the parts are `CurrencySelect`, `CurrencyDef`, `CurrencyDraftHelpers` |
 
+### Every other factory
+
+Two rules hold across all of them:
+
+- A `select` or `draft` helper takes **the game state (or draft) that holds the slice under its key**, never the
+  slice: `boosts.select.contributions(s, now)`, not `…(s.boosts, now)`.
+- Factories that take callbacks gained a `reach` option, and their type arguments changed to make room for it. A
+  call that passed the whole-game state as an explicit type argument (`spawns<"k", State>(…)`,
+  `boardFeature<"k", Fx, State>(…)`) drops it and adds `reach: () => [...]`; annotating a callback parameter still
+  works too.
+
+Pure kernels and free functions keep their API (`board()`, `fillBoard`, `searchBoard`, `loadout()`, `fillLoadout`,
+`buffActive`, `buffLeftMs`, `buffStacks`, `overlapMs`, `startBuff`, `endBuff`, `expireBuffs`, `drawMany`,
+`layerModel`, `tree()`, `achievementBoard`).
+
+| Factory | Old | New |
+| --- | --- | --- |
+| `buffs` | `boosts.list` | `boosts.def.list` |
+| | `boosts.contributions(s.boosts, now)` | `boosts.select.contributions(s, now)` |
+| | `boosts.start(d, id, now, start?)`, `boosts.end(d, id, now)` | `boosts.draft.start(…)`, `boosts.draft.end(…)` |
+| | (new) | `boosts.select.active / leftMs / stacks / overlapMs(s, id, …)` beside the free functions |
+| `spawns` | `visitors.kinds` | `visitors.def.kinds` |
+| | `visitors.take(d, kind, now)` | `visitors.draft.catch(d, kind, now)` |
+| `sweep` | `line.grades` | `line.def.grades` |
+| | `line.setup(s)`, `line.cursor(s, now)` | `line.select.setup(s)`, `line.select.cursor(s, now)` |
+| | `line.strike(d, now)` | `line.draft.strike(d, now)` |
+| `boardFeature` | `garden.board` | `garden.def.board` |
+| | `garden.limits(s)`, `garden.contributions(s)` | `garden.select.limits(s)`, `garden.select.contributions(s)` |
+| `loadoutFeature` | `kit.loadout` | `kit.def.loadout` |
+| | `owns: (s: Reads, item)` with a hand-written `Reads` | `reach: () => [bag]`, then `owns: (s, item)` |
+| `gacha` | `summon.openDraft(d, box, count)` | `summon.draft.open(d, box, count)` |
+| | (new) | `summon.def` is `{ ladder, boxes, odds, pity }` |
+| `layers` | `climb.model` | `climb.def.model` |
+| | `climb.balance(s, currency)` | `climb.select.balance(s, currency)` |
+
 <!-- FACTORIES -->
 
 ## Stats
