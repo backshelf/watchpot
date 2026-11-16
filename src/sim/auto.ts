@@ -1,4 +1,4 @@
-import type { AnyMove, Decimal, FeatureSpec, Move } from "../core";
+import { type AnyMove, type Decimal, type FeatureSpec, type Move, ZERO } from "../core";
 import { planDay, type Rng, type Schedule } from "./schedule";
 import type { SimWorld } from "./world";
 
@@ -25,10 +25,28 @@ export function movesOf<S extends object>(game: Playable, state: S): Move<S>[] {
 
 /** Options for `autoPlayer`: how to read a balance by currency, and the most moves one look may make. */
 export interface AutoPlayerOptions<S> {
-  /** What the state holds of a currency a move's cost names: the auto-player buys only what this covers. */
-  balance(state: S, currency: string): Decimal;
-  /** The most moves one look makes, against a move that never stops going through. Default 1,000. */
+  /**
+   * What the state holds of a currency a move's cost names: the auto-player buys only what this covers. Default,
+   * when the game has exactly one `currencies` feature, its balance of that currency; otherwise required.
+   */
+  balance?(state: S, currency: string): Decimal;
+  /**
+   * The most moves one look makes, against a move that never stops going through. Default 1,000. A free move whose
+   * `apply` keeps succeeding is taken again and again until this runs out, so a free move should refuse once taken.
+   */
   maxMoves?: number;
+}
+
+/** The balance reader of a game's one `currencies` feature (`state[key][currency]`); throws on none or several. */
+function currencyBalance<S>(game: Playable): (state: S, currency: string) => Decimal {
+  const wallets = game.features.filter((f) => Array.isArray((f as { currencies?: unknown }).currencies));
+  const only = wallets[0];
+  if (wallets.length !== 1 || !only)
+    throw new Error(
+      `autoPlayer: the game has ${wallets.length} currencies features; pass \`balance\` to say which holds what`,
+    );
+  return (state, currency) =>
+    (state as Record<string, Record<string, Decimal | undefined>>)[only.key]?.[currency] ?? ZERO;
 }
 
 /** What a look did: purchases and free moves taken. */
@@ -49,8 +67,9 @@ export interface AutoStore<S> {
  */
 export function autoPlayer<S extends object>(
   game: Playable,
-  { balance, maxMoves = 1_000 }: AutoPlayerOptions<S>,
+  { balance: given, maxMoves = 1_000 }: AutoPlayerOptions<S> = {},
 ): { look(store: AutoStore<S>): LookResult } {
+  const balance = given ?? currencyBalance<S>(game);
   return {
     look(store) {
       const refused = new Set<string>();
@@ -128,12 +147,17 @@ export interface PlayDaysOptions<W extends SimWorld> {
   afterLook?(): void;
   /** The close of a day played (from 1); a skipped day has none. */
   dayEnd?(day: number): void;
+  /** Stops the run when true, checked after each look's play (a "when does X first happen" probe). */
+  until?(): boolean;
+  /** Stops the run once this much sim time has passed since `start` (checked like `until`). */
+  hours?: number;
 }
 
 /**
  * Days of play on a schedule (`planDay`): before each session the gap is a closed tab (`away`) or, when the session
  * before left it open, play in the background; a session is looks at its cadence, the time between them played,
- * until its attended time runs out.
+ * until its attended time runs out. `until` or `hours` stops it early, after the look that crossed it; a day cut
+ * short has no `dayEnd`.
  */
 export function playDays<W extends SimWorld>({
   world,
@@ -144,7 +168,11 @@ export function playDays<W extends SimWorld>({
   look,
   afterLook,
   dayEnd,
+  until,
+  hours,
 }: PlayDaysOptions<W>): void {
+  const stopAt = hours === undefined ? Number.POSITIVE_INFINITY : start + hours * 3_600_000;
+  const stop = (): boolean => world.now() >= stopAt || (until?.() ?? false);
   let session = -1;
   let tabOpen = false;
   for (let day = 0; day < days; day++) {
@@ -163,6 +191,7 @@ export function playDays<W extends SimWorld>({
         look({ day, session, look: i, presses: planned.pressesAt(i) });
         world.play(Math.min(planned.lookEveryMs, end - world.now()));
         afterLook?.();
+        if (stop()) return;
       }
     }
     if (plan.length > 0) dayEnd?.(day + 1);
