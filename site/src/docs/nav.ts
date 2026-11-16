@@ -122,11 +122,13 @@ export interface NavLink {
   /** Output path relative to the docs output. */
   out: string;
   title: string;
+  /** A word set after the title in the contents (`older`, for a page a newer one replaces). */
+  tag?: string;
 }
 
 export interface NavModel {
   top: NavLink[];
-  groups: { label: string; links: NavLink[] }[];
+  groups: { label: string; links: NavLink[]; tag?: string; note?: string }[];
 }
 
 /** Every page in sidebar order, for the pager. */
@@ -141,18 +143,20 @@ export function groupOf(model: NavModel, out: string): string | null {
 
 function navItem(link: NavLink, current: string, url: (out: string) => string): string {
   const here = link.out === current ? ' aria-current="page"' : "";
-  return `<li><a href="${escapeHtml(url(link.out))}"${here}>${escapeHtml(link.title)}</a></li>`;
+  const tag = link.tag ? ` <span class="doc-nav__tag">${escapeHtml(link.tag)}</span>` : "";
+  return `<li><a href="${escapeHtml(url(link.out))}"${here}>${escapeHtml(link.title)}${tag}</a></li>`;
 }
 
 export function renderNav(model: NavModel, current: string, url: (out: string) => string): string {
   const top = `<ul class="doc-nav__top">${model.top.map((l) => navItem(l, current, url)).join("")}</ul>`;
   const groups = model.groups
-    .map(
-      (group) =>
-        `<section class="doc-nav__group"><h2 class="doc-nav__label">${escapeHtml(group.label)}</h2><ul>${group.links
-          .map((l) => navItem(l, current, url))
-          .join("")}</ul></section>`,
-    )
+    .map((group) => {
+      const tag = group.tag ? ` <span class="doc-nav__tag">${escapeHtml(group.tag)}</span>` : "";
+      const note = group.note ? `<p class="doc-nav__note">${escapeHtml(group.note)}</p>` : "";
+      return `<section class="doc-nav__group"><h2 class="doc-nav__label">${escapeHtml(group.label)}${tag}</h2>${note}<ul>${group.links
+        .map((l) => navItem(l, current, url))
+        .join("")}</ul></section>`;
+    })
     .join("");
   return `<nav class="doc-nav" aria-label="Docs">${top}${groups}</nav>`;
 }
