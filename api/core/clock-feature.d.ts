@@ -56,9 +56,10 @@ export interface GameClockOptions extends Partial<ClockOptions> {
     onFail?: (error: unknown) => void;
 }
 /**
- * Binds the engine clock to a store: live ticks call `tick`, gaps call `catchUp`, hiding the tab flushes the
- * save. The shell calls this once at start; the returned clock stops it. It runs on the store's game clock,
- * read on every call so an offset that moves is seen at the next step. Every handler runs through one guard: a
+ * Binds the engine clock to a store: live ticks, and a hidden spell up to `awayAfterMs`, call `tick`; a longer gap
+ * calls the store's `catchUp` and flushes the save; hiding the tab flushes the save. The shell calls this once at
+ * start; the returned clock stops it. It runs on the store's game clock, read on every call so an offset that moves
+ * is seen at the next step. Every handler runs through one guard: a
  * throw is logged and counted, a success resets the count, and at the limit the clock stops and `onFail` is told.
  * The first catch-up and flush stay unguarded, so the caller sees their throw.
  */

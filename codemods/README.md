@@ -21,3 +21,6 @@ A release that breaks a consumer's code ships a codemod beside it, so a game upg
   what to write instead. A game that already imports `watchpot/sound` (the template, the example) has nothing to
   rewrite and only the listed call sites to read.
 - `0.17.0-watchpot.ts`: the package's old codename becomes `watchpot` in a game's specifiers, dependency and docs.
+- `0.18.0-offline-credit.ts`: optional. The pure helpers `catchUp` and `catchUpSteps` (and their types) become
+  `offlineCredit` and `offlineSteps`; the old names stay as deprecated aliases. The store's `catchUp` action keeps its
+  name, and the codemod leaves members, strings and comments alone.
