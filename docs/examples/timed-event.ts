@@ -36,7 +36,7 @@ export const FAIR: EventDefinition<Effect, Reward, "harvest"> = {
     },
     { id: "ore", name: "Ore", glyph: "ore", start: 0 },
   ],
-  upgrades: [stall("stall", "Stall", "Sell faster.", 10, 3, [], [{ kind: "speed", mult: 1.1 }])],
+  upgrades: [stall("stall", "Stall", "Sell faster.", 10, 3, [], [{ kind: "speed", mult: 1.1 }], 1.5)],
   milestones: [
     { id: "first", name: "First sale", stat: "sold", threshold: 1, rewards: [{ kind: "gold", amount: 5 }] },
   ],

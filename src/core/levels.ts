@@ -35,6 +35,8 @@ const whole = (n: number): number =>
 const geometric = (curve: { base: DecimalSource; growth: DecimalSource }): GeometricCost => ({
   base: curve.base,
   growth: curve.growth,
+  // XP is a threshold, not a price a player reads and pays: its fractions stay.
+  round: "none",
 });
 
 /** The total XP to reach `level` from level 0. A table past its end is out of reach (Infinity). */

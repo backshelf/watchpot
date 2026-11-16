@@ -57,7 +57,8 @@ export const chain = dimensions({
 `costAt(curve, bought)`, `costOfMany(curve, bought, count)` and `maxAffordable(curve, bought, balance, limit?)` answer
 "what does the next one cost", "what do the next N cost" and "how many can I afford" for any curve, in closed form for
 a geometric one (`{ base, growth, every?, round? }`) however large the numbers, and by walking a function curve
-(`WALK_LIMIT` at most). `round: "floor"` (or `"ceil"`, `"nearest"`) makes every price a whole number and keeps the
-sums exact: the small prices are added one by one, the rest in closed form. `stepsOf(value, every)` and `untilStep(value, every)` count whole sets and what completes the current one;
+(`WALK_LIMIT` at most). Every price is a whole number, rounded up by default (`round: "floor"`, `"nearest"` or `"none"` change that;
+`"none"` keeps the fractions), and the sums stay exact: a bulk price is the single prices added, the small ones one
+by one, the rest in closed form. `stepsOf(value, every)` and `untilStep(value, every)` count whole sets and what completes the current one;
 `reached(thresholds, value)` and `nextThreshold(thresholds, value)` read a ladder of `{ at, gives }` marks on a count
 (a rate doubling at 25, 50 and 100 owned).

@@ -45,7 +45,7 @@ describe("a rounded geometric curve", () => {
   test("past what a double holds exactly it joins the closed form", () => {
     // From 250 bought the prices are near 1e16 and beyond: 400 of them are still summed, not walked to the limit.
     const sum = costOfMany(FLOORED, 250, 400);
-    expect(sum.div(walked({ base: 15, growth: 1.15 }, 250, 400)).toNumber()).toBeCloseTo(1, 9);
+    expect(sum.div(walked({ base: 15, growth: 1.15, round: "none" }, 250, 400)).toNumber()).toBeCloseTo(1, 9);
   });
 
   test("buys exactly what the balance covers", () => {

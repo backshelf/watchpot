@@ -6,10 +6,15 @@ import type { EventDefinition, EventEffect, EventFailure, EventMastery, EventMil
  */
 /**
  * A tree's row builder, its prices in one currency: a node from one row, rank one at `cost`, each further rank
- * times `costGrowth` (the graph's default when the row gives none). Bind `E` to the game's modifier union, so an
- * effect literal is checked against it: `eventNodeRow<Modifier>("ore")`.
+ * times `costGrowth`, which a row of more than one rank must give (a row of one rank may leave it out). Bind `E` to
+ * the game's modifier union, so an effect literal is checked against it: `eventNodeRow<Modifier>("ore")`.
  */
-export declare function eventNodeRow<E extends EventEffect>(currency: string): (id: string, name: string, line: string, cost: number, maxLevel: number, requires: readonly string[], effects: readonly E[], costGrowth?: number) => EventNode<E>;
+export declare function eventNodeRow<E extends EventEffect>(currency: string): EventNodeRow<E>;
+/** The row builder `eventNodeRow` returns: `costGrowth` is optional for one rank and required above it. */
+export interface EventNodeRow<E extends EventEffect> {
+    (id: string, name: string, line: string, cost: number, maxLevel: 1, requires: readonly string[], effects: readonly E[], costGrowth?: number): EventNode<E>;
+    (id: string, name: string, line: string, cost: number, maxLevel: number, requires: readonly string[], effects: readonly E[], costGrowth: number): EventNode<E>;
+}
 /** A mastery tree with nothing bought. */
 export declare const emptyMastery: () => EventMastery;
 /** The event's fuel: its first yield's currency, or null for an event fuelled by nothing. */

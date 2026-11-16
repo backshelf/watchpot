@@ -153,14 +153,14 @@ describe("dimensions", () => {
 
     store.getState().chain.buy("first", 3);
     expect(chain.chain.untilSet(store.getState(), "first")).toBe(7);
-    expect(num(chain.chain.price(store.getState(), "first"))).toBeCloseTo(10 * 1.5 ** 13);
+    expect(num(chain.chain.price(store.getState(), "first"))).toBe(Math.ceil(10 * 1.5 ** 13));
   });
 
   test("buyMax spends what it can and stops; maxAll buys the highest tier first", () => {
     const { store } = freshStore(game);
-    store.getState().wallet.credit("gold", 90); // 100 held: 10 + 15 + 22.5 + 33.75 = 81.25, the fifth is 50.6
+    store.getState().wallet.credit("gold", 90); // 100 held: 10 + 15 + 23 + 34 = 82 (each price rounds up), the fifth is 51
     expect(store.getState().chain.buyMax("first")).toBe(4);
-    expect(num(store.getState().wallet.gold)).toBeCloseTo(18.75);
+    expect(num(store.getState().wallet.gold)).toBe(18);
 
     store.getState().wallet.credit("gold", 1000);
     const bought = store.getState().chain.maxAll();

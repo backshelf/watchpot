@@ -3,10 +3,10 @@ import type { Effect, GraphNode } from "watchpot/core";
 import { type Currency, MAIN } from "./words";
 
 /** A node, placed on the tree's grid: `col` its tier (left to right), `row` its place in the tier. */
-export interface UpgradeNode extends GraphNode<Effect, Currency> {
+export type UpgradeNode = GraphNode<Effect, Currency> & {
   col: number;
   row: number;
-}
+};
 
 export const TREE_NAME = "Station modules";
 

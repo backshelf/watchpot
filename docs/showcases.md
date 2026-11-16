@@ -127,6 +127,7 @@ const node = (id: string, name: string): GraphNode<never, "gold"> => ({
       },
     },
   ],
+  costGrowth: 1.5,
   maxLevel: 5,
   requires: [],
   effects: [],

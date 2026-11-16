@@ -46,6 +46,7 @@ export const SHOWER: EventDefinition<ShowerEffect, ShowerReward, ShowerAction> =
       5,
       [],
       [{ kind: "catch", mult: 1.25 }],
+      1.5,
     ),
     row(
       "spotting-scope",
@@ -55,6 +56,7 @@ export const SHOWER: EventDefinition<ShowerEffect, ShowerReward, ShowerAction> =
       3,
       [],
       [{ kind: "scope", mult: 1.3 }],
+      1.5,
     ),
     row(
       "spare-net",
@@ -64,6 +66,7 @@ export const SHOWER: EventDefinition<ShowerEffect, ShowerReward, ShowerAction> =
       3,
       ["wide-net"],
       [{ kind: "spare", add: 1 }],
+      1.5,
     ),
   ],
   milestones: [

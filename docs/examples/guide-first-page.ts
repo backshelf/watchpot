@@ -150,7 +150,7 @@ export const kettles = generators({
     {
       id: "kettle",
       name: "Kettle",
-      cost: { base: 100, growth: 1.15, round: "ceil" },
+      cost: { base: 100, growth: 1.15 },
       pays: "bubbles",
       makes: "bubbles",
       rate: 5,
@@ -159,7 +159,7 @@ export const kettles = generators({
     {
       id: "cauldron",
       name: "Cauldron",
-      cost: { base: 1500, growth: 1.15, round: "ceil" },
+      cost: { base: 1500, growth: 1.15 },
       pays: "bubbles",
       makes: "bubbles",
       rate: 40,

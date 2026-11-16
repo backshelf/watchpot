@@ -35,7 +35,7 @@ export function perSecond(burners: number): number {
 }
 
 /** The first burner costs 10 bubbles; each one after costs 15% more than the last, rounded up to whole bubbles. */
-export const BURNER_COST = { base: 10, growth: 1.15, round: "ceil" } as const;
+export const BURNER_COST = { base: 10, growth: 1.15 } as const;
 
 /** The price of the next burner when `owned` are lit. */
 export function burnerPrice(owned: number) {
