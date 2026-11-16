@@ -3,6 +3,19 @@
   "version": "0.17.0",
   "private": true,
   "type": "module",
+  "engines": {
+    "bun": ">=1.4.3"
+  },
+  "files": [
+    "src",
+    "api",
+    "docs",
+    "templates",
+    "codemods",
+    "env.d.ts",
+    "README.md",
+    "CHANGELOG.md"
+  ],
   "workspaces": [
     "examples/*"
   ],
@@ -33,7 +46,8 @@
     "./three": "./src/three/index.ts",
     "./ui": "./src/ui/index.ts",
     "./shader": "./src/shader/index.ts",
-    "./kit/theme": "./src/kit/theme/build.ts"
+    "./kit/theme": "./src/kit/theme/build.ts",
+    "./env": "./src/env.d.ts"
   },
   "peerDependencies": {
     "@number-flow/react": "^0.6.2",
@@ -53,6 +67,9 @@
       "optional": true
     },
     "canvas-confetti": {
+      "optional": true
+    },
+    "zzfx": {
       "optional": true
     },
     "@testing-library/react": {

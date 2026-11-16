@@ -8,6 +8,9 @@ said here so nobody has to guess: read it, use it and judge it knowing that.
 
 ## Install
 
+**Requirements:** Bun 1.4.3 or later (`engines.bun`; every typecheck script runs `bun check`, which older Bun does
+not know).
+
 watchpot is a private package installed by git tag, not from a registry. Each release is an annotated tag
 `vX.Y.Z` (see `CHANGELOG.md`). In a game's `package.json`:
 
@@ -21,6 +24,16 @@ tarball endpoint and 404 on a private repo (oven-sh/bun#19618), so do not use th
 `peerDependencies` itself. Write no user in the URL (`github.com`, not `git@github.com`): Bun's HTTPS try keeps it
 as the username, and `gh auth git-credential` answers only for its own login. Once per machine: `gh auth login`,
 then `gh auth setup-git`.
+
+`package.json`'s `files` names what a consumer or the scaffold needs (`src/`, `api/`, `docs/`, `templates/`,
+`codemods/`, the env declarations, the README and the changelog), and a packed tarball carries only those; Bun's git
+install ignores `files` and checks out the whole tree. A game's typecheck needs the engine's ambient declarations
+(CSS modules, audio imports, `--` custom properties in style objects, which the dev panel and sound desk use): name
+them in its `tsconfig.json`, `"types": ["bun", "watchpot/env"]`.
+
+A page whose imports reach no CSS module needs no dev script: `bun ./index.html [--port=N]` serves it and hot-reloads
+it. `watchpot/react` reaches one (the dev panel's), as does any game CSS module, so the template's `dev.ts` serves the
+page with HMR off instead, working around Bun's CSS-module reload (oven-sh/bun#18258).
 
 ## Guide
 
@@ -45,36 +58,49 @@ a workspace of this repository, so it runs on the engine's own source and an eng
 1. Change the engine; `bun run verify`, commit (an export change regenerates `api/`).
 2. Release it: bump `version`, add a `CHANGELOG.md` line, `bun run gates`, `git tag -a vX.Y.Z -m vX.Y.Z`, push the
    branch and the tag.
-3. In the game, change the tag in `package.json` and run `bun install`.
+3. In the game, change the tag in `package.json` and run `bun install`. A breaking release names its codemod in
+   `CHANGELOG.md`; run it from the game's root, `bun node_modules/watchpot/codemods/<file>.ts [--write]`
+   ([`codemods/README.md`](codemods/README.md)).
+
+To try an unreleased engine change in a game before tagging it, point the dependency at a sibling checkout,
+`"watchpot": "file:../watchpot"`, and run `bun install`. Restore the tag before committing the game: a `file:`
+dependency builds nowhere else.
+
+`node_modules` links are absolute paths: after moving or renaming the checkout's folder, run `bun install` again, or
+`bun check`, Biome and the examples fail on links into the old location.
 
 ## What it is
 
-A framework-light idle-game engine, a Bun package in its own repository. Ten entries: `watchpot/core` (kernel:
+A framework-light idle-game engine, a Bun package in its own repository. Twelve entries: `watchpot/core` (kernel:
 Decimals, formatting, rng, time, clock, save codec, stat bus; the feature store, the vocabularies, the systems and the
 events framework below), `watchpot/sim` (the sim lab), `watchpot/test` (the test kit), `watchpot/react` (the store
 hooks, the clocks, the runtime, boot, hotkeys, news, prefs, the page layout and the dev panel), `watchpot/hooks` (the
 same hooks without the runtime or the dev panel, for a build with no CSS-module loader), `watchpot/kit` (effects with
 no look and the reveal's mechanism; plus `watchpot/kit/theme`, the token compiler), `watchpot/sound` (the sound
-engine on its own), `watchpot/ui` (headless primitives), `watchpot/shader` (a container for a game's own fragment
+engine on its own; plus `watchpot/sound/pack`, the build-time sample-pack pipeline), `watchpot/ui` (headless primitives), `watchpot/shader` (a container for a game's own fragment
 shaders) and `watchpot/three` (3D on three and r3f). The package never imports `src/`; `core` and `sim` never import
-React. Its tests live in `test/<entry>/`.
+React. The engine reads no wall clock for game time: the caller passes `now` (`test/rules/wall-clock.test.ts`), while
+duration timers for motion and pacing default to `performance.now()`. Its tests live in `test/<entry>/`.
 
 **The split: mechanism and behaviour from the engine, every look from the game.** The engine owns state, rules,
 timing, keyboard, focus, ARIA, `data-*` state, effects' motion and the GPU plumbing; it ships no stylesheet (the dev
-panel's self-contained CSS aside), no class name, no font, no colour and no English default
-(`test/rules/headless.test.ts`). A game's look lives in its own `src/ui/`: thin wrappers over `watchpot/ui` with a CSS
+panel's self-contained CSS aside) and the kit writes no class name of its own (`test/rules/headless.test.ts` checks
+both); by convention it also sets no font, no colour and no English default outside the dev panel. A game's look lives in its own `src/ui/`: thin wrappers over `watchpot/ui` with a CSS
 module each, copied in from the template's registry ([`templates/game/src/ui/`](templates/game/src/ui/README.md),
 the token contract and every component) and then restyled, rewritten or deleted as the game's own. Its backdrops,
 foils and transitions are its own GLSL run by `watchpot/shader`.
 
-A game that draws its own page imports its hooks from `watchpot/hooks`: the store hooks, the clocks, `useGameClock`
+A game imports its hooks from `watchpot/react` by default (the template does), and from `watchpot/hooks` only for a
+build with no CSS-module loader. `watchpot/hooks` holds the store hooks, the clocks, `useGameClock`
 (the running clock and the other-tab watch alone: `useGameRuntime` without the motion, scheme and sound), `useBoot`,
 `useHotkeys`, `useNews`, `useLayerSwap`, the page layout and the tab title, the same bindings as `watchpot/react`, on
 an entry that reaches neither the kit nor a stylesheet (`test/rules/hooks.test.ts`).
 
 `@number-flow/react` (the kit's `Ticker`) and `canvas-confetti` (the kit's `burst`) are optional peers: only
 `watchpot/kit` reaches them (`test/rules/peers.test.ts` walks the imports of every other entry and proves it).
-Install them when the game imports the kit.
+Install them when the game imports the kit. The other optional peers serve one entry each: `zzfx` is
+`watchpot/sound`'s (loaded on the first sound), `three` and `@react-three/fiber` are `watchpot/three`'s, and
+`@testing-library/react` is `watchpot/test`'s `renderWith`.
 
 ## Core
 
@@ -99,7 +125,11 @@ const wallet = feature({
   key: "wallet",
   initial: () => ({ gold: D(10), lifetime: ZERO }),
   actions: (api) => ({
-    earn: (n: number) => api.set((s) => void (s.wallet.gold = s.wallet.gold.add(n))),
+    earn: (n: number) =>
+      api.set((s) => {
+        s.wallet.gold = s.wallet.gold.add(n);
+        s.wallet.lifetime = s.wallet.lifetime.add(n);
+      }),
   }),
 });
 
@@ -159,8 +189,10 @@ export const store = createIdleStore(toy, {
   since `lastSeen`, and the engine's `catchUp(elapsed, rate, cap)` turns it into credited time.
 - **The clock** (`createdAt`, `lastSeen`, the offset behind `gameNow()`) is a built-in feature under `clock`, or,
   for a game that already saves the fields, `clock: { feature, lastSeen, createdAt, offset }` names them. Its
-  steps: `clock.guard.dt` (a tick with no time only commits), `clock.guard.createdAt` (set once, on catch-up),
-  `clock.produce.gap` (a catch-up always syncs, produces only over a gap), `clock.commit.lastSeen`.
+  steps: `clock.guard.dt` (a tick with no time skips every phase after `guard` and commits; it runs last in `guard`,
+  so the features' own `guard` steps still run on it), `clock.guard.createdAt` (set once, on catch-up),
+  `clock.produce.gap` (a catch-up always syncs; with no gap it stops `produce` after the features' `produce` steps,
+  which run with `dtMs` 0, so they guard a zero gap themselves), `clock.commit.lastSeen`.
 - **Resets.** `resetRun` follows each feature's `reset`: `"run"` (the default, back to `initial`), `"never"`,
   `{ keep }`, `(before, fresh, ctx) => after`, or `{ depth, rule }`: untouched by a reset shallower than `depth`
   (`resetRun({ depth })`, 1 by default; `prestige({ depth: 2 })` is a layer above another, and the lower layer says
@@ -355,9 +387,9 @@ export const summon = gacha({
   prestige reset keeps it whole unless `reset` says otherwise. Without `roll` a pull's item is its rarity;
   `catalogueRoll(entries)` picks evenly among the entries of the drawn rarity.
 
-WHALE keeps its chests and gear boxes in their own slices (their saved pity fields are named, `sinceEpic`, and the
-cards carry much more than a gacha's state): `src/engine/gacha/kernel.ts` maps its named rule and counters onto the
-kernel, the chests draw through `drawRarity`, and a gear box is a post-draw roll through `drawMany`.
+A game may keep its boxes in its own slices instead (pity fields under its own names, cards carrying much more than
+a gacha's state): it maps its named rule and counters onto the kernel, draws through `drawRarity`, and makes a
+post-draw roll through `drawMany`.
 
 ## Currencies
 
@@ -399,7 +431,8 @@ Ranks bought one at a time over `GraphNode`s (`rankCost`, `checkRank`), each ran
   and `contributions(ranks)`, sourced `<id>:<node>`. A
   `milestone: { every, effect }` adds `effect(e)` of each of a node's effects at every `every`th rank. A repeated node
   or a requirement outside the tree throws. `rankContributions(source, nodes, ranks, milestone?)` is the bus part alone.
-- **`BuyResult<C>`** is `{ ok: true, id, level }` or `{ ok: false, code }` with `code` `unknown`, `maxed`, `requires`
+- **`BuyResult<C>`** is `{ ok: true, id, level }` or `{ ok: false, code }` with `code` `unknown`, `closed` (the
+  tree feature's `open` refuses the node), `maxed`, `requires`
   (and `node`) or `cannot-afford` (and `currency`, `balance`, `price`).
 - **`treeMoves(key, nodes, worth)`** is the auto-player's moves over an `upgradeTree` (for `withMoves`).
 - **`upgradeTree({ key, nodes, wallet, milestone?, reset? })`** is a tree as a feature: it saves `{ ranks }` under
@@ -1060,7 +1093,7 @@ judge(rows.rows, CONTRACT); // a verdict per band the run reached
   1.25 of the plan's last minute. The pilot must hold some of what it earns, or prices are pinned to an empty
   balance. A fit is one run for a ballpark, not a sweep (`docs/plan-and-fit.md`).
 
-WHALE's personas, its sample row, its tables and its gate checks are in `sim/` (`sim/README.md`) on top of these.
+A game keeps its own personas, sample rows, tables and gate checks in its `sim/` on top of these.
 
 ## Saves
 
@@ -1105,5 +1138,4 @@ The store saves every feature's data under the game's `save.key` with `save.vers
 - `createAsyncMemoryBackend(entries)`: every call answers a turn later; `peek(name)` reads at once and `idle()`
   settles once every call, and any write it led to, has answered. For the async load and write paths.
 - `renderWith(store, ui)`: Testing Library's `render` under `watchpot/react`'s provider, kept across `rerender` (needs
-  happy-dom and `@testing-library/react`). WHALE's `test/shell/helpers.tsx` re-exports it beside its `freshStore`, this
-  kit's over WHALE.
+  happy-dom and `@testing-library/react`). A game's test helpers can re-export it beside a `freshStore` bound to the game.
