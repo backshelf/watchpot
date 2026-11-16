@@ -131,6 +131,13 @@ export interface PrestigeDef<K extends string, N extends string, W extends strin
     /** Tunes the reset pace (see `PrestigePaceDef`); every layer keeps one. */
     readonly pace?: PrestigePaceDef<G>;
     /**
+     * What a reset is worth to the sim's auto-player now, in the unit of its objective (at or below 0 it is never
+     * taken). A reset does not raise the objective at once, so the auto-player cannot work this out itself: with
+     * `worth` the layer declares one free move, `<key>.<action>`, that presses the reset; without it the layer
+     * declares no move and the auto-player never resets. `(s) => (s.rebirth.pastPeak ? 1 : 0)` resets on the pace.
+     */
+    readonly worth?: (state: G) => number;
+    /**
      * The rng label of reset number `run` (from 1), so a seeded store's runs draw the same on every load.
      * Default: `run<n>`.
      */

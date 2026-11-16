@@ -1,4 +1,4 @@
-import { type Decimal, type Move, powerGain, prestige, withMoves } from "watchpot/core";
+import { type Decimal, powerGain, prestige } from "watchpot/core";
 import { GAIN } from "../content/prestige";
 import { stats } from "./stats";
 import { wallet } from "./wallet";
@@ -22,27 +22,18 @@ export const nextOrbitAt = (s: GainReads) => {
   return GAIN.per * (next / mult) ** (1 / GAIN.exp);
 };
 
-/** What a prestige move reads. */
-type PrestigeMoveState = GainReads & {
-  wallet: { earned: Decimal };
-  prestige: { currency: Decimal; ascend(): boolean };
-};
-
 /**
  * The prestige layer: `ascend()` pays the gain into `prestige.currency` and resets the run (the wallet, the
  * generators and the upgrade tree; the collection and the premium stay). Each unit held raises output for good.
  */
-export const ascension = withMoves(
-  prestige({
-    key: "prestige",
-    action: "ascend",
-    reach: [wallet, stats],
-    gain: (s) => prestigeGain(s),
-  }),
+export const ascension = prestige({
+  key: "prestige",
+  action: "ascend",
+  reach: [wallet, stats],
+  gain: (s) => prestigeGain(s),
   // The auto-player ascends once a reset would at least double what it holds (and pays at least one).
-  (s: PrestigeMoveState): Move<PrestigeMoveState>[] => {
+  worth: (s) => {
     const gain = prestigeGain(s);
-    const worth = gain.gte(1) && gain.gte(s.prestige.currency) ? gain.toNumber() : 0;
-    return [{ id: "ascend", worth: () => worth, apply: (store) => store.getState().prestige.ascend() }];
+    return gain.gte(1) && gain.gte(s.prestige.currency) ? gain.toNumber() : 0;
   },
-);
+});

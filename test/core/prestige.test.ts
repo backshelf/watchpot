@@ -272,6 +272,34 @@ describe("the reset pace", () => {
   });
 });
 
+describe("the auto-player's move", () => {
+  test("a layer with no worth declares no move; with one, a free move that presses the reset", () => {
+    const bare = prestige({ key: "ascension", reach: [wallet], gain: (s) => s.wallet.lifetime });
+    expect(bare.moves).toBeUndefined();
+    const layer = prestige({
+      key: "ascension",
+      action: "ascend",
+      reach: [wallet],
+      gain: (s) => powerGain(s.wallet.lifetime, { k: 1, exp: 1, per: 100 }),
+      worth: (s) => (s.ascension.pastPeak ? 2 : 0),
+    });
+    const game = defineGame({
+      id: "toy-move",
+      save: { key: "toy-move.save", version: 1 },
+      features: [wallet, generator, layer],
+    });
+    const store = createIdleStore(game, { storage: memory(), now: () => T0 });
+    store.getState().catchUp(T0);
+    store.getState().wallet.earn(500);
+    const [move] = layer.moves?.(store.getState() as never) ?? [];
+    expect(move?.id).toBe("ascension.ascend");
+    expect(move?.cost).toBeUndefined();
+    expect(move?.worth?.(store.getState() as never)).toBe(store.getState().ascension.pastPeak ? 2 : 0);
+    expect(move?.apply(store as never)).toBe(true);
+    expect(store.getState().ascension.runs).toBe(1);
+  });
+});
+
 describe("paying into a wallet", () => {
   const WORDS = vocab({ currencies: ["gold", "shards"], stats: [], rarities: ["common"] } as const);
   const purse = currencies({

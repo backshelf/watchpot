@@ -9,6 +9,7 @@ import {
   feature,
   type InitialContext,
   type Migration,
+  type Move,
   type NeedsOf,
   type ReachedRule,
   type ReachOf,
@@ -155,6 +156,13 @@ export interface PrestigeDef<
   readonly afterReset?: (draft: Draft<G>, result: PrestigeResult) => void;
   /** Tunes the reset pace (see `PrestigePaceDef`); every layer keeps one. */
   readonly pace?: PrestigePaceDef<G>;
+  /**
+   * What a reset is worth to the sim's auto-player now, in the unit of its objective (at or below 0 it is never
+   * taken). A reset does not raise the objective at once, so the auto-player cannot work this out itself: with
+   * `worth` the layer declares one free move, `<key>.<action>`, that presses the reset; without it the layer
+   * declares no move and the auto-player never resets. `(s) => (s.rebirth.pastPeak ? 1 : 0)` resets on the pace.
+   */
+  readonly worth?: (state: G) => number;
   /**
    * The rng label of reset number `run` (from 1), so a seeded store's runs draw the same on every load.
    * Default: `run<n>`.
@@ -371,6 +379,16 @@ export function prestige<
     },
   };
 
+  /** The auto-player's one move when the game gives `worth`: the reset, through the store's own action. */
+  const resetMove = (state: G): Move<G> => ({
+    id: `${def.key}.${name}`,
+    worth: () => def.worth?.(state) ?? 0,
+    apply: (store) => {
+      const actions = (store.getState() as Record<string, Record<string, PrestigeReset>>)[def.key];
+      return actions?.[name]?.() ?? false;
+    },
+  });
+
   const reachOf = (): ReachShape => {
     const given: ReachShape | undefined = typeof def.reach === "function" ? def.reach() : def.reach;
     const list: readonly (FeatureSpec | ReachType<object>)[] =
@@ -398,6 +416,8 @@ export function prestige<
     reset,
     migrations: def.migrations,
     merge: def.merge,
+    // Declared over `G`; the store hands it the game's state, which holds the layer's actions as well.
+    moves: def.worth ? (((state: G) => [resetMove(state)]) as never) : undefined,
   });
 
   const helpers: PrestigeHelpers<N, W, G> = {
