@@ -12,7 +12,7 @@ Needs Bun 1.4.3 or later (`bun check` typechecks).
 ```sh
 bun install
 bun run dev        # http://localhost:3000 (PORT=<n> for another); #dev opens the dev panel
-bun run verify     # typecheck, lint, the tests a change touches (every test before the first commit)
+bun run verify     # typecheck, lint, the tests a change touches (every test before the first commit), the Decimal check
 bun run gates      # typecheck, lint, every fast test, the build; gates:full adds the slow tier and the contract
 bun run sim -- --contract     # four played hours on the auto-player, judged against the pacing bands
 bun run sim -- --sessions     # a week of a person coming and going, never judged

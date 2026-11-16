@@ -1234,3 +1234,11 @@ example and the traps, is [docs/test-kit.md](docs/test-kit.md).
   settles once every call, and any write it led to, has answered. For the async load and write paths.
 - `renderWith(store, ui)`: Testing Library's `render` under `watchpot/react`'s provider, kept across `rerender` (needs
   happy-dom and `@testing-library/react`). A game's test helpers can re-export it beside a `freshStore` bound to the game.
+- `await decimalComparisons({ tsconfig, under })`: every place the project compares two Decimals with an operator
+  (`<`, `<=`, `>`, `>=`, `==`, `!=`, `===`, `!==`), as `{ file, line, column, operator, text }`. `D(3) < D(20)`
+  compiles and is false; use `.lt()`, `.gte()`, `.eq()`. It asks TypeScript 7's checker (`typescript/unstable/sync`,
+  so `typescript` 7 must be installed) for each operand's type and flags a comparison only when both sides can be a
+  Decimal (`DecimalSource` and `Decimal | null` count; `d === null`, number comparisons and method calls pass).
+  `under` lists the folders to check (default: every program file outside `node_modules`). Under a second here; the
+  first run on a machine is slower while the native checker loads. A scaffolded game runs it in `test/decimals.test.ts`
+  (and its `verify`): `expect(await decimalComparisons({ tsconfig, under: ["src", "sim"] })).toEqual([])`.
