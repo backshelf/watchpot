@@ -1,0 +1,80 @@
+/* The parts list: two columns of ruled rows on a wide sheet, one on a narrow one. */
+
+.systems__also {
+  margin-top: 1.5rem;
+  max-width: 78ch;
+  color: var(--ink-soft);
+}
+
+.systems__also a {
+  color: var(--ink);
+}
+
+.parts {
+  display: block;
+  width: 100%;
+  border-collapse: collapse;
+  border-top: var(--hair) solid var(--ink);
+}
+
+.parts thead {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+}
+
+.parts tbody {
+  display: block;
+  columns: 2;
+  column-gap: clamp(1.5rem, 3vw, 3rem);
+  column-rule: var(--hair) solid var(--rule);
+}
+
+.parts tr {
+  display: grid;
+  grid-template-columns: 8.5rem minmax(0, 1fr);
+  gap: 1rem;
+  padding: 0.6rem 0;
+  border-bottom: var(--hair) solid var(--rule);
+  break-inside: avoid;
+}
+
+.parts th {
+  text-align: left;
+  font-weight: 500;
+}
+
+.parts th a {
+  display: inline-flex;
+  align-items: center;
+  min-height: 1.75rem;
+  font-size: 0.9375rem;
+  text-decoration-color: var(--live-deep);
+  text-decoration-thickness: 2px;
+}
+
+.parts td {
+  padding: 0.15rem 0 0;
+  color: var(--ink-soft);
+  font-size: var(--step--1);
+  line-height: 1.45;
+}
+
+@media (max-width: 56rem) {
+  .parts tbody {
+    columns: 1;
+  }
+}
+
+@media (max-width: 30rem) {
+  .parts tr {
+    grid-template-columns: minmax(0, 1fr);
+    gap: 0.1rem;
+  }
+
+  .parts th a {
+    min-height: 2.75rem;
+  }
+}

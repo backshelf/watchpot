@@ -1,0 +1,1316 @@
+@import "./base.css";
+
+/*
+ * The docs: a manual set in the site's drawing. The frame (masthead, contents rail, the page's header strip, the
+ * listings, tables and the pager) speaks the blueline; the reading column is plain: Archivo at a reading size, a
+ * measure of about seventy characters, nothing behind the text.
+ *
+ *   .docs__body            the three-column ground: contents rail, page, on-page contents
+ *   .docs__rail            the contents (a drawer below 860px when script runs, inline below the page without it)
+ *   .doc-find              the page finder at the top of the rail
+ *   .docs__toc, .toc-fold  the on-page contents (a fold at the top of the page below 1100px)
+ *   .doc                   the article: .doc__head (the header strip), .doc__body (the column)
+ *   .code, .table-wrap     listings and parts lists
+ *   .doc-pager             previous and next, two ruled cells
+ */
+
+.docs {
+  --mast-h: calc(3.5rem + 1px);
+  --measure: 34rem;
+  --wide: 52rem;
+  --rail-w: calc(var(--gutter) + 15rem);
+  --toc-w: 15rem;
+  --page-pad: clamp(1rem, 0.25rem + 3.2vw, 3.5rem);
+
+  /* The faintest ink that is still read as text (comments, placeholders, line numbers): --ink-faint alone is a
+   * line weight, under 4.5:1 on the blueline stock. Both schemes clear 4.5:1 on --paper-sunk with this. */
+  --text-faint: color-mix(in oklch, var(--ink-soft) 45%, var(--ink-faint));
+  --hl-token-comment: var(--text-faint);
+  /* base.css re-inks --hl-token-string for the blueprint but not this one, which stayed a dark blue on the dark
+   * stock (2.2:1). A string is a string either way. */
+  --hl-token-string-expression: var(--hl-token-string);
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  html:has(body.docs) {
+    scroll-behavior: smooth;
+  }
+}
+
+/* ---------------------------------------------------------------- the masthead on a docs page */
+
+.docs .mast__menu {
+  display: none;
+}
+
+.docs .mast__menu[aria-expanded="true"] {
+  background: var(--ink);
+  color: var(--paper);
+}
+
+/* ---------------------------------------------------------------- the ground */
+
+.docs__body {
+  display: grid;
+  grid-template-columns: var(--rail-w) minmax(0, 1fr) var(--toc-w);
+  grid-template-areas: "rail main toc";
+  max-width: 108rem;
+  margin-inline: auto;
+}
+
+.docs__main {
+  grid-area: main;
+  min-width: 0;
+  padding: clamp(1.75rem, 1rem + 2.5vw, 3.25rem) var(--page-pad) 2.5rem;
+}
+
+.docs__main:focus {
+  outline: none;
+}
+
+.docs__main > * {
+  max-width: var(--wide);
+  margin-inline: auto;
+}
+
+/* ---------------------------------------------------------------- the contents rail */
+
+.docs__rail {
+  grid-area: rail;
+  position: sticky;
+  top: var(--mast-h);
+  align-self: start;
+  height: calc(100dvh - var(--mast-h));
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  scrollbar-gutter: stable;
+  padding: 0 0.75rem 3rem var(--gutter);
+  border-right: var(--hair) solid var(--rule);
+}
+
+.docs__railhead {
+  display: none;
+}
+
+.docs__close {
+  position: relative;
+  min-height: 2.25rem;
+  padding: 0 0.75rem;
+  background: transparent;
+  border: var(--hair) solid var(--ink);
+  border-radius: 2px;
+  font-size: var(--step--1);
+}
+
+.docs__close:hover {
+  background: var(--ink);
+  color: var(--paper);
+}
+
+/* The finder: stays at the top of the rail while the list scrolls under it. */
+.doc-find {
+  position: sticky;
+  top: 0;
+  z-index: 1;
+  display: grid;
+  gap: 0.4rem;
+  padding: 1.5rem 0 1rem;
+  background: var(--paper);
+  border-bottom: var(--hair) solid var(--rule);
+  margin-bottom: 0.75rem;
+}
+
+.doc-find__label {
+  color: var(--ink-soft);
+  font-stretch: 125%;
+  font-weight: 560;
+  font-size: 0.6875rem;
+  line-height: 1.3;
+  letter-spacing: 0.09em;
+  text-transform: uppercase;
+}
+
+.doc-find__field {
+  position: relative;
+  display: block;
+}
+
+.doc-find input {
+  width: 100%;
+  min-height: 2.5rem;
+  padding: 0 2.25rem 0 0.7rem;
+  background: var(--paper-lift);
+  border: var(--hair) solid var(--rule-strong);
+  border-radius: 2px;
+  font-size: 0.9375rem;
+}
+
+.doc-find input::placeholder {
+  color: var(--text-faint);
+  opacity: 1;
+}
+
+.doc-find input:hover {
+  border-color: var(--ink-soft);
+}
+
+.doc-find input:focus-visible {
+  border-color: var(--ink);
+  outline-offset: 1px;
+}
+
+.doc-find__key {
+  position: absolute;
+  top: 50%;
+  right: 0.55rem;
+  translate: 0 -50%;
+  display: grid;
+  place-items: center;
+  min-width: 1.35rem;
+  height: 1.35rem;
+  border: var(--hair) solid var(--rule-strong);
+  border-radius: 2px;
+  color: var(--ink-soft);
+  font-size: 0.75rem;
+  line-height: 1;
+  pointer-events: none;
+}
+
+.doc-find input:focus + .doc-find__key,
+.doc-find input:not(:placeholder-shown) + .doc-find__key {
+  display: none;
+}
+
+@media (pointer: coarse) {
+  .doc-find__key {
+    display: none;
+  }
+
+  .doc-find input {
+    min-height: 2.75rem;
+  }
+}
+
+/* The list of pages: a parts index. */
+.doc-nav ul {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.doc-nav__top {
+  padding-bottom: 0.5rem;
+}
+
+.doc-nav__label {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  margin: 1.25rem 0 0.4rem;
+  color: var(--ink-soft);
+  font-stretch: 125%;
+  font-weight: 560;
+  font-size: 0.6875rem;
+  line-height: 1.3;
+  letter-spacing: 0.09em;
+  text-transform: uppercase;
+}
+
+.doc-nav__label::after {
+  content: "";
+  flex: 1;
+  border-top: var(--hair) solid var(--rule);
+}
+
+.doc-nav a,
+.doc-find__results a {
+  display: flex;
+  align-items: baseline;
+  gap: 0.55rem;
+  min-height: 2.25rem;
+  padding: 0.45rem 0.55rem;
+  border: var(--hair) solid transparent;
+  border-radius: 2px;
+  color: var(--ink-soft);
+  font-size: 0.9375rem;
+  line-height: 1.3;
+  text-decoration: none;
+}
+
+/* Every row keeps a slot for the "you are here" mark, so the current row's text does not shift. */
+.doc-nav a::before {
+  content: "";
+  flex: none;
+  width: 0.375rem;
+  height: 0.375rem;
+  translate: 0 -0.12em;
+}
+
+.doc-nav a:hover,
+.doc-find__results a:hover {
+  color: var(--ink);
+  text-decoration: underline;
+  text-decoration-color: var(--rule-strong);
+}
+
+.doc-nav a[aria-current="page"] {
+  border-color: var(--ink);
+  color: var(--ink);
+  font-weight: 620;
+}
+
+.doc-nav a[aria-current="page"]::before {
+  background: var(--ink);
+}
+
+@media (pointer: coarse) {
+  .doc-nav a,
+  .doc-find__results a {
+    min-height: 2.75rem;
+    align-items: center;
+  }
+}
+
+.doc-nav mark,
+.doc-find__results mark {
+  background: transparent;
+  color: var(--ink);
+  font-weight: 640;
+  text-decoration: underline;
+  text-decoration-color: var(--live-deep);
+  text-decoration-thickness: 2px;
+  text-underline-offset: 0.2em;
+}
+
+.doc-nav [hidden] {
+  display: none;
+}
+
+/* Matches found in a page's headings or summary, under the pages whose names match. */
+.doc-find__results {
+  margin-top: 1.25rem;
+}
+
+.doc-find__results ul {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.doc-find__results a {
+  flex-direction: column;
+  align-items: stretch;
+  gap: 0.15rem;
+}
+
+.doc-find__results strong {
+  color: var(--ink);
+  font-weight: 600;
+}
+
+.doc-find__results span {
+  font-size: 0.8125rem;
+}
+
+.doc-find__empty {
+  padding: 0.5rem 0.55rem;
+  color: var(--ink-soft);
+  font-size: 0.9375rem;
+}
+
+/* ---------------------------------------------------------------- the on-page contents */
+
+.docs__toc {
+  grid-area: toc;
+  position: sticky;
+  top: var(--mast-h);
+  align-self: start;
+  max-height: calc(100dvh - var(--mast-h));
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  padding: clamp(1.75rem, 1rem + 2.5vw, 3.25rem) var(--gutter) 2rem 0.5rem;
+}
+
+.docs__toc:not(:has(.doc-toc)) {
+  display: none;
+}
+
+.toc-fold__summary {
+  display: none;
+}
+
+/* Wide: always open, whether or not script has opened it. */
+@media (min-width: 68.75em) {
+  .toc-fold::details-content {
+    content-visibility: visible;
+  }
+}
+
+.doc-toc__label {
+  margin-bottom: 0.6rem;
+  color: var(--ink-soft);
+  font-stretch: 125%;
+  font-weight: 560;
+  font-size: 0.6875rem;
+  line-height: 1.3;
+  letter-spacing: 0.09em;
+  text-transform: uppercase;
+}
+
+.doc-toc :where(ol) {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.doc-toc :where(ol ol) {
+  padding-left: 0.95rem;
+}
+
+.doc-toc a {
+  display: flex;
+  align-items: baseline;
+  gap: 0.5rem;
+  padding: 0.28rem 0;
+  color: var(--ink-soft);
+  font-size: 0.875rem;
+  line-height: 1.35;
+  text-decoration: none;
+}
+
+.doc-toc a::before {
+  content: "";
+  flex: none;
+  width: 0.375rem;
+  height: 0.375rem;
+  translate: 0 -0.1em;
+  border: var(--hair) solid transparent;
+}
+
+.doc-toc a:hover {
+  color: var(--ink);
+  text-decoration: underline;
+  text-decoration-color: var(--rule-strong);
+}
+
+.doc-toc a[aria-current] {
+  color: var(--ink);
+  font-weight: 600;
+}
+
+.doc-toc a[aria-current]::before {
+  background: var(--ink);
+  border-color: var(--ink);
+}
+
+/* ---------------------------------------------------------------- the article: header strip */
+
+.doc__head {
+  position: relative;
+  margin-bottom: 2.5rem;
+  padding: 0.6rem 0 1.4rem;
+  border-top: var(--hair) solid var(--ink);
+  border-bottom: var(--hair) solid var(--ink);
+}
+
+/* The second line of a title block's double rule. */
+.doc__head::after {
+  content: "";
+  position: absolute;
+  inset: auto 0 -4px;
+  border-bottom: var(--hair) solid var(--rule-strong);
+}
+
+.doc__crumbs {
+  margin-bottom: 1.6rem;
+  color: var(--ink-soft);
+  font-stretch: 125%;
+  font-weight: 560;
+  font-size: 0.6875rem;
+  line-height: 1.3;
+  letter-spacing: 0.09em;
+  text-transform: uppercase;
+}
+
+.doc h1 {
+  max-width: 26ch;
+  font-size: clamp(1.85rem, 1.3rem + 1.75vw, 2.75rem);
+  line-height: 1.08;
+  letter-spacing: -0.022em;
+  overflow-wrap: break-word;
+}
+
+/* ---------------------------------------------------------------- the reading column */
+
+.doc__body {
+  font-size: var(--step-0);
+  line-height: 1.65;
+  overflow-wrap: break-word;
+}
+
+.doc__body > * {
+  max-width: var(--measure);
+}
+
+.doc__body > * + * {
+  margin-top: 1.1em;
+}
+
+/* The page already pads its scroll by 5rem for the masthead (base.css); a heading adds a little air. */
+.doc__body [id] {
+  scroll-margin-top: 0.75rem;
+}
+
+.doc__body h2,
+.doc__body h3,
+.doc__body h4 {
+  font-weight: 620;
+  letter-spacing: -0.016em;
+}
+
+.doc__body > h2 {
+  max-width: none;
+  margin-top: 3.25rem;
+  padding-top: 1.6rem;
+  border-top: var(--hair) solid var(--rule);
+  font-size: clamp(1.375rem, 1.2rem + 0.6vw, 1.75rem);
+  line-height: 1.15;
+}
+
+.doc__body > h2:first-child {
+  margin-top: 0;
+  padding-top: 0;
+  border-top: 0;
+}
+
+.doc__body > h3 {
+  margin-top: 2.4rem;
+  font-size: clamp(1.125rem, 1.07rem + 0.25vw, 1.3125rem);
+  line-height: 1.25;
+}
+
+.doc__body > h4 {
+  margin-top: 2rem;
+  font-stretch: 125%;
+  font-weight: 600;
+  font-size: 0.75rem;
+  line-height: 1.3;
+  letter-spacing: 0.09em;
+  text-transform: uppercase;
+}
+
+.doc__body > :is(h2, h3, h4) + * {
+  margin-top: 0.75em;
+}
+
+/* A heading's own link: there when the heading is pointed at or the link has focus. */
+.anchor {
+  margin-left: 0.35em;
+  padding: 0 0.15em;
+  color: var(--text-faint);
+  font-family: var(--font-mono);
+  font-weight: 400;
+  font-size: 0.8em;
+  text-decoration: none;
+  opacity: 0;
+  transition: opacity 140ms var(--ease-out);
+}
+
+:is(h2, h3):hover > .anchor,
+.anchor:focus-visible {
+  opacity: 1;
+}
+
+.anchor:hover {
+  color: var(--ink);
+}
+
+@media (hover: none) {
+  .anchor {
+    opacity: 1;
+  }
+}
+
+.doc__body a:not(.anchor) {
+  text-decoration-color: var(--ink-faint);
+}
+
+.doc__body a:not(.anchor):hover {
+  text-decoration-color: currentColor;
+  text-decoration-thickness: 2px;
+}
+
+.doc__body strong {
+  font-weight: 640;
+}
+
+/* Lists. */
+.doc__body ul,
+.doc__body ol {
+  padding-left: 1.4em;
+}
+
+.doc__body ul {
+  list-style-type: square;
+}
+
+.doc__body li::marker {
+  color: var(--ink-soft);
+}
+
+.doc__body ol > li::marker {
+  font-family: var(--font-mono);
+  font-variant-numeric: tabular-nums;
+  font-size: 0.85em;
+}
+
+.doc__body li + li,
+.doc__body li > :where(ul, ol, p, .code) {
+  margin-top: 0.45em;
+}
+
+.doc__body li > :where(p + p) {
+  margin-top: 0.6em;
+}
+
+/* A block quote is a note on the drawing. */
+.doc__body blockquote {
+  position: relative;
+  margin-inline: 0;
+  margin-top: 1.75em;
+  padding: 1.1rem 1.2rem 1rem;
+  border: var(--hair) solid var(--rule-strong);
+  border-radius: 2px;
+}
+
+.doc__body blockquote::before {
+  content: "Note";
+  position: absolute;
+  top: -0.6em;
+  left: 0.85rem;
+  padding: 0 0.4rem;
+  background: var(--paper);
+  color: var(--ink-soft);
+  font-stretch: 125%;
+  font-weight: 560;
+  font-size: 0.6875rem;
+  line-height: 1.3;
+  letter-spacing: 0.09em;
+  text-transform: uppercase;
+}
+
+.doc__body blockquote > * + * {
+  margin-top: 0.75em;
+}
+
+.doc__body hr {
+  height: 0;
+  margin-block: 2.75rem;
+  border: 0;
+  border-top: var(--hair) solid var(--rule-strong);
+}
+
+/* Inline code: a word in the mono face on the listing stock. */
+.doc :where(:not(pre)) > code {
+  padding: 0.08em 0.28em;
+  background: var(--paper-sunk);
+  border-radius: 2px;
+  font-size: 0.86em;
+  overflow-wrap: anywhere;
+  -webkit-box-decoration-break: clone;
+  box-decoration-break: clone;
+}
+
+.doc :is(h1, h2, h3) > code {
+  font-size: 0.9em;
+}
+
+.doc kbd {
+  display: inline-block;
+  min-width: 1.6em;
+  padding: 0.05em 0.35em;
+  border: var(--hair) solid var(--rule-strong);
+  border-bottom-width: 2px;
+  border-radius: 2px;
+  font-size: 0.8em;
+  line-height: 1.4;
+  text-align: center;
+}
+
+/* A path in the (private) repository: drawn in phantom line, the drawing's mark for a part not supplied. */
+.repo-path {
+  cursor: help;
+}
+
+.doc__body img {
+  height: auto;
+  border: var(--hair) solid var(--rule);
+}
+
+/* ---------------------------------------------------------------- listings */
+
+.code {
+  max-width: none;
+  margin-inline: 0;
+  margin-top: 1.5em;
+  margin-bottom: 0;
+  background: var(--paper-sunk);
+  border: var(--hair) solid var(--rule-strong);
+  border-radius: 2px;
+}
+
+.doc__body > .code + * {
+  margin-top: 1.5em;
+}
+
+.code__bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  min-height: 2.5rem;
+  padding: 0 0.3rem 0 0.95rem;
+  border-bottom: var(--hair) solid var(--rule);
+}
+
+.code__lang {
+  color: var(--ink-soft);
+  font-stretch: 125%;
+  font-weight: 560;
+  font-size: 0.6875rem;
+  line-height: 1.3;
+  letter-spacing: 0.09em;
+  text-transform: uppercase;
+}
+
+.code__copy {
+  position: relative;
+  min-width: 4.75rem;
+  min-height: 1.9rem;
+  padding: 0 0.65rem;
+  background: transparent;
+  border: var(--hair) solid transparent;
+  border-radius: 2px;
+  color: var(--ink-soft);
+  font-stretch: 125%;
+  font-weight: 560;
+  font-size: 0.6875rem;
+  letter-spacing: 0.09em;
+  text-transform: uppercase;
+  transition:
+    background-color 140ms var(--ease-out),
+    color 140ms var(--ease-out);
+}
+
+/* A larger target than it looks: 44px tall for a finger. */
+.code__copy::after {
+  content: "";
+  position: absolute;
+  inset: -0.45rem -0.2rem;
+}
+
+.code__copy:hover {
+  border-color: var(--ink);
+  color: var(--ink);
+}
+
+.code__copy[data-copied] {
+  background: var(--ink);
+  border-color: var(--ink);
+  color: var(--paper);
+}
+
+.code pre,
+.table-wrap {
+  /* The scroll edge cue: hatching at an edge that has more beyond it, covered when there is nothing more. */
+  --edge-ground: var(--paper-sunk);
+  background:
+    linear-gradient(var(--edge-ground), var(--edge-ground)) left / 1.25rem 100% no-repeat local,
+    linear-gradient(var(--edge-ground), var(--edge-ground)) right / 1.25rem 100% no-repeat local,
+    repeating-linear-gradient(-45deg, var(--rule-strong) 0 1px, transparent 1px 4px) left / 0.5rem 100%
+    no-repeat scroll,
+    repeating-linear-gradient(-45deg, var(--rule-strong) 0 1px, transparent 1px 4px) right / 0.5rem 100%
+    no-repeat scroll,
+    var(--edge-ground);
+}
+
+.code pre {
+  margin: 0;
+  padding: 1rem 1.25rem 1.1rem 0.95rem;
+  overflow-x: auto;
+  color: var(--hl-foreground);
+  font-size: 0.8125rem;
+  line-height: 1.7;
+  tab-size: 2;
+  scrollbar-width: thin;
+}
+
+.code pre:focus-visible {
+  outline-offset: -2px;
+}
+
+.code pre code {
+  font-size: inherit;
+}
+
+/* A source page: the whole file, its lines numbered in the margin like a listing in a manual. */
+.doc--source .code {
+  margin-top: 0;
+}
+
+.doc--source .code pre {
+  padding-left: 0;
+  counter-reset: line;
+}
+
+.doc--source .line::before {
+  counter-increment: line;
+  content: counter(line);
+  position: sticky;
+  left: 0;
+  display: inline-block;
+  width: 3.4em;
+  margin-right: 1em;
+  padding-right: 0.75em;
+  background: var(--paper-sunk);
+  border-right: var(--hair) solid var(--rule);
+  color: var(--text-faint);
+  font-variant-numeric: tabular-nums;
+  text-align: right;
+}
+
+.doc--source h1 {
+  max-width: none;
+}
+
+.doc--source h1 code {
+  padding: 0;
+  background: transparent;
+  border: 0;
+  font-size: clamp(1.35rem, 1.05rem + 1.1vw, 2rem);
+  font-weight: 500;
+  letter-spacing: -0.02em;
+  overflow-wrap: anywhere;
+}
+
+.doc__usedby {
+  margin: -1rem 0 1.5rem;
+  color: var(--ink-soft);
+  font-size: var(--step--1);
+}
+
+.doc__usedby a {
+  color: var(--ink);
+  text-decoration-color: var(--ink-faint);
+}
+
+/* ---------------------------------------------------------------- tables: a parts list */
+
+.table-wrap {
+  --edge-ground: var(--paper);
+  max-width: none;
+  margin-top: 1.5em;
+  overflow-x: auto;
+  border-block: var(--hair) solid var(--ink);
+  scrollbar-width: thin;
+}
+
+.doc__body > .table-wrap + * {
+  margin-top: 1.5em;
+}
+
+.table-wrap:focus-visible {
+  outline-offset: 2px;
+}
+
+.table-wrap table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.9375rem;
+  line-height: 1.5;
+}
+
+.table-wrap th {
+  padding: 0.75rem 0.85rem 0.5rem;
+  border-bottom: var(--hair) solid var(--ink);
+  color: var(--ink-soft);
+  font-stretch: 125%;
+  font-weight: 560;
+  font-size: 0.6875rem;
+  line-height: 1.3;
+  letter-spacing: 0.09em;
+  text-align: left;
+  text-transform: uppercase;
+  vertical-align: bottom;
+}
+
+.table-wrap td {
+  min-width: 8rem;
+  max-width: 34rem;
+  padding: 0.6rem 0.85rem;
+  border-bottom: var(--hair) solid var(--rule);
+  vertical-align: top;
+}
+
+.table-wrap td:first-child {
+  min-width: 9.5rem;
+}
+
+.table-wrap :is(th, td):first-child {
+  padding-left: 0.1rem;
+}
+
+.table-wrap :is(th, td) + :is(th, td) {
+  border-left: var(--hair) solid var(--rule);
+}
+
+.table-wrap tr:last-child td {
+  border-bottom: 0;
+}
+
+/* In a parts list, code is just the mono face: a box in every cell would be noise. */
+.table-wrap :is(td, th) code {
+  padding: 0;
+  background: transparent;
+  border: 0;
+}
+
+/* (After the parts list: a path keeps its phantom line in a table too.) */
+span.repo-path > code {
+  padding: 0.06em 0.3em;
+  background: transparent;
+  border: var(--hair) dashed var(--ink-faint);
+}
+
+/* ---------------------------------------------------------------- the pager: two cells of a title block */
+
+.doc-pager {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  margin-top: 4rem;
+  border: var(--hair) solid var(--ink);
+  border-radius: 2px;
+}
+
+.doc-pager a {
+  display: grid;
+  align-content: start;
+  gap: 0.35rem;
+  min-height: 5rem;
+  padding: 0.8rem 1.05rem 1rem;
+  text-decoration: none;
+  transition:
+    background-color 140ms var(--ease-out),
+    color 140ms var(--ease-out);
+}
+
+.doc-pager__prev {
+  grid-column: 1;
+}
+
+.doc-pager__next {
+  grid-column: 2;
+  text-align: right;
+  border-left: var(--hair) solid var(--ink);
+}
+
+/* The side with no page is ruled through: tone as hatching. */
+.doc-pager:not(:has(.doc-pager__prev))::before,
+.doc-pager:not(:has(.doc-pager__next))::after {
+  content: "";
+  grid-row: 1;
+  background-image: repeating-linear-gradient(-45deg, var(--hatch) 0 1px, transparent 1px 5px);
+}
+
+.doc-pager:not(:has(.doc-pager__prev))::before {
+  grid-column: 1;
+}
+
+.doc-pager:not(:has(.doc-pager__next))::after {
+  grid-column: 2;
+  border-left: var(--hair) solid var(--ink);
+}
+
+.doc-pager span {
+  color: var(--ink-soft);
+  font-stretch: 125%;
+  font-weight: 560;
+  font-size: 0.6875rem;
+  line-height: 1.3;
+  letter-spacing: 0.09em;
+  text-transform: uppercase;
+}
+
+.doc-pager__prev span::before {
+  content: "← ";
+}
+
+.doc-pager__next span::after {
+  content: " →";
+}
+
+.doc-pager strong {
+  font-stretch: 108%;
+  font-weight: 600;
+  font-size: var(--step-1);
+  line-height: 1.25;
+  text-wrap: balance;
+}
+
+.doc-pager a:hover {
+  background: var(--ink);
+  color: var(--paper);
+}
+
+.doc-pager a:hover span {
+  color: inherit;
+}
+
+.doc-pager a:focus-visible {
+  outline-offset: -4px;
+}
+
+/* ---------------------------------------------------------------- the foot */
+
+.docs__foot {
+  margin-top: 3rem;
+  padding-top: 1.1rem;
+  border-top: var(--hair) solid var(--rule);
+  color: var(--ink-soft);
+  font-size: var(--step--1);
+  line-height: 1.55;
+}
+
+.docs__foot > p {
+  max-width: 68ch;
+}
+
+.doc-pager + .docs__foot {
+  border-top: 0;
+}
+
+/* ---------------------------------------------------------------- below 1100px: the on-page contents fold */
+
+@media (max-width: 68.74em) {
+  .docs__body {
+    grid-template-columns: var(--rail-w) minmax(0, 1fr);
+    grid-template-rows: auto 1fr;
+    grid-template-areas:
+      "rail toc"
+      "rail main";
+  }
+
+  .docs__rail {
+    grid-row: 1 / span 2;
+  }
+
+  .docs__toc {
+    position: static;
+    max-height: none;
+    overflow: visible;
+    padding: 1.25rem var(--page-pad) 0;
+  }
+
+  .docs__toc + .docs__main {
+    padding-top: 1.5rem;
+  }
+
+  .toc-fold {
+    max-width: var(--wide);
+    margin-inline: auto;
+    border: var(--hair) solid var(--rule-strong);
+    border-radius: 2px;
+  }
+
+  .toc-fold__summary {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 1rem;
+    min-height: 2.75rem;
+    padding: 0 0.9rem;
+    color: var(--ink-soft);
+    font-stretch: 125%;
+    font-weight: 560;
+    font-size: 0.6875rem;
+    letter-spacing: 0.09em;
+    text-transform: uppercase;
+    list-style: none;
+    cursor: pointer;
+  }
+
+  .toc-fold__summary::-webkit-details-marker {
+    display: none;
+  }
+
+  .toc-fold__summary::after {
+    content: "+";
+    font-family: var(--font-mono);
+    font-size: 1rem;
+    letter-spacing: 0;
+  }
+
+  .toc-fold[open] > .toc-fold__summary::after {
+    content: "−";
+  }
+
+  .toc-fold__summary:hover {
+    color: var(--ink);
+  }
+
+  .toc-fold__summary:focus-visible {
+    outline-offset: -2px;
+  }
+
+  .toc-fold .doc-toc {
+    padding: 0.5rem 0.9rem 0.9rem;
+    border-top: var(--hair) solid var(--rule);
+  }
+
+  .toc-fold .doc-toc__label {
+    display: none;
+  }
+
+  .toc-fold .doc-toc a {
+    padding-block: 0.4rem;
+    font-size: 0.9375rem;
+  }
+}
+
+/* ---------------------------------------------------------------- below 860px: one column, the rail a drawer */
+
+@media (max-width: 53.74em) {
+  .docs {
+    --page-pad: var(--gutter);
+  }
+
+  .mast {
+    gap: 0.75rem;
+  }
+
+  .mast__where {
+    padding-left: 0.75rem;
+  }
+
+  .mast__tools {
+    gap: 0.5rem;
+  }
+
+  .docs .mast__menu,
+  .docs .scheme {
+    min-height: 2.75rem;
+  }
+
+  :root[data-js] .docs .mast__menu {
+    display: inline-flex;
+  }
+
+  .docs__body {
+    grid-template-columns: minmax(0, 1fr);
+    grid-template-rows: auto auto auto;
+    grid-template-areas:
+      "toc"
+      "main"
+      "rail";
+  }
+
+  /* Without script the contents sit below the page, as a plain list. */
+  .docs__rail {
+    grid-row: auto;
+    position: static;
+    height: auto;
+    overflow: visible;
+    padding: 1rem var(--gutter) 3rem;
+    border-right: 0;
+    border-top: var(--hair) solid var(--ink);
+  }
+
+  :root[data-js] .docs__rail {
+    position: fixed;
+    inset: 0 0 0 auto;
+    z-index: 61;
+    width: min(23rem, 88vw);
+    height: 100dvh;
+    padding: 0 1rem 2.5rem;
+    overflow-y: auto;
+    background: var(--paper);
+    border-top: 0;
+    border-left: var(--hair) solid var(--ink);
+    visibility: hidden;
+    clip-path: inset(0 0 0 100%);
+    transition:
+      clip-path 260ms var(--ease-out),
+      visibility 0s linear 260ms;
+  }
+
+  :root[data-js] .docs__rail[data-open] {
+    visibility: visible;
+    clip-path: inset(0);
+    transition: clip-path 260ms var(--ease-out);
+  }
+
+  :root[data-js] .docs__railhead {
+    position: sticky;
+    top: 0;
+    z-index: 2;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    min-height: var(--mast-h);
+    background: var(--paper);
+    border-bottom: var(--hair) solid var(--rule);
+  }
+
+  :root[data-js] .docs__railhead .lettering {
+    color: var(--ink-soft);
+  }
+
+  .docs__close {
+    min-height: 2.75rem;
+  }
+
+  .doc-find {
+    position: static;
+    padding-top: 1rem;
+  }
+
+  .docs__scrim {
+    position: fixed;
+    inset: 0;
+    z-index: 60;
+    background: oklch(from var(--ink) l c h / 0.32);
+  }
+
+  :root[data-scheme="dark"] .docs__scrim {
+    background: oklch(0.12 0.05 264 / 0.6);
+  }
+
+  :root[data-nav-open] {
+    overflow: hidden;
+  }
+
+  .docs__toc + .docs__main {
+    padding-top: 1.75rem;
+  }
+
+  .doc__head {
+    margin-bottom: 2rem;
+  }
+
+  .doc__crumbs {
+    margin-bottom: 1.1rem;
+  }
+
+  .doc__body > h2 {
+    margin-top: 2.75rem;
+    padding-top: 1.35rem;
+  }
+
+  /* The listing reaches the stock's edges on a phone: more of each line in view. */
+  .doc__body > .code,
+  .doc--source > .code {
+    margin-inline: calc(-1 * var(--page-pad));
+    border-inline: 0;
+    border-radius: 0;
+  }
+
+  .doc-pager {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .doc-pager__prev,
+  .doc-pager__next {
+    grid-column: 1;
+  }
+
+  .doc-pager__next {
+    border-left: 0;
+    border-top: var(--hair) solid var(--ink);
+  }
+
+  .doc-pager:not(:has(.doc-pager__prev))::before,
+  .doc-pager:not(:has(.doc-pager__next))::after {
+    display: none;
+  }
+}
+
+@media (max-width: 40em) {
+  .docs .mast__link {
+    display: none;
+  }
+}
+
+@media (max-width: 30em) {
+  .docs .scheme {
+    padding-inline: 0.85rem;
+  }
+
+  .docs .scheme [data-scheme-label] {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip-path: inset(50%);
+    white-space: nowrap;
+  }
+}
+
+/* Without script: the controls that need it are not drawn. */
+:root:not([data-js]) .docs .scheme,
+:root:not([data-js]) .doc-find,
+:root:not([data-js]) .code__copy {
+  display: none;
+}
+
+/* ---------------------------------------------------------------- print: the page alone, in the blueline */
+
+@media print {
+  .mast,
+  .skip,
+  .docs__rail,
+  .docs__scrim,
+  .docs__toc,
+  .doc-pager,
+  .code__copy,
+  .anchor {
+    display: none;
+  }
+
+  .docs__body {
+    display: block;
+  }
+
+  .docs__main {
+    padding: 0;
+  }
+
+  .docs__main > *,
+  .doc__body > * {
+    max-width: none;
+  }
+
+  .doc__body a:not(.anchor) {
+    text-decoration-line: underline;
+    text-decoration-color: currentColor;
+  }
+
+  .code,
+  .table-wrap {
+    break-inside: avoid;
+  }
+
+  .code pre,
+  .table-wrap {
+    overflow: visible;
+    background: none;
+  }
+
+  .code pre {
+    white-space: pre-wrap;
+    overflow-wrap: anywhere;
+  }
+
+  .doc :is(h2, h3) {
+    break-after: avoid;
+  }
+}

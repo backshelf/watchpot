@@ -1,0 +1,116 @@
+/* The game's captures: the only colour on the page, framed by one line. Also the "how this was made" sheet. */
+
+.made {
+  display: grid;
+  grid-template-columns: repeat(12, minmax(0, 1fr));
+  gap: clamp(1rem, 2vw, 1.5rem);
+  align-items: start;
+}
+
+.made figure {
+  margin: 0;
+}
+
+.made img,
+.made video {
+  width: 100%;
+  height: auto;
+  background: var(--paper-sunk);
+  border: var(--hair) solid var(--ink);
+  border-radius: 2px;
+}
+
+.made figcaption {
+  margin-top: 0.5rem;
+  color: var(--ink-soft);
+  font-size: var(--step--1);
+}
+
+.made__clip {
+  grid-column: span 9;
+}
+
+.made__phone {
+  grid-column: span 3;
+}
+
+.made__still {
+  grid-column: span 6;
+}
+
+@media (max-width: 62rem) {
+  .made__clip,
+  .made__still {
+    grid-column: 1 / -1;
+  }
+
+  .made__phone {
+    grid-column: 3 / span 8;
+  }
+}
+
+/* How this was made: said once, large, on the ink. */
+.how {
+  width: 100%;
+  margin-top: clamp(2rem, 4vw, 3.5rem);
+  background: var(--ink);
+  color: var(--paper);
+}
+
+.how ::selection {
+  background: var(--paper);
+  color: var(--ink);
+}
+
+.how__inner {
+  width: min(100% - 2 * var(--gutter), var(--sheet));
+  margin-inline: auto;
+  padding-block: clamp(3rem, 7vw, 6rem);
+  display: grid;
+  grid-template-columns: minmax(0, 5fr) minmax(0, 7fr);
+  gap: clamp(1.5rem, 2.5vw, 2.5rem);
+  scroll-margin-top: 3.5rem;
+}
+
+.how h2 {
+  font-size: var(--step-3);
+  letter-spacing: -0.024em;
+}
+
+.how__say {
+  display: grid;
+  gap: 1.25rem;
+  max-width: 44rem;
+}
+
+.how__say p:first-child {
+  font-size: var(--step-2);
+  font-stretch: 106%;
+  font-weight: 480;
+  line-height: 1.28;
+  letter-spacing: -0.012em;
+}
+
+.how__say p + p {
+  max-width: 62ch;
+  color: oklch(from var(--paper) l c h / 0.82);
+}
+
+.how__say code {
+  font-size: 0.86em;
+  overflow-wrap: anywhere;
+}
+
+.how a {
+  text-decoration-color: currentColor;
+}
+
+.how :focus-visible {
+  outline-color: var(--paper);
+}
+
+@media (max-width: 62rem) {
+  .how__inner {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}

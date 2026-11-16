@@ -1,0 +1,334 @@
+@import "./fonts.css";
+
+/*
+ * The site's whole look: a reprographic duotone. Light is a blueline print (diazo-blue line on cool white stock);
+ * dark is the same drawing as a blueprint (pale line on Prussian blue). There is one ink and one mid-tone, `--live`,
+ * which only ever marks something that is running now. Tone is hatching, never a grey. Nothing here ships with the
+ * engine: the engine has no look.
+ */
+:root {
+  color-scheme: light;
+
+  --paper: oklch(0.975 0.006 240);
+  --paper-sunk: oklch(0.948 0.012 248);
+  --paper-lift: oklch(0.995 0.003 240);
+  --ink: oklch(0.29 0.105 266);
+  --ink-soft: oklch(0.43 0.09 263);
+  --ink-faint: oklch(0.6 0.065 258);
+  --rule: oklch(0.86 0.028 255);
+  --rule-strong: oklch(0.72 0.05 258);
+  --live: oklch(0.82 0.105 212);
+  --live-deep: oklch(0.47 0.115 238);
+  --on-live: oklch(0.25 0.1 266);
+  --hatch: oklch(0.29 0.105 266 / 0.16);
+  --focus: oklch(0.47 0.115 238);
+
+  /* Code: one ink at four strengths and the mid-tone, so a listing reads as part of the drawing. */
+  --hl-foreground: var(--ink);
+  --hl-background: transparent;
+  --hl-token-constant: var(--live-deep);
+  --hl-token-string: oklch(0.42 0.1 235);
+  --hl-token-comment: color-mix(in oklch, var(--ink-soft) 45%, var(--ink-faint));
+  --hl-token-keyword: oklch(0.36 0.16 275);
+  --hl-token-parameter: var(--ink-soft);
+  --hl-token-function: oklch(0.33 0.13 252);
+  --hl-token-string-expression: oklch(0.42 0.1 235);
+  --hl-token-punctuation: var(--ink-soft);
+  --hl-token-link: var(--live-deep);
+
+  --font-sans: "Archivo", "Helvetica Neue", Arial, sans-serif;
+  --font-mono: "Chivo Mono", ui-monospace, "Cascadia Mono", Consolas, monospace;
+
+  --step--1: clamp(0.8125rem, 0.79rem + 0.1vw, 0.875rem);
+  --step-0: clamp(1rem, 0.97rem + 0.14vw, 1.0625rem);
+  --step-1: clamp(1.125rem, 1.07rem + 0.25vw, 1.3125rem);
+  --step-2: clamp(1.5rem, 1.3rem + 0.9vw, 2.125rem);
+  --step-3: clamp(1.95rem, 1.5rem + 2vw, 3.25rem);
+  --step-4: clamp(2.35rem, 1.45rem + 3.9vw, 4.6rem);
+
+  --gutter: clamp(1rem, 0.4rem + 2.6vw, 2.5rem);
+  --sheet: 82rem;
+  --hair: 1px;
+  --ease-out: cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+:root[data-scheme="dark"] {
+  color-scheme: dark;
+
+  --paper: oklch(0.235 0.078 264);
+  --paper-sunk: oklch(0.2 0.072 264);
+  --paper-lift: oklch(0.275 0.085 264);
+  --ink: oklch(0.93 0.028 235);
+  --ink-soft: oklch(0.81 0.05 242);
+  --ink-faint: oklch(0.66 0.07 250);
+  --rule: oklch(0.36 0.085 262);
+  --rule-strong: oklch(0.48 0.095 260);
+  --live: oklch(0.86 0.12 200);
+  --live-deep: oklch(0.86 0.12 200);
+  --on-live: oklch(0.2 0.075 264);
+  --hatch: oklch(0.93 0.028 235 / 0.16);
+  --focus: oklch(0.86 0.12 200);
+
+  --hl-token-string: oklch(0.84 0.09 205);
+  --hl-token-string-expression: oklch(0.84 0.09 205);
+  --hl-token-keyword: oklch(0.86 0.07 275);
+  --hl-token-function: oklch(0.9 0.06 230);
+}
+
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+html {
+  -webkit-text-size-adjust: 100%;
+  text-size-adjust: 100%;
+  scroll-padding-top: 5rem;
+  background: var(--paper);
+}
+
+body {
+  margin: 0;
+  min-height: 100dvh;
+  background: var(--paper);
+  color: var(--ink);
+  font-family: var(--font-sans);
+  font-size: var(--step-0);
+  font-stretch: 100%;
+  line-height: 1.6;
+  font-synthesis: none;
+  text-rendering: optimizeLegibility;
+  -webkit-font-smoothing: antialiased;
+  accent-color: var(--live-deep);
+  caret-color: var(--live-deep);
+  scrollbar-color: var(--rule-strong) transparent;
+  scrollbar-width: thin;
+}
+
+::selection {
+  background: var(--live);
+  color: var(--on-live);
+}
+
+h1,
+h2,
+h3,
+h4 {
+  margin: 0;
+  font-weight: 620;
+  font-stretch: 112%;
+  line-height: 1.1;
+  letter-spacing: -0.018em;
+  text-wrap: balance;
+}
+
+p {
+  margin: 0;
+  text-wrap: pretty;
+}
+
+a {
+  color: inherit;
+  text-decoration-line: underline;
+  text-decoration-thickness: 1px;
+  text-decoration-color: var(--rule-strong);
+  text-underline-offset: 0.2em;
+  transition: text-decoration-color 140ms var(--ease-out);
+}
+
+a:hover {
+  text-decoration-color: currentColor;
+}
+
+:focus-visible {
+  outline: 2px solid var(--focus);
+  outline-offset: 3px;
+  border-radius: 1px;
+}
+
+button,
+input,
+select,
+textarea {
+  font: inherit;
+  color: inherit;
+}
+
+button {
+  cursor: pointer;
+}
+
+code,
+kbd,
+samp,
+pre {
+  font-family: var(--font-mono);
+  font-size: 0.92em;
+  font-variant-ligatures: none;
+}
+
+img,
+video,
+canvas,
+svg {
+  display: block;
+  max-width: 100%;
+}
+
+/* A figure, a count, a measurement: the mono face with fixed-width digits. */
+.num {
+  font-family: var(--font-mono);
+  font-variant-numeric: tabular-nums;
+  font-feature-settings: "zero" 1;
+}
+
+/* Lettering on a drawing: expanded capitals, small, tracked. */
+.lettering {
+  font-stretch: 125%;
+  font-weight: 560;
+  font-size: 0.6875rem;
+  line-height: 1.3;
+  letter-spacing: 0.09em;
+  text-transform: uppercase;
+}
+
+.skip {
+  position: absolute;
+  left: var(--gutter);
+  top: 0.5rem;
+  z-index: 100;
+  padding: 0.5rem 0.9rem;
+  background: var(--ink);
+  color: var(--paper);
+  text-decoration: none;
+  transform: translateY(-200%);
+}
+
+.skip:focus-visible {
+  transform: none;
+}
+
+.visually-hidden {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  margin: -1px;
+  padding: 0;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+  border: 0;
+}
+
+/* The masthead: the same strip on the landing page and the docs. */
+.mast {
+  position: sticky;
+  top: 0;
+  z-index: 40;
+  display: flex;
+  align-items: center;
+  gap: 1.25rem;
+  min-height: 3.5rem;
+  padding: 0 var(--gutter);
+  background: var(--paper);
+  border-bottom: var(--hair) solid var(--rule);
+}
+
+.mast__home {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.6rem;
+  min-height: 2.75rem;
+  text-decoration: none;
+}
+
+.mast__name {
+  font-stretch: 125%;
+  font-weight: 640;
+  font-size: 1.0625rem;
+  letter-spacing: -0.01em;
+}
+
+.mark {
+  width: 1.5rem;
+  height: 1.5rem;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 1.5;
+}
+
+.mark .mark__live {
+  fill: var(--live);
+  stroke: none;
+}
+
+.mast__where {
+  padding-left: 1.25rem;
+  border-left: var(--hair) solid var(--rule);
+  color: var(--ink-soft);
+}
+
+.mast__tools {
+  display: flex;
+  align-items: center;
+  gap: 1.25rem;
+  margin-left: auto;
+}
+
+.mast__link {
+  font-size: var(--step--1);
+  text-decoration: none;
+}
+
+.mast__link:hover {
+  text-decoration: underline;
+}
+
+.scheme,
+.mast__menu {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  min-height: 2.25rem;
+  padding: 0 0.75rem;
+  background: transparent;
+  border: var(--hair) solid var(--rule-strong);
+  border-radius: 2px;
+  transition:
+    background-color 140ms var(--ease-out),
+    color 140ms var(--ease-out);
+}
+
+.scheme:hover,
+.mast__menu:hover {
+  background: var(--ink);
+  color: var(--paper);
+}
+
+.scheme [data-scheme-label] {
+  font-stretch: 125%;
+  font-weight: 560;
+  font-size: 0.6875rem;
+  letter-spacing: 0.09em;
+  text-transform: uppercase;
+}
+
+.scheme::before {
+  content: "";
+  width: 0.7rem;
+  height: 0.7rem;
+  border: 1.5px solid currentColor;
+  background: linear-gradient(to right, currentColor 50%, transparent 50%);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    transition-duration: 1ms;
+    animation-duration: 1ms;
+    animation-iteration-count: 1;
+    scroll-behavior: auto;
+  }
+}

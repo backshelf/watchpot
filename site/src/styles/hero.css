@@ -1,0 +1,279 @@
+/* Sheet one: the pitch, the drawing, its notes and its title block. */
+
+.hero {
+  display: grid;
+  grid-template-columns: minmax(0, 5fr) minmax(0, 7fr);
+  gap: clamp(1rem, 2.5vw, 2.5rem);
+  align-items: stretch;
+  padding-block: clamp(1.25rem, 2.2vw, 2rem) clamp(1.5rem, 3vw, 2.5rem);
+}
+
+.hero__words {
+  display: flex;
+  flex-direction: column;
+  gap: 1.35rem;
+  min-width: 0;
+  padding-top: clamp(0.5rem, 2.5vh, 2rem);
+}
+
+.hero h1 {
+  font-size: clamp(2.2rem, 1.25rem + 2.5vw, 3.35rem);
+  font-stretch: 112%;
+  font-weight: 640;
+  line-height: 1.04;
+  letter-spacing: -0.026em;
+}
+
+.hero__lede {
+  max-width: 33rem;
+  color: var(--ink-soft);
+  font-size: clamp(1.0625rem, 1rem + 0.25vw, 1.1875rem);
+  line-height: 1.5;
+}
+
+.hero__actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.75rem;
+  margin-top: 0.25rem;
+}
+
+.hero__foot {
+  display: grid;
+  gap: 1.5rem;
+  margin-top: auto;
+  padding-top: 2rem;
+}
+
+/* A drawing's general notes. */
+.notes {
+  font-size: var(--step--1);
+  color: var(--ink-soft);
+}
+
+.notes h2 {
+  margin-bottom: 0.5rem;
+  color: var(--ink);
+}
+
+.notes ol {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  counter-reset: note;
+  display: grid;
+  gap: 0.3rem;
+  max-width: 34rem;
+}
+
+.notes li {
+  counter-increment: note;
+  position: relative;
+  padding-left: 1.6rem;
+}
+
+.notes li::before {
+  content: counter(note) ".";
+  position: absolute;
+  left: 0;
+  font-family: var(--font-mono);
+  font-variant-numeric: tabular-nums;
+  color: var(--ink);
+}
+
+/* The title block: ruled cells, a caption over each field. */
+.titleblock {
+  display: grid;
+  grid-template-columns: 1.4fr 1.2fr 0.7fr;
+  margin: 0;
+  max-width: 34rem;
+  border: var(--hair) solid var(--ink);
+  font-size: var(--step--1);
+}
+
+.titleblock > div {
+  padding: 0.5rem 0.7rem 0.55rem;
+  border-right: var(--hair) solid var(--rule-strong);
+  border-bottom: var(--hair) solid var(--rule-strong);
+  min-width: 0;
+}
+
+.titleblock > div:nth-child(4),
+.titleblock__wide {
+  border-right: 0;
+}
+
+.titleblock > div:last-child {
+  border-bottom: 0;
+}
+
+.titleblock__wide {
+  grid-column: 1 / -1;
+}
+
+.titleblock dt {
+  color: var(--ink-soft);
+  font-size: 0.625rem;
+  margin-bottom: 0.15rem;
+}
+
+.titleblock dd {
+  margin: 0;
+  line-height: 1.35;
+}
+
+/* The figure: the shader's canvas, the leaders over it, the labels at their ends. */
+.fig {
+  position: relative;
+  min-width: 0;
+  height: clamp(35rem, 100dvh - 7.5rem, 50rem);
+  touch-action: pan-y;
+}
+
+.fig[data-picking] {
+  cursor: pointer;
+}
+
+.fig__canvas,
+.fig__still,
+.fig__leaders {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+}
+
+.fig__still polygon {
+  fill: var(--paper);
+  stroke: var(--ink);
+  stroke-width: 1.2;
+  stroke-linejoin: round;
+}
+
+.fig__still polygon[data-phantom] {
+  fill: none;
+  stroke-dasharray: 13 3 2.5 3 2.5 3;
+  stroke-width: 0.9;
+}
+
+.fig__leaders {
+  pointer-events: none;
+  overflow: visible;
+}
+
+.fig__leaders path {
+  fill: none;
+  stroke: var(--ink);
+  stroke-width: 0.75;
+  vector-effect: non-scaling-stroke;
+}
+
+.fig__leaders circle {
+  fill: var(--ink);
+}
+
+.fig__leaders g[data-focused] path {
+  stroke-width: 1.5;
+}
+
+.callouts {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.callout {
+  position: absolute;
+  translate: 0 -0.62rem;
+  max-width: 11.5rem;
+}
+
+.callout[data-side="left"] {
+  text-align: right;
+}
+
+.callout a {
+  display: grid;
+  gap: 0.1rem;
+  padding: 0.1rem 0.25rem;
+  margin: -0.1rem -0.25rem;
+  text-decoration: none;
+}
+
+.callout__name {
+  font-size: 0.75rem;
+  letter-spacing: 0.08em;
+}
+
+.callout__entry {
+  display: none;
+  font-size: 0.6875rem;
+  color: var(--ink-soft);
+}
+
+.callout__line {
+  display: none;
+  font-size: 0.8125rem;
+  line-height: 1.3;
+  color: var(--ink-soft);
+}
+
+.fig[data-roomy] .callout__line {
+  display: block;
+}
+
+.callout[data-focused] .callout__name,
+.callout a:hover .callout__name {
+  background: var(--live);
+  color: var(--on-live);
+  box-shadow:
+    -0.3rem 0 0 var(--live),
+    0.3rem 0 0 var(--live);
+}
+
+/* Leaders and labels are drawn in once the assembly has come apart. */
+.fig__leaders,
+.callouts {
+  opacity: 0;
+  transition: opacity 500ms var(--ease-out);
+}
+
+.fig[data-open] .fig__leaders,
+.fig[data-open] .callouts {
+  opacity: 1;
+}
+
+@media (max-width: 62rem) {
+  .hero {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  /* A phone reads the pitch, then the drawing, then the notes and the title block. */
+  .hero__words {
+    display: contents;
+  }
+
+  .hero__foot {
+    order: 3;
+    padding-top: 0.5rem;
+  }
+
+  .fig {
+    order: 2;
+    height: clamp(24rem, 118vw, 40rem);
+  }
+}
+
+@media (max-width: 30rem) {
+  .titleblock {
+    grid-template-columns: 1fr 1fr;
+  }
+
+  .titleblock > div:nth-child(3) {
+    border-right: 0;
+  }
+
+  .titleblock > div:nth-child(4) {
+    grid-column: 1 / -1;
+  }
+}

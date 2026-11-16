@@ -4,7 +4,8 @@
   "private": true,
   "type": "module",
   "workspaces": [
-    "examples/*"
+    "examples/*",
+    "site"
   ],
   "scripts": {
     "typecheck": "bun check",
@@ -19,7 +20,9 @@
     "dsp:test": "cargo test --release --manifest-path dsp/Cargo.toml",
     "verify": "bun run typecheck && bun run lint && bun run test:changed && bun test test/rules",
     "gates": "bun run typecheck && bun run lint && bun run api:check && bun test",
-    "gates:full": "bun run gates && bun run test:slow"
+    "gates:full": "bun run gates && bun run test:slow",
+    "site:dev": "bun site/dev.ts",
+    "site:build": "bun site/build.ts"
   },
   "exports": {
     "./core": "./src/core/index.ts",

@@ -1,0 +1,259 @@
+/* Sheet two: the game on the left, what the engine is doing on the right. */
+
+.live {
+  display: grid;
+  grid-template-columns: minmax(0, 7fr) minmax(0, 5fr);
+  gap: clamp(1rem, 2vw, 1.5rem);
+  align-items: start;
+}
+
+.live__who {
+  font-size: var(--step--1);
+  color: var(--ink-soft);
+}
+
+.live__top {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: end;
+  justify-content: space-between;
+  gap: 1rem;
+  padding-bottom: 1rem;
+  border-bottom: var(--hair) solid var(--rule);
+}
+
+.live__rate {
+  color: var(--ink-soft);
+}
+
+.live__lid {
+  min-height: 3.25rem;
+  padding-inline: 1.6rem;
+  font-size: var(--step-1);
+}
+
+.live__lid[data-pressed] {
+  background: var(--live);
+  color: var(--on-live);
+}
+
+.live__listhead {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  margin: 1rem 0 0.25rem;
+}
+
+.live__list {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.source {
+  display: grid;
+  grid-template-columns: 3rem minmax(0, 1fr) minmax(8.5rem, auto);
+  gap: 0.9rem;
+  align-items: center;
+  padding: 0.6rem 0;
+  border-bottom: var(--hair) solid var(--rule);
+}
+
+.source__owned {
+  display: grid;
+  place-items: center;
+  height: 2.75rem;
+  border: var(--hair) solid var(--ink);
+  font-size: 1.0625rem;
+  font-weight: 500;
+}
+
+.source__what {
+  display: grid;
+  gap: 0.1rem;
+  min-width: 0;
+}
+
+.source__what strong {
+  font-weight: 600;
+  font-stretch: 108%;
+}
+
+.source__what span {
+  color: var(--ink-soft);
+  font-size: var(--step--1);
+}
+
+.source__what .bar {
+  height: 0.3rem;
+  margin-top: 0.3rem;
+  max-width: 16rem;
+}
+
+.button.source__buy {
+  width: 100%;
+  justify-content: space-between;
+  padding-inline: 0.75rem;
+}
+
+.source__buy:not([aria-disabled="true"]) {
+  background: var(--live);
+  color: var(--on-live);
+}
+
+.live__valve {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem 1.5rem;
+  padding-top: 1rem;
+}
+
+.live__valve .field > :last-child {
+  font-size: var(--step--1);
+}
+
+.live__valve [data-armed] {
+  background: var(--ink);
+  color: var(--paper);
+}
+
+.live__handback {
+  margin-top: 1rem;
+  padding: 0;
+  background: none;
+  border: 0;
+  color: var(--ink-soft);
+  font-size: var(--step--1);
+  text-decoration: underline;
+  text-decoration-color: var(--rule-strong);
+  text-underline-offset: 0.2em;
+}
+
+.live__handback:hover {
+  color: var(--ink);
+}
+
+.live__engine {
+  display: grid;
+  gap: clamp(1rem, 2vw, 1.5rem);
+}
+
+.live__clock {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 0.75rem 1rem;
+}
+
+.live__clock .num {
+  font-size: 1.0625rem;
+}
+
+.live__note,
+.live__away {
+  grid-column: 1 / -1;
+  font-size: var(--step--1);
+  color: var(--ink-soft);
+}
+
+.live__away {
+  padding: 0.5rem 0.7rem;
+  color: var(--on-live);
+}
+
+.live__away button {
+  padding: 0;
+  background: none;
+  border: 0;
+  text-decoration: underline;
+}
+
+.live__count {
+  font-size: var(--step--1);
+  color: var(--ink-soft);
+}
+
+.live__steps {
+  margin: 0;
+  list-style: none;
+  counter-reset: step;
+  columns: 2;
+  column-gap: 1.5rem;
+  font-size: 0.75rem;
+  line-height: 1.75;
+}
+
+.live__steps li {
+  counter-increment: step;
+  break-inside: avoid;
+  overflow-wrap: anywhere;
+}
+
+.live__steps li::before {
+  content: counter(step, decimal-leading-zero);
+  margin-right: 0.6rem;
+  color: var(--ink-faint);
+}
+
+.live__save pre {
+  margin: 0;
+  max-height: 8.5rem;
+  overflow: auto;
+  padding: 0.6rem 0.7rem;
+  background: var(--paper-sunk);
+  font-size: 0.6875rem;
+  line-height: 1.5;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+
+.live__saveactions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  margin-top: 0.75rem;
+}
+
+.live__saveactions [data-armed] {
+  background: var(--ink);
+  color: var(--paper);
+}
+
+.live__notation {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.75rem 1.25rem;
+  margin-top: clamp(1rem, 2vw, 1.5rem);
+}
+
+.live__notation .seg {
+  flex-wrap: wrap;
+}
+
+.live__sample {
+  color: var(--ink-soft);
+  font-size: var(--step--1);
+}
+
+@media (max-width: 62rem) {
+  .live {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+
+@media (max-width: 34rem) {
+  .source {
+    grid-template-columns: 2.5rem minmax(0, 1fr);
+  }
+
+  .source__buy {
+    grid-column: 1 / -1;
+  }
+
+  .live__steps {
+    columns: 1;
+  }
+}

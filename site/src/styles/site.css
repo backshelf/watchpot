@@ -1,0 +1,190 @@
+@import "./base.css";
+@import "./section.css";
+@import "./hero.css";
+@import "./live.css";
+@import "./systems.css";
+@import "./simlab.css";
+@import "./ui.css";
+@import "./shaderlab.css";
+@import "./sound.css";
+@import "./madewith.css";
+@import "./foot.css";
+
+/* The landing page: a run of drawing sheets on one stock. */
+
+.noscript {
+  max-width: 40rem;
+  margin: 4rem auto;
+  padding: 0 var(--gutter);
+  display: grid;
+  gap: 1rem;
+}
+
+.sheet {
+  width: min(100% - 2 * var(--gutter), var(--sheet));
+  margin-inline: auto;
+}
+
+/* Sheets after the first are parted by one rule the full width of the stock. */
+.sheet + .sheet,
+.sheet--ruled {
+  border-top: var(--hair) solid var(--rule);
+}
+
+.mast__sheets {
+  display: flex;
+  gap: clamp(0.75rem, 1.6vw, 1.5rem);
+  margin-left: clamp(0.5rem, 2vw, 2rem);
+  font-size: var(--step--1);
+}
+
+.mast__sheets a {
+  display: inline-flex;
+  align-items: center;
+  min-height: 2.75rem;
+  color: var(--ink-soft);
+  text-decoration: none;
+}
+
+.mast__sheets a:hover,
+.mast__sheets a[aria-current="true"] {
+  color: var(--ink);
+  text-decoration: underline;
+  text-decoration-color: var(--live-deep);
+  text-decoration-thickness: 2px;
+  text-underline-offset: 0.45em;
+}
+
+.mast__docs {
+  font-weight: 600;
+}
+
+.mast__menu {
+  display: none;
+}
+
+@media (max-width: 62rem) {
+  .mast__sheets,
+  .mast__docs {
+    display: none;
+  }
+
+  .mast__menu {
+    display: inline-flex;
+  }
+}
+
+/* The contents drawer (a phone's navigation): the engine's Dialog, this page's look. */
+.drawer__scrim {
+  position: fixed;
+  inset: 0;
+  z-index: 60;
+  background: oklch(from var(--ink) l c h / 0.32);
+}
+
+:root[data-scheme="dark"] .drawer__scrim {
+  background: oklch(0.12 0.05 264 / 0.6);
+}
+
+.drawer {
+  position: fixed;
+  inset: 0 0 0 auto;
+  z-index: 61;
+  width: min(20rem, 86vw);
+  display: flex;
+  flex-direction: column;
+  gap: 1.25rem;
+  padding: 1.5rem var(--gutter) 2rem 1.5rem;
+  background: var(--paper);
+  border-left: var(--hair) solid var(--ink);
+  animation: drawer-in 260ms var(--ease-out);
+}
+
+.drawer nav {
+  display: grid;
+}
+
+.drawer nav a {
+  display: flex;
+  align-items: center;
+  min-height: 3rem;
+  border-bottom: var(--hair) solid var(--rule);
+  font-size: var(--step-1);
+  font-stretch: 112%;
+  text-decoration: none;
+}
+
+@keyframes drawer-in {
+  from {
+    clip-path: inset(0 0 0 100%);
+  }
+
+  to {
+    clip-path: inset(0);
+  }
+}
+
+/* A control on the drawing: ruled, square, and inverted (ink and stock swap) when it is pressed or pointed at. */
+.button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.6rem;
+  min-height: 2.75rem;
+  padding: 0 1.15rem;
+  background: transparent;
+  border: var(--hair) solid var(--ink);
+  border-radius: 2px;
+  color: var(--ink);
+  font-weight: 560;
+  font-stretch: 108%;
+  line-height: 1;
+  text-decoration: none;
+  transition:
+    background-color 140ms var(--ease-out),
+    color 140ms var(--ease-out);
+}
+
+.button:hover:not(:disabled, [aria-disabled="true"]) {
+  background: var(--ink);
+  color: var(--paper);
+}
+
+.button:active:not(:disabled, [aria-disabled="true"]) {
+  translate: 0 1px;
+}
+
+.button--primary {
+  background: var(--ink);
+  color: var(--paper);
+}
+
+.button--primary:hover:not(:disabled, [aria-disabled="true"]) {
+  background: var(--live);
+  border-color: var(--ink);
+  color: var(--on-live);
+}
+
+.button:disabled,
+.button[aria-disabled="true"] {
+  border-style: dashed;
+  border-color: var(--rule-strong);
+  color: var(--ink-faint);
+  cursor: default;
+}
+
+.taken {
+  position: fixed;
+  inset: auto var(--gutter) 1rem;
+  z-index: 50;
+  max-width: 34rem;
+  margin-inline: auto;
+  padding: 0.85rem 1rem;
+  background: var(--ink);
+  color: var(--paper);
+  font-size: var(--step--1);
+}
+
+.drawer .button {
+  margin-top: auto;
+}

@@ -1,0 +1,502 @@
+/* Sheet six: the shader lab. A specimen sheet of plates over the bench (a canvas, its controls, its source). */
+
+.slab {
+  display: grid;
+  gap: clamp(1rem, 2vw, 1.5rem);
+}
+
+/* The specimen sheet. */
+.slab__stats {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.15rem 1.1rem;
+  color: var(--ink-soft);
+  font-size: 0.75rem;
+}
+
+.slab__tiles {
+  display: grid;
+  grid-template-columns: repeat(6, minmax(0, 1fr));
+  gap: 0.75rem;
+  min-width: 0;
+  margin: 0;
+  border: 0;
+}
+
+/* A plate is a label around a native radio: arrow keys move through the sheet, and the one chosen is on the bench. */
+.slab__tile {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  background: var(--paper);
+  border: var(--hair) solid var(--rule-strong);
+  border-radius: 2px;
+  cursor: pointer;
+  transition: border-color 140ms var(--ease-out);
+}
+
+.slab__tile:hover,
+.slab__tile:has(:checked) {
+  border-color: var(--ink);
+}
+
+.slab__tile:has(:focus-visible) {
+  outline: 2px solid var(--focus);
+  outline-offset: 3px;
+}
+
+.slab__still {
+  display: flex;
+  align-items: flex-end;
+  padding: 0.6rem;
+  background-color: var(--paper);
+}
+
+.slab__plate {
+  position: relative;
+  display: block;
+  aspect-ratio: 4 / 3;
+  border-bottom: var(--hair) solid var(--rule-strong);
+  overflow: hidden;
+}
+
+.slab__tile:has(:checked) .slab__plate {
+  border-bottom-color: var(--ink);
+}
+
+.slab__tilecanvas,
+.slab__plate > .slab__still {
+  position: absolute;
+  inset: 0;
+  display: block;
+  width: 100%;
+  height: 100%;
+}
+
+.slab__label {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  gap: 0.1rem 0.45rem;
+  align-items: baseline;
+  padding: 0.4rem 0.5rem 0.45rem;
+  flex: 1;
+}
+
+.slab__tile:has(:checked) .slab__label {
+  background: var(--ink);
+  color: var(--paper);
+}
+
+.slab__no {
+  color: var(--ink-soft);
+  font-size: 0.6875rem;
+}
+
+.slab__name {
+  overflow-wrap: normal;
+}
+
+.slab__call {
+  grid-column: 2;
+  color: var(--ink-soft);
+  font-size: 0.6875rem;
+  line-height: 1.35;
+  overflow-wrap: anywhere;
+}
+
+.slab__tile:has(:checked) .slab__no,
+.slab__tile:has(:checked) .slab__call {
+  color: inherit;
+}
+
+/* A tile's lamp, tagged on its plate: filled in the live tone while it animates, an outline while it holds, dashed
+   while it sleeps. */
+.slab__run {
+  position: absolute;
+  top: 0.35rem;
+  right: 0.35rem;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.3rem;
+  padding: 0.15rem 0.35rem;
+  background: var(--paper);
+  border: var(--hair) solid var(--ink);
+  color: var(--ink);
+  font-size: 0.5625rem;
+  line-height: 1.2;
+  white-space: nowrap;
+}
+
+.slab__lamp {
+  width: 0.5rem;
+  height: 0.5rem;
+  border: var(--hair) solid currentColor;
+}
+
+.slab__run[data-run="live"] .slab__lamp {
+  background: var(--live);
+  border-color: var(--ink);
+}
+
+.slab__run[data-run="asleep"] .slab__lamp {
+  border-style: dashed;
+}
+
+.slab__note {
+  max-width: 82ch;
+  padding: 0 0.9rem 0.9rem;
+  color: var(--ink-soft);
+  font-size: var(--step--1);
+}
+
+/* The bench. */
+.slab__bench .plate__head h3 {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 0.2rem 0.6rem;
+}
+
+.slab__benchcall {
+  color: var(--ink-soft);
+  font-size: 0.75rem;
+  font-stretch: 100%;
+  font-weight: 400;
+  letter-spacing: 0;
+  text-transform: none;
+}
+
+.slab__benchnote {
+  color: var(--ink-soft);
+  font-size: 0.75rem;
+}
+
+.slab__benchbody {
+  display: grid;
+  grid-template-columns: minmax(0, 7fr) minmax(0, 5fr);
+  gap: clamp(1rem, 2vw, 1.5rem);
+}
+
+.slab__view {
+  display: grid;
+  align-content: start;
+  gap: 0.9rem;
+  min-width: 0;
+}
+
+.slab__box {
+  position: relative;
+  height: clamp(18rem, 33vw, 29rem);
+  background: var(--paper);
+  border: var(--hair) solid var(--ink);
+  cursor: crosshair;
+  touch-action: manipulation;
+}
+
+.slab__canvas,
+.slab__box > .slab__still {
+  position: absolute;
+  inset: 0;
+  display: block;
+  width: 100%;
+  height: 100%;
+}
+
+.slab__knobs {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr)) auto;
+  gap: 0.75rem 1.1rem;
+  align-items: end;
+}
+
+.slab__knob {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 0.1rem 0.5rem;
+  align-items: baseline;
+  min-width: 0;
+}
+
+.slab__knob output {
+  font-size: 0.8125rem;
+}
+
+.slab__press {
+  min-width: 6rem;
+}
+
+/* The engine's Slider is a native range input; it writes `--value` (0..1), drawn here as a meter's fill. */
+.slab__slider {
+  grid-column: 1 / -1;
+  width: 100%;
+  height: 1.75rem;
+  margin: 0;
+  background: transparent;
+  cursor: pointer;
+  appearance: none;
+}
+
+.slab__slider::-webkit-slider-runnable-track {
+  height: 0.5rem;
+  background: linear-gradient(to right, var(--live) calc(var(--value, 0) * 100%), var(--paper) 0);
+  border: var(--hair) solid var(--ink);
+}
+
+.slab__slider::-moz-range-track {
+  height: 0.5rem;
+  background: linear-gradient(to right, var(--live) calc(var(--value, 0) * 100%), var(--paper) 0);
+  border: var(--hair) solid var(--ink);
+}
+
+.slab__slider::-webkit-slider-thumb {
+  width: 0.75rem;
+  height: 1.25rem;
+  margin-top: calc(-0.375rem - 1px);
+  background: var(--paper);
+  border: var(--hair) solid var(--ink);
+  border-radius: 1px;
+  appearance: none;
+}
+
+.slab__slider::-moz-range-thumb {
+  box-sizing: border-box;
+  width: 0.75rem;
+  height: 1.25rem;
+  background: var(--paper);
+  border: var(--hair) solid var(--ink);
+  border-radius: 1px;
+}
+
+.slab__readout {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 0.6rem 1rem;
+  margin: 0;
+  padding-top: 0.8rem;
+  border-top: var(--hair) solid var(--rule);
+}
+
+.slab__readout dd {
+  margin: 0;
+  font-size: 0.8125rem;
+  overflow-wrap: anywhere;
+}
+
+.slab__renders {
+  grid-column: 1 / -1;
+}
+
+.slab__aside {
+  color: var(--ink-soft);
+  font-size: var(--step--1);
+}
+
+/* The editor: a real textarea over a gutter of this text's own line numbers. */
+.slab__editor {
+  display: flex;
+  flex-direction: column;
+  gap: 0.6rem;
+  min-width: 0;
+}
+
+.slab__edhead {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+}
+
+.slab__edtools {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+}
+
+.slab__composed {
+  color: var(--ink-soft);
+  font-size: 0.75rem;
+  line-height: 1.55;
+}
+
+.slab__code {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  height: clamp(22rem, 36vw, 31rem);
+  background: var(--paper-sunk);
+  border: var(--hair) solid var(--ink);
+  overflow: hidden;
+}
+
+.slab__code[data-failed] {
+  border-style: dashed;
+}
+
+.slab__code:focus-within {
+  outline: 2px solid var(--focus);
+  outline-offset: 3px;
+}
+
+.slab__gutterwrap {
+  overflow: hidden;
+  border-right: var(--hair) solid var(--rule-strong);
+}
+
+.slab__gutter,
+.slab__textarea {
+  font-size: 0.75rem;
+  line-height: 1.5;
+}
+
+.slab__gutter {
+  margin: 0;
+  padding: 0.6rem 0.45rem 0.6rem 0.6rem;
+  list-style: none;
+  color: var(--ink-faint);
+  text-align: right;
+}
+
+.slab__gutter li[data-error] {
+  background: var(--live);
+  color: var(--on-live);
+  font-weight: 700;
+}
+
+.slab__textarea {
+  display: block;
+  width: 100%;
+  height: 100%;
+  margin: 0;
+  padding: 0.6rem 0.7rem;
+  background: transparent;
+  border: 0;
+  border-radius: 0;
+  color: var(--ink);
+  font-family: var(--font-mono);
+  font-variant-ligatures: none;
+  white-space: pre;
+  overflow: auto;
+  resize: none;
+  tab-size: 2;
+}
+
+.slab__textarea:focus-visible {
+  outline: 0;
+}
+
+.slab__log {
+  color: var(--ink-soft);
+  font-size: var(--step--1);
+}
+
+.slab__log strong {
+  color: var(--ink);
+}
+
+.slab__log pre {
+  max-height: 9rem;
+  margin: 0.45rem 0 0;
+  padding: 0.5rem 0.65rem;
+  overflow: auto;
+  background: var(--paper-sunk);
+  border: var(--hair) solid var(--ink);
+  color: var(--ink);
+  font-size: 0.75rem;
+  line-height: 1.5;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+
+/* The stills: a specimen without its shader, the same idea in the two inks. */
+.slab__still[data-still="rings"] {
+  background-image: repeating-radial-gradient(circle at 38% 58%, transparent 0 9px, var(--ink) 9px 10px);
+}
+
+.slab__still[data-still="grid"] {
+  background-image:
+    linear-gradient(var(--ink) 1px, transparent 1px), linear-gradient(90deg, var(--ink) 1px, transparent 1px);
+  background-size: 24px 24px;
+}
+
+.slab__still[data-still="rules"] {
+  background-image: repeating-linear-gradient(45deg, var(--ink) 0 1px, transparent 1px 6px);
+}
+
+.slab__still[data-still="shape"] {
+  background-image:
+    radial-gradient(circle at 42% 50%, var(--live) 0 22%, var(--ink) 22% calc(22% + 1.5px), transparent 0),
+    repeating-radial-gradient(circle at 42% 50%, transparent 0 11px, var(--rule-strong) 11px 12px);
+}
+
+.slab__still[data-still="dial"] {
+  background-image:
+    repeating-conic-gradient(from 0deg at 50% 50%, var(--rule-strong) 0 0.6deg, transparent 0.6deg 15deg),
+    repeating-radial-gradient(circle at 50% 50%, transparent 0 15px, var(--ink) 15px 16px);
+}
+
+.slab__still[data-still="dots"] {
+  background-image: radial-gradient(circle, var(--ink) 0 1.5px, transparent 2px);
+  background-size: 6px 6px;
+}
+
+.slab__still[data-still="checker"] {
+  background-image: conic-gradient(var(--ink) 25%, transparent 0 50%, var(--ink) 0 75%, transparent 0);
+  background-size: 4px 4px;
+}
+
+.slab__stillnote {
+  padding: 0.2rem 0.45rem;
+  background: var(--paper);
+  border: var(--hair) solid var(--ink);
+}
+
+@media (max-width: 75rem) {
+  .slab__tiles {
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 62rem) {
+  .slab__benchbody {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .slab__code {
+    height: 24rem;
+  }
+}
+
+@media (max-width: 40rem) {
+  .slab__tiles {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 0.6rem;
+  }
+
+  .slab__box {
+    height: clamp(16rem, 72vw, 22rem);
+  }
+
+  .slab__knobs {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .slab__slider {
+    height: 2.75rem;
+  }
+
+  .slab__press {
+    min-height: 2.75rem;
+  }
+
+  .slab__readout {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .slab__code {
+    height: 20rem;
+  }
+
+  .slab__edtools .button {
+    min-height: 2.75rem;
+  }
+}

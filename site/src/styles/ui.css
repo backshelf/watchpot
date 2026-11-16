@@ -1,0 +1,666 @@
+/*
+ * Sheet five: the headless UI. The pot's panel in two prints, what the engine wrote beside it, the printed figures
+ * under it. Everything prefixed `pot__` is the look this page gives the panel; in the "as shipped" print no element on
+ * the panel carries a class, and the rule below hands every one of them back to the browser's own stylesheet.
+ */
+
+.ui {
+  display: grid;
+  grid-template-columns: minmax(0, 7fr) minmax(0, 5fr);
+  gap: clamp(1rem, 2vw, 1.5rem);
+  align-items: start;
+}
+
+/* The flip stays in reach while the panel is long: its strip sticks under the masthead. */
+.ui__boardhead {
+  position: sticky;
+  top: 3.5rem;
+  z-index: 2;
+  background: var(--paper-lift);
+}
+
+.ui__flip {
+  flex-wrap: wrap;
+  min-width: 0;
+  margin: 0;
+  padding: 0;
+}
+
+.ui__flip > * {
+  font-family: var(--font-sans);
+  font-size: var(--step--1);
+}
+
+.ui__flip > legend {
+  min-width: 0;
+  min-height: 0;
+  padding: 0;
+  border: 0;
+}
+
+.ui__specimen {
+  min-height: 16rem;
+  color-scheme: light;
+}
+
+/* As shipped: the browser's own drawing of whatever the engine rendered. Inline styles the engine sets still hold. */
+.ui__specimen[data-print="bare"] *,
+.pot-layer[data-print="bare"] * {
+  all: revert;
+}
+
+/* The browser maps `hidden` as an attribute style, which `revert` passes over: put its default back. */
+.ui__specimen[data-print="bare"] [hidden],
+.pot-layer[data-print="bare"] [hidden] {
+  display: none;
+}
+
+.ui__caption {
+  margin-top: 1rem;
+}
+
+.ui__caption code {
+  color: var(--ink);
+}
+
+/* ---- The panel, as this page dresses it ---- */
+
+.pot {
+  display: grid;
+  gap: 1rem;
+}
+
+.pot__tabs {
+  display: flex;
+  border: var(--hair) solid var(--ink);
+  border-radius: 2px;
+}
+
+.pot__tab {
+  flex: 1 1 0;
+  min-height: 2.75rem;
+  padding: 0 0.75rem;
+  background: transparent;
+  border: 0;
+  border-right: var(--hair) solid var(--ink);
+  font-stretch: 125%;
+  font-weight: 560;
+  font-size: 0.6875rem;
+  letter-spacing: 0.09em;
+  text-transform: uppercase;
+  transition:
+    background-color 140ms var(--ease-out),
+    color 140ms var(--ease-out);
+}
+
+.pot__tab:last-child {
+  border-right: 0;
+}
+
+.pot__tab:hover {
+  background: var(--paper-sunk);
+}
+
+.pot__tab[data-state="active"] {
+  background: var(--ink);
+  color: var(--paper);
+}
+
+.pot__panel:not([hidden]) {
+  display: grid;
+  gap: 1rem;
+  padding-top: 0.25rem;
+}
+
+.pot__row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: end;
+  justify-content: space-between;
+  gap: 1rem 2rem;
+}
+
+.pot__figure,
+.pot__field {
+  display: grid;
+  gap: 0.2rem;
+  min-width: 0;
+}
+
+.pot__field {
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center;
+  column-gap: 1rem;
+  flex: 1 1 16rem;
+}
+
+.pot__label {
+  color: var(--ink-soft);
+  font-stretch: 125%;
+  font-weight: 560;
+  font-size: 0.625rem;
+  letter-spacing: 0.09em;
+  text-transform: uppercase;
+}
+
+.pot__field .pot__label {
+  grid-column: 1 / -1;
+}
+
+.pot__value,
+.pot__count {
+  font-family: var(--font-mono);
+  font-variant-numeric: tabular-nums;
+  font-feature-settings: "zero" 1;
+  font-size: clamp(1.75rem, 1.4rem + 1.4vw, 2.5rem);
+  font-weight: 500;
+  line-height: 1;
+  letter-spacing: -0.03em;
+}
+
+.pot__aside {
+  color: var(--ink-soft);
+  font-family: var(--font-mono);
+  font-size: var(--step--1);
+}
+
+.pot__hint {
+  color: var(--ink-soft);
+  font-size: var(--step--1);
+}
+
+.pot__lid {
+  min-height: 3.25rem;
+  padding-inline: 1.6rem;
+  font-size: var(--step-1);
+}
+
+.pot__lid[data-holding] {
+  background: var(--live);
+  color: var(--on-live);
+}
+
+/* The bar in whole steps: the engine writes one `[data-step]` per step and lights the drawn share. */
+.pot__steps {
+  display: grid;
+  grid-template-columns: repeat(12, minmax(0, 1fr));
+  gap: 3px;
+}
+
+.pot__steps > [data-step] {
+  height: 0.85rem;
+  border: var(--hair) solid var(--ink);
+  background: var(--paper);
+}
+
+.pot__steps > [data-lit] {
+  background: var(--live);
+}
+
+.pot__stepsays {
+  grid-column: 1 / -1;
+  margin-top: 0.3rem;
+  color: var(--ink-soft);
+  font-family: var(--font-mono);
+  font-size: var(--step--1);
+}
+
+.pot__open {
+  justify-self: start;
+}
+
+.pot__count {
+  padding: 0.15rem 0.35rem;
+  margin-inline: -0.35rem;
+}
+
+.pot__count[data-warn] {
+  background: var(--live);
+  color: var(--on-live);
+}
+
+.pot__watch {
+  justify-self: start;
+}
+
+.pot__watch[aria-pressed="true"] {
+  background: var(--live);
+  color: var(--on-live);
+}
+
+/* The native range, drawn from the `--value` the engine writes on it. */
+.pot__slider {
+  appearance: none;
+  width: 100%;
+  min-width: 8rem;
+  height: 2.75rem;
+  margin: 0;
+  background:
+    linear-gradient(var(--ink), var(--ink)) left center / calc(var(--value, 0) * 100%) 3px no-repeat,
+    linear-gradient(var(--rule-strong), var(--rule-strong)) center / 100% 1px no-repeat;
+  cursor: pointer;
+}
+
+.pot__slider::-webkit-slider-thumb {
+  appearance: none;
+  width: 0.8rem;
+  height: 1.6rem;
+  background: var(--paper-lift);
+  border: var(--hair) solid var(--ink);
+  border-radius: 1px;
+}
+
+.pot__slider::-moz-range-thumb {
+  width: 0.8rem;
+  height: 1.6rem;
+  background: var(--paper-lift);
+  border: var(--hair) solid var(--ink);
+  border-radius: 1px;
+}
+
+.pot__slider:disabled {
+  cursor: default;
+  opacity: 0.55;
+}
+
+.pot__toasts {
+  display: grid;
+  gap: 0.5rem;
+}
+
+.pot__toasts > [data-toast] {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem 1rem;
+  padding: 0.45rem 0.45rem 0.45rem 0.8rem;
+  border: var(--hair) solid var(--ink);
+  border-radius: 2px;
+  background: var(--paper);
+  font-size: var(--step--1);
+  animation: pot-in 260ms var(--ease-out);
+}
+
+.pot__toasttitle {
+  font-weight: 600;
+}
+
+/* The sheet's layer: outside the page root, so the root can go inert under it. In both prints it only places. */
+.pot-layer {
+  position: fixed;
+  inset: 0;
+  z-index: 70;
+  overflow: auto;
+  padding: 18vh var(--gutter) 2rem;
+  color-scheme: light;
+}
+
+/* Native controls follow the page's print, in the panel and on its sheet. */
+:root[data-scheme="dark"] .ui__specimen,
+:root[data-scheme="dark"] .pot-layer {
+  color-scheme: dark;
+}
+
+.pot__scrim {
+  position: fixed;
+  inset: 0;
+  background: oklch(from var(--ink) l c h / 0.32);
+}
+
+:root[data-scheme="dark"] .pot__scrim {
+  background: oklch(0.12 0.05 264 / 0.6);
+}
+
+.pot__sheet {
+  position: relative;
+  inset: auto;
+  display: grid;
+  width: 100%;
+  max-width: 30rem;
+  height: auto;
+  margin: 0 auto;
+  padding: 0;
+  background: var(--paper-lift);
+  border: var(--hair) solid var(--ink);
+  border-radius: 2px;
+  color: var(--ink);
+  animation: pot-in 220ms var(--ease-out);
+}
+
+.pot__sheettitle {
+  padding: 0.75rem 0.9rem;
+  border-bottom: var(--hair) solid var(--ink);
+  font-size: var(--step-1);
+}
+
+.pot__sheetline {
+  padding: 0.9rem;
+  color: var(--ink-soft);
+}
+
+.pot__sheetactions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  padding: 0 0.9rem 0.9rem;
+}
+
+.pot__confirm:not(:disabled) {
+  background: var(--live);
+  color: var(--on-live);
+}
+
+.pot__confirm[data-armed] {
+  background: var(--ink);
+  color: var(--paper);
+}
+
+@keyframes pot-in {
+  from {
+    clip-path: inset(0 0 100% 0);
+  }
+
+  to {
+    clip-path: inset(0);
+  }
+}
+
+/* ---- What the engine wrote ---- */
+
+.uiread__count {
+  color: var(--ink-soft);
+  font-size: 0.75rem;
+}
+
+.uiread__body {
+  display: grid;
+  gap: 1.25rem;
+}
+
+.uiread__cap {
+  margin-bottom: 0.4rem;
+  color: var(--ink-soft);
+}
+
+.uiread__held {
+  min-height: 15.5rem;
+}
+
+.uiread__who {
+  margin-bottom: 0.5rem;
+  font-size: 1.0625rem;
+  overflow-wrap: anywhere;
+}
+
+.uiread__attrs {
+  display: grid;
+  margin: 0;
+  border-top: var(--hair) solid var(--rule);
+  font-size: 0.75rem;
+  line-height: 1.45;
+}
+
+.uiread__attrs > div {
+  display: grid;
+  grid-template-columns: 9.5rem minmax(0, 1fr);
+  gap: 0.75rem;
+  padding: 0.25rem 0.4rem;
+  border-bottom: var(--hair) solid var(--rule);
+  transition: background-color 400ms var(--ease-out);
+}
+
+.uiread__attrs dt {
+  color: var(--ink-soft);
+  overflow-wrap: anywhere;
+}
+
+.uiread__attrs .is-live dt {
+  color: var(--on-live);
+}
+
+.uiread__attrs dd {
+  margin: 0;
+  overflow-wrap: anywhere;
+}
+
+.uiread__none {
+  color: var(--ink-faint);
+}
+
+.uiread__attrs .is-live .uiread__none {
+  color: var(--on-live);
+}
+
+.uiread__log {
+  min-height: 13.5rem;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  border-top: var(--hair) solid var(--rule);
+  font-size: 0.75rem;
+  line-height: 1.45;
+}
+
+.uiread__log li {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0 0.75rem;
+  padding: 0.25rem 0;
+  border-bottom: var(--hair) solid var(--rule);
+}
+
+.uiread__on {
+  color: var(--ink-soft);
+}
+
+.uiread__change {
+  flex-basis: 100%;
+  overflow-wrap: anywhere;
+}
+
+.uiread__empty {
+  color: var(--ink-soft);
+  font-size: var(--step--1);
+}
+
+/* ---- The printed figures ---- */
+
+.uifig {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: clamp(1rem, 2vw, 1.5rem);
+  margin: clamp(1.75rem, 3vw, 2.5rem) 0 0;
+}
+
+.uifig__plate {
+  margin: 0;
+}
+
+.uifig__defs {
+  position: absolute;
+  overflow: hidden;
+}
+
+.uifig__defs path {
+  stroke: var(--ink);
+  stroke-opacity: 0.4;
+  stroke-width: 1;
+}
+
+.uifig__plate .plate__body {
+  display: grid;
+  gap: 0.5rem;
+}
+
+.uifig__plate .caption {
+  margin-top: 0.25rem;
+}
+
+/* Dark bars on a pale ground in both prints, with a quiet zone either side, so a phone's camera reads it. */
+.uifig__barcode {
+  width: 100%;
+  height: 4.5rem;
+  padding: 0.5rem 1rem;
+  background: var(--paper-lift);
+  color: var(--ink);
+  border: var(--hair) solid var(--rule);
+}
+
+:root[data-scheme="dark"] .uifig__barcode {
+  background: var(--ink);
+  color: var(--paper-sunk);
+}
+
+.uifig__human {
+  font-size: 0.75rem;
+  letter-spacing: 0.18em;
+  text-align: center;
+}
+
+.uifig__flaps {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 3px;
+  min-height: 4.5rem;
+  align-items: center;
+  perspective: 20rem;
+}
+
+.uifig__flaps [data-flap] {
+  position: relative;
+  display: grid;
+  place-items: center;
+  min-width: 1.75rem;
+  height: 2.75rem;
+  border: var(--hair) solid var(--ink);
+  border-radius: 2px;
+  background: var(--paper-sunk);
+  font-size: 1.375rem;
+  transform-origin: 50% 50%;
+  animation: uifig-flap 260ms var(--ease-out);
+}
+
+.uifig__flaps [data-flap]::after {
+  content: "";
+  position: absolute;
+  inset: 50% 0 auto;
+  border-top: var(--hair) solid var(--rule-strong);
+}
+
+.uifig__flaps [data-gap] {
+  min-width: 0.5rem;
+  border-color: transparent;
+  background: none;
+}
+
+.uifig__flaps [data-gap]::after {
+  content: none;
+}
+
+@keyframes uifig-flap {
+  from {
+    transform: rotateX(-70deg);
+  }
+
+  to {
+    transform: none;
+  }
+}
+
+.uifig__spark {
+  width: 100%;
+  height: 4.5rem;
+  overflow: visible;
+  color: var(--ink);
+}
+
+.uifig__spark [data-line] {
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 1.5;
+}
+
+.uifig__spark [data-area] {
+  fill: url("#uifig-hatch");
+  stroke: none;
+}
+
+.uifig__spark [data-dot] {
+  fill: var(--live);
+  stroke: var(--ink);
+  stroke-width: 1;
+}
+
+.uifig__ruler {
+  display: block;
+  height: 1.5rem;
+  margin-top: 1.75rem;
+  margin-bottom: 0.75rem;
+  color: var(--ink);
+}
+
+.uifig__ruler [data-caret] {
+  position: absolute;
+  top: -0.6rem;
+  bottom: -0.3rem;
+  width: 3px;
+  margin-left: -1px;
+  background: var(--live-deep);
+  transition: left 600ms var(--ease-out);
+}
+
+.uifig__ruler [data-caret]::before {
+  content: "";
+  position: absolute;
+  top: -0.45rem;
+  left: -0.3rem;
+  border: 0.3rem solid transparent;
+  border-top-color: var(--live-deep);
+  border-bottom: 0;
+}
+
+/* ---- Phone ---- */
+
+@media (max-width: 62rem) {
+  .ui {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .uifig {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .uiread__held {
+    min-height: 0;
+  }
+
+  .uiread__log {
+    min-height: 0;
+  }
+}
+
+@media (max-width: 34rem) {
+  .uifig {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .ui__flip {
+    display: flex;
+    width: 100%;
+  }
+
+  .ui__flip > * {
+    flex: 1 1 auto;
+    min-height: 2.75rem;
+  }
+
+  .pot__lid,
+  .pot__open,
+  .pot__watch {
+    width: 100%;
+  }
+
+  .uiread__attrs > div {
+    grid-template-columns: minmax(6rem, 2fr) minmax(0, 3fr);
+  }
+}

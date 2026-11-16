@@ -9,3 +9,7 @@ dsp/target/
 
 # Local only: what is parked for later.
 /ROADMAP.md
+
+# The site: build output (and a second dev server's), and the design tool's working files.
+site/dist-*/
+site/.impeccable/
