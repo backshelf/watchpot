@@ -17,7 +17,7 @@ export interface StatDef {
     softcap?: Softcap;
     hardcap?: number;
 }
-/** What a node does to a stat: add or multiply. */
+/** What a node does to a stat: add or multiply (`mult`, where the live graph's `LiveEffect` says `op: "mul"`). */
 export interface Effect {
     stat: string;
     add?: number;
@@ -44,7 +44,10 @@ export declare function busOf(contributions: readonly Contribution[]): StatBus;
 export declare function statTotals(bus: StatBus, id: string): StatTotals;
 /** The softcap's reduction of `value`, or `value` itself below its start. Monotonic and never above `value`. */
 export declare function applySoftcap(value: number, cap: Softcap | undefined): number;
-/** A stat's value: `(base + add) x mult`, softcapped, then hardcapped. */
+/**
+ * A stat's value: `(base + add) x mult`, softcapped, then hardcapped. `base` defaults to 0, where the live graph's
+ * (`liveIndex`) defaults to 1: a stat with only multipliers on it comes to 0 here, so pass 1 for a multiplier stat.
+ */
 export declare function statValue(bus: StatBus, id: string, base?: number, def?: StatDef): number;
 /** A stat's base, additions, multiplier, raw and capped value, for a breakdown view. */
 export interface StatBreakdown {
@@ -61,5 +64,8 @@ export interface StatBreakdown {
     /** Every contribution to this stat, in the order it was collected. */
     sources: Contribution[];
 }
-/** Everything that feeds a stat and what it comes to: the tree lines and the "fed by" lots are built from this. */
+/**
+ * Everything that feeds a stat and what it comes to: the tree lines and the "fed by" lots are built from this. `base`
+ * defaults to 0, as in `statValue` (the live graph's defaults to 1).
+ */
 export declare function explainStat(bus: StatBus, id: string, base?: number, def?: StatDef): StatBreakdown;
