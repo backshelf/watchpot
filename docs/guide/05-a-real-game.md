@@ -409,7 +409,7 @@ function Stations() {
   const st = useGameView();
   const [mode, setMode] = useState<BuyMode>(1);
   const balance = st.wallet[MAIN];
-  const list = stations.rules.list;
+  const list = stations.def.list;
   // ...
   return (
     <Plate
@@ -428,13 +428,13 @@ function Stations() {
       <ul className={s.stations}>
         {shown.map((def) => {
           const owned = st.stations.owned[def.id] ?? 0;
-          const open = stations.rules.open(st, def.id);
-          const affordable = stations.rules.affordable(st, def.id);
-          const until = stations.rules.untilMilestone(st, def.id) ?? 1;
+          const open = stations.select.open(st, def.id);
+          const affordable = stations.select.affordable(st, def.id);
+          const until = stations.select.untilMilestone(st, def.id) ?? 1;
           const count = Math.max(1, buyCount(mode, { affordable, untilNext: until }));
-          const price: Decimal = stations.rules.price(st, def.id, count);
+          const price: Decimal = stations.select.price(st, def.id, count);
           const can = open && price.lte(balance);
-          const rate = owned > 0 ? stations.rules.rate(st, def.id) : ZERO;
+          const rate = owned > 0 ? stations.select.rate(st, def.id) : ZERO;
           // ...
                 <p className={s.name}>{def.name}</p>
                 <p className={s.line}>{owned > 0 ? `${num(rate, 1)}${COPY.counter.perSecond}` : def.line}</p>
@@ -456,13 +456,13 @@ Three kinds of thing meet here, and each comes from a different layer.
 
 **State, from the store.** `useGameView()` returns the whole game state, redrawn promptly after the player's input and a few times a second otherwise. `useGameStore()` returns the store itself, for calling actions. Both come from `src/app/hooks.ts`, where the game makes them once with `createRuntimeHooks<GameStore>()` from `watchpot/react`. For a figure that must move every tick, a screen uses the third hook, `useGameState(selector)`, with a narrow selector instead.
 
-**Rules, from the feature.** The screen never works out a price or a rate itself. It asks `stations.rules`: `open`, `affordable`, `untilMilestone`, `price`, `rate`. These are the same functions the engine uses inside the feature, so the number on the button is the number the purchase will charge. `rate` already includes `stationMult`, so Darkness +1 shows up here without the screen knowing it exists. (On the current engine, the five lines from `affordable` to `can` are one call, `stations.rules.row(st, def.id, mode)`, which returns the count, its price and whether it can be bought. [Chapter 6](06-the-first-page.md#the-generators-generators) uses it.)
+**Rules, from the feature.** The screen never works out a price or a rate itself. It asks `stations.select`: `open`, `affordable`, `untilMilestone`, `price`, `rate`. These are the same functions the engine uses inside the feature, so the number on the button is the number the purchase will charge. `rate` already includes `stationMult`, so Darkness +1 shows up here without the screen knowing it exists. (On the current engine, the five lines from `affordable` to `can` are one call, `stations.select.row(st, def.id, mode)`, which returns the count, its price and whether it can be bought. [Chapter 6](06-the-first-page.md#the-generators-generators) uses it.)
 
 **An action, through the store.** `store.getState().stations.buy(def.id, count)` is the feature's action. The screen reads the store at the moment of the click, not the `st` it rendered with, so the purchase always sees the current balance.
 
 The components split along the layers too. `BuyAmount` and `buyCount` come from `watchpot/ui`: the buy-mode switch is a headless engine primitive that brings its keyboard behaviour and ARIA but no look, and `buyCount` turns "×1, ×10, next, max" into a count. `Plate`, `Btn` and `Meter` come from the game's own `src/ui/`, each a component with its own CSS module and no English inside it; every word reaches them from `src/content/copy.ts` as `COPY.*`. [Chapter 10](10-the-page.md) and [chapter 11](11-look-and-sound.md) take this apart properly.
 
-One small inconsistency is visible in this excerpt. The callbacks you give `generators` take the station's definition (`mult: (s, def) => ...`), but the rules you call from a screen take its id (`stations.rules.price(st, def.id, count)`). You will keep both in mind until it becomes habit.
+One small inconsistency is visible in this excerpt. The callbacks you give `generators` take the station's definition (`mult: (s, def) => ...`), but the rules you call from a screen take its id (`stations.select.price(st, def.id, count)`). You will keep both in mind until it becomes habit.
 
 ### 5. `defineGame`: the list, and its order
 

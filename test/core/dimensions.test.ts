@@ -6,6 +6,7 @@ import {
   type Decimal,
   defineGame,
   dimensions,
+  feature,
   HOUR_MS,
   vocab,
 } from "watchpot/core";
@@ -83,8 +84,8 @@ describe("dimensions", () => {
     }
     a.getState().tick(30_000, T0 + 30_000);
     b.setState((d) => {
-      chain.produce(d, 10);
-      chain.produce(d, 20);
+      chain.draft.produce(d, 10);
+      chain.draft.produce(d, 20);
     });
     expect(num(b.getState().wallet.gold)).toBeCloseTo(num(a.getState().wallet.gold), 6);
     expect(num(b.getState().chain.amount.first)).toBeCloseTo(num(a.getState().chain.amount.first), 6);
@@ -95,21 +96,21 @@ describe("dimensions", () => {
     store.getState().wallet.credit("gold", 90);
     let bought = 0;
     store.setState((d) => {
-      bought = chain.buy(d, "first", 2);
+      bought = chain.draft.buy(d, "first", 2);
     });
     expect(bought).toBe(2);
     store.setState((d) => {
-      bought = chain.buy(d, "first", 99);
+      bought = chain.draft.buy(d, "first", 99);
     });
     expect(bought).toBe(0);
     store.setState((d) => {
-      bought = chain.buyMax(d, "first");
+      bought = chain.draft.buyMax(d, "first");
     });
     expect(bought).toBe(2);
     expect(store.getState().chain.bought.first).toBe(4);
     store.getState().wallet.credit("gold", 1000);
     store.setState((d) => {
-      bought = chain.maxAll(d);
+      bought = chain.draft.maxAll(d);
     });
     expect(bought).toBeGreaterThan(0);
     expect(store.getState().chain.bought.second).toBeGreaterThan(0);
@@ -135,9 +136,9 @@ describe("dimensions", () => {
     const { store } = freshStore(game);
     store.getState().wallet.credit("gold", 1000);
     expect(store.getState().chain.buy("second")).toBe(false);
-    expect(chain.chain.open(store.getState(), "second")).toBe(false);
+    expect(chain.select.open(store.getState(), "second")).toBe(false);
     store.getState().chain.buy("first");
-    expect(chain.chain.open(store.getState(), "second")).toBe(true);
+    expect(chain.select.open(store.getState(), "second")).toBe(true);
     expect(store.getState().chain.buy("second", 99)).toBe(false);
     expect(store.getState().chain.bought.second).toBe(0);
   });
@@ -145,15 +146,15 @@ describe("dimensions", () => {
   test("every ten bought doubles the tier; the price reads what was bought, not what is held", () => {
     const { store } = freshStore(game);
     store.getState().wallet.credit("gold", 1e9);
-    expect(chain.chain.untilSet(store.getState(), "first")).toBe(10);
+    expect(chain.select.untilSet(store.getState(), "first")).toBe(10);
     expect(store.getState().chain.buySet("first")).toBe(true);
     expect(store.getState().chain.bought.first).toBe(10);
-    expect(num(chain.chain.setBonus(store.getState(), "first"))).toBe(2);
-    expect(num(chain.chain.perSecond(store.getState(), "first"))).toBe(20);
+    expect(num(chain.select.setBonus(store.getState(), "first"))).toBe(2);
+    expect(num(chain.select.perSecond(store.getState(), "first"))).toBe(20);
 
     store.getState().chain.buy("first", 3);
-    expect(chain.chain.untilSet(store.getState(), "first")).toBe(7);
-    expect(num(chain.chain.price(store.getState(), "first"))).toBe(Math.ceil(10 * 1.5 ** 13));
+    expect(chain.select.untilSet(store.getState(), "first")).toBe(7);
+    expect(num(chain.select.price(store.getState(), "first"))).toBe(Math.ceil(10 * 1.5 ** 13));
   });
 
   test("buyMax spends what it can and stops; maxAll buys the highest tier first", () => {
@@ -176,7 +177,7 @@ describe("dimensions", () => {
     store.getState().chain.buy("second");
     store.getState().wallet.credit("gems", 1e4);
     expect(store.getState().chain.buy("third")).toBe(true);
-    expect(num(chain.chain.rate(store.getState(), "first"))).toBe(2);
+    expect(num(chain.select.rate(store.getState(), "first"))).toBe(2);
   });
 
   test("an absence counts at the away rate, up to its cap, on the same curve", () => {
@@ -224,5 +225,26 @@ describe("dimensions", () => {
     const bought = world.store.getState().chain.bought;
     expect(bought.first).toBeGreaterThan(5);
     expect(bought.second).toBeGreaterThan(0);
+  });
+});
+
+describe("reach", () => {
+  test("a callback reads a reached feature with no annotation, and not one that was not reached", () => {
+    const door = feature({ key: "door", initial: () => ({ open: true }) });
+    const gated = dimensions({
+      key: "gated",
+      wallet,
+      makes: "gold",
+      reach: [door],
+      tiers: [{ id: "a", cost: { base: 1, growth: 1.1 } }],
+      open: (s) => s.door.open && s.wallet.gold.gte(0),
+      mult: (s) => {
+        // @ts-expect-error `lid` was never reached
+        s.lid;
+        return 1;
+      },
+    });
+    expect(gated.def.tiers).toHaveLength(1);
+    expect(gated.needs).toBeUndefined();
   });
 });

@@ -18,12 +18,15 @@ A move is `{ id, cost?: { currency, amount }, value(state), apply(store) }`; `ap
 through. A factory-made feature (`currencies`, `prestige`, `upgradeTree`) takes moves through `withMoves(feature,
 moves)`.
 
-An upgrade tree is the one most often missed: it has no moves of its own, so the auto-player never buys a rank of it
-and does not say so. Wrap it, and list the wrapped feature in `defineGame` ([an upgrade tree](upgrade-tree.md)):
+An upgrade tree declares its own moves, one per node whose next rank can be bought, with no `worth`: the auto-player
+works it out from its objective. Say a `worth(state, node)` in the tree's definition for a node that does not move the
+objective at once ([an upgrade tree](upgrade-tree.md)):
 
 ```ts
-export const mine = withMoves(
-  tree,
-  treeMoves("mine", NODES, (node) => (node.id === "laser" ? 3 : 1)),
-);
+export const mine = upgradeTree({
+  key: "mine",
+  nodes: NODES,
+  wallet,
+  worth: (_s, node) => (node.id === "laser" ? 3 : 1),
+});
 ```

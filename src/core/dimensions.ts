@@ -3,7 +3,16 @@ import { offlineCredit } from "./clock";
 import { type CostCurve, costAt, costOfMany, maxAffordable, stepsOf, untilStep } from "./cost";
 import type { CurrenciesFeature, CurrencyDraft } from "./currencies";
 import { D, type Decimal, type DecimalSource, ONE, ZERO } from "./decimal";
-import { type Feature, type FeatureApi, feature, type Move, type ResetRule } from "./feature";
+import {
+  type Feature,
+  type FeatureApi,
+  feature,
+  type Move,
+  type NeedsOf,
+  type ReachOf,
+  type ReachShape,
+  type ResetRule,
+} from "./feature";
 
 /**
  * Dimensions: a chain of producers where each tier makes the tier below it and the lowest makes a currency. The
@@ -96,14 +105,8 @@ export interface DimensionActions {
   maxAll(): number;
 }
 
-/** A chain's rules, read off the game state: prices, multipliers, rates and what is open. */
-export interface DimensionRules<G, T extends DimensionTier> {
-  readonly tiers: readonly T[];
-  readonly set: DimensionSet | null;
-  /** A tier by id. */
-  tier(id: string): T | undefined;
-  /** The tier's place in the chain, 0 the lowest; -1 for an unknown id. */
-  indexOf(id: string): number;
+/** A chain's read-only questions over state: prices, multipliers, rates and what is open. */
+export interface DimensionsSelect<G> {
   /** Whether the tier can be bought now. */
   open(state: G, id: string): boolean;
   /** The price of the next `count` (default 1) of a tier. */
@@ -120,10 +123,26 @@ export interface DimensionRules<G, T extends DimensionTier> {
   perSecond(state: G, id: string): Decimal;
 }
 
-/** The chain's draft helpers, for a recipe or a step (an autobuyer's `run`). Each returns how many it bought. */
-export interface DimensionHelpers {
+/** The fixed configuration of a dimensions feature: the chain as given, the set bonus, and lookups by id. */
+export interface DimensionsFixed<T extends DimensionTier> {
+  /** The chain, lowest first. */
+  readonly tiers: readonly T[];
+  readonly set: DimensionSet | null;
+  /** A tier by id. */
+  tier(id: string): T | undefined;
+  /** The tier's place in the chain, 0 the lowest; -1 for an unknown id. */
+  indexOf(id: string): number;
+}
+
+/**
+ * The helpers that take a draft first and change it, named like the actions they mirror, for a recipe or a step (an
+ * autobuyer's `run`). The buys return how many they bought.
+ */
+export interface DimensionsDraftHelpers {
   /** Buys exactly `count` (default 1) of a tier inside a recipe, or nothing. */
   buy(draft: object, id: string, count?: number): number;
+  /** Buys what completes the tier's current set inside a recipe, or nothing. */
+  buySet(draft: object, id: string): number;
   /** Buys as many of a tier as the balance covers inside a recipe, `limit` at most. */
   buyMax(draft: object, id: string, limit?: number): number;
   /** `buyMax` on every open tier inside a recipe, highest first. */
@@ -136,15 +155,20 @@ export interface DimensionHelpers {
   produce(draft: object, seconds: number): void;
 }
 
-/** A `dimensions` feature, carrying its rules as `.chain` and the draft helpers `buy`, `buyMax` and `maxAll`. */
+/** The three namespaces of a dimensions feature. */
+export interface DimensionsHelpers<G, T extends DimensionTier> {
+  readonly select: DimensionsSelect<G>;
+  readonly def: DimensionsFixed<T>;
+  readonly draft: DimensionsDraftHelpers;
+}
+
+/** A `dimensions` feature: the feature plus `select`, `def` and `draft`. */
 export type DimensionsFeature<K extends string, G, T extends DimensionTier> = Feature<
   K,
   DimensionsState,
   DimensionActions
 > &
-  DimensionHelpers & {
-    readonly chain: DimensionRules<G, T>;
-  };
+  DimensionsHelpers<G, T>;
 
 /** The share of an absence a chain is credited, and the most of it that counts. */
 export interface DimensionAway {
@@ -163,9 +187,12 @@ export interface DimensionsDef<
   WS extends object,
   WA extends object,
   G extends object,
+  R extends ReachShape = readonly [],
 > {
   /** The saved key. */
   readonly key: K;
+  /** The features the callbacks read, as `feature`'s `reach`; the wallet is reached already. */
+  readonly reach?: R | (() => R);
   /** The chain, lowest first: `tiers[0]` makes the currency, each other tier makes the one before it. */
   readonly tiers: readonly T[];
   /** The currencies feature the chain pays into and buys from. */
@@ -192,8 +219,9 @@ export interface DimensionsDef<
 /**
  * A chain of dimensions as a feature. It saves `{ amount, bought }` under `key`, produces in the step
  * `<key>.produce.chain` (exactly, through `advanceChain`, over a tick and over an absence), buys from `wallet`
- * and carries its rules as `.chain`. A prestige reset starts the chain over unless `reset` says otherwise. The
- * callbacks read the whole game state, so annotate one of them with the game's state type.
+ * and answers questions over state through `select`. A prestige reset starts the chain over unless `reset` says
+ * otherwise. The callbacks read the whole game state (the feature's own slice, the wallet's and what `reach` names),
+ * typed with no annotation.
  */
 export function dimensions<
   const K extends string,
@@ -202,8 +230,11 @@ export function dimensions<
   C extends string,
   WS extends object,
   WA extends object,
-  G extends object = object,
->(def: DimensionsDef<K, T, WK, C, WS, WA, G>): DimensionsFeature<K, G, T> {
+  const R extends ReachShape = readonly [],
+  G extends object = Record<K, DimensionsState> & Record<WK, WS> & ReachOf<R>,
+>(
+  def: DimensionsDef<K, T, WK, C, WS, WA, G, R>,
+): DimensionsFeature<K, G, T> & { readonly needs?: NeedsOf<R> } {
   const { tiers, wallet } = def;
   const set = def.set ?? null;
   const index = new Map<string, number>();
@@ -236,11 +267,7 @@ export function dimensions<
     return t === undefined || i === undefined ? null : [t, i];
   };
 
-  const chain: DimensionRules<G, T> = {
-    tiers,
-    set,
-    tier: (id) => find(id)?.[0],
-    indexOf: (id) => index.get(id) ?? -1,
+  const select: DimensionsSelect<G> = {
     open: (state, id) => {
       const hit = find(id);
       return hit !== null && open(state, hit[0], hit[1]);
@@ -325,7 +352,15 @@ export function dimensions<
     return Number.isFinite(n) ? n : Number.MAX_VALUE;
   };
 
-  const made = feature<K, DimensionsState, DimensionActions, readonly [], Record<never, never>, Own>({
+  /** Buys what completes the tier's current set inside a recipe. */
+  const buySetDraft = (draft: Draft<Own>, id: string): number => {
+    const hit = find(id);
+    if (!hit || !set) return 0;
+    return buyDraft(draft, id, untilStep(boughtOf(draft, hit[0]), set.size), false);
+  };
+
+  const made = feature<K, DimensionsState, DimensionActions, ReachShape, Record<never, never>, Own>({
+    reach: def.reach,
     key: def.key,
     initial: (): DimensionsState => ({
       amount: Object.fromEntries(tiers.map((t) => [t.id, D(t.start ?? 0)])),
@@ -343,9 +378,11 @@ export function dimensions<
       return {
         buy: (id, count = 1) => run(id, count, false) > 0,
         buySet: (id) => {
-          const hit = find(id);
-          if (!hit || !set) return false;
-          return run(id, untilStep(boughtOf(api.get(), hit[0]), set.size), false) > 0;
+          let n = 0;
+          api.set((d) => {
+            n = buySetDraft(d, id);
+          });
+          return n > 0;
         },
         buyMax: (id, limit = Number.POSITIVE_INFINITY) => run(id, limit, true),
         maxAll: () => {
@@ -383,11 +420,16 @@ export function dimensions<
           }),
         ),
   });
-  const helpers: DimensionHelpers = {
-    buy: (draft, id, count = 1) => buyDraft(draft as Draft<Own>, id, count, false),
-    buyMax: (draft, id, limit = Number.POSITIVE_INFINITY) => buyDraft(draft as Draft<Own>, id, limit, true),
-    maxAll: (draft) => maxAllDraft(draft as Draft<Own>),
-    produce: (draft, seconds) => produce(draft as Draft<Own>, seconds),
+  const helpers: DimensionsHelpers<G, T> = {
+    select,
+    def: { tiers, set, tier: (id) => find(id)?.[0], indexOf: (id) => index.get(id) ?? -1 },
+    draft: {
+      buy: (draft, id, count = 1) => buyDraft(draft as Draft<Own>, id, count, false),
+      buySet: (draft, id) => buySetDraft(draft as Draft<Own>, id),
+      buyMax: (draft, id, limit = Number.POSITIVE_INFINITY) => buyDraft(draft as Draft<Own>, id, limit, true),
+      maxAll: (draft) => maxAllDraft(draft as Draft<Own>),
+      produce: (draft, seconds) => produce(draft as Draft<Own>, seconds),
+    },
   };
-  return Object.assign(made, helpers, { chain });
+  return Object.assign(made, helpers) as DimensionsFeature<K, G, T> & { readonly needs?: NeedsOf<R> };
 }

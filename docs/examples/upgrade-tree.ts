@@ -2,14 +2,11 @@ import {
   createGameStorage,
   createIdleStore,
   createMemoryBackend,
-  type Decimal,
   defineGame,
   defineStats,
   type Effect,
   type GraphNode,
-  treeMoves,
   upgradeTree,
-  withMoves,
 } from "watchpot/core";
 import { autoPlayer } from "watchpot/sim";
 import { wallet } from "./add-a-currency";
@@ -48,21 +45,15 @@ const NODES: readonly Node[] = [
  * A tree as a feature: it saves `{ ranks }` and buys through the wallet. `open` holds the laser back until the
  * player has swept up some dust: a closed node refuses with `closed`, and the feature's own readers say so too.
  */
-const tree = upgradeTree({
+export const mine = upgradeTree({
   key: "mine",
   nodes: NODES,
   wallet,
-  open: (s: { wallet: { goldEver: Decimal } }, node) => node.id !== "laser" || s.wallet.goldEver.gte(100),
+  open: (s, node) => node.id !== "laser" || s.wallet.goldEver.gte(100),
+  // The sim's auto-player gets a move per buyable node for free. Say a worth only for a node that does not raise
+  // its objective at once; the rest are worked out.
+  worth: (_s, node) => (node.id === "laser" ? 3 : 1),
 });
-
-/**
- * A tree carries no auto-player moves. These lines give it some: one move per node whose next rank can be bought,
- * worth what the function says. Without them the sim never buys a rank, and says nothing about it.
- */
-export const mine = withMoves(
-  tree,
-  treeMoves("mine", NODES, (node) => (node.id === "laser" ? 3 : 1)),
-);
 
 /** The ranks held, on the engine's `stats`: `s.stats["toy.speed"]`. */
 export const speed = defineStats({
@@ -70,7 +61,7 @@ export const speed = defineStats({
   vocab: TOY,
   reach: () => [mine],
   stats: { "toy.speed": { base: 1 } },
-  contributions: (s) => mine.tree.contributions(s.mine.ranks),
+  contributions: (s) => mine.select.contributions(s),
 });
 
 export const game = defineGame({
@@ -87,7 +78,11 @@ if (import.meta.main) {
   });
   const s = store.getState();
   console.log("laser first:", s.mine.buy("laser")); // fails: closed until 100 gold has been earned
-  console.log("laser open?", mine.open(store.getState(), "laser"), mine.check(store.getState(), "laser"));
+  console.log(
+    "laser open?",
+    mine.select.open(store.getState(), "laser"),
+    mine.select.check(store.getState(), "laser"),
+  );
   console.log("drill:", s.mine.buy("drill"));
   // The stats: the tree's contributions, folded into the summed adds and the multiplier of each stat.
   const b = speed.select.explain(store.getState(), "toy.speed");
@@ -99,5 +94,6 @@ if (import.meta.main) {
   console.log("buyAll bought:", store.getState().mine.buyAll(), store.getState().mine.ranks);
   // The auto-player buys from the tree through the moves above.
   s.wallet.credit("gems", 5);
-  console.log("auto-player:", autoPlayer(game).look(store), store.getState().mine.ranks);
+  const objective = (st: typeof s) => speed.select.value(st, "toy.speed").toNumber();
+  console.log("auto-player:", autoPlayer(game, { objective }).look(store), store.getState().mine.ranks);
 }

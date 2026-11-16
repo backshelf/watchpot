@@ -1,7 +1,7 @@
 import { type CostCurve } from "./cost";
 import type { CurrenciesFeature } from "./currencies";
 import { type Decimal, type DecimalSource } from "./decimal";
-import { type Feature, type ResetRule } from "./feature";
+import { type Feature, type NeedsOf, type ReachOf, type ReachShape, type ResetRule } from "./feature";
 /**
  * Dimensions: a chain of producers where each tier makes the tier below it and the lowest makes a currency. The
  * first tier bought earns the currency; the second earns more of the first; and so on up, so the currency grows as
@@ -57,14 +57,8 @@ export interface DimensionActions {
     /** `buyMax` on every open tier, highest first. Returns how many in all. */
     maxAll(): number;
 }
-/** A chain's rules, read off the game state: prices, multipliers, rates and what is open. */
-export interface DimensionRules<G, T extends DimensionTier> {
-    readonly tiers: readonly T[];
-    readonly set: DimensionSet | null;
-    /** A tier by id. */
-    tier(id: string): T | undefined;
-    /** The tier's place in the chain, 0 the lowest; -1 for an unknown id. */
-    indexOf(id: string): number;
+/** A chain's read-only questions over state: prices, multipliers, rates and what is open. */
+export interface DimensionsSelect<G> {
     /** Whether the tier can be bought now. */
     open(state: G, id: string): boolean;
     /** The price of the next `count` (default 1) of a tier. */
@@ -80,10 +74,25 @@ export interface DimensionRules<G, T extends DimensionTier> {
     /** What the whole of a tier makes a second: of the tier below, or of the currency for the lowest. */
     perSecond(state: G, id: string): Decimal;
 }
-/** The chain's draft helpers, for a recipe or a step (an autobuyer's `run`). Each returns how many it bought. */
-export interface DimensionHelpers {
+/** The fixed configuration of a dimensions feature: the chain as given, the set bonus, and lookups by id. */
+export interface DimensionsFixed<T extends DimensionTier> {
+    /** The chain, lowest first. */
+    readonly tiers: readonly T[];
+    readonly set: DimensionSet | null;
+    /** A tier by id. */
+    tier(id: string): T | undefined;
+    /** The tier's place in the chain, 0 the lowest; -1 for an unknown id. */
+    indexOf(id: string): number;
+}
+/**
+ * The helpers that take a draft first and change it, named like the actions they mirror, for a recipe or a step (an
+ * autobuyer's `run`). The buys return how many they bought.
+ */
+export interface DimensionsDraftHelpers {
     /** Buys exactly `count` (default 1) of a tier inside a recipe, or nothing. */
     buy(draft: object, id: string, count?: number): number;
+    /** Buys what completes the tier's current set inside a recipe, or nothing. */
+    buySet(draft: object, id: string): number;
     /** Buys as many of a tier as the balance covers inside a recipe, `limit` at most. */
     buyMax(draft: object, id: string, limit?: number): number;
     /** `buyMax` on every open tier inside a recipe, highest first. */
@@ -95,10 +104,14 @@ export interface DimensionHelpers {
      */
     produce(draft: object, seconds: number): void;
 }
-/** A `dimensions` feature, carrying its rules as `.chain` and the draft helpers `buy`, `buyMax` and `maxAll`. */
-export type DimensionsFeature<K extends string, G, T extends DimensionTier> = Feature<K, DimensionsState, DimensionActions> & DimensionHelpers & {
-    readonly chain: DimensionRules<G, T>;
-};
+/** The three namespaces of a dimensions feature. */
+export interface DimensionsHelpers<G, T extends DimensionTier> {
+    readonly select: DimensionsSelect<G>;
+    readonly def: DimensionsFixed<T>;
+    readonly draft: DimensionsDraftHelpers;
+}
+/** A `dimensions` feature: the feature plus `select`, `def` and `draft`. */
+export type DimensionsFeature<K extends string, G, T extends DimensionTier> = Feature<K, DimensionsState, DimensionActions> & DimensionsHelpers<G, T>;
 /** The share of an absence a chain is credited, and the most of it that counts. */
 export interface DimensionAway {
     /** 0 to 1: the share of the time away that counts. */
@@ -107,9 +120,11 @@ export interface DimensionAway {
     readonly capMs?: number;
 }
 /** The definition `dimensions` takes. */
-export interface DimensionsDef<K extends string, T extends DimensionTier<C>, WK extends string, C extends string, WS extends object, WA extends object, G extends object> {
+export interface DimensionsDef<K extends string, T extends DimensionTier<C>, WK extends string, C extends string, WS extends object, WA extends object, G extends object, R extends ReachShape = readonly []> {
     /** The saved key. */
     readonly key: K;
+    /** The features the callbacks read, as `feature`'s `reach`; the wallet is reached already. */
+    readonly reach?: R | (() => R);
     /** The chain, lowest first: `tiers[0]` makes the currency, each other tier makes the one before it. */
     readonly tiers: readonly T[];
     /** The currencies feature the chain pays into and buys from. */
@@ -135,7 +150,10 @@ export interface DimensionsDef<K extends string, T extends DimensionTier<C>, WK 
 /**
  * A chain of dimensions as a feature. It saves `{ amount, bought }` under `key`, produces in the step
  * `<key>.produce.chain` (exactly, through `advanceChain`, over a tick and over an absence), buys from `wallet`
- * and carries its rules as `.chain`. A prestige reset starts the chain over unless `reset` says otherwise. The
- * callbacks read the whole game state, so annotate one of them with the game's state type.
+ * and answers questions over state through `select`. A prestige reset starts the chain over unless `reset` says
+ * otherwise. The callbacks read the whole game state (the feature's own slice, the wallet's and what `reach` names),
+ * typed with no annotation.
  */
-export declare function dimensions<const K extends string, T extends DimensionTier<C>, WK extends string, C extends string, WS extends object, WA extends object, G extends object = object>(def: DimensionsDef<K, T, WK, C, WS, WA, G>): DimensionsFeature<K, G, T>;
+export declare function dimensions<const K extends string, T extends DimensionTier<C>, WK extends string, C extends string, WS extends object, WA extends object, const R extends ReachShape = readonly [], G extends object = Record<K, DimensionsState> & Record<WK, WS> & ReachOf<R>>(def: DimensionsDef<K, T, WK, C, WS, WA, G, R>): DimensionsFeature<K, G, T> & {
+    readonly needs?: NeedsOf<R>;
+};

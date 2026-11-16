@@ -1,7 +1,7 @@
 import type { Draft } from "immer";
 import type { CurrenciesFeature } from "./currencies";
 import { type Decimal, type DecimalSource } from "./decimal";
-import { type Feature, type ResetRule } from "./feature";
+import { type Feature, type NeedsOf, type ReachOf, type ReachShape, type ResetRule } from "./feature";
 import type { CallbackContext } from "./gauge";
 import { type RngState } from "./rng";
 /**
@@ -64,16 +64,43 @@ export declare function clickShare(base: DecimalSource, perSecond: DecimalSource
 export declare function comboAt(state: Pick<ClickerState, "combo" | "lastAt">, now: number, combo?: ClickCombo): number;
 /** The combo shown at `now`: the last press's, until its window runs out. */
 export declare function comboShown(state: Pick<ClickerState, "combo" | "lastAt">, now: number, combo?: ClickCombo): number;
-/** A `clicker` feature, carrying its combo rule as `.combo` and its draft helper as `.press`. */
-export type ClickerFeature<K extends string> = Feature<K, ClickerState, ClickerActions> & {
-    readonly combo: ClickCombo | undefined;
-    /** Draft helper: one press at `now` inside a recipe, paid to the wallet. Null when the rate cap dropped it. */
-    press(draft: object, now: number): ClickResult | null;
+/** A state holding the clicker's slice under its key. */
+export type ClickerSlice<K extends string> = {
+    readonly [P in K]: Pick<ClickerState, "combo" | "lastAt">;
 };
+/** The clicker's read-only questions over state. `now` is game time (default the state's `gameNow()`, else 0). */
+export interface ClickerSelect<K extends string, G> {
+    /** What one press would pay now, before the combo and a crit: the definition's `power`. */
+    power(state: G, now?: number): Decimal;
+    /** The combo a press at `now` would pay at: one step up inside the window, else 1 (`comboAt` over the slice). */
+    comboAt(state: ClickerSlice<K>, now: number): number;
+    /** The combo shown at `now`: the last press's, until its window runs out (`comboShown` over the slice). */
+    comboShown(state: ClickerSlice<K>, now: number): number;
+}
+/** The fixed configuration of a clicker feature. */
+export interface ClickerFixed {
+    /** The combo rule, when there is one. */
+    readonly combo: ClickCombo | undefined;
+}
+/** The helpers that take a draft first and change it, named like the actions they mirror. */
+export interface ClickerDraftHelpers {
+    /** One press at `now` inside a recipe, paid to the wallet. Null when the rate cap dropped it. */
+    click(draft: object, now: number): ClickResult | null;
+}
+/** The three namespaces of a clicker feature. */
+export interface ClickerHelpers<K extends string, G> {
+    readonly select: ClickerSelect<K, G>;
+    readonly def: ClickerFixed;
+    readonly draft: ClickerDraftHelpers;
+}
+/** A `clicker` feature: the feature plus `select`, `def` and `draft`. */
+export type ClickerFeature<K extends string, G = object> = Feature<K, ClickerState, ClickerActions> & ClickerHelpers<K, G>;
 /** The definition `clicker` takes. */
-export interface ClickerDef<K extends string, WK extends string, C extends string, WS extends object, WA extends object, G extends object> {
+export interface ClickerDef<K extends string, WK extends string, C extends string, WS extends object, WA extends object, G extends object, R extends ReachShape = readonly []> {
     /** The saved key. */
     readonly key: K;
+    /** The features the callbacks read, as `feature`'s `reach`; the wallet is reached already. */
+    readonly reach?: R | (() => R);
     /** The currencies feature a press pays into. */
     readonly wallet: CurrenciesFeature<WK, C, WS, WA>;
     readonly currency: C;
@@ -93,6 +120,9 @@ export interface ClickerDef<K extends string, WK extends string, C extends strin
  * A press that pays as a feature. It saves `ClickerState` under `key`, and its action `click()` pays `power(state)`
  * × the combo × the crit's `mult` (on a crit) into `wallet`. No steps. Its auto-player move is a free `click` worth `power`
  * that goes through once per look (it refuses a second press at the same game time), so the sim's look
- * cadence is the click rate. The callbacks read the whole game state, so annotate one of them.
+ * cadence is the click rate. The callbacks read the whole game state (the feature's own slice, the wallet's and what
+ * `reach` names), typed with no annotation.
  */
-export declare function clicker<const K extends string, WK extends string, C extends string, WS extends object, WA extends object, G extends object = object>(def: ClickerDef<K, WK, C, WS, WA, G>): ClickerFeature<K>;
+export declare function clicker<const K extends string, WK extends string, C extends string, WS extends object, WA extends object, const R extends ReachShape = readonly [], G extends object = Record<K, ClickerState> & Record<WK, WS> & ReachOf<R>>(def: ClickerDef<K, WK, C, WS, WA, G, R>): ClickerFeature<K, G> & {
+    readonly needs?: NeedsOf<R>;
+};

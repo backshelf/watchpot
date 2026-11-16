@@ -239,11 +239,11 @@ export const game = defineGame({
 
 /** One kettle row: what it shows and what its button would buy, for the chosen buy mode. */
 export function kettleRow(s: StateOf<typeof game.features>, id: string, mode: BuyMode, now: number) {
-  const { count, price, canBuy } = kettles.rules.row(s, id, mode, now);
+  const { count, price, canBuy } = kettles.select.row(s, id, mode, now);
   return {
-    owned: kettles.rules.owned(s, id),
-    perSecond: fmt(kettles.rules.rate(s, id, now)).text,
-    untilNext: kettles.rules.untilMilestone(s, id),
+    owned: kettles.select.owned(s, id),
+    perSecond: fmt(kettles.select.rate(s, id, now)).text,
+    untilNext: kettles.select.untilMilestone(s, id),
     count,
     price: fmt(price).text,
     canBuy,
@@ -252,17 +252,17 @@ export function kettleRow(s: StateOf<typeof game.features>, id: string, mode: Bu
 
 /** The kitchen shelf: what is on offer, what the next rank costs, and whether it can be bought now. */
 export function shelf(s: Page) {
-  return kitchen.tree.nodes
-    .filter((node) => kitchen.open(s, node.id))
+  return kitchen.def.nodes
+    .filter((node) => kitchen.select.open(s, node.id))
     .map((node) => {
       const owned = s.kitchen.ranks[node.id] ?? 0;
-      const next = kitchen.tree.price(node, owned)?.[0];
+      const next = kitchen.def.tree.price(node, owned)?.[0];
       return {
         id: node.id,
         name: node.name,
         owned,
         price: next ? fmt(next.amount).text : null, // null: bought out
-        canBuy: kitchen.check(s, node.id) === null,
+        canBuy: kitchen.select.check(s, node.id) === null,
       };
     });
 }

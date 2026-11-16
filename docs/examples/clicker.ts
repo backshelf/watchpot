@@ -1,4 +1,4 @@
-import { clicker, clickShare, comboShown, currencies, type Decimal, defineGame, fmt } from "watchpot/core";
+import { clicker, clickShare, currencies, type Decimal, defineGame, fmt } from "watchpot/core";
 import { TOY } from "./vocab";
 
 type State = { wallet: { gold: Decimal; gems: Decimal }; mine: { perSecond: Decimal } };
@@ -24,5 +24,5 @@ export const game = defineGame({
 
 /** The line under the button: this press's combo and the lifetime total. */
 export function tapLine(s: { tap: { combo: number; lastAt: number; earned: Decimal } }, now: number): string {
-  return `×${comboShown(s.tap, now, tap.combo).toFixed(1)} · ${fmt(s.tap.earned).text} gold by hand`;
+  return `×${tap.select.comboShown(s, now).toFixed(1)} · ${fmt(s.tap.earned).text} gold by hand`;
 }

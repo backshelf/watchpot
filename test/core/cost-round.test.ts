@@ -72,7 +72,7 @@ describe("withMigrations", () => {
     const step = (saved: unknown) => saved;
     const made = withMigrations(list, { 2: step });
     expect(made.migrations[2]).toBe(step);
-    expect(made.rules).toBe(list.rules);
+    expect(made.select).toBe(list.select);
     expect(made.key).toBe("list");
     const later = withMigrations(made, { 3: step });
     expect(Object.keys(later.migrations)).toEqual(["2", "3"]);

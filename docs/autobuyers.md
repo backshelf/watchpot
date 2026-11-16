@@ -5,7 +5,7 @@ writes each purchase (`run`, inside the tick's recipe, returning how many it bou
 switches, the schedule on game time and the count, and fires the due ones highest priority first.
 
 ```ts
-import { autobuyers, type Decimal, defineGame, generators } from "watchpot/core";
+import { autobuyers, defineGame, generators } from "watchpot/core";
 import { wallet } from "./add-a-currency";
 import { TOY } from "./vocab";
 
@@ -14,17 +14,17 @@ const stalls = generators({
   wallet,
   list: [{ id: "stall", cost: { base: 10, growth: 1.15 }, pays: "gold", makes: "gold", rate: 1, free: 1 }],
 });
-type State = { wallet: { gold: Decimal; gems: Decimal }; stalls: { owned: Record<string, number> } };
 
 /** Two autobuyers: one stall every few seconds once ten are owned, and a gem sink every tick. */
 export const auto = autobuyers({
   key: "auto",
+  reach: [wallet, stalls], // what the callbacks read: typed with no annotation
   list: [
     {
       id: "stall",
-      unlocked: (s: State) => (s.stalls.owned.stall ?? 0) >= 10,
+      unlocked: (s) => (s.stalls.owned.stall ?? 0) >= 10,
       intervalMs: (s) => (s.wallet.gems.gte(5) ? 1000 : 5000), // faster once the game says so
-      run: (d) => stalls.buy(d, "stall"), // the generators' draft helper: how many it bought
+      run: (d) => stalls.draft.buy(d, "stall"), // the generators' draft helper: how many it bought
       priority: 1, // fires before the gem sink in the same tick
     },
     {
@@ -46,10 +46,10 @@ export const game = defineGame({
   features: [wallet, stalls, auto],
   vocab: TOY,
 });
-// store.getState().auto.toggle("stall") · .setAll(false) · auto.rules.nextInMs(state, "stall", now)
+// store.getState().auto.toggle("stall") · .setAll(false) · auto.select.nextInMs(state, "stall", now)
 ```
 
-- **`autobuyers({ key, list, reset? })`** saves `{ on, lastAt, bought }` under `key` and fires in one step,
+- **`autobuyers({ key, reach?, list, reset? })`** saves `{ on, lastAt, bought }` under `key` and fires in one step,
   `<key>.automate.fire`, after production. An autobuyer fires when `unlocked(state)`, switched on (every one starts
   on) and due; `priority` orders a tick (higher first, ties in list order), so a scarce balance goes where the game
   says. A run reset keeps the switches (`{ keep: ["on"] }`) unless `reset` says otherwise.
@@ -61,5 +61,9 @@ export const game = defineGame({
   still waits for the next interval.
 - **An absence is not simulated.** A catch-up fires each autobuyer at most once, at its end: the purchases it would
   have made while the tab was closed are not replayed. A game that wants them buys in its away step.
-- **Actions:** `toggle(id, on?)` (returns the switch after) and `setAll(on)`. **Rules (`.rules`):** `active(state,
-  id)` and `nextInMs(state, id, now)` (0 when due, null when not active) for a countdown.
+- **`reach`** names the features the callbacks read and write (the wallet and the generators a `run` buys from), as
+  on `feature`; their state is then typed with no annotation.
+- **Actions:** `toggle(id, on?)` (returns the switch after) and `setAll(on)`.
+- **`select`:** `active(state, id)` and `nextInMs(state, id, now)` (0 when due, null when not active) for a countdown.
+  **`def`:** `list` and `autobuyer(id)`. **`draft`:** `toggle(draft, id, on?)` and `setAll(draft, on)`, the actions
+  inside a recipe.

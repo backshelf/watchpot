@@ -2,7 +2,16 @@ import type { Draft } from "immer";
 import { offlineCredit } from "./clock";
 import type { CurrenciesFeature, CurrencyDraft } from "./currencies";
 import { D, type Decimal, type DecimalSource, ZERO } from "./decimal";
-import { type Feature, type FeatureApi, feature, type Move, type ResetRule } from "./feature";
+import {
+  type Feature,
+  type FeatureApi,
+  feature,
+  type Move,
+  type NeedsOf,
+  type ReachOf,
+  type ReachShape,
+  type ResetRule,
+} from "./feature";
 
 /**
  * Markets: things with a price that wanders on its own, to buy low and sell high. A ticker's price is a pure function
@@ -128,10 +137,8 @@ export interface MarketPosition {
   readonly profit: Decimal;
 }
 
-/** The market's rules, read off the game state at a game time. */
-export interface MarketRules<G, T extends TickerDef> {
-  readonly tickers: readonly T[];
-  ticker(id: string): T | undefined;
+/** The market's read-only questions over state, at a game time. */
+export interface MarketSelect<G> {
   /** Whether the ticker trades now. */
   open(state: G, id: string): boolean;
   /** The price now, before any fee. */
@@ -168,14 +175,39 @@ export interface MarketActions {
   sellAll(id: string): Decimal;
 }
 
-/** A `market` feature, carrying its rules as `.market`. */
-export type MarketFeature<K extends string, G, T extends TickerDef> = Feature<
-  K,
-  MarketState,
-  MarketActions
-> & {
-  readonly market: MarketRules<G, T>;
-};
+/** The fixed configuration of a market feature: the tickers as given, and a ticker by id. */
+export interface MarketFixed<T extends TickerDef> {
+  readonly tickers: readonly T[];
+  /** A ticker by id. */
+  ticker(id: string): T | undefined;
+}
+
+/**
+ * The helpers that take a draft first and change it, named like the actions they mirror, for a recipe or a step. A
+ * price is read at game time, so each takes `now` last (default the state's `gameNow()` when it carries one, else
+ * 0; a step passes its `ctx.now`). Each returns the units traded (zero when it refused).
+ */
+export interface MarketDraftHelpers {
+  /** Buys exactly `units` inside a recipe, or nothing when the balance does not cover them. */
+  buy(draft: object, id: string, units: DecimalSource, now?: number): Decimal;
+  /** Buys what `share` of the balance covers (default all of it) inside a recipe. */
+  buyMax(draft: object, id: string, share?: number, now?: number): Decimal;
+  /** Sells `units` inside a recipe, or all that is held when fewer are. */
+  sell(draft: object, id: string, units: DecimalSource, now?: number): Decimal;
+  /** Sells the whole holding inside a recipe. */
+  sellAll(draft: object, id: string, now?: number): Decimal;
+}
+
+/** The three namespaces of a market feature. */
+export interface MarketHelpers<G, T extends TickerDef> {
+  readonly select: MarketSelect<G>;
+  readonly def: MarketFixed<T>;
+  readonly draft: MarketDraftHelpers;
+}
+
+/** A `market` feature: the feature plus `select`, `def` and `draft`. */
+export type MarketFeature<K extends string, G, T extends TickerDef> = Feature<K, MarketState, MarketActions> &
+  MarketHelpers<G, T>;
 
 /** How the auto-player trades: it buys in the lower part of the band and sells in the upper. */
 export interface MarketPlayer {
@@ -211,8 +243,9 @@ export interface MarketTrader<G> extends Omit<MarketPlayer, "spend"> {
  * A market as a feature. It saves `MarketState` under `key`, trades in the currency `pays` through `wallet`, and pays
  * every holding's `yield` in the step `<key>.produce.yield` (over an absence too: `away`, default all of it). `fee`
  * is the share of each trade the market keeps, `yieldMult` the game's multiplier on every yield, `open` which
- * tickers trade, `trader` a trader that works the market by itself (`MarketTrader`). A prestige reset clears the holdings and draws a new seed unless `reset` says otherwise. The
- * callbacks read the whole game state, so annotate one of them with the game's state type.
+ * tickers trade, `trader` a trader that works the market by itself (`MarketTrader`). A prestige reset clears the
+ * holdings and draws a new seed unless `reset` says otherwise. The callbacks read the whole game state (the
+ * feature's own slice, the wallet's and what `reach` names), typed with no annotation.
  */
 export function market<
   const K extends string,
@@ -221,9 +254,12 @@ export function market<
   C extends string,
   WS extends object,
   WA extends object,
-  G extends object = object,
+  const R extends ReachShape = readonly [],
+  G extends object = Record<K, MarketState> & Record<WK, WS> & ReachOf<R>,
 >(def: {
   readonly key: K;
+  /** The features the callbacks read, as `feature`'s `reach`; the wallet is reached already. */
+  readonly reach?: R | (() => R);
   readonly tickers: readonly T[];
   /** The currencies feature trades are paid from and into. */
   readonly wallet: CurrenciesFeature<WK, C, WS, WA>;
@@ -237,7 +273,7 @@ export function market<
   readonly player?: MarketPlayer;
   readonly trader?: MarketTrader<G>;
   readonly reset?: ResetRule<MarketState>;
-}): MarketFeature<K, G, T> {
+}): MarketFeature<K, G, T> & { readonly needs?: NeedsOf<R> } {
   const { tickers, wallet } = def;
   const byId = new Map<string, T>();
   for (const t of tickers) {
@@ -250,6 +286,9 @@ export function market<
   type Own = Record<K, MarketState> & CurrencyDraft<WK>;
   const own = (state: unknown): MarketState => (state as Record<K, MarketState>)[def.key];
   const purse = (state: unknown) => state as CurrencyDraft<WK>;
+  /** The game time a draft helper reads prices at: as given, else the state's own game clock, else 0. */
+  const clockOf = (state: unknown, now?: number): number =>
+    now ?? (state as { gameNow?: () => number }).gameNow?.() ?? 0;
   const heldOf = (state: unknown, id: string): Decimal => own(state).held[id] ?? ZERO;
   const paidOf = (state: unknown, id: string): Decimal => own(state).paid[id] ?? ZERO;
   const isOpen = (state: G, t: T): boolean => def.open?.(state, t) ?? true;
@@ -268,9 +307,7 @@ export function market<
     return total.mul(def.yieldMult?.(state) ?? 1);
   };
 
-  const rules: MarketRules<G, T> = {
-    tickers,
-    ticker: (id) => byId.get(id),
+  const select: MarketSelect<G> = {
     open: (state, id) => {
       const t = byId.get(id);
       return t !== undefined && isOpen(state, t);
@@ -388,7 +425,15 @@ export function market<
   const sellAbove = def.player?.sellAbove ?? 0.7;
   const spend = Math.min(1, Math.max(0, def.player?.spend ?? 0.5));
 
-  const made = feature<K, MarketState, MarketActions, readonly [], Record<never, never>, Own>({
+  const buyMaxDraft = (draft: Draft<Own>, id: string, share: number, now: number): Decimal => {
+    const t = byId.get(id);
+    if (!t) return ZERO;
+    const most = affordable(draft as unknown as G, t, now);
+    return buyDraft(draft, id, most.mul(Math.min(1, Math.max(0, share))), now);
+  };
+
+  const made = feature<K, MarketState, MarketActions, ReachShape, Record<never, never>, Own>({
+    reach: def.reach,
     key: def.key,
     initial: (ctx): MarketState => ({
       seed: hashText(`${ctx.rng.join(".")}:${def.key}`),
@@ -410,13 +455,7 @@ export function market<
       };
       return {
         buy: (id, units) => act((d, now) => buyDraft(d, id, D(units), now)),
-        buyMax: (id, share = 1) =>
-          act((d, now) => {
-            const t = byId.get(id);
-            if (!t) return ZERO;
-            const most = affordable(d as unknown as G, t, now);
-            return buyDraft(d, id, most.mul(Math.min(1, Math.max(0, share))), now);
-          }),
+        buyMax: (id, share = 1) => act((d, now) => buyMaxDraft(d, id, share, now)),
         sell: (id, units) => act((d, now) => sellDraft(d, id, D(units), now)),
         sellAll: (id) => act((d, now) => sellDraft(d, id, heldOf(d, id), now)),
       };
@@ -482,7 +521,17 @@ export function market<
       return out;
     },
   });
-  return Object.assign(made, { market: rules });
+  const helpers: MarketHelpers<G, T> = {
+    select,
+    def: { tickers, ticker: (id) => byId.get(id) },
+    draft: {
+      buy: (draft, id, units, now) => buyDraft(draft as Draft<Own>, id, D(units), clockOf(draft, now)),
+      buyMax: (draft, id, share = 1, now) => buyMaxDraft(draft as Draft<Own>, id, share, clockOf(draft, now)),
+      sell: (draft, id, units, now) => sellDraft(draft as Draft<Own>, id, D(units), clockOf(draft, now)),
+      sellAll: (draft, id, now) => sellDraft(draft as Draft<Own>, id, heldOf(draft, id), clockOf(draft, now)),
+    },
+  };
+  return Object.assign(made, helpers) as MarketFeature<K, G, T> & { readonly needs?: NeedsOf<R> };
 }
 
 /** The smaller of two Decimals. */

@@ -11,7 +11,9 @@ import { type Feature, type NeedsOf, type ReachOf, type ReachShape, type ResetRu
  * `global` milestones do the same for every generator once the lowest owned count across the list reaches them.
  *
  * `cyclesIn` is the pure kernel for a cycle: how many complete over a stretch, in closed form, so a tick of 50 ms and
- * an absence of a week land the same. `generators({ key, wallet, list })` is the feature.
+ * an absence of a week land the same. `generators({ key, wallet, list })` is the feature: its `select` answers
+ * questions over state (`burners.select.price(s, "stove")`), its `def` holds the list, and its `draft` buys inside
+ * a recipe (`burners.draft.buy(d, "stove")`).
  */
 /** What a milestone gives: a multiplier on the output, and a speed that divides the cycle (2 halves it). */
 export interface GeneratorBoost {
@@ -97,14 +99,11 @@ export interface GeneratorActions {
     run(id: string): boolean;
 }
 /**
- * A generator list's rules, read off the game state. A rule that reads a callback takes game time as a trailing
+ * A generator list's read-only questions over state. A question that reads a callback takes game time as a trailing
  * `now`, handed to the callback as `{ now }`: default the state's `gameNow()` when it carries one (a store's state
  * does), else 0. A screen that reads a buff in `mult` passes the `now` it renders at.
  */
-export interface GeneratorRules<G, T extends GeneratorDef> {
-    readonly list: readonly T[];
-    /** A generator by id. */
-    generator(id: string): T | undefined;
+export interface GeneratorsSelect<G> {
     /** Whether it can be bought now. */
     open(state: G, id: string, now?: number): boolean;
     /** How many are owned. */
@@ -145,20 +144,34 @@ export interface GeneratorRules<G, T extends GeneratorDef> {
      */
     row(state: G, id: string, mode: GeneratorBuyMode, now?: number): GeneratorRow;
 }
-/**
- * The draft helpers, for a recipe or a step (an autobuyer's purchase). Each returns how many it bought. `now` reaches
- * the `open` callback (default as the rules').
- */
-export interface GeneratorHelpers {
-    /** Buys exactly `count` (default 1) inside a recipe, or nothing. */
-    buy(draft: object, id: string, count?: number, now?: number): number;
-    /** Buys as many as the balance covers inside a recipe, `limit` at most. */
-    buyMax(draft: object, id: string, limit?: number, now?: number): number;
+/** The fixed configuration of a generators feature: the list as given, and a generator by id. */
+export interface GeneratorsFixed<T extends GeneratorDef> {
+    readonly list: readonly T[];
+    /** A generator by id. */
+    generator(id: string): T | undefined;
 }
-/** A `generators` feature, carrying its rules as `.rules` and the draft helpers `buy` and `buyMax`. */
-export type GeneratorsFeature<K extends string, G, T extends GeneratorDef> = Feature<K, GeneratorsState, GeneratorActions> & GeneratorHelpers & {
-    readonly rules: GeneratorRules<G, T>;
-};
+/**
+ * The helpers that take a draft first and change it, named like the actions they mirror, for a recipe or a step (an
+ * autobuyer's purchase). `now` reaches the callbacks (default as `select`'s).
+ */
+export interface GeneratorsDraftHelpers {
+    /** Buys exactly `count` (default 1) inside a recipe, or nothing. Returns how many it bought. */
+    buy(draft: object, id: string, count?: number, now?: number): number;
+    /** Buys as many as the balance covers inside a recipe, `limit` at most. Returns how many. */
+    buyMax(draft: object, id: string, limit?: number, now?: number): number;
+    /** Buys exactly what reaches the generator's next milestone inside a recipe, or nothing. Returns how many. */
+    buyNext(draft: object, id: string, now?: number): number;
+    /** Starts a cycle generator's cycle inside a recipe, as the action `run` does. False when it cannot start. */
+    run(draft: object, id: string, now?: number): boolean;
+}
+/** The three namespaces of a generators feature. */
+export interface GeneratorsHelpers<G, T extends GeneratorDef> {
+    readonly select: GeneratorsSelect<G>;
+    readonly def: GeneratorsFixed<T>;
+    readonly draft: GeneratorsDraftHelpers;
+}
+/** A `generators` feature: the feature plus `select`, `def` and `draft`. */
+export type GeneratorsFeature<K extends string, G, T extends GeneratorDef> = Feature<K, GeneratorsState, GeneratorActions> & GeneratorsHelpers<G, T>;
 /** The share of an absence the list is credited, and the most of it that counts. */
 export type GeneratorAway = DimensionAway;
 /** The definition `generators` takes. */
@@ -171,8 +184,8 @@ export interface GeneratorsDef<K extends string, T extends GeneratorDef<C>, WK e
     readonly wallet: CurrenciesFeature<WK, C, WS, WA>;
     readonly list: readonly T[];
     /**
-     * The game's multiplier on one generator's output (its stat bus), read off the whole game state. `ctx.now` is game
-     * time, so a buff multiplies here: `(s, g, { now }) => buffActive(s.buffs, "rush", now) ? 2 : 1`.
+     * The game's multiplier on one generator's output (a stat's value from the `stats` feature, say), read off the
+     * whole game state. `ctx.now` is game time, so a buff multiplies here: `(s, g, { now }) => buffActive(s.buffs, "rush", now) ? 2 : 1`.
      */
     readonly mult?: (state: G, def: T, ctx: GeneratorsCallbackContext) => DecimalSource;
     /** Milestones every generator gets once the lowest owned count across the list reaches them. */
@@ -193,10 +206,10 @@ export interface GeneratorsDef<K extends string, T extends GeneratorDef<C>, WK e
 /**
  * A building list as a feature. It saves `{ owned, progress, running }` under `key`, works out `perSecond` in the
  * step `<key>.rates.perSecond` and pays in `<key>.produce.make` (over a tick, and over an absence through `away`),
- * buys from `wallet` and carries its rules as `.rules`. Its auto-player moves buy one of each open generator,
- * valued at the income it adds a second, and start every idle hand cycle for free. A run reset starts the list
- * over (the `free` ones owned again) unless `reset` says otherwise. The callbacks read the whole game state, so
- * annotate one of them with the game's state type.
+ * buys from `wallet`. Its auto-player moves buy one of each open generator, valued at the income it adds a second,
+ * and start every idle hand cycle for free. A run reset starts the list over (the `free` ones owned again) unless
+ * `reset` says otherwise. The callbacks read the whole game state (the feature's own slice, the wallet's and what
+ * `reach` names), typed with no annotation.
  */
 export declare function generators<const K extends string, T extends GeneratorDef<C>, WK extends string, C extends string, WS extends object, WA extends object, const R extends ReachShape = readonly [], G extends object = Record<K, GeneratorsState> & Record<WK, WS> & ReachOf<R>>(def: GeneratorsDef<K, T, WK, C, WS, WA, G, R>): GeneratorsFeature<K, G, T> & {
     readonly needs?: NeedsOf<R>;

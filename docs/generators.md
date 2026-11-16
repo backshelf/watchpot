@@ -56,7 +56,7 @@ export const game = defineGame({
   vocab: TOY,
 });
 // store.getState().buildings.buy("stall", 10) · .buyMax("press") · .buyNext("stall") · .run("press")
-// buildings.rules.perSecond(state).gold · buildings.rules.untilMilestone(state, "stall")
+// buildings.select.perSecond(state).gold · buildings.select.untilMilestone(state, "stall")
 ```
 
 Example: [`examples/generators.ts`](examples/generators.ts) (`bun docs/examples/generators.ts` prints a buy row per
@@ -80,19 +80,22 @@ mode).
   cycles not at all.
 - **Actions:** `buy(id, count = 1)` (all or nothing), `buyMax(id, limit?)` (returns how many), `buyNext(id)` (exactly
   what reaches the next milestone; false past the last), `run(id)`.
-- **Draft helpers** on the feature, for a recipe or a step (an autobuyer): `buy(draft, id, count?)` and
-  `buyMax(draft, id, limit?)`, each returning how many it bought.
-- **Rules (`.rules`):** `price(state, id, count?)`, `affordable`, `owned`, `open`, `boost` (folded `{ mult, speed }`),
-  `cycleMs`, `cyclePays`, `automated`, `rate(state, id)` (all owned, a second), `untilMilestone` (null past the last),
-  `perSecond(state)` and `away(state)`, the absence rate the catch-up credits (the definition's `away`, or
-  `{ rate: 1 }`).
-- **A buy row** for a screen: `rules.row(state, id, mode)` with `mode` a count, `"max"` or `"next"` (`watchpot/ui`'s
+- **`draft`** helpers on the feature, named like the actions, for a recipe or a step (an autobuyer): `draft.buy(draft,
+  id, count?)`, `draft.buyMax(draft, id, limit?)`, `draft.buyNext(draft, id)` (each returning how many it bought) and
+  `draft.run(draft, id)`.
+- **`select`** (questions over state): `price(state, id, count?)`, `affordable`, `owned`, `open`, `boost` (folded
+  `{ mult, speed }`), `cycleMs`, `cyclePays`, `automated`, `rate(state, id)` (all owned, a second), `untilMilestone`
+  (null past the last), `perSecond(state)` and `away(state)`, the absence rate the catch-up credits (the definition's
+  `away`, or `{ rate: 1 }`). **`def`** holds the `list` and `generator(id)`.
+- **`reach`** names the features the callbacks read, as on `feature`; their state is then typed with no annotation (the
+  wallet is reached already): `reach: [boosts]`, then `mult: (s) => s.boosts…`.
+- **A buy row** for a screen: `select.row(state, id, mode)` with `mode` a count, `"max"` or `"next"` (`watchpot/ui`'s
   `BuyMode`) gives `{ count, price, canBuy }`. `count` is at least 1, so the row always shows a price; `canBuy` is
   false when the generator is closed, the balance falls short, or `"next"` is past the last milestone.
 - **Auto-player moves:** one purchase per open generator, valued at the income one more adds a second (a cycle by its
   average), and a free `run` per idle hand cycle.
 - **Every callback gets the moment.** `mult`, `open`, `automated`, `milestones` and `away` are each handed a last
   argument `{ now }` in game time, so a buff can multiply or open where it applies (`buffActive(s.boosts, "rush",
-  now)`, as above). Steps pass the pass's `now`; the rules and draft helpers take an optional trailing `now`, which
+  now)`, as above). Steps pass the pass's `now`; `select` and the draft helpers take an optional trailing `now`, which
   defaults to the state's `gameNow()`; a screen that reads a buff passes the `now` it renders at.
 - **A save step** for the list (a renamed id, a field added): `withMigrations(generators({ … }), { 2: step })`.

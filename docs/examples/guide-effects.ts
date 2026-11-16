@@ -95,7 +95,7 @@ export const heat = defineStats({
   reach: () => SOURCES,
   stats: { heat: { base: 1, ...HEAT } },
   contributions: (s) => [
-    ...kitchen.tree.contributions(s.kitchen.ranks),
+    ...kitchen.select.contributions(s),
     // The buffs' own step ends a buff whose time is up at the start of every pass, so each one listed is running.
     ...boosts.select.contributions(s, Number.NEGATIVE_INFINITY),
     ...medals.select.contributions(s),

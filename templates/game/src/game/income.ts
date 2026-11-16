@@ -30,7 +30,7 @@ export function incomeOf(s: IncomeSources): Decimal {
   total = total.add(s.generators.perSecond[MAIN] ?? ZERO);
   // @end
   // @if dimensions
-  total = total.add(chain.chain.perSecond(s, TIERS[0]?.id ?? ""));
+  total = total.add(chain.select.perSecond(s, TIERS[0]?.id ?? ""));
   // @end
   return total;
 }

@@ -111,7 +111,7 @@ describe("autobuyers", () => {
     store.getState().auto.setAll(false);
     store.getState().tick(5000, T0 + 5000);
     expect(store.getState().shop.carts + store.getState().shop.mills).toBe(0);
-    expect(auto.rules.nextInMs(store.getState(), "carts", T0 + 5000)).toBeNull();
+    expect(auto.select.nextInMs(store.getState(), "carts", T0 + 5000)).toBeNull();
 
     expect(store.getState().auto.toggle("carts")).toBe(true);
     store.getState().shop.lock(false);
@@ -167,5 +167,48 @@ describe("autobuyers", () => {
     const { store } = freshStore(g);
     store.getState().tick(100, T0 + 100);
     expect(store.getState().swap.bought.renew).toBe(1);
+  });
+});
+
+describe("reach", () => {
+  test("a callback reads a reached feature with no annotation, and not one that was not reached", () => {
+    const door = feature({ key: "door", initial: () => ({ open: true }) });
+    const gated = autobuyers({
+      key: "gated",
+      reach: [wallet, door],
+      list: [
+        {
+          id: "a",
+          unlocked: (s) => s.door.open && s.wallet.gold.gte(0),
+          intervalMs: (s) => {
+            // @ts-expect-error `lid` was never reached
+            s.lid;
+            return 1000;
+          },
+          run: (d) => (d.door.open ? 0 : 1),
+        },
+      ],
+    });
+    expect(gated.def.list).toHaveLength(1);
+    expect(gated.needs).toBeUndefined();
+  });
+});
+
+describe("autobuyers draft helpers", () => {
+  test("toggle and setAll work inside a recipe as the actions do", () => {
+    const { store } = freshStore(game);
+    let after = true;
+    store.setState((d) => {
+      after = auto.draft.toggle(d, "carts");
+    });
+    expect(after).toBe(false);
+    expect(store.getState().auto.on.carts).toBe(false);
+    store.setState((d) => {
+      auto.draft.setAll(d, false);
+      after = auto.draft.toggle(d, "nope");
+    });
+    expect(after).toBe(false);
+    expect(store.getState().auto.on.mills).toBe(false);
+    expect(auto.def.autobuyer("mills")?.priority).toBe(5);
   });
 });

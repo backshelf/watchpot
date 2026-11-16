@@ -482,15 +482,19 @@ Ranks bought one at a time over `GraphNode`s (`rankCost`, `checkRank`), each ran
 - **`BuyResult<C>`** is `{ ok: true, id, level }` or `{ ok: false, code }` with `code` `unknown`, `closed` (the
   tree feature's `open` refuses the node), `maxed`, `requires`
   (and `node`) or `cannot-afford` (and `currency`, `balance`, `price`).
-- **`treeMoves(key, nodes, worth)`** is the auto-player's moves over an `upgradeTree`. A tree has no moves of its
-  own, so the sim never buys from it until the game wraps it: `withMoves(tree, treeMoves(...))`.
-- **`upgradeTree({ key, nodes, wallet, milestone?, open?, reset? })`** is a tree as a feature: it saves `{ ranks }`
-  under `key`, buys with `buy(id)`, `buyMax(id, limit?)` and `buyAll(limit?)` (`buyCheapest` through the feature's
-  `open`) from a currencies feature, and carries its rules as `.tree` for the game's `stats` feature
-  (`contributions: (s) => mine.tree.contributions(s.mine.ranks)`). `open(state, node)` holds a node back until the game offers it
-  (a closed one refuses as `closed`); the feature's own readers `open(state, id)`, `check(state, id)` and
-  `affordable(state, id, limit?)` read it the way its actions do, so a screen never offers a node `buy` refuses.
-  `.tree`'s readers know nothing of `open`. A run reset clears the ranks unless `reset` says otherwise.
+- **`treeMoves(key, nodes, worth?)`** is the auto-player's moves over a feature that keeps ranks as `TreeState`
+  (`upgradeTree` declares these itself): one per node whose next rank can be bought, with no `worth` unless
+  `worth(state, node)` is given. For a hand-written feature: `withMoves(feature, treeMoves(...))`.
+- **`upgradeTree({ key, nodes, wallet, reach?, milestone?, open?, worth?, reset? })`** is a tree as a feature: it saves
+  `{ ranks }` under `key`, buys with `buy(id)`, `buyMax(id, limit?)` and `buyAll(limit?)` (`buyCheapest` through the
+  feature's `open`) from a currencies feature, and hands the game's `stats` feature its ranks
+  (`contributions: (s) => mine.select.contributions(s)`). `open(state, node)` holds a node back until the game offers
+  it (a closed one refuses as `closed`); `select.open(state, id)`, `select.check(state, id)` and
+  `select.affordable(state, id, limit?)` read it the way its actions do, so a screen never offers a node `buy`
+  refuses. `def` holds `nodes`, `node(id)` and the pure kernel `tree` (whose readers know nothing of `open`); `draft`
+  holds `buy`, `buyMax` and `buyAll` for a recipe. It declares one auto-player move per buyable node; `worth(state,
+  node)` is for a node that does not move the sim's objective at once. A run reset clears the ranks unless `reset`
+  says otherwise.
 
 ## Loadouts
 
@@ -612,10 +616,10 @@ behave over an absence) and offer the auto-player their moves where a player wou
   `open`, `automated`, `away`, `milestones`; `GeneratorsCallbackContext`). Steps pass the pass's `now`, actions
   `api.now()`; where the auto-player values a move it is the store's `gameNow()`. `drawOutcome` takes it as an
   optional last argument (default `{ now: 0 }`).
-- **Generators' readers.** Beside the building list's rules, `row(state, id, mode, now?)` is one buy row,
+- **Generators' readers.** Beside the building list's other questions, `select.row(state, id, mode, now?)` is one buy row,
   `{ count, price, canBuy }` (`GeneratorRow`, `mode` a count, `"max"` or `"next"`, `GeneratorBuyMode`): `count` is at
   least 1 so the row always shows a price, and `canBuy` is false while the generator is closed or `"next"` is past its
-  last milestone. `away(state, now?)` is the absence rate the catch-up credits (the definition's `away`, or
+  last milestone. `select.away(state, now?)` is the absence rate the catch-up credits (the definition's `away`, or
   `{ rate: 1 }`). A `milestones(state, def, ctx)` gate turns a generator's own and the global milestones off by the
   game's rule. `RateGeneratorDef` and `CycleGeneratorDef` are the two kinds (`GeneratorDef` their union).
 - **A buff without effects** is a timer: `effects` is optional, it adds nothing to `boosts.select.contributions`, and `boosts.select.active`

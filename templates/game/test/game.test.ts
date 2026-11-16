@@ -64,7 +64,7 @@ describe("the game", () => {
   test("buying generators pays their price and raises the income", () => {
     const { store, clock } = freshStore(game);
     const id = GENERATORS[0]?.id ?? "";
-    store.getState().wallet.credit(MAIN, producers.rules.price(store.getState(), id, 10));
+    store.getState().wallet.credit(MAIN, producers.select.price(store.getState(), id, 10));
     tick(store, clock, 1_000);
     const before = incomeOf(store.getState());
     expect(store.getState().generators.buy(id, 10)).toBe(true);
@@ -88,8 +88,8 @@ describe("the game", () => {
     if (!low || !next) throw new Error("the chain needs two tiers");
     store.getState().wallet.credit(MAIN, 1e9);
     expect(store.getState().dimensions.buy(low.id, 10)).toBe(true);
-    expect(chain.chain.setBonus(store.getState(), low.id).eq(2)).toBe(true);
-    expect(chain.chain.open(store.getState(), next.id)).toBe(true);
+    expect(chain.select.setBonus(store.getState(), low.id).eq(2)).toBe(true);
+    expect(chain.select.open(store.getState(), next.id)).toBe(true);
     expect(store.getState().dimensions.buy(next.id)).toBe(true);
     const held = store.getState().dimensions.amount[low.id] ?? ZERO;
     tick(store, clock, 10_000);

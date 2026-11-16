@@ -8,6 +8,7 @@ import {
   type Decimal,
   defineGame,
   type Effect,
+  feature,
   type GraphNode,
   type Purse,
   tree,
@@ -233,7 +234,8 @@ describe("upgradeTree", () => {
     expect(store.getState().mine.buy("drill").ok).toBe(false);
     expect(store.getState().wallet.gold.eq(2)).toBe(true);
     expect(storeOf(backend).getState().mine.ranks).toEqual({ drill: 1 });
-    expect(mine.tree.contributions(store.getState().mine.ranks)).toHaveLength(1);
+    expect(mine.def.tree.contributions(store.getState().mine.ranks)).toHaveLength(1);
+    expect(mine.select.contributions(store.getState())).toEqual(mine.def.tree.contributions({ drill: 1 }));
     store.getState().resetRun();
     expect(store.getState().mine.ranks).toEqual({});
   });
@@ -267,13 +269,13 @@ describe("upgradeTree", () => {
     store.getState().wallet.credit("gems", 5);
     const st = store.getState();
     for (const id of ["drill", "laser", "nope"]) {
-      const offered = gated.check(st, id) === null;
-      expect(gated.affordable(st, id) > 0).toBe(offered);
+      const offered = gated.select.check(st, id) === null;
+      expect(gated.select.affordable(st, id) > 0).toBe(offered);
       expect(store.getState().mine.buy(id).ok).toBe(offered);
     }
-    expect(gated.open(st, "laser")).toBe(false);
-    expect(gated.check(st, "laser")).toEqual({ ok: false, code: "closed" });
-    expect(gated.open(st, "nope")).toBe(false);
+    expect(gated.select.open(st, "laser")).toBe(false);
+    expect(gated.select.check(st, "laser")).toEqual({ ok: false, code: "closed" });
+    expect(gated.select.open(st, "nope")).toBe(false);
   });
 
   test("buys everything the wallet covers, cheapest first, and only what is open", () => {
@@ -283,17 +285,75 @@ describe("upgradeTree", () => {
     const n = store.getState().mine.buyAll();
     const st = store.getState();
     expect(n).toBe((st.mine.ranks.drill ?? 0) + (st.mine.ranks.laser ?? 0));
-    for (const id of ["drill", "laser"]) expect(mine.affordable(st, id)).toBe(0);
+    for (const id of ["drill", "laser"]) expect(mine.select.affordable(st, id)).toBe(0);
     expect(store.getState().mine.buyAll()).toBe(0);
   });
 });
 
+describe("upgradeTree moves", () => {
+  const balanceOf = (s: unknown, c: string): Decimal =>
+    (s as { wallet: Record<string, Decimal> }).wallet[c] ?? D(0);
+  const mineRanks = (s: unknown): Record<string, number> =>
+    (s as { mine: { ranks: Record<string, number> } }).mine.ranks;
+  const storage = () => createGameStorage(createMemoryBackend(), { debounceMs: 0 });
+
+  test("it declares one move per buyable node, with a cost and no worth, and the auto-player works it out", () => {
+    const wallet = currencies({ key: "wallet", vocab: TOY, start: { gold: 40, gems: 3 } });
+    const mine = upgradeTree({ key: "mine", nodes: NODES, wallet });
+    const game = defineGame({
+      id: "moves",
+      save: { key: "moves", version: 1 },
+      features: [wallet, mine],
+      vocab: TOY,
+    });
+    const store = createIdleStore(game, { storage: storage(), now: () => T0 });
+    const moves = mine.moves?.(store.getState() as never) ?? [];
+    // The laser needs the drill first, so only the drill is on offer.
+    expect(moves.map((m) => m.id)).toEqual(["mine:drill"]);
+    expect(moves[0]?.cost?.currency).toBe("gold");
+    expect(moves[0]?.worth).toBeUndefined();
+    // The drill raises the objective, so the auto-player buys it with no worth stated.
+    const player = autoPlayer(game, {
+      balance: balanceOf,
+      objective: (s) => mineRanks(s).drill ?? 0,
+    });
+    const look = player.look(store as never);
+    expect(look.bought).toBeGreaterThan(0);
+    expect(store.getState().mine.ranks.drill).toBeGreaterThan(0);
+  });
+
+  test("a stated worth stands in for a node that does not move the objective, and a closed node has no move", () => {
+    const wallet = currencies({ key: "wallet", vocab: TOY, start: { gold: 40, gems: 3 } });
+    const mine = upgradeTree({
+      key: "mine",
+      nodes: NODES,
+      wallet,
+      worth: (_s, node) => (node.id === "drill" ? 2 : 1),
+      open: (_s, node) => node.id !== "laser",
+    });
+    const game = defineGame({
+      id: "moves",
+      save: { key: "moves", version: 1 },
+      features: [wallet, mine],
+      vocab: TOY,
+    });
+    const store = createIdleStore(game, { storage: storage(), now: () => T0 });
+    const [move] = mine.moves?.(store.getState() as never) ?? [];
+    expect(move?.worth?.(store.getState() as never)).toBe(2);
+    store.getState().mine.buy("drill");
+    expect((mine.moves?.(store.getState() as never) ?? []).map((m) => m.id)).not.toContain("mine:laser");
+    // With the worth stated, the auto-player needs no objective.
+    const player = autoPlayer(game, { balance: balanceOf });
+    expect(() => player.look(store as never)).not.toThrow();
+  });
+});
+
 describe("treeMoves", () => {
-  test("offers each buyable rank at its price, and the auto-player buys through them", () => {
+  test("serves a hand-written feature that keeps ranks: one move per buyable node, the worth only if given", () => {
     const wallet = currencies({ key: "wallet", vocab: TOY, start: { gold: 40, gems: 3 } });
     const mine = withMoves(
       upgradeTree({ key: "mine", nodes: NODES, wallet }),
-      treeMoves("mine", NODES, (node) => (node.id === "drill" ? 2 : 1)),
+      treeMoves("mine", NODES, (_s, node) => (node.id === "drill" ? 2 : 1)),
     );
     const game = defineGame({
       id: "moves",
@@ -305,9 +365,11 @@ describe("treeMoves", () => {
       storage: createGameStorage(createMemoryBackend(), { debounceMs: 0 }),
       now: () => T0,
     });
-    const offered = (mine.moves?.(store.getState() as never) ?? []).map((m) => m.id);
-    // The laser needs the drill first, so only the drill is on offer.
-    expect(offered).toEqual(["mine:drill"]);
+    const offered = mine.moves?.(store.getState() as never) ?? [];
+    expect(offered.map((m) => m.id)).toEqual(["mine:drill"]);
+    expect(offered[0]?.worth?.(store.getState() as never)).toBe(2);
+    const bare = treeMoves("mine", NODES)(store.getState() as never);
+    expect(bare[0]?.worth).toBeUndefined();
     const player = autoPlayer(game, {
       balance: (s, c) => (s as unknown as { wallet: Record<string, Decimal> }).wallet[c] ?? D(0),
     });
@@ -315,5 +377,63 @@ describe("treeMoves", () => {
     expect(look.bought).toBeGreaterThan(0);
     expect(store.getState().mine.ranks.drill).toBeGreaterThan(0);
     expect(store.getState().mine.ranks.laser).toBeGreaterThan(0);
+  });
+});
+
+describe("upgradeTree reach", () => {
+  test("a callback reads a reached feature with no annotation, and not one that was not reached", () => {
+    const wallet = currencies({ key: "wallet", vocab: TOY });
+    const door = feature({ key: "door", initial: () => ({ open: true }) });
+    const gated = upgradeTree({
+      key: "gated",
+      nodes: NODES,
+      wallet,
+      reach: [door],
+      open: (s, node) => s.door.open && s.wallet.gold.gte(0) && node.id.length > 0,
+      worth: (s) => {
+        // @ts-expect-error `lid` was never reached
+        s.lid;
+        return 1;
+      },
+    });
+    expect(gated.def.nodes).toHaveLength(NODES.length);
+    expect(gated.needs).toBeUndefined();
+  });
+});
+
+describe("upgradeTree draft helpers and select", () => {
+  const wallet = currencies({ key: "wallet", vocab: TOY, start: { gold: 100, gems: 5 } });
+  const mine = upgradeTree({ key: "mine", nodes: NODES, wallet });
+  const game = defineGame({
+    id: "toy",
+    save: { key: "toy.save", version: 1 },
+    features: [wallet, mine],
+    vocab: TOY,
+  });
+  const storeOf = () =>
+    createIdleStore(game, {
+      storage: createGameStorage(createMemoryBackend(), { debounceMs: 0 }),
+      now: () => T0,
+    });
+
+  test("buy, buyMax and buyAll inside a recipe do what the actions do", () => {
+    const store = storeOf();
+    let result: ReturnType<typeof mine.draft.buy> | undefined;
+    store.setState((d) => {
+      result = mine.draft.buy(d, "drill");
+    });
+    expect(result).toEqual({ ok: true, id: "drill", level: 1 });
+    let n = 0;
+    store.setState((d) => {
+      n = mine.draft.buyMax(d, "drill");
+    });
+    expect(n).toBe(2);
+    store.setState((d) => {
+      n = mine.draft.buyAll(d);
+    });
+    expect(n).toBeGreaterThan(0);
+    const st = store.getState();
+    expect(mine.select.rank(st, "drill")).toBe(3);
+    expect(mine.select.ranks(st)).toBe(st.mine.ranks);
   });
 });

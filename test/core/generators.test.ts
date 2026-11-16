@@ -1,5 +1,15 @@
 import { describe, expect, test } from "bun:test";
-import { currencies, cyclesIn, D, type Decimal, defineGame, generators, HOUR_MS, vocab } from "watchpot/core";
+import {
+  currencies,
+  cyclesIn,
+  D,
+  type Decimal,
+  defineGame,
+  feature,
+  generators,
+  HOUR_MS,
+  vocab,
+} from "watchpot/core";
 import { autoPlayer, createSimWorld, simStore } from "watchpot/sim";
 import { freshStore, T0 } from "watchpot/test";
 
@@ -97,7 +107,7 @@ describe("generators", () => {
     store.getState().wallet.credit("gold", 1000);
     let bought = 0;
     store.setState((d) => {
-      bought = works.buy(d, "cart", 2) + works.buyMax(d, "mill", 3);
+      bought = works.draft.buy(d, "cart", 2) + works.draft.buyMax(d, "mill", 3);
     });
     expect(bought).toBe(5);
     expect(store.getState().works.owned).toMatchObject({ cart: 3, mill: 3 });
@@ -108,23 +118,23 @@ describe("generators", () => {
     expect(store.getState().works.buy("cart", 3)).toBe(false);
     expect(store.getState().works.owned.cart).toBe(1);
     store.getState().wallet.credit("gold", 30);
-    const can = works.rules.affordable(store.getState(), "cart");
+    const can = works.select.affordable(store.getState(), "cart");
     expect(can).toBeGreaterThan(0);
     expect(store.getState().works.buyMax("cart")).toBe(can);
-    expect(num(store.getState().wallet.gold)).toBeLessThan(num(works.rules.price(store.getState(), "cart")));
+    expect(num(store.getState().wallet.gold)).toBeLessThan(num(works.select.price(store.getState(), "cart")));
   });
 
   test("a milestone multiplies at its threshold, not before", () => {
     const { store } = freshStore(game);
     store.getState().wallet.credit("gold", 1e9);
-    expect(works.rules.untilMilestone(store.getState(), "cart")).toBe(24);
+    expect(works.select.untilMilestone(store.getState(), "cart")).toBe(24);
     store.getState().works.buy("cart", 23);
-    const before = num(works.rules.rate(store.getState(), "cart"));
+    const before = num(works.select.rate(store.getState(), "cart"));
     expect(before).toBe(24);
     expect(store.getState().works.buyNext("cart")).toBe(true);
     expect(store.getState().works.owned.cart).toBe(25);
-    expect(num(works.rules.rate(store.getState(), "cart"))).toBe(50);
-    expect(works.rules.untilMilestone(store.getState(), "cart")).toBe(25);
+    expect(num(works.select.rate(store.getState(), "cart"))).toBe(50);
+    expect(works.select.untilMilestone(store.getState(), "cart")).toBe(25);
   });
 
   test("global milestones read the lowest count across the list", () => {
@@ -132,10 +142,10 @@ describe("generators", () => {
     store.getState().wallet.credit("gold", 1e12);
     store.getState().works.buy("cart", 10);
     store.getState().works.buy("mill", 5);
-    expect(works.rules.boost(store.getState(), "cart").mult).toBe(1);
+    expect(works.select.boost(store.getState(), "cart").mult).toBe(1);
     store.getState().works.buy("mine", 5);
-    expect(works.rules.boost(store.getState(), "cart").mult).toBe(3);
-    expect(works.rules.boost(store.getState(), "mine").mult).toBe(3);
+    expect(works.select.boost(store.getState(), "cart").mult).toBe(3);
+    expect(works.select.boost(store.getState(), "mine").mult).toBe(3);
   });
 
   test("a hand cycle runs once when started and stops", () => {
@@ -154,7 +164,7 @@ describe("generators", () => {
     expect(store.getState().works.running.mill).toBe(false);
     store.getState().tick(10_000, T0 + 31_000);
     expect(gold() - start).toBeCloseTo(31 + 50);
-    expect(works.rules.perSecond(store.getState()).gold?.toNumber()).toBe(1); // a hand cycle is not income
+    expect(works.select.perSecond(store.getState()).gold?.toNumber()).toBe(1); // a hand cycle is not income
   });
 
   test("an automated cycle over one long step pays what many short steps pay", () => {
@@ -183,11 +193,11 @@ describe("generators", () => {
     store.getState().wallet.credit("gold", 1e9);
     store.getState().works.buy("mine");
     store.getState().works.buy("mill", 9);
-    expect(works.rules.cycleMs(store.getState(), "mill")).toBe(4000);
+    expect(works.select.cycleMs(store.getState(), "mill")).toBe(4000);
     store.getState().works.buy("mill");
-    expect(works.rules.cycleMs(store.getState(), "mill")).toBe(2000);
+    expect(works.select.cycleMs(store.getState(), "mill")).toBe(2000);
     // 10 owned x 50 per 2 s, plus the cart's 1.
-    expect(num(works.rules.perSecond(store.getState()).gold)).toBeCloseTo(251);
+    expect(num(works.select.perSecond(store.getState()).gold)).toBeCloseTo(251);
   });
 
   test("an absence counts at the away rate, up to the cap", () => {
@@ -232,7 +242,7 @@ describe("generators", () => {
   test("the auto-player grows income over an hour", () => {
     const world = createSimWorld((now) => simStore(game, now, "seed"), T0);
     const player = autoPlayer<State>(game, { balance: (s, c) => (c === "gold" ? s.wallet.gold : D(0)) });
-    const income = () => num(works.rules.perSecond(world.store.getState()).gold);
+    const income = () => num(works.select.perSecond(world.store.getState()).gold);
     const first = income();
     for (let i = 0; i < 60; i++) {
       player.look(world.store);
@@ -276,37 +286,79 @@ describe("generators: game time, the milestone gate, the away rate and buy rows"
     store.getState().tick(1000, T0 + 1000);
     store.getState().tick(1000, RUSH_UNTIL + 1000);
     expect(num(store.getState().wallet.gold)).toBe(10 + 2 + 1);
-    const rush = num(timed.rules.rate(store.getState(), "cart", T0));
-    expect(rush).toBe(2 * num(timed.rules.rate(store.getState(), "cart", RUSH_UNTIL)));
+    const rush = num(timed.select.rate(store.getState(), "cart", T0));
+    expect(rush).toBe(2 * num(timed.select.rate(store.getState(), "cart", RUSH_UNTIL)));
   });
 
   test("the milestone gate shuts off a reached milestone", () => {
     const { store } = freshStore(g);
     store.getState().wallet.credit("gold", 1000);
     store.getState().works.buy("cart", 2);
-    expect(timed.rules.boost(store.getState(), "cart", RUSH_UNTIL).mult).toBe(2);
+    expect(timed.select.boost(store.getState(), "cart", RUSH_UNTIL).mult).toBe(2);
     store.getState().wallet.credit("gems", 1);
-    expect(timed.rules.boost(store.getState(), "cart", RUSH_UNTIL).mult).toBe(1);
+    expect(timed.select.boost(store.getState(), "cart", RUSH_UNTIL).mult).toBe(1);
   });
 
   test("the away rate is the one the definition gives, or all of it", () => {
-    expect(timed.rules.away({} as State, 1).rate).toBe(0.25);
-    expect(works.rules.away({} as State)).toEqual({ rate: 0.5, capMs: HOUR_MS });
+    expect(timed.select.away({} as State, 1).rate).toBe(0.25);
+    expect(works.select.away({} as State)).toEqual({ rate: 0.5, capMs: HOUR_MS });
   });
 
   test("a buy row always prices at least one and can buy only what the balance covers", () => {
     const { store } = freshStore(g);
     const st = () => store.getState();
     for (const mode of [1, 10, "max", "next"] as const) {
-      const row = timed.rules.row(st(), "cart", mode);
+      const row = timed.select.row(st(), "cart", mode);
       expect(row.count).toBeGreaterThanOrEqual(1);
-      expect(row.price.eq(timed.rules.price(st(), "cart", row.count))).toBe(true);
+      expect(row.price.eq(timed.select.price(st(), "cart", row.count))).toBe(true);
       expect(row.canBuy).toBe(row.price.lte(st().wallet.gold));
     }
     st().wallet.credit("gold", 1000);
     st().works.buy("cart", 2);
-    expect(timed.rules.row(st(), "cart", "next").canBuy).toBe(false); // past the last milestone
-    expect(timed.rules.row(st(), "cart", "max").canBuy).toBe(true);
-    expect(timed.rules.row(st(), "nope", 1)).toMatchObject({ count: 1, canBuy: false });
+    expect(timed.select.row(st(), "cart", "next").canBuy).toBe(false); // past the last milestone
+    expect(timed.select.row(st(), "cart", "max").canBuy).toBe(true);
+    expect(timed.select.row(st(), "nope", 1)).toMatchObject({ count: 1, canBuy: false });
+  });
+});
+
+describe("reach", () => {
+  test("a callback reads a reached feature with no annotation, and not one that was not reached", () => {
+    const door = feature({ key: "door", initial: () => ({ open: true }) });
+    const gated = generators({
+      key: "gated",
+      wallet,
+      reach: [door],
+      list: [{ id: "a", cost: { base: 1, growth: 1.1 }, pays: "gold", makes: "gold", rate: 1 }],
+      open: (s) => s.door.open && s.wallet.gold.gte(0),
+      mult: (s) => {
+        // @ts-expect-error `lid` was never reached
+        s.lid;
+        return 1;
+      },
+    });
+    expect(gated.def.list).toHaveLength(1);
+    expect(gated.needs).toBeUndefined();
+  });
+});
+
+describe("generators draft helpers", () => {
+  test("buyNext and run work inside a recipe as the actions do", () => {
+    const { store } = freshStore(game);
+    store.getState().wallet.credit("gold", 100_000);
+    let nexts = 0;
+    let started = false;
+    store.setState((d) => {
+      nexts = works.draft.buyNext(d, "cart");
+      works.draft.buy(d, "mill");
+      started = works.draft.run(d, "mill");
+    });
+    expect(nexts).toBe(24); // from the one free to the milestone at 25
+    expect(store.getState().works.owned.cart).toBe(25);
+    expect(started).toBe(true);
+    expect(store.getState().works.running.mill).toBe(true);
+    store.setState((d) => {
+      started = works.draft.run(d, "mill"); // one is already under way
+    });
+    expect(started).toBe(false);
   });
 });
