@@ -12,8 +12,8 @@ mixes at once (64). It returns a `Sound<K, B>` (`B` names the buses the game dec
 `audioUnlocked`, `mode()`, `context()`, `output()`, `loadPack`, `unloadPack`, `packReady`, `soundInfo(key)`, and the
 `mixer`, `mod`, `space`, `transport`, `harmony` and `tap`, with `music`, `sequence`, `grain`, `freeze`, `babble` and
 `gen`. A game wraps it in its named cue functions. The recipes are four pages,
-[`docs/sound-table.md`](docs/sound-table.md), [`sound-mix`](docs/sound-mix.md), [`sound-music`](docs/sound-music.md)
-and [`sound-dsp`](docs/sound-dsp.md), with [`sound-packs`](docs/sound-packs.md) for the build step; the examples are
+[`docs/sound-table.md`](sound-table.md), [`sound-mix`](sound-mix.md), [`sound-music`](sound-music.md)
+and [`sound-dsp`](sound-dsp.md), with [`sound-packs`](sound-packs.md) for the build step; the examples are
 `docs/examples/sound-*.ts`.
 
 `watchpot/sound` is on an entry of its own, for a game that plays cues and draws its own page: it imports nothing but

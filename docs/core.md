@@ -293,7 +293,7 @@ Timed events: windows, a runtime per event, the trickle and its caps, a cycle tr
 shop, a pass, the autopilot's share and the band a finished cycle earned. All of it is pure functions over data;
 the game's events feature keeps the runtimes and calls them.
 
-Shelf page: [docs/events.md](docs/events.md).
+Shelf page: [docs/events.md](events.md).
 
 ```ts
 import { type EventDefinition, eventNodeRow, freshRuntime, regenEventCurrencies } from "watchpot/core";

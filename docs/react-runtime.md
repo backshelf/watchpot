@@ -232,4 +232,4 @@ Smaller hooks, each with its own reference:
 - [Chapter 2, Your first game](guide/02-your-first-game.md#step-3-the-clock): the clock hook on Simmer's first page.
 - [Chapter 10, The page](guide/10-the-page.md): the three store hooks, the selector trap, the runtime hook and its two
   halves, and the two imports.
-- API: [`api/react/index.d.ts`](../api/react/index.d.ts), [`api/hooks/index.d.ts`](../api/hooks/index.d.ts).
+- API: [`api/react/index.d.ts`](../api/react/index.d.ts), [`api/hooks/index.d.ts`](../api/react/index.d.ts).

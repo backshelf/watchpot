@@ -8,7 +8,7 @@ The store hooks, the clocks, the runtime hook and the page layout. [react-runtim
 sheet outlet; it draws no page of its own (the page is `watchpot/ui`'s `PageShell` under the game's own look). Its
 tests are in `test/react/`.
 
-Shelf page: [docs/react-runtime.md](docs/react-runtime.md).
+Shelf page: [docs/react-runtime.md](react-runtime.md).
 
 - **The store.** One context, `IdleStoreContext`, holds the store the composition root built:
   `mountGame(store, <App />)` renders into `#root` under `IdleStoreProvider`. `createRuntimeHooks<GameStore>()`, once in the game, gives the

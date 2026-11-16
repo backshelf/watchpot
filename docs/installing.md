@@ -38,7 +38,7 @@ page with HMR off instead, working around Bun's CSS-module reload (oven-sh/bun#1
    branch and the tag.
 3. In the game, change the tag in `package.json` and run `bun install`. A breaking release names its codemod in
    `CHANGELOG.md`; run it from the game's root, `bun node_modules/watchpot/codemods/<file>.ts [--write]`
-   ([`codemods/README.md`](codemods/README.md)).
+   ([`codemods/README.md`](../codemods/README.md)).
 
 To try an unreleased engine change in a game before tagging it, point the dependency at a sibling checkout,
 `"watchpot": "file:../watchpot"`, and run `bun install`. Restore the tag before committing the game: a `file:`
@@ -64,7 +64,7 @@ duration timers for motion and pacing default to `performance.now()`. Its tests 
 timing, keyboard, focus, ARIA, `data-*` state, effects' motion and the GPU plumbing; it ships no stylesheet (the dev
 panel's self-contained CSS aside) and the kit writes no class name of its own (`test/rules/headless.test.ts` checks
 both); by convention it also sets no font, no colour and no English default outside the dev panel. A game's look lives in its own `src/ui/`: thin wrappers over `watchpot/ui` with a CSS
-module each, copied in from the template's registry ([`templates/game/src/ui/`](templates/game/src/ui/README.md),
+module each, copied in from the template's registry ([`templates/game/src/ui/`](../templates/game/src/ui/README.md),
 the token contract and every component) and then restyled, rewritten or deleted as the game's own. Its backdrops,
 foils and transitions are its own GLSL run by `watchpot/shader`.
 

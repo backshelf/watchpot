@@ -53,29 +53,6 @@ const NOT_FOUND = `<!doctype html>
 </html>
 `;
 
-/**
- * `watchpot/sim` imports `pathToFileURL` from `node:url` at its top (the fit kit's proof, which runs only in Bun), and
- * Bun's browser polyfill of `node:url` has no such export, so the landing page (whose sim lab imports the sim) fails
- * to bundle. The page never calls it: this hands the bundle a `node:url` whose two path helpers say so if they are
- * ever called. The fix belongs in the engine (import it where the proof runs); remove this when it lands there.
- */
-const nodeUrlForBrowser: import("bun").BunPlugin = {
-  name: "node-url-for-browser",
-  setup(build) {
-    build.onResolve({ filter: /^node:url$/ }, () => ({ path: "node-url", namespace: "site-shim" }));
-    build.onLoad({ filter: /.*/, namespace: "site-shim" }, () => ({
-      loader: "js",
-      contents: [
-        'const no = (name) => () => { throw new Error(name + " is not available in a browser"); };',
-        'export const pathToFileURL = no("pathToFileURL");',
-        'export const fileURLToPath = no("fileURLToPath");',
-        "export const URL = globalThis.URL;",
-        "export const URLSearchParams = globalThis.URLSearchParams;",
-      ].join("\n"),
-    }));
-  },
-};
-
 export interface BuildResult {
   ok: boolean;
   ms: number;
@@ -109,7 +86,6 @@ export async function build({ dev = false, out = join(here, "dist") } = {}): Pro
     splitting: true,
     sourcemap: dev ? "linked" : "none",
     external: ["*.woff2"],
-    plugins: [nodeUrlForBrowser],
     naming: {
       entry: "[name].[ext]",
       chunk: "assets/[name]-[hash].[ext]",

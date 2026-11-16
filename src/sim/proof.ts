@@ -6,7 +6,6 @@
  * when the proof is long.
  */
 
-import { pathToFileURL } from "node:url";
 import type { FitProof, FitRun } from "./fit";
 import { proofStretches } from "./fit";
 import { encodeSnapshot, type SimSnapshot } from "./snapshot";
@@ -67,7 +66,8 @@ export async function proveFitParallel<X>(options: ParallelProofOptions<X>): Pro
       ? options.module.href
       : /^file:/.test(options.module)
         ? options.module
-        : pathToFileURL(options.module).href;
+        : // Loaded here, where the proof runs: a browser bundle of `watchpot/sim` has no such helper to import.
+          (await import("node:url")).pathToFileURL(options.module).href;
   const jobs: ProofJob[] = stretches.map((s, index) => ({
     module,
     exportName: options.exportName ?? "fitProof",
