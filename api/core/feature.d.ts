@@ -331,7 +331,7 @@ export declare function feature<const K extends string, S extends object, A exte
  * The same feature with its auto-player moves: for a feature a factory made (`currencies`, `prestige`, `gacha`),
  * whose definition the game does not write itself. Keeps everything else the factory put on it.
  */
-export declare function withMoves<F extends FeatureSpec, G extends object>(f: F, moves: (state: G) => readonly Move<G>[]): F;
+export declare function withMoves<F extends FeatureSpec, G extends object = StateOf<readonly [F]>>(f: F, moves: (state: G) => readonly Move<G>[]): F;
 /**
  * The same feature with save migrations: for a feature a factory made (`generators`, `dimensions`, `layers`),
  * whose definition the game does not write itself. `migrations[n]` takes the feature's slice saved before version

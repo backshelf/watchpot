@@ -129,7 +129,7 @@ without a browser. And the engine never names a game: nothing in it knows what y
   published to any registry; a game installs a released version by its git tag:
 
   ```json
-  "watchpot": "git+ssh://github.com/backshelf/watchpot.git#v0.17.0"
+  "watchpot": "git+ssh://github.com/backshelf/watchpot.git#v1.0.0"
   ```
 
   Bun fetches that with your machine's own git credentials, so the install works only for a GitHub account that

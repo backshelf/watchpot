@@ -6,15 +6,7 @@
  *
  * Run it with `bun docs/examples/guide-pacing-tree.ts`: it prints when the sim first bought the copper base.
  */
-import {
-  defineGame,
-  defineUpgradeTree,
-  type Effect,
-  feature,
-  type GraphNode,
-  HOUR_MS,
-  type StateOf,
-} from "watchpot/core";
+import { defineGame, defineUpgradeTree, type Effect, feature, type GraphNode, HOUR_MS } from "watchpot/core";
 import { autoPlayer, createSimWorld, fmtClock, playStraight, simStore } from "watchpot/sim";
 import {
   AWAY_CAP_MS,
@@ -98,14 +90,11 @@ export const game = defineGame({
   features: [wallet, pot, stove, lid, kitchen],
 });
 
-/** The whole game's state, which the objective reads. The auto-player does not take it from the game. */
-type Kitchen = StateOf<typeof game.features>;
-
 /** How long the sim took to buy the copper base, in ms, or null if two hours were not enough. */
 export function copperBoughtAt(seed = "simmer"): number | null {
   const start = Date.UTC(2026, 0, 1);
   const world = createSimWorld((now) => simStore(game, now, seed), start);
-  const player = autoPlayer(game, { objective: (s: Kitchen) => s.stove.perSecond.toNumber() });
+  const player = autoPlayer(game, { objective: (s) => s.stove.perSecond.toNumber() });
   const has = () => (world.store.getState().kitchen.ranks.copper ?? 0) > 0;
 
   playStraight({

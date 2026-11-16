@@ -1,4 +1,4 @@
-import { type Decimal, type FeatureSpec, type Move } from "../core";
+import { type Decimal, type FeatureSpec, type Move, type StateOf } from "../core";
 import { type Rng, type Schedule } from "./schedule";
 import type { SimWorld } from "./world";
 /**
@@ -85,7 +85,10 @@ export interface AutoPlayer<S> {
  * move whose `apply` refuses is not tried again in the look; one worth nothing or less is never taken; a free
  * move is taken once a look unless it says `repeat`.
  */
-export declare function autoPlayer<S extends object>(game: Playable, { balance: given, maxMoves, objective, worthLooks, quiet, memory, }?: AutoPlayerOptions<S>): AutoPlayer<S>;
+export declare function autoPlayer<F extends readonly FeatureSpec[]>(game: {
+    readonly features: F;
+}, options?: AutoPlayerOptions<StateOf<F>>): AutoPlayer<StateOf<F>>;
+export declare function autoPlayer<S extends object>(game: Playable, options?: AutoPlayerOptions<S>): AutoPlayer<S>;
 /** One look's place in the days: its day, its session (from 0, across the run), its index in the session. */
 export interface LookAt {
     day: number;

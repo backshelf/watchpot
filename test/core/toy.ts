@@ -1,5 +1,5 @@
 import {
-  catchUp as catchUpSpan,
+  offlineCredit as catchUpSpan,
   createGameStorage,
   createIdleStore,
   createMemoryBackend,

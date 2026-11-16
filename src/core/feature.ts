@@ -435,7 +435,7 @@ export function feature<
  * The same feature with its auto-player moves: for a feature a factory made (`currencies`, `prestige`, `gacha`),
  * whose definition the game does not write itself. Keeps everything else the factory put on it.
  */
-export function withMoves<F extends FeatureSpec, G extends object>(
+export function withMoves<F extends FeatureSpec, G extends object = StateOf<readonly [F]>>(
   f: F,
   moves: (state: G) => readonly Move<G>[],
 ): F {

@@ -64,9 +64,6 @@ export function freshStore<
 /** Plays a store: buys, ticks, moves the clock. A fixture's author (not the sim's auto-player). */
 export type FixturePlay<S extends object> = (store: IdleStore<S>, clock: TestClock) => void;
 
-/** @deprecated Renamed `FixturePlay` (the sim's player is the auto-player); this alias goes in a later major. */
-export type Persona<S extends object> = FixturePlay<S>;
-
 /**
  * A save made by play: a fresh store (seeded `fixture` unless `seed` says otherwise, so the same play makes the
  * same save), `persona` run on it, then exported at the wall's now. The string is the export envelope: compatible

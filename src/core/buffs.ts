@@ -162,11 +162,11 @@ export type BuffsHost<K extends string> = { readonly [P in K]: BuffsState };
 /** The read-only questions over state, for steps and callbacks: the state-first twins of the pure `buffActive` and kin. */
 export interface BuffsSelect<K extends string, E> {
   /** Whether the buff is running at `now`. */
-  active(state: BuffsHost<K>, id: string, now: number): boolean;
+  active(state: BuffsHost<K>, id: string, now?: number): boolean;
   /** How long the buff has left at `now`; 0 when it is not running. */
-  leftMs(state: BuffsHost<K>, id: string, now: number): number;
+  leftMs(state: BuffsHost<K>, id: string, now?: number): number;
   /** The buff's stacks at `now`; 0 when it is not running. */
-  stacks(state: BuffsHost<K>, id: string, now: number): number;
+  stacks(state: BuffsHost<K>, id: string, now?: number): number;
   /** How much of the stretch from `from` to `to` the buff covered, running or ended (see `overlapMs`). */
   overlapMs(state: BuffsHost<K>, id: string, from: number, to: number): number;
   /**
@@ -206,6 +206,14 @@ export type BuffsFeature<K extends string, E> = Feature<K, BuffsState, BuffsActi
  * ends one and sees the feature's own slice and what `reach` names. A run reset ends every buff unless `reset` says
  * otherwise.
  */
+/**
+ * The `now` a reader takes when it is given none: before every end, so every buff still held counts as running.
+ * The feature's `sync` step ends each buff whose time is up at the start of a pass, so what is held is what is
+ * running, to within a pass. It is what a derived value uses, since it reads no clock. (`leftMs` without a `now`
+ * is then not a time: pass one to read it.)
+ */
+const HELD = Number.NEGATIVE_INFINITY;
+
 export function defineBuffs<
   const K extends string,
   E,
@@ -282,11 +290,11 @@ export function defineBuffs<
     },
   });
   const select: BuffsSelect<K, E> = {
-    active: (state, id, now) => buffActive(slice(state), id, now),
-    leftMs: (state, id, now) => buffLeftMs(slice(state), id, now),
-    stacks: (state, id, now) => buffStacks(slice(state), id, now),
+    active: (state, id, now = HELD) => buffActive(slice(state), id, now),
+    leftMs: (state, id, now = HELD) => buffLeftMs(slice(state), id, now),
+    stacks: (state, id, now = HELD) => buffStacks(slice(state), id, now),
     overlapMs: (state, id, from, to) => overlapMs(slice(state), id, from, to),
-    contributions: (state, now = Number.NEGATIVE_INFINITY) => {
+    contributions: (state, now = HELD) => {
       const s = slice(state);
       const out: { source: string; effect: E }[] = [];
       for (const b of def.list) {

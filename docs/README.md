@@ -148,11 +148,12 @@ The long-form reference for each entry, with the options and rules the topic pag
 - [**What each entry may import**](imports.md): the import rules, generated from `scripts/rules.ts`.
 - [**Migrating to 1.0**](migrating-to-1.0.md): every breaking change from 0.18, old to new.
 
-## Keeping the guide's examples true
+## Keeping the docs' examples true
 
-For whoever edits the guide. A chapter's code and output are checked against the runnable files in `docs/examples/`
-by `test/docs/guide-examples.slow.test.ts` (`bun run test:slow`, about four seconds). The check reads one-line HTML
-comments in the chapters, each naming an example by its path under `docs/examples/`:
+For whoever edits the docs. The code and output a guide chapter or a reference page quotes are checked against the
+runnable files in `docs/examples/` by `test/docs/guide-examples.slow.test.ts` (`bun run test:slow`, about two
+seconds). The check reads one-line HTML comments in the pages, each naming an example by its path under
+`docs/examples/` (a marker may be indented, inside a list item):
 
 - `<!-- example-output: guide-pacing.ts -->` above a fenced block: the block is what the example prints on stdout.
   `lines=3-7` makes it lines 3 to 7 of that output (1-based, inclusive), for a block that quotes part of it.
@@ -169,5 +170,6 @@ the repository root.
 When an example's output changes on purpose, run `bun scripts/guide-examples.ts --write`: it rewrites every
 `example-output` block from the real output (code and `prints` markers need a hand edit). Run
 `bun scripts/guide-examples.ts` alone for the same findings the test gives. The test also fails on a marker that
-names a missing file and on a `guide-*` or `simmer/` example no chapter mentions. A new chapter block that quotes an
+names a missing file, on a `guide-*` or `simmer/` example no chapter mentions, and on any other example no page
+mentions. A new chapter block that quotes an
 example gets a marker; an excerpt that is rewritten or only inspired by an example does not.

@@ -1,4 +1,4 @@
-import { type AnyMove, type Decimal, type FeatureSpec, type Move, ZERO } from "../core";
+import { type AnyMove, type Decimal, type FeatureSpec, type Move, type StateOf, ZERO } from "../core";
 import { planDay, type Rng, type Schedule } from "./schedule";
 import type { SimWorld } from "./world";
 
@@ -118,6 +118,11 @@ const isFree = <S extends object>(move: Move<S>): boolean => !move.cost || move.
  * move whose `apply` refuses is not tried again in the look; one worth nothing or less is never taken; a free
  * move is taken once a look unless it says `repeat`.
  */
+export function autoPlayer<F extends readonly FeatureSpec[]>(
+  game: { readonly features: F },
+  options?: AutoPlayerOptions<StateOf<F>>,
+): AutoPlayer<StateOf<F>>;
+export function autoPlayer<S extends object>(game: Playable, options?: AutoPlayerOptions<S>): AutoPlayer<S>;
 export function autoPlayer<S extends object>(
   game: Playable,
   {

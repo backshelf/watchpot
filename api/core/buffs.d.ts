@@ -91,11 +91,11 @@ export type BuffsHost<K extends string> = {
 /** The read-only questions over state, for steps and callbacks: the state-first twins of the pure `buffActive` and kin. */
 export interface BuffsSelect<K extends string, E> {
     /** Whether the buff is running at `now`. */
-    active(state: BuffsHost<K>, id: string, now: number): boolean;
+    active(state: BuffsHost<K>, id: string, now?: number): boolean;
     /** How long the buff has left at `now`; 0 when it is not running. */
-    leftMs(state: BuffsHost<K>, id: string, now: number): number;
+    leftMs(state: BuffsHost<K>, id: string, now?: number): number;
     /** The buff's stacks at `now`; 0 when it is not running. */
-    stacks(state: BuffsHost<K>, id: string, now: number): number;
+    stacks(state: BuffsHost<K>, id: string, now?: number): number;
     /** How much of the stretch from `from` to `to` the buff covered, running or ended (see `overlapMs`). */
     overlapMs(state: BuffsHost<K>, id: string, from: number, to: number): number;
     /**
@@ -127,13 +127,6 @@ export type BuffsFeature<K extends string, E> = Feature<K, BuffsState, BuffsActi
     readonly def: BuffsFixed<E>;
     readonly draft: BuffsDraftHelpers<K>;
 };
-/**
- * Timed effects as a feature. It saves `{ active, ended }` under `key`; its step `<key>.sync.expire`, early in every
- * pass, ends the buffs whose time is up on game time, so one runs out during an absence too, and the pass's income
- * step reads `select.overlapMs` for the part of the stretch it covered. `onEnd(draft, id, now)` runs in the pass that
- * ends one and sees the feature's own slice and what `reach` names. A run reset ends every buff unless `reset` says
- * otherwise.
- */
 export declare function defineBuffs<const K extends string, E, const R extends ReachShape = readonly [], G extends object = Record<K, BuffsState> & ReachOf<R>>(def: {
     readonly key: K;
     /** The features `onEnd` reads, as `feature`'s `reach`. */

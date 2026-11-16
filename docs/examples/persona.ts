@@ -25,7 +25,7 @@ export function playAnHour(seed = "auto") {
   const world = createSimWorld((now) => simStore(game, now, seed), start); // one catch-up at the start
   // No `balance`: the game has one wallet, so the auto-player reads what it holds there. A move with no worth is
   // worth what it adds to the objective: the generator's gold a second.
-  const player = autoPlayer(game, { objective: (s: GameState) => s.generator.perSecond.toNumber() });
+  const player = autoPlayer(game, { objective: (s) => s.generator.perSecond.toNumber() });
   let looks = 0;
   let bought = 0;
   playDays({

@@ -62,18 +62,6 @@ export function offlineSteps(
   return { ...span, steps, stepMs: span.creditedMs / steps };
 }
 
-/**
- * @deprecated Renamed `offlineCredit`; the store's `catchUp` action keeps its name.
- * `codemods/0.18.0-offline-credit.ts` moves a game.
- */
-export const catchUp = offlineCredit;
-/** @deprecated Renamed `OfflineCredit`. */
-export type CatchUp = OfflineCredit;
-/** @deprecated Renamed `offlineSteps`; `codemods/0.18.0-offline-credit.ts` moves a game. */
-export const catchUpSteps = offlineSteps;
-/** @deprecated Renamed `OfflineSteps`. */
-export type CatchUpSteps = OfflineSteps;
-
 /** What the engine clock calls: `onTick` for live ticks, `onAway` for a gap, `onHide` when the tab hides. */
 export interface ClockHandlers {
   /**
