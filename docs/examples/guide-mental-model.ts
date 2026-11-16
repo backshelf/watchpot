@@ -1,9 +1,8 @@
 /**
  * Chapter 3 of the guide, "The mental model": Simmer from chapter 2 grows a lid. The pot and the burner's price are
- * chapter 2's, imported from `./simmer/game`; the stove changes shape (a rate worked out in `rates`, a switch that
- * stops the pass, live play and time away paid apart), and the lid reaches into it. It shows a cross-feature
- * `reach`, step phases, a pinned step order, a step limited to one pass, a guard that returns "stop", and
- * `transient` with `derive`.
+ * chapter 2's, imported from `./simmer/game`; the stove changes shape (a rate worked out from its state, a switch
+ * that stops the pass, live play and time away paid apart), and it reads the lid. It shows a lazy cross-feature
+ * `reach`, a derived value, step phases, a step limited to one pass and a guard that returns "stop".
  *
  * Run it with `bun docs/examples/guide-mental-model.ts`: it plays a few seconds on a fake clock and prints the
  * order each pass runs its steps in.
@@ -17,7 +16,6 @@ import {
   feature,
   fmt,
   resolvedSteps,
-  ZERO,
 } from "watchpot/core";
 import { BURNER_PER_SECOND, burnerPrice, pot } from "./simmer/game";
 
@@ -28,12 +26,16 @@ export const AWAY_CAP_MS = 2 * 60 * 60 * 1000;
 /** The stove's own rate, in bubbles a second, before anything multiplies it. */
 export const flameOf = (burners: number) => D(burners * BURNER_PER_SECOND);
 
-/** The stove: its burners, a switch, and the rate they burn at, worked out on every pass. */
+/** The stove: its burners, a switch, and the rate they burn at. */
 export const stove = feature({
   key: "stove",
-  reach: [pot],
-  initial: () => ({ burners: 0, off: false, perSecond: ZERO }),
-  transient: ["perSecond"],
+  // A function, so it may name the lid, which is declared further down.
+  reach: () => [pot, lid],
+  initial: () => ({ burners: 0, off: false }),
+  derived: {
+    // The burners' flame, doubled while the lid is on. Worked out from the state, never saved.
+    perSecond: (s) => flameOf(s.stove.burners).mul(s.lid.on ? 2 : 1),
+  },
   actions: (api) => ({
     buyBurner: () =>
       api.set((s) => {
@@ -51,12 +53,6 @@ export const stove = feature({
   steps: {
     // A stove that is off heats nothing: stop the pass before any work phase runs.
     guard: { cold: (s) => (s.stove.off ? "stop" : undefined) },
-    // Both passes: the rate is worked out before anything is paid.
-    rates: {
-      flame: (s) => {
-        s.stove.perSecond = flameOf(s.stove.burners);
-      },
-    },
     produce: {
       // Live play pays in full.
       burn: {
@@ -77,10 +73,9 @@ export const stove = feature({
   },
 });
 
-/** The lid: with it on, the stove works twice as hard. */
+/** The lid: on or off. The stove reads it; the lid itself knows nothing of the stove. */
 export const lid = feature({
   key: "lid",
-  reach: [stove],
   initial: () => ({ on: false }),
   actions: (api) => ({
     toggle: () =>
@@ -88,16 +83,6 @@ export const lid = feature({
         s.lid.on = !s.lid.on;
       }),
   }),
-  steps: {
-    rates: {
-      trap: {
-        after: "stove.rates.flame",
-        run: (s) => {
-          if (s.lid.on) s.stove.perSecond = s.stove.perSecond.mul(2);
-        },
-      },
-    },
-  },
 });
 
 export const game = defineGame({
@@ -118,9 +103,10 @@ if (import.meta.main) {
   for (let i = 0; i < 10; i++) play().pot.tap();
   console.log("bought a burner:", play().stove.buyBurner()); // true: 10 bubbles spent
   play().lid.toggle();
+  console.log("the stove's rate:", fmt(play().stove.perSecond).text); // 2: one burner, doubled by the lid
 
   wall += 1000;
-  play().tick(1000); // one second live: the pot's 1, plus 1 burner doubled by the lid
+  play().tick(1000); // one second live: the pot's 1, plus the stove's 2
   console.log("after a second:", fmt(play().pot.bubbles).text);
 
   wall += 60_000;

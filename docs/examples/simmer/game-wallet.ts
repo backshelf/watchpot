@@ -22,7 +22,6 @@ import {
   type Game,
   type StateOf,
   vocab,
-  ZERO,
 } from "watchpot/core";
 
 /** Bubbles a second the pot makes on its own, and each burner adds. */
@@ -86,12 +85,16 @@ export const pot = feature({
   },
 });
 
-/** The stove: its burners, a switch, and the rate they burn at, worked out on every pass. */
+/** The stove: its burners, a switch, and the rate they burn at. */
 export const stove = feature({
   key: "stove",
-  reach: [wallet],
-  initial: () => ({ burners: 0, off: false, perSecond: ZERO }),
-  transient: ["perSecond"],
+  // A function, so it may name the lid, which is declared further down.
+  reach: () => [wallet, lid],
+  initial: () => ({ burners: 0, off: false }),
+  derived: {
+    // The burners' flame, doubled while the lid is on. Worked out from the state, never saved.
+    perSecond: (s) => flameOf(s.stove.burners).mul(s.lid.on ? 2 : 1),
+  },
   actions: (api) => ({
     buyBurner: () =>
       api.set((s) => {
@@ -107,12 +110,6 @@ export const stove = feature({
   steps: {
     // A stove that is off heats nothing: stop the pass before any work phase runs.
     guard: { cold: (s) => (s.stove.off ? "stop" : undefined) },
-    // Both passes: the rate is worked out before anything is paid.
-    rates: {
-      flame: (s) => {
-        s.stove.perSecond = flameOf(s.stove.burners);
-      },
-    },
     produce: {
       // Live play pays in full.
       burn: {
@@ -133,10 +130,9 @@ export const stove = feature({
   },
 });
 
-/** The lid: with it on, the stove works twice as hard. */
+/** The lid: on or off. The stove reads it; the lid itself knows nothing of the stove. */
 export const lid = feature({
   key: "lid",
-  reach: [stove],
   initial: () => ({ on: false }),
   actions: (api) => ({
     toggle: () =>
@@ -144,16 +140,6 @@ export const lid = feature({
         s.lid.on = !s.lid.on;
       }),
   }),
-  steps: {
-    rates: {
-      trap: {
-        after: "stove.rates.flame",
-        run: (s) => {
-          if (s.lid.on) s.stove.perSecond = s.stove.perSecond.mul(2);
-        },
-      },
-    },
-  },
 });
 
 /** The game: the wallet first, then the pot, the stove and the lid. */
