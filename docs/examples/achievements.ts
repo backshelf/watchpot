@@ -44,6 +44,7 @@ export const wall = defineAchievements({
   list: LIST,
   rowEffects: (): Fx[] => [{ stat: "toy.speed", mul: 1.25 }],
 });
+// before the reset: store.getState().wall.notify("reset")
 
 /**
  * What the wall gives, on the engine's `stats`: the global multiplier (the count earned and the rows) as a source,

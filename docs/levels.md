@@ -5,8 +5,10 @@ both ways, from a level to the total it needs and from a total back to the level
 `totalXpAt(levelAt(x)) ≤ x < totalXpAt(levelAt(x) + 1)`, at any size a Decimal holds. `defineLevels({ key, tracks })` keeps
 the XP of several named tracks (skills) and reports the levels each gain makes.
 
+<!-- example-code: levels.ts -->
+
 ```ts
-import { defineGame, type Effect, levelAt, levelProgress, defineLevels, type XpCurve } from "watchpot/core";
+import { defineGame, defineLevels, type Effect, levelAt, levelProgress, type XpCurve } from "watchpot/core";
 import { wallet } from "./add-a-currency";
 import { TOY } from "./vocab";
 

@@ -5,18 +5,31 @@ game time it started to its `until`; starting it again follows its stacking rule
 game time, so a buff runs out during an absence too, and the income step of that pass asks how much of the gap it
 covered.
 
+<!-- example-code: buffs.ts -->
+
 ```ts
-import { defineBuffs, type Effect, feature, defineStats } from "watchpot/core";
+import { defineBuffs, defineGame, defineStats, type Effect, feature, vocab } from "watchpot/core";
+
+const WORDS = vocab({ currencies: ["gold"], stats: ["speed"] });
 
 export const boosts = defineBuffs<"boosts", Effect<"speed">>({
   key: "boosts",
   list: [
     { id: "rush", durationMs: 77_000, stack: "refresh", effects: () => [{ stat: "speed", mul: 7 }] },
-    { id: "focus", durationMs: 30_000, stack: "stack", maxStacks: 5, effects: (stacks) => [{ stat: "speed", add: stacks }] },
-    { id: "cooldown", durationMs: 10_000, stack: "ignore" }, // a timer: no effects
+    {
+      id: "focus",
+      durationMs: 30_000,
+      stack: "stack",
+      maxStacks: 5,
+      effects: (stacks) => [{ stat: "speed", add: stacks }],
+    },
+    // A timer: no `effects`, so it adds nothing to the stats. The game asks `boosts.select.active` and decides what it means.
+    { id: "cooldown", durationMs: 10_000, stack: "ignore" },
   ],
 });
+// store.getState().boosts.start("rush"), and boosts.draft.start(d, "rush", now) inside a recipe
 
+/** Income of 1 gold a second, ×7 for the part of a tick or an absence the rush covered. */
 export const mine = feature({
   key: "mine",
   reach: [boosts],
@@ -26,23 +39,36 @@ export const mine = feature({
       income: {
         pass: "both",
         run: (d, ctx) => {
-          const rushed = boosts.select.overlapMs(d, "rush", ctx.now - ctx.dtMs, ctx.now); // ×7 for that part
+          const rushed = boosts.select.overlapMs(d, "rush", ctx.now - ctx.dtMs, ctx.now);
           d.mine.gold += (ctx.dtMs + 6 * rushed) / 1000;
         },
       },
     },
   },
 });
-// store.getState().boosts.start("rush"), and boosts.draft.start(d, "rush", now) inside a recipe
 
-/** `s.stats.speed`: every buff still listed is running, since `sync.expire` ends the rest at the start of a pass. */
+/**
+ * What the running buffs do, on the engine's `stats`: `s.stats.speed`. A stat is worked out from the state alone, and
+ * the buffs' own step ends every buff whose time is up at the start of each pass, so every buff still listed counts.
+ */
 export const speed = defineStats({
   key: "stats",
-  vocab: WORDS, // vocab({ currencies: ["gold"], stats: ["speed"] })
+  vocab: WORDS,
   reach: () => [boosts],
   stats: { speed: { base: 1 } },
-  contributions: (s) => boosts.select.contributions(s, Number.NEGATIVE_INFINITY),
+  contributions: (s) => boosts.select.contributions(s),
 });
+
+export const game = defineGame({
+  id: "boosts",
+  save: { key: "boosts.save", version: 1 },
+  vocab: WORDS,
+  features: [boosts, mine, speed],
+});
+
+/** The timer buff read directly: the game's own button checks this before it lets the player press again. */
+export const coolingDown = (s: Parameters<typeof boosts.select.active>[0], now: number) =>
+  boosts.select.active(s, "cooldown", now);
 ```
 
 Example: [`examples/buffs.ts`](examples/buffs.ts).
@@ -64,9 +90,10 @@ Example: [`examples/buffs.ts`](examples/buffs.ts).
   `start(id, { durationMs?, strength? })` (false for an unknown id or an ignored start) and `end(id)`. Beside them
   the feature carries three namespaces:
   - `boosts.select`: `active(s, id, now)`, `leftMs(s, id, now)`, `stacks(s, id, now)`, `overlapMs(s, id, from, to)`
-    and `contributions(s, now)`, which gives every running buff's effects sourced `<key>:<id>`, for a `stats`
-    feature's `contributions`. A stat reads no clock, so pass `Number.NEGATIVE_INFINITY` there: the expiry step has
-    already ended every buff whose time is up. `s` is the game's state (or a draft of it), not the buffs' slice.
+    and `contributions(s, now?)`, which gives every running buff's effects sourced `<key>:<id>`. Without `now` it
+    gives every buff still held, which is the form for a `defineStats` feature's `contributions`: a stat reads no
+    clock, and the expiry step has already ended every buff whose time is up. `s` is the game's state (or a draft of
+    it), not the buffs' slice.
   - `boosts.def.list`: the buffs it was given.
   - `boosts.draft`: `start(d, id, now, start?)` and `end(d, id, now)`, the actions inside a recipe (a spawn's
     `onCatch`, an event's handler).

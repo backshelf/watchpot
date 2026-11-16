@@ -29,6 +29,8 @@ feature only adds that number to its count. Separately, every `prestige` carries
 action's name (`rebirth.draft.rebirth`), which runs the same reset as the button from inside a recipe, and keeps the
 run's best reset pace, serving `pastPeak` on its slice. Put the two together and the "purchase" is the reset.
 
+<!-- example-code: showcase-autoreset.ts -->
+
 ```ts
 /** The layer keeps this run's best reset pace itself, and says when the run is past it (`pastPeak`). */
 export const rebirth = definePrestige({
@@ -104,6 +106,8 @@ costs `1e999999999`, so nothing unpriced can ever be bought by accident. Missing
 
 Here is the same idea with nothing else around it, as proof that the engine reads lazily:
 
+<!-- example-code: showcase-reprice.ts -->
+
 ```ts
 /** The price table, by item id. A tuning script may rewrite it while the game runs. */
 const PRICES = new Map<string, Decimal>([["lid", D(50)]]);
@@ -155,8 +159,8 @@ a hot run or a double feed. Both are buffs that declare no effect, and the game'
 
 Why bother? Because the strength depends on another stat (`misfeed.power`, raised by supplies). A buff's `effects` is a
 function of its stack count and strength only, so it cannot read another stat. The game's fold can, so the fold does the
-work and the buff only keeps time. On the engine's `stats` the same split is a source whose `active` asks the buff and
-whose amount reads the other stat: `{ active: (q) => buffActive(q.boosts, "hot-run", Number.NEGATIVE_INFINITY), effects:
+work and the buff only keeps time. On the engine's `defineStats` the same split is a source whose `active` asks the buff and
+whose amount reads the other stat: `{ active: (q) => q.boosts.active["hot-run"] !== undefined, effects:
 [{ stat: "print", mul: (q) => HOT_RUN * q.stats["misfeed.power"] }] }`.
 
 The chain into the buff is one string long. The misfeed is a `spawns` kind whose outcomes are `"hot-run"`, `"box"` and
@@ -185,6 +189,8 @@ through the first reset, so a player who starts a new roll keeps their momentum.
 
 Because `rate` can read anything, a gauge also makes a thermostat. This one eases toward a dial the player sets:
 
+<!-- example-code: showcase-glow.tsx -->
+
 ```ts
 /** The state the gauge reads: its own level and a dial the player turns, 0 to 100. */
 type Stove = { warmth: GaugeState; dial: { setting: number } };
@@ -212,6 +218,8 @@ no React render of its own. A uniform is a plain value: a number, a boolean, a c
 numbers. So the bridge from the game to the picture is a pure function from state to numbers, and you can test it like
 any other function.
 
+<!-- example-code: showcase-glow.tsx -->
+
 ```ts
 /** The shader's inputs, worked out from the game state alone: no event, no animation of the page's own. */
 export const glowUniforms = (s: { warmth: GaugeState; drips: SpawnsState }) => ({
@@ -224,6 +232,8 @@ export const glowUniforms = (s: { warmth: GaugeState; drips: SpawnsState }) => (
 
 `gaugeFill` turns the gauge's level into a share from 0 to 1. A spawn kind's `live` is `null` until something arrives,
 so `u_wobble` is 1 exactly while there is something to catch. The component passes those numbers through:
+
+<!-- example-code: showcase-glow.tsx -->
 
 ```tsx
 /** The pot's light. The parent selects `glowUniforms(state)` from the store and passes it down. */
@@ -254,6 +264,8 @@ exact behaviour of a page tab that, once open, must stay open after a reset wipe
 7](guide/07-the-first-reset.md#the-same-factory-opens-pages) shows VOID IF REMOVED doing this for its pages. Here is the
 idea on its own:
 
+<!-- example-code: showcase-latch.ts -->
+
 ```ts
 export const doors = defineAchievements({
   key: "doors",
@@ -278,6 +290,8 @@ toasts, does a second job as the list of doors to announce.
 Now the glossary. The engine's `lexicon` and `annotate` cut a line of text into plain runs and marked terms, so a page
 can draw each term as a tooltip. `annotate` takes an optional `allow(id)` filter, meant for leaving out terms the player
 has not met. Point that filter at the doors and the glossary can never spoil anything:
+
+<!-- example-code: showcase-glossary.ts -->
 
 ```ts
 /** The doors' earned record, as `showcase-latch.ts` keeps it. */
@@ -313,10 +327,12 @@ a term from a page the player has not opened stays plain text.
 
 **Why it works.** A challenge's `rules` are plain strings, and `trials.select.rule(state, rule)` is true only while a
 challenge carrying that string is active. Separately, the engine's [stat graph](glossary.md#stat-graph) (`statIndex`,
-and the `stats` feature built on it) puts each source in an optional `group`, and `muted` silences the effects of any
+and the stats feature (`defineStats`) built on it) puts each source in an optional `group`, and `muted` silences the effects of any
 group it names: the rows stay in the breakdown, marked with the reason, and stop counting. Name the rule after the
 group and the two systems join with no code in between. (A `stats` feature takes the same function as its own
 ``muted: (s, group) => trials.select.rule(s, `mute:${group}`)``.)
+
+<!-- example-code: showcase-mute.ts -->
 
 ```ts
 export const trials = defineChallenges({

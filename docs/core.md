@@ -82,10 +82,11 @@ export const store = createIdleStore(toy, {
 `test/core/toy.ts` is this game with its tests around it.
 
 - **The tick** runs the phases `guard, sync, rates, produce, automate, settle, commit, after`, each phase's
-  steps in the game's `order` first and then in feature-list order, the clock's last; `resolvedSteps(game,
-  pass)` is the list, with ids `<featureKey>.<phase>.<name>`. A step returning `"stop"` ends its phase and skips
-  every later phase before `commit`; `commit` (the clock's `lastSeen`) and `after` always run. A step is for both
-  passes unless written `{ pass: "tick", run }` or `{ pass: "catchUp", run }`; in a catch-up `ctx.dtMs` is the gap
+  steps in feature-list order, moved by any step's own `after` or `before` (a step id or a feature key in the same
+  phase), the clock's last; `resolvedSteps(game, pass)` is the list, with ids `<featureKey>.<phase>.<name>`. A step
+  returning `"stop"` ends its phase and skips every later phase before `commit`; `commit` (the clock's `lastSeen`)
+  and `after` always run. A step is `(s, ctx) => …` or `{ pass, run, after?, before? }`, `pass` being `"tick"`,
+  `"catchUp"` or `"both"` (the default); a `produce` step must name its pass. In a catch-up `ctx.dtMs` is the gap
   since `lastSeen`, and the engine's `offlineCredit(elapsed, rate, cap)` turns it into credited time (`catchUp`, its
   old name, is a deprecated alias; `codemods/0.18.0-offline-credit.ts` renames it; the store's `catchUp` action keeps
   its name).
@@ -96,8 +97,8 @@ export const store = createIdleStore(toy, {
   throws, saying to call the feature's draft helper instead or to call the action after the recipe: its change would
   otherwise be lost. `defineGame` builds each `actions` once against a probe api, so a builder reads no state or store
   while it is built, and refuses an action named like a key of its feature's `initial` and a game action named like
-  a feature's key. An `order` error names the feature and why: no such feature, a step of another phase, or no step
-  by that name. `type Draft` is exported from `watchpot/core`.
+  a feature's key. An `after` or `before` that names no step of that phase throws, naming the feature.
+  `type Draft` is exported from `watchpot/core`.
 - **The clock** (`createdAt`, `lastSeen`, the offset behind `gameNow()`) is a built-in feature under `clock`, or,
   for a game that already saves the fields, `clock: { feature, lastSeen, createdAt, offset }` names them. Its
   steps: `clock.guard.dt` (a tick with no time skips every phase after `guard` and commits; it runs last in `guard`,
@@ -120,10 +121,15 @@ export const store = createIdleStore(toy, {
   a number, then the feature's `merge(merged, fresh)` runs. An older save comes forward through the migrations,
   or is kept aside and starts a fresh profile; a newer one is copied to `<key>.kept` and the store writes nothing.
   The section Saves below has the rules.
-- **Derived transient state.** A feature's `derive(draft, { now, reason })` works out its transient values (stats
-  folded from the rest, a rate) and the store runs it, in feature order, wherever the transient state is made fresh:
-  a new store, a load, an import, a profile reset and a run reset. So the first pass's `guard` and `sync` steps never
-  read an empty value before `rates` refolds it. It must be pure; `docs/stat-graph.md` › The first pass after a load.
+- **Derived values.** `derived: { perSecond: (s) => … }` declares values worked out from the state. Each joins the
+  slice under its name, typed by what it returns, and is never saved and never written (a write throws). The engine
+  works it out on load and reset, and again whenever a slice it read was changed by a step or a recipe, so it is
+  current as of the start of whatever reads it. One may read another; the engine orders them and throws on a loop.
+  The function sees the feature's saved state and its reach, and reads no clock and no rng: a value that needs `now`
+  is worked out in a `rates` step into a `transient` field instead.
+- **Reach.** `reach: [a, b]`, or `reach: () => [a, b]` to name a feature declared further down. Two features that read
+  each other name one side by its state type, `reach: reach<{ lid: LidState }>()` (alone or in the list);
+  `defineGame` checks the game lists a feature under that key with that state. Every factory takes `reach` too.
 - **Helpers over any store:** `flushSave`, `saveBlocked`, `saveBlockedBy` (why: `newer`, `taken`, `unreadable` or
   `cleared`, the first cause winning; null while saving), `saveSetAside` (why the save found at load was kept aside
   for a fresh profile: `old-version` or `migration-failed`; null when none was), `saveStatus`, `watchSave`,
@@ -134,9 +140,11 @@ export const store = createIdleStore(toy, {
   `visibilitychange` to hidden), clock or no clock, and adds no listener without a `window` and a `document`;
   `holdHideFlush(store)` turns that off for a caller that flushes on hide itself and returns the release.
 - **Moves.** A feature may declare `moves(state)`: what a player can do with it now, as `Move`s (`id`, an optional
-  `cost: { currency, amount }`, `value(state)`, `apply(store)`, true when it went through). The store never calls it;
-  the sim's auto-player does. The state a move sees carries the feature's own actions. A feature a factory made
-  (`currencies`, `prestige`) takes them through `withMoves(feature, moves)`.
+  `cost: { currency, amount }`, an optional `worth(state)`, `repeat?` for a free move taken more than once a look,
+  `apply(store)`, true when it went through). The store never calls it; the sim's auto-player does, and works out a
+  missing worth from its `objective`. The state a move sees carries the feature's own actions. Factories that buy
+  (generators, trees, the clicker) declare their own; `definePrestige` takes `worth`; any other feature a factory made
+  takes moves through `withMoves(feature, moves)`.
 - **One wall read.** `createIdleStore` takes `now` (required) and `entropy`; the engine never reads the wall.
 - **Formatting.** `fmt(value, options)` gives `{ text, mantissa, suffix, negative }`: plain digits, then a suffix
   (K to Dc), then `1.23e45`. `notation: "scientific"` skips the suffixes: plain digits below `plainBelow`, then

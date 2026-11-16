@@ -9,23 +9,64 @@ multipliers and resets it hands the chain through `mult`, `speed` and `open`.
 The complete example is [`examples/dimensions.ts`](examples/dimensions.ts): four tiers bought ten at a price, and a
 `prestige` layer above that opens the next tier and doubles them all.
 
-```ts
-import { defineCurrencies, defineDimensions } from "watchpot/core";
+<!-- example-code: dimensions.ts -->
 
+```ts
+import {
+  D,
+  type Decimal,
+  defineCurrencies,
+  defineDimensions,
+  defineGame,
+  definePrestige,
+  HOUR_MS,
+} from "watchpot/core";
+import { TOY } from "./vocab";
+
+/** What the chain's callbacks read: the wallet, and the boosts the layer above has paid. */
+type State = { wallet: { gold: Decimal }; boost: { runs: number } };
+
+export const wallet = defineCurrencies({ key: "wallet", vocab: TOY, start: { gold: 10 } });
+
+/**
+ * Four tiers: the first makes gold, each other makes the tier below it. Ten of a tier are bought at one price, then
+ * the price steps; every ten bought double that tier.
+ */
 export const chain = defineDimensions({
   key: "chain",
-  wallet, // a currencies feature
-  makes: "gold", // what the lowest tier earns (and, without `pays`, what tiers cost)
-  set: { size: 10, mult: 2 }, // every ten bought doubles the tier
+  wallet,
+  makes: "gold",
+  set: { size: 10, mult: 2 },
   tiers: [
-    { id: "first", cost: { base: 10, growth: 1e3, every: 10 } }, // ten at 10, the next ten at 10,000
+    { id: "first", cost: { base: 10, growth: 1e3, every: 10 } },
     { id: "second", cost: { base: 100, growth: 1e4, every: 10 } },
+    { id: "third", cost: { base: 1e4, growth: 1e5, every: 10 } },
+    { id: "fourth", cost: { base: 1e6, growth: 1e6, every: 10 } },
   ],
-  mult: (s: State, tier, index) => 2 ** s.boost.runs, // the game's own multiplier per tier
-  speed: (s: State) => s.tick.speed, // one multiplier on every tier
+  // A boost doubles every tier and opens the next one: tiers past the second wait for one.
+  mult: (s: State) => 2 ** s.boost.runs,
+  open: (s: State, _tier, index) => index < 2 + s.boost.runs,
+  away: () => ({ rate: 1, capMs: 8 * HOUR_MS }),
 });
 // store.getState().chain.buy("first"), .buySet("first"), .buyMax("second"), .maxAll()
 // chain.select.perSecond(state, "first"), .price(state, "second", 10), .untilSet(state, "first")
+
+/** The reset above the chain: it needs twenty of the highest open tier, pays one boost and starts the chain over. */
+export const boost = definePrestige({
+  key: "boost",
+  reach: [chain],
+  gain: (s) => {
+    const top = chain.def.tiers[Math.min(1 + s.boost.runs, chain.def.tiers.length - 1)];
+    return D(s.chain.amount[top?.id ?? ""]?.gte(20) ? 1 : 0);
+  },
+});
+
+export const game = defineGame({
+  id: "chains",
+  save: { key: "chains.save", version: 1 },
+  features: [wallet, chain, boost],
+  vocab: TOY,
+});
 ```
 
 - **Held and bought are two numbers.** `amount` is what a tier holds: what was bought plus what the tier above made,

@@ -4,7 +4,7 @@
  * tooltip that says where the rate comes from, and an effect whose amount reads the state.
  *
  * Run it with `bun docs/examples/guide-effects.ts`: it buys 25 burners and three copper ranks, starts a rolling boil,
- * and prints the stove's rate on two passes and the tooltip's lines.
+ * and prints the stove's rate before and after the medal and the tooltip's lines.
  */
 import {
   type Contribution,
@@ -21,11 +21,22 @@ import {
   fmtRate,
   fmtTimes,
   type GraphNode,
+  reach,
   type StatCaps,
   type StateOf,
   statIndex,
 } from "watchpot/core";
-import { SIMMER, type Simmer, scriptStore, WORDS, wallet } from "./simmer/game-wallet";
+import {
+  AWAY_CAP_MS,
+  burnerPrice,
+  flameOf,
+  lid,
+  OFFLINE_RATE,
+  pot,
+  scriptStore,
+  WORDS,
+  wallet,
+} from "./simmer/game-wallet";
 
 // --- 1. Four sources, each saying what it does to "heat" -----------------------------------------------------------
 
@@ -54,26 +65,23 @@ export const boosts = defineBuffs<"boosts", Effect<"heat">>({
 export const medals = defineAchievements({
   key: "medals",
   columns: 5,
+  reach: () => [stove],
   list: [
     {
       id: "ten-burners",
       name: "Full stove",
       line: "Light ten burners.",
       effects: [{ stat: "heat", mul: 1.1 } satisfies Effect<"heat">],
-      when: (s: Simmer) => s.stove.burners >= 10,
+      when: (s) => s.stove.burners >= 10,
     },
   ],
 });
 
 /** A milestone the game writes itself: every 25 burners lit adds 0.5 to heat's base. */
-function milestones(s: Pick<Simmer, "stove">): Contribution<"heat">[] {
+function milestones(s: { stove: { burners: number } }): Contribution<"heat">[] {
   const reached = Math.floor(s.stove.burners / 25);
   return reached > 0 ? [{ source: "milestone", effect: { stat: "heat", add: 0.5 * reached } }] : [];
 }
-
-/** The state the stats read: chapter 4's Simmer and the three features above. */
-const SOURCES = [...SIMMER, kitchen, boosts, medals] as const;
-export type Cooking = StateOf<typeof SOURCES>;
 
 // --- 2. The stats: every contribution in one list, one value per stat ----------------------------------------------
 
@@ -92,12 +100,12 @@ const NAMES: Record<string, string> = {
 export const heat = defineStats({
   key: "stats",
   vocab: WORDS,
-  reach: () => SOURCES,
+  reach: () => [stove, kitchen, boosts, medals],
   stats: { heat: { base: 1, ...HEAT } },
   contributions: (s) => [
     ...kitchen.select.contributions(s),
-    // The buffs' own step ends a buff whose time is up at the start of every pass, so each one listed is running.
-    ...boosts.select.contributions(s, Number.NEGATIVE_INFINITY),
+    // Every buff still held: the buffs' own step ends the expired ones at the start of each pass.
+    ...boosts.select.contributions(s),
     ...medals.select.contributions(s),
     ...milestones(s),
   ],
@@ -106,17 +114,47 @@ export const heat = defineStats({
 
 // --- 3. The one number every source changed ------------------------------------------------------------------------
 
-/** The fire: multiplies the stove's rate by heat, right after the lid. It knows no copper, buff or medal. */
-export const fire = feature({
-  key: "fire",
-  reach: [...SOURCES, heat],
-  initial: () => ({}),
+/**
+ * Chapter 4's stove, with one change: its rate reads heat. It reaches the stats by type, because heat's own sources
+ * (the medal, the milestone) read the stove: two features that read each other name one side by type.
+ */
+export const stove = feature({
+  key: "stove",
+  reach: () => [wallet, lid, reach<{ stats: { heat: Decimal } }>()],
+  initial: () => ({ burners: 0, off: false }),
+  derived: {
+    // Chapter 4's rate, times heat. The stove knows no copper, buff or medal.
+    perSecond: (s) =>
+      flameOf(s.stove.burners)
+        .mul(s.lid.on ? 2 : 1)
+        .mul(s.stats.heat),
+  },
+  actions: (api) => ({
+    buyBurner: () =>
+      api.set((s) => {
+        if (!wallet.draft.debit(s, "bubbles", burnerPrice(s.stove.burners))) return false;
+        s.stove.burners += 1;
+        return true;
+      }),
+    toggle: () =>
+      api.set((s) => {
+        s.stove.off = !s.stove.off;
+      }),
+  }),
   steps: {
-    rates: {
-      stoke: {
-        after: "lid.rates.trap",
-        run: (s) => {
-          s.stove.perSecond = s.stove.perSecond.mul(s.stats.heat);
+    guard: { cold: (s) => (s.stove.off ? "stop" : undefined) },
+    produce: {
+      burn: {
+        pass: "tick",
+        run: (s, ctx) => {
+          wallet.draft.credit(s, "bubbles", s.stove.perSecond.mul(ctx.dtMs / 1000));
+        },
+      },
+      away: {
+        pass: "catchUp",
+        run: (s, ctx) => {
+          const credited = Math.min(ctx.dtMs, AWAY_CAP_MS) * OFFLINE_RATE;
+          wallet.draft.credit(s, "bubbles", s.stove.perSecond.mul(credited / 1000));
         },
       },
     },
@@ -127,9 +165,8 @@ export const game = defineGame({
   id: "simmer",
   save: { key: "simmer.save", version: 1 },
   vocab: WORDS,
-  features: [...SOURCES, heat, fire],
+  features: [wallet, pot, stove, lid, kitchen, boosts, medals, heat],
 });
-
 // --- 4. The tooltip: where the rate comes from ---------------------------------------------------------------------
 
 /** The lines of a tooltip over the stove's rate: one per source, its ranks already counted together. */
@@ -143,6 +180,9 @@ export function whyHeat(s: StateOf<typeof game.features>): string[] {
 // --- 5. An effect that reads the state -----------------------------------------------------------------------------
 
 /** One graph by hand, over any state: copper counted by its ranks, and a pot whose worth is the log of its bubbles. */
+/** The state a hand-built graph reads: the whole game's. */
+export type Cooking = StateOf<typeof game.features>;
+
 const POT = statIndex<"heat", never, Cooking>({ base: () => 1, caps: { heat: HEAT } });
 POT.add(
   { effects: [{ stat: "heat", mul: 1.25 }] },
@@ -172,11 +212,10 @@ if (import.meta.main) {
   for (let i = 0; i < 25; i++) store.getState().stove.buyBurner();
   store.getState().kitchen.buyMax("copper");
   store.getState().boosts.start("rolling-boil");
-  play(100); // the medal is earned at the end of this pass...
-  console.log("first pass: the stove makes", fmtRate(store.getState().stove.perSecond));
-  play(100); // ...and counts from this one
+  console.log("before the medal: the stove makes", fmtRate(store.getState().stove.perSecond));
+  play(100); // the medal is earned at the end of this pass, after it has paid
   const s = store.getState();
-  console.log("second pass: the stove makes", fmtRate(s.stove.perSecond));
+  console.log("once it is earned: the stove makes", fmtRate(s.stove.perSecond));
   for (const line of whyHeat(s)) console.log("  ", line);
 
   const live = potHeat({ ...s, wallet: { ...s.wallet, bubbles: D(1e6) } });

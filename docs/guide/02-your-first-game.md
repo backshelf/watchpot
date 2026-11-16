@@ -301,8 +301,11 @@ export const pot = feature({
   steps: {
     produce: {
       // Runs on every live tick and on the catch-up after time away.
-      simmer: (s, ctx) => {
-        s.pot.bubbles = s.pot.bubbles.add((SIMMER_PER_SECOND * ctx.dtMs) / 1000);
+      simmer: {
+        pass: "both",
+        run: (s, ctx) => {
+          s.pot.bubbles = s.pot.bubbles.add((SIMMER_PER_SECOND * ctx.dtMs) / 1000);
+        },
       },
     },
   },
@@ -311,10 +314,13 @@ export const pot = feature({
 
 *`docs/examples/simmer/game.ts`. `BURNER_PER_SECOND` is used in step 6; you can add it now or then.*
 
-A step is a function the engine calls on every [tick](../glossary.md#tick), the small slice of time the game moves
-forward by. It gets the same kind of draft an action gets, plus `ctx`, which says how long this tick was in
+A step's `run` is a function the engine calls on every [tick](../glossary.md#tick), the small slice of time the game
+moves forward by. It gets the same kind of draft an action gets, plus `ctx`, which says how long this tick was in
 milliseconds (`ctx.dtMs`). Multiplying the rate by `dtMs / 1000` makes the pot pay one bubble per second whether
 ticks arrive ten times a second or once.
+
+`pass: "both"` says the step also pays for time the game was closed (step 5). A step that pays the player has to say
+this on purpose; [chapter 3](03-the-mental-model.md) shows the other choices.
 
 Steps are grouped by [phase](../glossary.md#phase). A phase is a named stage of the tick, and every step in one phase runs before any step
 in the next. `produce` is the phase where income is paid. There are eight phases in all; you will need only
@@ -487,9 +493,12 @@ export const stove = feature({
   }),
   steps: {
     produce: {
-      burn: (s, ctx) => {
-        const made = D(s.stove.burners * BURNER_PER_SECOND).mul(ctx.dtMs / 1000);
-        s.pot.bubbles = s.pot.bubbles.add(made);
+      burn: {
+        pass: "both",
+        run: (s, ctx) => {
+          const made = D(s.stove.burners * BURNER_PER_SECOND).mul(ctx.dtMs / 1000);
+          s.pot.bubbles = s.pot.bubbles.add(made);
+        },
       },
     },
   },
@@ -529,8 +538,8 @@ What is new:
   the answer; a test, or a sound that plays only on a real purchase, can use it.
 - **`burners` is a plain number.** You will never own more burners than JavaScript can count. Only amounts that grow
   without limit, like bubbles, need to be Decimals. `D(n)` turns a plain number into a Decimal when the two meet.
-- **`burn` is a second `produce` step.** Both the pot's `simmer` and the stove's `burn` run every tick, and both run
-  in the catch-up, so burners earn while you are away too.
+- **`burn` is a second `produce` step.** Both the pot's `simmer` and the stove's `burn` run every tick, and both say
+  `pass: "both"`, so burners earn while you are away too.
 
 Now the page. In `main.tsx`, add `fmtCounted` and `fmtRate` to the import from `watchpot/core`, and import
 `burnerPrice` and `perSecond` from `./game` next to `store`. Then add a `Stove` component and a rate line on the pot:
@@ -621,8 +630,11 @@ export const pot = feature({
   steps: {
     produce: {
       // Runs on every live tick and on the catch-up after time away.
-      simmer: (s, ctx) => {
-        s.pot.bubbles = s.pot.bubbles.add((SIMMER_PER_SECOND * ctx.dtMs) / 1000);
+      simmer: {
+        pass: "both",
+        run: (s, ctx) => {
+          s.pot.bubbles = s.pot.bubbles.add((SIMMER_PER_SECOND * ctx.dtMs) / 1000);
+        },
       },
     },
   },
@@ -654,9 +666,12 @@ export const stove = feature({
   }),
   steps: {
     produce: {
-      burn: (s, ctx) => {
-        const made = D(s.stove.burners * BURNER_PER_SECOND).mul(ctx.dtMs / 1000);
-        s.pot.bubbles = s.pot.bubbles.add(made);
+      burn: {
+        pass: "both",
+        run: (s, ctx) => {
+          const made = D(s.stove.burners * BURNER_PER_SECOND).mul(ctx.dtMs / 1000);
+          s.pot.bubbles = s.pot.bubbles.add(made);
+        },
       },
     },
   },
@@ -781,7 +796,7 @@ Put `dist/` on any static host and the game runs there, saving to each player's 
 
 - **Forgetting to assign a Decimal.** `s.pot.bubbles.add(1)` on its own line does nothing: Decimals never change in
   place, so the new value is thrown away. Always write `s.pot.bubbles = s.pot.bubbles.add(1)`.
-- **Time away is paid in full, with no limit.** A step written as a plain function runs in both the live tick and the
+- **Time away is paid in full, with no limit.** A step with `pass: "both"` runs in both the live tick and the
   catch-up, so a player who leaves for a month comes back to a month of income at the full rate. That is fine for
   Simmer and wrong for most games. [Chapter 9](09-saving-and-time-away.md) shows how to pay a share of the time, up to
   a cap.
@@ -809,7 +824,7 @@ the tick and its phases, the clock and the catch-up) and shows the order they ru
 - [`docs/add-a-generator.md`](../add-a-generator.md) and [`docs/generators.md`](../generators.md): generators beyond
   one hand-written burner.
 - [`docs/time-away.md`](../time-away.md): capping and reporting time away.
-- [`README.md`](../../README.md#install): install, and the React section on the store hooks.
+- [`README.md`](../../README.md#install): install; [`docs/react.md`](../react.md): the store hooks.
 - `api/core/feature.d.ts` (`feature`, steps and phases), `api/core/game.d.ts` (`defineGame`),
   `api/core/store.d.ts` (`createIdleStore`, `IdleStoreOptions`, the root actions), `api/core/storage.d.ts` (the
   save's storage), `api/core/persist.d.ts` (`clearSave`), `api/core/cost.d.ts` (`costAt`), `api/core/fmt.d.ts` (`fmt`, `fmtRate`, `fmtCounted`,

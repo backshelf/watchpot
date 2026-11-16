@@ -12,12 +12,38 @@ finds a cool gauge rather than one that blew while they were away.
 Example: [`examples/gauge.ts`](examples/gauge.ts) (`bun docs/examples/gauge.ts`). A kettle's pressure climbs while
 the flame is lit and blows at the top, a vent lets it out, and a whistle is a meter with no trip:
 
+<!-- example-code: gauge.ts -->
+
 ```ts
+import {
+  type BuffsState,
+  buffActive,
+  createGameStorage,
+  createIdleStore,
+  createMemoryBackend,
+  defineBuffs,
+  defineGame,
+  defineGauge,
+  feature,
+  fmt,
+  gaugeFill,
+  gaugeLocked,
+  nudgeGauge,
+  secondsToTrip,
+  ZERO,
+} from "watchpot/core";
+
+/** A kettle on a flame, whose pressure can blow. */
+export const PRESSURE = { max: 100, perTap: 8, rising: 3, falling: 5, venting: 10 };
+
 /** What the pressure's rate reads: whether the flame is lit, and the vent (a timer buff with no effects). */
 type Reads = { kettle: { lit: boolean }; boosts: BuffsState };
 
 /** Opening the vent lets pressure out for ten seconds. No `effects`: it is a timer the pressure's rate reads. */
-export const boosts = defineBuffs({ key: "boosts", list: [{ id: "vent", durationMs: 10_000, stack: "refresh" }] });
+export const boosts = defineBuffs({
+  key: "boosts",
+  list: [{ id: "vent", durationMs: 10_000, stack: "refresh" }],
+});
 
 /** The pressure: it climbs while the flame is lit and blows at the top, which puts the flame out. */
 export const pressure = defineGauge({
@@ -59,18 +85,33 @@ export const kettle = feature({
   }),
   steps: {
     produce: {
-      pour: (d, ctx) => {
-        if (gaugeLocked(d.pressure, ctx.now)) return;
-        const perSecond = 1 + gaugeFill(d.pressure, PRESSURE.max); // up to twice at full pressure
-        d.kettle.cups = d.kettle.cups.add((perSecond * ctx.dtMs) / 1000);
+      pour: {
+        pass: "both",
+        run: (d, ctx) => {
+          if (gaugeLocked(d.pressure, ctx.now)) return;
+          const perSecond = 1 + gaugeFill(d.pressure, PRESSURE.max); // up to twice at full pressure
+          d.kettle.cups = d.kettle.cups.add((perSecond * ctx.dtMs) / 1000);
+        },
       },
     },
   },
 });
+
+export const game = defineGame({
+  id: "kettle",
+  save: { key: "kettle.save", version: 1 },
+  features: [boosts, pressure, whistle, kettle],
+});
+
+/** The kernel alone, pure: a nudge from 95 by 10 trips the pressure at `now`, and the lock runs from then. */
+export const kernelTrip = (now: number) =>
+  nudgeGauge({ level: 95, lockedUntil: 0, trips: 0 }, 10, now, pressure.def);
 ```
 
 Run it and the kettle climbs to 80 with ten taps, blows a few seconds later (the flame goes out, the level drops to
 25 and the lock holds it there), and cools once the lock is over:
+
+<!-- example-output: gauge.ts -->
 
 ```
 after 10 taps: pressure 80 | blows in 6.666666666666667 s

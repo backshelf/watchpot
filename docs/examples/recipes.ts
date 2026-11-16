@@ -25,6 +25,7 @@ export const forge = defineCrafting({
     },
   ],
 });
+// store.getState().forge.craft("polish", 5) · .craftMax("set") · forge.select.nextInMs(state, "cast", now)
 
 export const game = defineGame({
   id: "forge",

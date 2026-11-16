@@ -1,8 +1,8 @@
 /**
  * Chapter 12 of the guide, "Proving the pacing": two small things the main sim (guide-pacing.ts) does not need. An
- * upgrade tree needs a `worth` for a node that moves no number the sim can see; and a sitting
- * can stop the moment something first happens, which answers "when does the player first get X?". The game is the
- * main sim's playable Simmer, plus a kitchen shop with one upgrade in it.
+ * upgrade tree offers its nodes to the sim by itself, worth what they add to the objective; and a sitting can stop
+ * the moment something first happens, which answers "when does the player first get X?". The game is the main sim's
+ * Simmer, plus a kitchen shop with one upgrade in it, and a stove that reads it.
  *
  * Run it with `bun docs/examples/guide-pacing-tree.ts`: it prints when the sim first bought the copper base.
  */
@@ -13,13 +13,21 @@ import {
   feature,
   type GraphNode,
   HOUR_MS,
-  type TreeState,
+  type StateOf,
 } from "watchpot/core";
 import { autoPlayer, createSimWorld, fmtClock, playStraight, simStore } from "watchpot/sim";
-import { playablePot } from "./guide-pacing";
-import { lid, stove, WORDS, wallet } from "./simmer/game-wallet";
+import {
+  AWAY_CAP_MS,
+  burnerPrice,
+  flameOf,
+  lid,
+  OFFLINE_RATE,
+  pot,
+  WORDS,
+  wallet,
+} from "./simmer/game-wallet";
 
-/** The kitchen's one upgrade. It names no stat (Simmer has none); the `copper` feature below reads its rank. */
+/** The kitchen's one upgrade. It names no stat (this Simmer has none); the stove reads its rank. */
 const COPPER: GraphNode<Effect, "bubbles"> = {
   id: "copper",
   name: "A copper base",
@@ -30,43 +38,75 @@ const COPPER: GraphNode<Effect, "bubbles"> = {
   effects: [],
 };
 
-// The tree declares the moves the sim buys from. `worth` is in the unit the burners' moves use, bubbles a second; the
-// copper base changes no number the sim can see until the `copper` feature below reads it, so it is a fair guess:
-// about five burners.
-const kitchen = defineUpgradeTree({ key: "kitchen", nodes: [COPPER], wallet, worth: () => 5 });
+// The tree offers the sim a move per node it can buy, with no worth: the auto-player works it out from its objective.
+const kitchen = defineUpgradeTree({ key: "kitchen", nodes: [COPPER], wallet });
 
-const hasCopper = (s: { kitchen: TreeState }) => (s.kitchen.ranks.copper ?? 0) > 0;
-
-/** The copper base at work: once bought, it doubles the stove's rate, after the lid has had its say. */
-const copper = feature({
-  key: "copper",
-  reach: [stove, kitchen],
-  initial: () => ({}),
+/** Chapter 4's stove, doubled by the copper base, with its burner move written in its own definition. */
+const stove = feature({
+  key: "stove",
+  reach: [wallet, lid, kitchen],
+  initial: () => ({ burners: 0, off: false }),
+  derived: {
+    perSecond: (s) =>
+      flameOf(s.stove.burners)
+        .mul(s.lid.on ? 2 : 1)
+        .mul(s.kitchen.ranks.copper ? 2 : 1),
+  },
+  actions: (api) => ({
+    buyBurner: () =>
+      api.set((s) => {
+        if (!wallet.draft.debit(s, "bubbles", burnerPrice(s.stove.burners))) return false;
+        s.stove.burners += 1;
+        return true;
+      }),
+    toggle: () =>
+      api.set((s) => {
+        s.stove.off = !s.stove.off;
+      }),
+  }),
   steps: {
-    rates: {
-      spread: {
-        after: "lid.rates.trap",
-        run: (s) => {
-          if (hasCopper(s)) s.stove.perSecond = s.stove.perSecond.mul(2);
+    guard: { cold: (s) => (s.stove.off ? "stop" : undefined) },
+    produce: {
+      burn: {
+        pass: "tick",
+        run: (s, ctx) => {
+          wallet.draft.credit(s, "bubbles", s.stove.perSecond.mul(ctx.dtMs / 1000));
+        },
+      },
+      away: {
+        pass: "catchUp",
+        run: (s, ctx) => {
+          const credited = Math.min(ctx.dtMs, AWAY_CAP_MS) * OFFLINE_RATE;
+          wallet.draft.credit(s, "bubbles", s.stove.perSecond.mul(credited / 1000));
         },
       },
     },
   },
+  moves: (s) => [
+    {
+      id: "buy-burner",
+      cost: { currency: "bubbles", amount: burnerPrice(s.stove.burners) },
+      apply: (store) => store.getState().stove.buyBurner(),
+    },
+  ],
 });
 
 export const game = defineGame({
   id: "simmer",
   save: { key: "simmer.save", version: 1 },
   vocab: WORDS,
-  features: [wallet, playablePot, stove, lid, kitchen, copper],
+  features: [wallet, pot, stove, lid, kitchen],
 });
+
+/** The whole game's state, which the objective reads. The auto-player does not take it from the game. */
+type Kitchen = StateOf<typeof game.features>;
 
 /** How long the sim took to buy the copper base, in ms, or null if two hours were not enough. */
 export function copperBoughtAt(seed = "simmer"): number | null {
   const start = Date.UTC(2026, 0, 1);
   const world = createSimWorld((now) => simStore(game, now, seed), start);
-  const player = autoPlayer(game);
-  const has = () => hasCopper(world.store.getState());
+  const player = autoPlayer(game, { objective: (s: Kitchen) => s.stove.perSecond.toNumber() });
+  const has = () => (world.store.getState().kitchen.ranks.copper ?? 0) > 0;
 
   playStraight({
     world,

@@ -28,6 +28,8 @@ Every save a player holds must keep loading, so pin each version you ship with a
 2. In a test, load the file into the current build with `freshStore(game, { save, catchUp: false })` and assert that
    `saveSetAside(store)` is null and the figures you care about came through.
 
+<!-- example-code: migration.ts -->
+
 ```ts
 /** Once, when version 1 ships: write its save to the file you commit, `test/fixtures/save-v1.json`. */
 export const writeFixture = (path: string) => Bun.write(path, SAVE_V1);

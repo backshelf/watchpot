@@ -1,6 +1,7 @@
 /**
- * Ties the guide's quoted code and output to the runnable examples in `docs/examples/`. Run by
- * `test/docs/guide-examples.slow.test.ts`; run it by hand to rewrite the quoted output from the real output:
+ * Ties the docs' quoted code and output to the runnable examples in `docs/examples/`: the guide's chapters and the
+ * reference pages beside them (`docs/*.md`). Run by `test/docs/guide-examples.slow.test.ts`; run it by hand to
+ * rewrite the quoted output from the real output:
  *
  *   bun scripts/guide-examples.ts           check, print every finding, exit 1 on any
  *   bun scripts/guide-examples.ts --write   rewrite each `example-output` block from what its example prints
@@ -11,14 +12,15 @@ import { readdirSync, readFileSync, writeFileSync } from "node:fs";
 import { join, relative } from "node:path";
 
 const ROOT = join(import.meta.dir, "..");
-const GUIDE = join(ROOT, "docs", "guide");
-const EXAMPLES = join(ROOT, "docs", "examples");
+const DOCS = join(ROOT, "docs");
+const EXAMPLES = join(DOCS, "examples");
 
 export type Kind = "output" | "code" | "prints";
 
-/** One marker in a chapter, and the fenced block it sits above (none for `prints`). */
+/** One marker in a page, and the fenced block it sits above (none for `prints`). */
 export type Marker = {
-  chapter: string;
+  /** The page's path under `docs/`: `guide/03-the-mental-model.md`, `buffs.md`. */
+  page: string;
   /** 1-based line of the marker. */
   line: number;
   kind: Kind;
@@ -30,37 +32,50 @@ export type Marker = {
   texts: string[];
   /** The fenced block: its line indexes (0-based, of the opening and closing fence) and its lines. */
   fence: { open: number; close: number; lines: string[] } | null;
-  /** "1st output block" and so on, counted per chapter and kind. */
+  /** "1st output marker" and so on, counted per page and kind. */
   name: string;
 };
 
-export type Finding = { chapter: string; message: string };
+export type Finding = { page: string; message: string };
 
-const MARKER = /^<!--\s*example-(output|code|prints):\s*(.*?)\s*-->\s*$/;
+/** A marker is a whole line, which may be indented (a block inside a list item). */
+const MARKER = /^<!--\s*example-(output|code|prints):\s*(.*?)\s*-->$/;
 
 const lf = (s: string) => s.replaceAll("\r\n", "\n");
 
 const ordinal = (n: number) =>
   `${n}${["th", "st", "nd", "rd"][n % 100 > 10 && n % 100 < 14 ? 0 : n % 10 < 4 ? n % 10 : 0]}`;
 
+/** The guide's chapters, as paths under `docs/`. */
 export const chapters = (): string[] =>
-  readdirSync(GUIDE)
+  readdirSync(join(DOCS, "guide"))
     .filter((f) => /^\d\d-.*\.md$/.test(f))
-    .sort();
+    .sort()
+    .map((f) => `guide/${f}`);
 
-const read = (chapter: string) => lf(readFileSync(join(GUIDE, chapter), "utf8")).split("\n");
+/** Every page the check reads, as paths under `docs/`: the chapters, then the reference pages. */
+export const pages = (): string[] => [
+  ...chapters(),
+  ...readdirSync(DOCS)
+    .filter((f) => f.endsWith(".md"))
+    .sort(),
+];
 
-/** Every marker in one chapter, with its fenced block. A malformed marker comes back in `problems`. */
-export const parseChapter = (chapter: string): { markers: Marker[]; problems: Finding[] } => {
-  const lines = read(chapter);
+const read = (page: string) => lf(readFileSync(join(DOCS, page), "utf8")).split("\n");
+
+const isFence = (line: string | undefined) => (line ?? "").trim().startsWith("```");
+
+/** Every marker in one page, with its fenced block. A malformed marker comes back in `problems`. */
+export const parsePage = (page: string): { markers: Marker[]; problems: Finding[] } => {
+  const lines = read(page);
   const markers: Marker[] = [];
   const problems: Finding[] = [];
   const counts: Record<string, number> = {};
   for (let i = 0; i < lines.length; i++) {
-    const m = MARKER.exec(lines[i] ?? "");
+    const m = MARKER.exec((lines[i] ?? "").trim());
     if (!m) continue;
     const kind = m[1] as Kind;
-    const where = `${chapter}:${i + 1}`;
+    const where = `${page}:${i + 1}`;
     const body = m[2] ?? "";
     let file = body;
     let range: [number, number] | null = null;
@@ -71,7 +86,7 @@ export const parseChapter = (chapter: string): { markers: Marker[]; problems: Fi
       texts = parts.slice(1).filter(Boolean);
       if (texts.length === 0) {
         problems.push({
-          chapter,
+          page,
           message: `${where}: an example-prints marker names no text (use \`file | text | text\`)`,
         });
         continue;
@@ -82,7 +97,7 @@ export const parseChapter = (chapter: string): { markers: Marker[]; problems: Fi
       for (const extra of parts.slice(1)) {
         const r = /^lines=(\d+)-(\d+)$/.exec(extra);
         if (kind === "output" && r) range = [Number(r[1]), Number(r[2])];
-        else problems.push({ chapter, message: `${where}: unknown marker option "${extra}"` });
+        else problems.push({ page, message: `${where}: unknown marker option "${extra}"` });
       }
     }
     counts[kind] = (counts[kind] ?? 0) + 1;
@@ -91,16 +106,15 @@ export const parseChapter = (chapter: string): { markers: Marker[]; problems: Fi
     if (kind !== "prints") {
       let open = i + 1;
       while (open < lines.length && (lines[open] ?? "").trim() === "") open++;
-      const opener = lines[open] ?? "";
-      if (!opener.startsWith("```")) {
-        problems.push({ chapter, message: `${where}: the ${name} is not followed by a fenced block` });
+      if (!isFence(lines[open])) {
+        problems.push({ page, message: `${where}: the ${name} is not followed by a fenced block` });
         continue;
       }
       let close = open + 1;
-      while (close < lines.length && !(lines[close] ?? "").startsWith("```")) close++;
+      while (close < lines.length && !isFence(lines[close])) close++;
       fence = { open, close, lines: lines.slice(open + 1, close) };
     }
-    markers.push({ chapter, line: i + 1, kind, file, range, texts, fence, name });
+    markers.push({ page, line: i + 1, kind, file, range, texts, fence, name });
   }
   return { markers, problems };
 };
@@ -162,11 +176,11 @@ const comment = (l: string) => /^(\/\/|\/\*|\*)/.test(l.trim());
  * also leave out the example's whole-line comments (and bring none of its own that the example lacks): when the
  * strict match fails, both sides are compared again with their whole-line comments removed.
  */
-const codeFinding = (m: Marker, source: string[]): string | null => {
-  const strict = matchCode(m.fence?.lines ?? [], source);
+export const codeFinding = (quote: string[], source: string[]): string | null => {
+  const strict = matchCode(quote, source);
   if (!strict) return null;
   const bare = matchCode(
-    (m.fence?.lines ?? []).filter((l) => !comment(l) || l.trim() === "// ..."),
+    quote.filter((l) => !comment(l) || l.trim() === "// ..."),
     source.filter((l) => !comment(l)),
   );
   return bare ? strict : null;
@@ -201,20 +215,21 @@ const matchCode = (block: string[], source: string[]): string | null => {
   return null;
 };
 
-/** Every example file the guide can quote: `guide-*` files and the Simmer folder, as paths under `docs/examples/`. */
-export const guideExamples = (): string[] => {
-  const top = readdirSync(EXAMPLES, { withFileTypes: true });
-  const own = top.filter((e) => e.isFile() && e.name.startsWith("guide-")).map((e) => e.name);
-  const simmer = readdirSync(join(EXAMPLES, "simmer"), { recursive: true, withFileTypes: true })
-    .filter((e) => e.isFile())
-    .map((e) => relative(EXAMPLES, join(e.parentPath, e.name)).replaceAll("\\", "/"));
-  return [...own, ...simmer].sort();
-};
+/** Every example file, as paths under `docs/examples/`. */
+export const allExamples = (): string[] =>
+  readdirSync(EXAMPLES, { recursive: true, withFileTypes: true })
+    .filter((e) => e.isFile() && /\.tsx?$/.test(e.name))
+    .map((e) => relative(EXAMPLES, join(e.parentPath, e.name)).replaceAll("\\", "/"))
+    .sort();
+
+/** The examples written for the guide: `guide-*` files and the Simmer folder. A chapter must reference each. */
+export const guideExamples = (): string[] =>
+  allExamples().filter((f) => f.startsWith("guide-") || f.startsWith("simmer/"));
 
 export type Report = {
-  /** Findings by chapter file name; every chapter has an entry. */
-  byChapter: Map<string, Finding[]>;
-  /** Findings that belong to no chapter: an example no chapter references. */
+  /** Findings by page (its path under `docs/`); every page has an entry. */
+  byPage: Map<string, Finding[]>;
+  /** Findings that belong to no page: an example nothing references. */
   loose: Finding[];
   markers: Marker[];
   /** The stdout of each example a marker needed. */
@@ -222,18 +237,17 @@ export type Report = {
 };
 
 export const check = async (): Promise<Report> => {
-  const byChapter = new Map<string, Finding[]>();
+  const byPage = new Map<string, Finding[]>();
   const markers: Marker[] = [];
   const text = new Map<string, string>();
-  for (const chapter of chapters()) {
-    const { markers: ms, problems } = parseChapter(chapter);
-    byChapter.set(chapter, [...problems]);
+  for (const page of pages()) {
+    const { markers: ms, problems } = parsePage(page);
+    byPage.set(page, [...problems]);
     markers.push(...ms);
-    text.set(chapter, read(chapter).join("\n"));
+    text.set(page, read(page).join("\n"));
   }
-  const add = (chapter: string, message: string) => byChapter.get(chapter)?.push({ chapter, message });
+  const add = (page: string, message: string) => byPage.get(page)?.push({ page, message });
 
-  const known = new Set(guideExamples());
   const existing = (file: string) => {
     try {
       readFileSync(join(EXAMPLES, file));
@@ -243,7 +257,7 @@ export const check = async (): Promise<Report> => {
     }
   };
 
-  // The examples that print what a chapter quotes run once each, side by side.
+  // The examples that print what a page quotes run once each, side by side.
   const needed = [
     ...new Set(markers.filter((m) => m.kind !== "code" && existing(m.file)).map((m) => m.file)),
   ];
@@ -259,29 +273,27 @@ export const check = async (): Promise<Report> => {
   );
 
   for (const m of markers) {
-    const at = `${m.chapter}:${m.line}`;
+    const at = `${m.page}:${m.line}`;
     if (!existing(m.file)) {
-      add(m.chapter, `${at}: the ${m.name} points at docs/examples/${m.file}, which does not exist`);
+      add(m.page, `${at}: the ${m.name} points at docs/examples/${m.file}, which does not exist`);
       continue;
     }
     if (m.kind === "code") {
-      const miss = codeFinding(m, lf(readFileSync(join(EXAMPLES, m.file), "utf8")).split("\n"));
+      const source = lf(readFileSync(join(EXAMPLES, m.file), "utf8")).split("\n");
+      const miss = codeFinding(m.fence?.lines ?? [], source);
       if (miss)
-        add(m.chapter, `${at}: the ${m.name} quotes code that is not in docs/examples/${m.file}\n${miss}`);
+        add(m.page, `${at}: the ${m.name} quotes code that is not in docs/examples/${m.file}\n${miss}`);
       continue;
     }
     const out = stdout.get(m.file);
     if (out instanceof Error || !out) {
-      add(m.chapter, `${at}: docs/examples/${m.file} did not run: ${out?.message ?? "no output"}`);
+      add(m.page, `${at}: docs/examples/${m.file} did not run: ${out?.message ?? "no output"}`);
       continue;
     }
     if (m.kind === "prints") {
       for (const t of m.texts) {
         if (!out.some((l) => l.trim() === t)) {
-          add(
-            m.chapter,
-            `${at}: the text below is not a line that docs/examples/${m.file} prints:\n    ${t}`,
-          );
+          add(m.page, `${at}: the text below is not a line that docs/examples/${m.file} prints:\n    ${t}`);
         }
       }
       continue;
@@ -291,31 +303,39 @@ export const check = async (): Promise<Report> => {
     const got = (m.fence?.lines ?? []).map((l) => l.trimEnd());
     if (want.join("\n") !== got.join("\n")) {
       add(
-        m.chapter,
+        m.page,
         `${at}: the ${m.name} quotes output that docs/examples/${m.file} does not print (lines ${from}-${to}; - is printed, + is quoted)\n${diff(want, got)}`,
       );
     }
   }
 
-  // Every example file is quoted, linked or run from some chapter.
-  const all = [...text.values()].join("\n");
+  // Every guide example is quoted, linked or run from some chapter, and every other example from some page (the
+  // root README counts: it quotes one of its own).
+  text.set("../README.md", lf(readFileSync(join(ROOT, "README.md"), "utf8")));
+  const referencedFrom = (file: string, where: (page: string) => boolean) =>
+    [...text].some(([page, body]) => where(page) && body.includes(`examples/${file}`)) ||
+    markers.some((m) => m.file === file && where(m.page));
+  const guide = new Set(guideExamples());
   const loose: Finding[] = [];
-  for (const file of known) {
-    if (!all.includes(`examples/${file}`) && !markers.some((m) => m.file === file)) {
-      loose.push({ chapter: "", message: `docs/examples/${file} is referenced by no chapter` });
+  for (const file of allExamples()) {
+    if (guide.has(file)) {
+      if (!referencedFrom(file, (p) => p.startsWith("guide/")))
+        loose.push({ page: "", message: `docs/examples/${file} is referenced by no chapter` });
+    } else if (!referencedFrom(file, () => true)) {
+      loose.push({ page: "", message: `docs/examples/${file} is referenced by no page` });
     }
   }
-  return { byChapter, loose, markers, stdout };
+  return { byPage, loose, markers, stdout };
 };
 
 /** Rewrites every `example-output` block from what its example prints. Returns the blocks it changed. */
 export const write = async (): Promise<string[]> => {
   const { markers, stdout } = await check();
   const changed: string[] = [];
-  for (const chapter of chapters()) {
-    const mine = markers.filter((m) => m.chapter === chapter && m.kind === "output" && m.fence);
+  for (const page of pages()) {
+    const mine = markers.filter((m) => m.page === page && m.kind === "output" && m.fence);
     if (mine.length === 0) continue;
-    const lines = read(chapter);
+    const lines = read(page);
     // Bottom up, so a block that grows does not move the ones above it.
     for (const m of mine.sort((a, b) => b.line - a.line)) {
       const out = stdout.get(m.file);
@@ -324,9 +344,9 @@ export const write = async (): Promise<string[]> => {
       const next = out.slice(from - 1, to).map((l) => l.trimEnd());
       if (next.join("\n") === m.fence.lines.map((l) => l.trimEnd()).join("\n")) continue;
       lines.splice(m.fence.open + 1, m.fence.close - m.fence.open - 1, ...next);
-      changed.push(`${chapter}:${m.line}`);
+      changed.push(`${page}:${m.line}`);
     }
-    writeFileSync(join(GUIDE, chapter), lines.join("\n"));
+    writeFileSync(join(DOCS, page), lines.join("\n"));
   }
   return changed;
 };
@@ -341,7 +361,7 @@ if (import.meta.main) {
     );
   } else {
     const report = await check();
-    const all = [...report.byChapter.values()].flat().concat(report.loose);
+    const all = [...report.byPage.values()].flat().concat(report.loose);
     for (const f of all) console.log(`${f.message}\n`);
     console.log(all.length ? `${all.length} finding(s)` : `ok: ${report.markers.length} marker(s)`);
     process.exit(all.length ? 1 : 0);

@@ -7,14 +7,17 @@ Every draw is on the kind's own saved stream, so a reload replays the same arriv
 from the store's seed, the key and the kind alone, so a save from before the spawns existed, imported into a store with
 the same seed, arrives as the run that carried on does.
 
-```ts
-import { MINUTE_MS, defineSpawns } from "watchpot/core";
+<!-- example-code: spawns.ts -->
 
+```ts
+import { type Decimal, defineCurrencies, defineGame, defineSpawns, MINUTE_MS } from "watchpot/core";
+// ...
 export const visitors = defineSpawns({
   key: "visitors",
   kinds: [
     {
       id: "spark",
+      // At least 5 minutes, at most 15; past 5 the chance each frame rises as u^5, so most come late.
       wait: { minMs: 5 * MINUTE_MS, maxMs: 15 * MINUTE_MS, ramp: { power: 5, stepMs: 1000 / 30 } },
       lifeMs: 13_000,
       outcomes: [
@@ -26,9 +29,10 @@ export const visitors = defineSpawns({
   ],
   onCatch: (draft: State, outcome) => {
     if (outcome === "windfall") wallet.draft.credit(draft, "gold", draft.mine.perSecond.mul(900));
+    if (outcome === "gem") wallet.draft.credit(draft, "gems", 1);
+    // "rush": the game starts a buff here (`boosts.draft.start(draft, id, now)`).
   },
 });
-// s.visitors.kinds.spark.live → null or { id, bornAt, diesAt }; store.getState().visitors.catch("spark")
 ```
 
 Example: [`examples/spawns.ts`](examples/spawns.ts).

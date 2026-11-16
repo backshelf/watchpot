@@ -34,86 +34,78 @@ The auto-player knows nothing about your game. It asks each feature what a playe
 feature answers through an optional `moves` function. The store never calls it; only the sim does.
 
 Simmer's features were written without moves, so the example imports them from
-[`simmer/game-wallet.ts`](../examples/simmer/game-wallet.ts) and adds one with `withMoves(feature, moves)`, which
-hands back the same feature with the moves attached:
+[`simmer/game-wallet.ts`](../examples/simmer/game-wallet.ts) and adds one to the stove with `withMoves(feature,
+moves)`, which hands back the same feature with the moves attached. It also names what the player is trying to grow:
 
 <!-- example-code: guide-pacing.ts -->
 
 ```ts
-/**
- * Simmer's pot, carrying what a player could do now, for the sim's auto-player: light a burner. The store never reads
- * this. Moves read the whole state, so any feature can carry them. The stove would be the natural home, but the lid
- * reaches the stove itself, and a stove with moves is a new object, so the lid would have to be rebuilt too. Nothing
- * reaches the pot.
- */
-export const playablePot = withMoves(pot, (s: Simmer) => [
+export const playableStove = withMoves(stove, (s: Simmer) => [
   {
     id: "buy-burner",
     cost: { currency: "bubbles", amount: burnerPrice(s.stove.burners) },
-    value: () => BURNER_PER_SECOND, // bubbles a second: the only thing a burner does
     apply: (store) => store.getState().stove.buyBurner(),
   },
 ]);
 
-/** Simmer with the playable pot in the pot's place: the same key, the same save. */
+/** Simmer with the playable stove in the stove's place: the same key, the same save. */
 export const game = defineGame({
   id: "simmer",
   save: { key: "simmer.save", version: 1 },
   vocab: WORDS,
-  features: [wallet, playablePot, stove, lid],
-  order: { rates: [...SIMMER_RATES] },
+  features: [wallet, pot, playableStove, lid],
 });
+
+/** What the player is trying to grow: the stove's bubbles a second. */
+export const income = (s: Simmer): number => s.stove.perSecond.toNumber();
 ```
 
 `docs/examples/guide-pacing.ts`
 
-A [move](../glossary.md#move) has four parts:
+A [move](../glossary.md#move) has three parts here:
 
 - `id` names it. If its `apply` refuses, the auto-player does not try that id again in the same look.
 - `cost` says what it costs and in which currency. A move with no cost is a free move: a claim, an open, a toggle.
   `burnerPrice` is the core's own price (`costAt`, rounded up), so the sim pays exactly what the page charges.
-- `value` says what it is worth, in any unit you like, as long as every move in that currency uses the same one. A
-  burner makes a bubble a second, so its worth is `BURNER_PER_SECOND`, 1.
 - `apply` plays it through the store's own actions and says whether it went through. `buyBurner` already returns
   that, so the move hands it straight back.
 
-The comment explains why the moves ride on the pot. `defineGame` checks each feature's `reach` against the list by
-identity: the lid reaches the very `stove` object chapter 3 made, so a game that lists a changed copy of the stove
-in its place fails with "feature "lid" reaches "stove", which the game does not list". A feature nothing reaches
-can be swapped freely, and the pot is one.
+What a move is worth is the auto-player's question, and the [objective](../glossary.md#objective) answers it: one
+number read off the state that the player is trying to grow, usually income a second. To weigh a purchase, the
+auto-player makes it, reads how far the objective moved, and puts the state back. A burner raises `income` by one
+bubble a second (two with the lid on), so that is its worth. A move may also say `worth(state)` itself; it has to
+when buying it moves nothing the objective sees at once (an unlock, an offline cap, a reset), or the auto-player
+works out nothing and never takes it. `player.blind()` lists the moves that has happened to.
+
+In a game of your own, the moves usually sit in the feature's own definition, beside its actions:
+`feature({ ..., moves: (s) => [...] })`. `withMoves` is for a feature someone else wrote, as the stove is here.
 
 At each look the auto-player buys the purchase with the best worth for the share of its balance it spends, again and
-again while one is affordable, then takes every free move worth anything, and goes round once more if either did
+again while one is affordable, then takes every free move worth anything once, and goes round once more if either did
 something. It never saves up for something better. It is a greedy, tireless player, which is a fair stand-in for
 the first hours of a person who is paying attention.
 
-Several of the engine's ready-made systems carry their moves already: a `generators` list offers one purchase per
-generator, valued at the income it adds, an `upgradeTree` offers one purchase per node whose next rank can be bought,
-and a `clicker` offers one press per look. A move with no `worth` is worth what buying it adds to the auto-player's
-`objective`; a node that moves no number the sim can see at once (an unlock, an offline cap) needs you to say what it
-is worth, because only your game knows: the tree takes a `worth(state, node)` for that. Moves for a feature you wrote
-yourself, or for one a factory made without any (`prestige`, say), are attached with `withMoves(feature, moves)`. The
-second example file adds a kitchen to the playable Simmer: an `upgradeTree` with one upgrade, a copper base that
-doubles the stove (a small `copper` feature reads its rank in a `rates` step after the lid's). Here is the tree with
-its worth stated:
+Several of the engine's ready-made systems carry their moves already: a generators list offers one purchase per
+generator, an upgrade tree one per node whose next rank can be bought, and a clicker one press per look. None of them
+needs a worth: the objective prices them. The second example file adds a kitchen to Simmer: an upgrade tree with one
+upgrade, a copper base that doubles the stove, which that file's stove reads in its rate. The tree is listed as it is,
+with no moves written:
 
 <!-- example-code: guide-pacing-tree.ts -->
 
 ```ts
-// The tree declares the moves the sim buys from. `worth` is in the unit the burners' moves use, bubbles a second; the
-// copper base changes no number the sim can see until the `copper` feature below reads it, so it is a fair guess:
-// about five burners.
-const kitchen = defineUpgradeTree({ key: "kitchen", nodes: [COPPER], wallet, worth: () => 5 });
+// The tree offers the sim a move per node it can buy, with no worth: the auto-player works it out from its objective.
+const kitchen = defineUpgradeTree({ key: "kitchen", nodes: [COPPER], wallet });
 ```
 
 `docs/examples/guide-pacing-tree.ts`
 
-`worth` gets the state and the node, so a game that can work the number out says so there. You put the tree in the
-game's feature list as it is, and since nothing wraps it, there is no identity to keep.
+The copper base doubles the objective the moment it is bought, so the auto-player sees it worth as much as every
+burner lit, and buys it as soon as it can pay. A node whose worth the objective cannot see takes
+`worth: (state, node) => number` in the tree's definition.
 
 Notice that tapping the pot is not a move. That is deliberate, and the reason is the first thing that bites in
 [Things that bite](#things-that-bite).
-
 ## A run
 
 Now the run itself. This plays one day of Simmer, around the clock:
@@ -124,7 +116,7 @@ Now the run itself. This plays one day of Simmer, around the clock:
 export function playSimmer(seed = "simmer"): Run {
   const start = Date.UTC(2026, 0, 1);
   const world = createSimWorld((now) => simStore(game, now, seed), start);
-  const player = autoPlayer(game);
+  const player = autoPlayer(game, { objective: income });
 
   const hoursIn = () => (world.now() - start) / HOUR_MS;
   const read = (): Row => {
@@ -165,11 +157,13 @@ Line by line:
   every run.
 - `createSimWorld(build, start)` makes the world. You give it a function that builds a store over the clock it hands
   you, and it opens that store at `start` with one catch-up, as a first page load would. `simStore(game, now, seed)` is
-  the store to build: your game, on storage that never writes (saving after every change is the slowest thing a sim
-  could do), with its random draws seeded so one seed is always one run.
-- `autoPlayer(game)` makes the player. It has to know how much of each currency the state holds, so it only reaches
-  for what it can pay. A game with one `currencies` feature, as Simmer has, needs to say nothing: the player reads
-  that wallet. A game with two wallets, or none, passes `balance(state, currency)` to say where to look.
+  the store to build: a [plain store](../glossary.md#plain-store), your game's features, steps, actions and derived
+  values on plain data, with no save and no immer (the two slowest things a sim could pay for), and its random draws
+  seeded so one seed is always one run.
+- `autoPlayer(game, { objective: income })` makes the player, buying for the objective above. It has to know how much
+  of each currency the state holds, so it only reaches for what it can pay. A game with one wallet, as Simmer has,
+  needs to say nothing: the player reads it. A game with two wallets, or none, passes `balance(state, currency)` to
+  say where to look.
 - `read` takes one row: the hours since the start, the bubbles and the burners. A row holds whatever you want the
   contract to look at later.
 - `sampler` keeps the timeline. It takes a row each time the run passes one of the `marks` (five minutes, a quarter
@@ -463,40 +457,71 @@ The game template's first test uses it; [chapter 13](13-from-the-template.md) wa
 ## What a large game does: plan and fit
 
 Everything so far judges a game after the fact: set prices by hand, run, read, adjust. That works while a game has a
-handful of prices. VOID IF REMOVED has far too many to tune by hand, and each one sits in a chain: what you can afford at one point depends
-on everything you bought before it. Moving one price by hand shifts every wait after it.
+handful of prices. VOID IF REMOVED has far too many to tune by hand, and each one sits in a chain: what you can afford
+at one point depends on everything you bought before it. Moving one price by hand shifts every wait after it.
 
 So the game turns the question round. Instead of setting prices and measuring the waits, it writes down the waits
-and lets the sim set the prices. This is [plan and fit](../glossary.md#plan-and-fit), and the engine supplies the
-machinery (`runFit`, `FitGate`, `holdings`, `nicePrice`, `fitTableSource`, `fitReader`). Its shape:
+and lets the sim set the prices. This is [plan and fit](../glossary.md#plan-and-fit):
 
-- **The plan** (`sim/plan.ts` in the game) lists every [gate](../glossary.md#gate) (anything with a price) and the
-  played hour it should open, gathered from the content. For example, it puts the first reset's page at half an hour
-  of play.
-- **The pilot** (`sim/pilot.ts`) is the player: the engine's `autoPlayer`, wrapped in the calls a person makes that are
-  not purchases, such as holding the FEED pad down. It never reads a price it cannot pay, so a fit and its replay
-  play the same.
-- **The fit** (`bun sim/fit.ts`) plays once with every gate shut. As each gate's planned hour comes, it prices the
-  gate at what the pilot holds then, rounded to a figure a player can read, and plays on with that price fixed. One
-  pass in time order prices the whole game. It writes the prices to `src/content/fit.ts`, a table the game reads its
-  prices from and nobody edits by hand: to move a price, move its hour in the plan and fit again. (The game drives
-  `runFit` with its own `FitGate`s but reads that table through a reader of its own, not `fitReader`, because a fit
-  has to change prices while it runs.)
-- **The proof** replays the fitted game and checks it arrives exactly where the fit's own run stood. The game cuts
-  the replay at snapshots and plays each stretch in its own process, so the proof runs in parallel. `--draft` skips
-  it and marks the table as a draft.
-- **Snapshots.** A full fit takes long enough to tie the machine up, so it leaves a snapshot every few played hours,
-  and `bun sim/fit.ts --from=<h>` carries on from the latest one at or before that hour. You name the earliest hour
-  your change can act at, and pay only for the hours after it.
-- **The replay** (`bun run sim -- --contract`) plays on the fitted table and fails when a stretch has a wait over the
-  game's limit or something planned is never bought. `--firsts` prints every first with its hour, which is how the
-  first reset's page can be seen opening at the half hour the plan gave it.
+- **The plan** lists every [gate](../glossary.md#gate) (anything with a price) and the played hour it should open.
+  VOID IF REMOVED puts the first reset's page at half an hour of play.
+- **The pilot** is the player: the engine's `autoPlayer`, wrapped in the calls a person makes that are not purchases,
+  such as holding the FEED pad down.
+- **The fit** plays once with every gate shut. As each gate's planned hour comes, it prices the gate at what the pilot
+  holds then, and plays on with that price fixed. One pass in time order prices the whole game.
+- **The table** is where the prices land, and the one place the game reads them from. Nobody edits it by hand: to
+  move a price, move its hour in the plan and fit again.
 
-Notice what is missing: the game uses no `table`, `judge`, `sampler` or `playDays`. Its pacing contract is the fit's
-own report (the longest wait in each stretch, anything never bought, and the proof), not a table of bands. Those are
-two roads to the same place, and a game takes one of them. The engine's [plan and fit page](../plan-and-fit.md)
-explains the method in full, with a small bakery as the example.
+The engine's [fit kit](../fit-kit.md) is the machinery, in `watchpot/sim`, and the reference page plays it on a toy
+pottery whose four glazes are the gates. The table is one constant the game reads and the fit writes:
 
+<!-- example-code: fit-kit.ts -->
+
+```ts
+/** The live table: the game reads each glaze's price from it, and the fit prices each into it. */
+const PRICES = fitTable<Glaze>();
+```
+
+`docs/examples/fit-kit.ts`
+
+The game's action reads `PRICES.get(id)`, a Decimal, and a gate the fit has not priced yet reads as shut. The fit
+itself is one call:
+
+<!-- example-code: fit-kit.ts -->
+
+```ts
+return runFit({
+  ...r.run,
+  table: PRICES,
+  gates: r.gates,
+  done: r.done,
+  limitMs: 30 * MIN,
+  quality: "exact",
+  snapshotEveryMs: 5 * MIN,
+  from,
+});
+```
+
+`docs/examples/fit-kit.ts`
+
+- `r.run` is the game's run (a `FitRun`): how to play a step, how the pilot looks, and what to keep in a
+  [snapshot](../glossary.md#snapshot). The fit, the proof and the profiler all play through it, so they play alike.
+- Each gate prices itself when its hour comes, with `priceAbove(peak)`: just above the most the pilot ever held, so
+  nothing bought before the gate's hour could have paid it.
+- `snapshotEveryMs` leaves a snapshot of the whole sim every five played minutes, and `from` carries a fit on from
+  one. A full fit of a big game takes minutes; after a change you name the earliest hour it can act at, and pay only
+  for the hours after it.
+- The [proof](../glossary.md#proof) (`proveFit`, or `proveFitParallel` on workers) replays the finished table between
+  the snapshots, and each stretch must arrive exactly where the fit's own run stood. A draft skips it.
+- `fitTableSource(PRICES, …)` prints the table as a module the game commits; the profiler (`profileSim`) says where a
+  step's time goes when a fit grows slow.
+
+VOID IF REMOVED built each of these by hand on an older engine (its own price map, snapshot files, a proof cut into
+processes) before the kit existed; the kit is those pieces, made generic. Notice what that game does not use: no
+`table`, `judge`, `sampler` or `playDays`. Its pacing contract is the fit's own report (the longest wait in each
+stretch, anything never bought, and the proof), not a table of bands. Those are two roads to the same place, and a
+game takes one of them. [Plan and fit](../plan-and-fit.md) explains the method in full, with a small bakery as the
+example, and [the fit kit](../fit-kit.md) the machinery.
 ## When you need none of that
 
 Most games do not. If your game has a few dozen prices, set them by hand, write a sim like Simmer's on
@@ -509,24 +534,25 @@ solves, and it costs a plan file, a pilot, a fit script and minutes per fit to s
 
 ## Things that bite
 
-- **A free move that always goes through.** The auto-player takes free moves until none goes through, up to a
-  thousand per look. A `tap` move whose `apply` always returns `true` gets taken a thousand times every look, and
-  your sim reports a pot that fills by itself. The engine's `clicker` avoids this by refusing a second press at the
-  same moment. For a hand-written tap, spend the presses in your `look` yourself, as Simmer does.
-- **A feature with no moves is invisible to the sim.** A `generators` list and a `clicker` carry their moves; an
-  `upgradeTree`, a `prestige` and every feature you write by hand do not. The auto-player never buys from them, and
-  nothing warns you at run time, so a sim can quietly under-play your game, as it leaves Simmer's lid off. Attach
-  moves with `withMoves` (see [Teaching Simmer to be played](#teaching-simmer-to-be-played)).
-- **A feature with moves is a new object.** `withMoves` returns a copy, and `reach` is checked by identity, so a
-  game cannot list the copy of a feature another feature reaches. Put the moves on a feature nothing reaches, or build
-  the reaching feature over the copy.
-- **The world's tick is a minute.** `createSimWorld` plays time in ticks of at most `SIM_TICK_MS`, which is 60,000 ms,
-  while `playStraight` and `runFit` default to one second. With a look every ten seconds you never notice. Call
-  `world.play(HOUR_MS)` yourself and every tick is a minute long, which matters for anything that happens inside a
-  tick (a timer, a gauge). Pass `{ tickMs }` to `createSimWorld` when it does.
+- **A tap is not a move.** A free move is taken once a look (`repeat: true` lets it go again while it keeps going
+  through), so a hand-written tap move pays one tap a look, not the schedule's presses. Spend the presses in your
+  `look` yourself, as Simmer does. The engine's clicker carries a press move of its own.
+- **A feature with no moves is invisible to the sim.** Generators, a clicker and an upgrade tree carry their moves;
+  a prestige layer offers one only when you give it a `worth`, and a feature you write offers none until you give it
+  `moves`. The auto-player never buys from the others, so a sim can quietly under-play your game, as it leaves
+  Simmer's lid off. The auto-player warns once about a feature with a `buy…` action and no moves.
+- **A move the objective cannot see is never taken.** An unlock, a cap or a reset moves no income at once, so its
+  worked-out worth is nothing. Give it a `worth`, and check `player.blind()` after a run.
+- **The objective is not inferred from the game.** `autoPlayer(game, { objective })` does not know your state type:
+  annotate the objective's parameter (`(s: Simmer) => …`), as both examples do.
+- **The sim's state is changed in place.** The plain store hands back the same live object every time: a `look` that
+  keeps a previous state to compare against must copy what it keeps (a Decimal is safe to keep).
+- **The world's tick is a second.** `createSimWorld` plays time in ticks of at most a second (`SIM_TICK_MS`). A long
+  sim that does not need it can pass `{ quality: "quick" }` (ten seconds) or `"rough"` (a minute) for speed, at the
+  cost of anything that happens inside a tick (a timer, a gauge).
 - **`world.now()` and `world.gameNow()` differ.** The first is the sim's wall clock, the second the store's game
   time (the wall plus any offset the profile carries). Measure the run with `now()`, as the examples do.
-- **Two wallets need a `balance` reader.** With one `currencies` feature the auto-player reads it by itself; with
+- **Two wallets need a `balance` reader.** With one wallet the auto-player reads it by itself; with
   two, or none, `autoPlayer` throws until you pass `balance`, and the reader usually needs a cast
   (`s.wallet[currency as "gold" | "gems"]`). A balance that reads the wrong number makes a player that buys nothing,
   or everything.
@@ -547,9 +573,11 @@ contract and its first tests already wired.
 - [The auto-player and fixture plays](../persona.md): the auto-player, moves and fixture saves.
 - [A pacing contract](../pacing-contract.md): tables, bands, `judge`, and several seeds.
 - [Plan and fit](../plan-and-fit.md): the plan, the fit, holdings, nice prices and the replay.
+- [The fit kit](../fit-kit.md): the live table, snapshots, resuming, the proof and the profiler.
 - [A save migration](../migration.md): versions, steps and pinning old saves.
 - [Time away](../time-away.md): the catch-up that `world.away` exercises.
 - `api/sim/world.d.ts`, `api/sim/auto.d.ts`, `api/sim/schedule.d.ts`, `api/sim/timeline.d.ts`,
-  `api/sim/contract.d.ts`, `api/sim/gate.d.ts`, `api/sim/bare.d.ts`, `api/sim/fit.d.ts`, `api/sim/print.d.ts`
+  `api/sim/contract.d.ts`, `api/sim/gate.d.ts`, `api/sim/bare.d.ts`, `api/sim/fit.d.ts`, `api/sim/table.d.ts`,
+  `api/sim/snapshot.d.ts`, `api/sim/proof.d.ts`, `api/sim/print.d.ts`
 - `api/test/store.d.ts`, `api/test/clock.d.ts`, `api/test/render.d.ts`
-- `api/core/tree.d.ts` (`upgradeTree`, `treeMoves`) and `api/core/feature.d.ts` (`withMoves`)
+- `api/core/tree.d.ts` (`defineUpgradeTree`, `treeMoves`) and `api/core/feature.d.ts` (`Move`, `withMoves`)

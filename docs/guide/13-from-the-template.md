@@ -433,7 +433,7 @@ template did not wire.
 - [A pacing contract](../pacing-contract.md) and [plan and fit](../plan-and-fit.md), for the sim
 - [Headless UI](../ui.md), for what the registry's components wrap
 - [A save migration](../migration.md), for when your saved shape changes
-- The engine's `README.md` › Install and › Developing the engine and a game together, `CHANGELOG.md`, and
+- [Installing](../installing.md) (install, and developing the engine and a game together), `CHANGELOG.md`, and
   `codemods/README.md`
 - `api/devtools/DevPanel.d.ts` (`DevPanel`, `DevPanelProps`), `api/react/hashRoute.d.ts` (`useHashRoute`),
   `api/react/clock.d.ts` (`warpClock`), `api/react/runtime.d.ts` (`useGameRuntime`), `api/react/store.d.ts`

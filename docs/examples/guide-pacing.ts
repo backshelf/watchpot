@@ -26,42 +26,33 @@ import {
   type Verdict,
 } from "watchpot/sim";
 import { fixtureSave, freshStore } from "watchpot/test";
-import {
-  BURNER_PER_SECOND,
-  burnerPrice,
-  lid,
-  pot,
-  type Simmer,
-  stove,
-  WORDS,
-  wallet,
-} from "./simmer/game-wallet";
+import { burnerPrice, lid, pot, type Simmer, stove, WORDS, wallet } from "./simmer/game-wallet";
 
 // --- Simmer, playable ------------------------------------------------------------------------------------------
 
 /**
- * Simmer's pot, carrying what a player could do now, for the sim's auto-player: light a burner. The store never reads
- * this. Moves read the whole state, so any feature can carry them. The stove would be the natural home, but the lid
- * reaches the stove itself, and a stove with moves is a new object, so the lid would have to be rebuilt too. Nothing
- * reaches the pot.
+ * Simmer's stove, carrying what a player could do now, for the sim's auto-player: light a burner. The store never
+ * reads this. The move names no worth: the auto-player tries it, reads how much it raised the objective, and puts it
+ * back.
  */
-export const playablePot = withMoves(pot, (s: Simmer) => [
+export const playableStove = withMoves(stove, (s: Simmer) => [
   {
     id: "buy-burner",
     cost: { currency: "bubbles", amount: burnerPrice(s.stove.burners) },
-    worth: () => BURNER_PER_SECOND, // bubbles a second: the only thing a burner does
     apply: (store) => store.getState().stove.buyBurner(),
   },
 ]);
 
-/** Simmer with the playable pot in the pot's place: the same key, the same save. */
+/** Simmer with the playable stove in the stove's place: the same key, the same save. */
 export const game = defineGame({
   id: "simmer",
   save: { key: "simmer.save", version: 1 },
   vocab: WORDS,
-  features: [wallet, playablePot, stove, lid],
+  features: [wallet, pot, playableStove, lid],
 });
 
+/** What the player is trying to grow: the stove's bubbles a second. */
+export const income = (s: Simmer): number => s.stove.perSecond.toNumber();
 // --- A run -----------------------------------------------------------------------------------------------------
 
 /** One row of the timeline: what the contract reads, and when. */
@@ -82,7 +73,7 @@ export interface Run {
 export function playSimmer(seed = "simmer"): Run {
   const start = Date.UTC(2026, 0, 1);
   const world = createSimWorld((now) => simStore(game, now, seed), start);
-  const player = autoPlayer(game);
+  const player = autoPlayer(game, { objective: income });
 
   const hoursIn = () => (world.now() - start) / HOUR_MS;
   const read = (): Row => {

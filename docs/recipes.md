@@ -5,8 +5,10 @@ as many times over as asked, with a yield multiplier on what it gives. The pure 
 credited; `defineCrafting({ key, wallet, list })` is the feature over a currencies feature, with an optional timed queue
 that makes one at a time on game time.
 
+<!-- example-code: recipes.ts -->
+
 ```ts
-import { defineCrafting, type Decimal, defineGame } from "watchpot/core";
+import { type Decimal, defineCrafting, defineGame } from "watchpot/core";
 import { wallet } from "./add-a-currency";
 import { TOY } from "./vocab";
 
@@ -33,6 +35,7 @@ export const forge = defineCrafting({
     },
   ],
 });
+// store.getState().forge.craft("polish", 5) · .craftMax("set") · forge.select.nextInMs(state, "cast", now)
 
 export const game = defineGame({
   id: "forge",
@@ -40,7 +43,7 @@ export const game = defineGame({
   features: [wallet, forge],
   vocab: TOY,
 });
-// store.getState().forge.craft("polish", 5) · .craftMax("set") · forge.select.nextInMs(state, "cast", now)
+// store.getState().forge.craft("polish", 5) · .craftMax("set") · forge.rules.nextInMs(state, "cast", now)
 // Pure, over any purse that can be credited: craft(recipe, purse, times, yieldMult) → what was made, or null.
 ```
 

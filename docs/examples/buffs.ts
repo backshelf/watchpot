@@ -17,6 +17,7 @@ export const boosts = defineBuffs<"boosts", Effect<"speed">>({
     { id: "cooldown", durationMs: 10_000, stack: "ignore" },
   ],
 });
+// store.getState().boosts.start("rush"), and boosts.draft.start(d, "rush", now) inside a recipe
 
 /** Income of 1 gold a second, ×7 for the part of a tick or an absence the rush covered. */
 export const mine = feature({
@@ -45,7 +46,7 @@ export const speed = defineStats({
   vocab: WORDS,
   reach: () => [boosts],
   stats: { speed: { base: 1 } },
-  contributions: (s) => boosts.select.contributions(s, Number.NEGATIVE_INFINITY),
+  contributions: (s) => boosts.select.contributions(s),
 });
 
 export const game = defineGame({

@@ -210,7 +210,7 @@ each burner and to burn. That works for one currency. With more, you would write
 to a balance, refuse a payment that cannot be covered, and keep a running total for later.
 
 A [wallet](../glossary.md#wallet) is a feature that does that for every currency in a vocabulary. You make one with
-`currencies`:
+`defineCurrencies`:
 
 <!-- example-code: simmer/game-wallet.ts -->
 
@@ -243,11 +243,14 @@ when the balance is short. These are ordinary [actions](../glossary.md#action), 
 `api.set((s) => { ... })`, that `s` is a draft you edit in place, and that calling another action from in there
 throws. So the wallet also offers [draft helpers](../glossary.md#draft-helper): functions on the wallet feature
 itself that take the draft as their first argument. `wallet.draft.credit(s, "bubbles", 1)` adds one bubble to the draft you
-are already editing. The helpers are `credit`, `debit`, `balance`, `canAfford` and `purse`. The last one wraps the
-draft's balances as a `Purse`, the shape the engine's upgrade trees pay from (a tree's `buy` takes one).
+are already editing. The helpers under `wallet.draft` are `credit`, `debit` and `purse`; the last one wraps the
+draft's balances as a `Purse`, the shape the engine's upgrade trees pay from. Questions that change nothing are under
+`wallet.select`: `balance(state, currency)` and `canAfford(state, currency, amount)`, which work on a draft or on the
+store's state alike. Every engine factory splits its helpers this way: `select` reads, `draft` writes, and `def`
+holds the fixed setup (`wallet.def.currencies`).
 
 The two kinds share the names `credit` and `debit`, so read which object you are calling on. On
-`store.getState().wallet` it is the action; on the `wallet` you imported, it is the helper and wants the draft first.
+`store.getState().wallet` it is the action; on `wallet.draft` it is the helper and wants the draft first.
 
 Both kinds follow the same rules. A credit of zero or less does nothing. A debit that the balance cannot cover, or
 a negative one, is refused and changes nothing. A credit adds to the `earned` total, a debit adds to the `spent`
@@ -257,7 +260,7 @@ total, and only a reset ever lowers them (more on that below).
 
 Open your `game.ts`. Five changes move the bubbles; the lid does not change at all.
 
-**1. Import `currencies`, `vocab` and `type CurrencyOf`** from `watchpot/core`, and add `WORDS`, `Currency` and
+**1. Import `defineCurrencies`, `vocab` and `type CurrencyOf`** from `watchpot/core`, and add `WORDS`, `Currency` and
 `wallet` (the two blocks above) after `flameOf`.
 
 **2. The pot.** Before, from chapter 2, it held the bubbles:
@@ -277,8 +280,11 @@ export const pot = feature({
   steps: {
     produce: {
       // Runs on every live tick and on the catch-up after time away.
-      simmer: (s, ctx) => {
-        s.pot.bubbles = s.pot.bubbles.add((SIMMER_PER_SECOND * ctx.dtMs) / 1000);
+      simmer: {
+        pass: "both",
+        run: (s, ctx) => {
+          s.pot.bubbles = s.pot.bubbles.add((SIMMER_PER_SECOND * ctx.dtMs) / 1000);
+        },
       },
     },
   },
@@ -307,8 +313,11 @@ export const pot = feature({
   steps: {
     produce: {
       // Runs on every live tick and on the catch-up after time away.
-      simmer: (s, ctx) => {
-        wallet.draft.credit(s, "bubbles", (SIMMER_PER_SECOND * ctx.dtMs) / 1000);
+      simmer: {
+        pass: "both",
+        run: (s, ctx) => {
+          wallet.draft.credit(s, "bubbles", (SIMMER_PER_SECOND * ctx.dtMs) / 1000);
+        },
       },
     },
   },
@@ -320,7 +329,7 @@ From `docs/examples/simmer/game-wallet.ts`.
 Because the pot now reaches the wallet, move the pot below `wallet` in the file: a feature can only reach one
 declared before it.
 
-**3. The stove.** Its `reach` becomes `[wallet]`. Before, from chapter 3, `buyBurner` compared, subtracted and
+**3. The stove.** Its `reach` becomes `() => [wallet, lid]`. Before, from chapter 3, `buyBurner` compared, subtracted and
 reassigned:
 
 <!-- example-code: guide-mental-model.ts -->
@@ -338,7 +347,7 @@ buyBurner: () =>
 
 From `docs/examples/guide-mental-model.ts`.
 
-After, one `wallet.debit` checks and pays together, and answers whether it did:
+After, one `wallet.draft.debit` checks and pays together, and answers whether it did:
 
 <!-- example-code: simmer/game-wallet.ts -->
 
@@ -379,8 +388,7 @@ produce: {
 
 From `docs/examples/simmer/game-wallet.ts`.
 
-Everything else in the stove (`off`, `perSecond`, `derive`, `toggle`, the guard and `flame`) stays as chapter 3 left
-it.
+Everything else in the stove (`off`, `perSecond`, `toggle` and the guard) stays as chapter 3 left it.
 
 **4. The game** takes the vocabulary and lists the wallet first:
 
@@ -393,8 +401,6 @@ export const game = defineGame({
   save: { key: "simmer.save", version: 1 },
   vocab: WORDS,
   features: [wallet, pot, stove, lid],
-  // The lid's doubling must land after the stove sets the rate.
-  order: { rates: ["stove.rates.flame", "lid.rates.trap"] },
 });
 ```
 
@@ -521,7 +527,7 @@ be to wipe each balance ([depth](../glossary.md#depth) is chapter 7's subject).
 The game writes out `stats: []` and `rarities: ["common"]` because the engine version it is built on, 0.17, asked
 for both lists. On the current engine both are optional, and you leave them out as Simmer does.
 
-The game's wallet (`src/game/wallet.ts`) is a `currencies` feature over `WORDS`, and its reset rule reads that
+The game's wallet (`src/game/wallet.ts`) is the engine's wallet factory over `WORDS`, and its reset rule reads that
 table: a new roll wipes labels and keeps cores, which is the point of earning them. [Chapter 7](07-the-first-reset.md#depth-what-survives-which-reset)
 quotes that rule, once it has introduced depth. One thing it does not carry over is `earned`, and that is on purpose:
 the game's own comment on the wallet says `earned` totals "the labels made this roll", and a new roll pays cores on
@@ -602,7 +608,7 @@ form always shows two.
 - **Calling an action inside a recipe.** It throws. Inside `api.set` or a step, use the wallet's draft helpers
   (`wallet.draft.credit(s, ...)`), not `store.getState().wallet.credit(...)`.
 - **The names `credit` and `debit` are taken.** The wallet's actions sit beside its balances in the slice, so no
-  currency, total or extra field can be called `credit`, `debit` or `__proto__`. `currencies` throws on any of them
+  currency, total or extra field can be called `credit`, `debit` or `__proto__`. `defineCurrencies` throws on any of them
   when you define the wallet.
 
 ## Next
@@ -618,6 +624,6 @@ be played for hours.
 - `api/core/fmt.d.ts`: `fmt`, `fmtFull`, `Formatted`, `FmtOptions`, `formatter`, `Formatter`, `NOTATIONS` and the
   small printers.
 - `api/core/vocab.d.ts`: `vocab`, `Vocab`, `CurrencyOf`, `StatOf`, `RarityOf`, `ladder`.
-- `api/core/currencies.d.ts`: `currencies`, `CurrenciesDef`, `CurrencyHelpers`, `CurrencyActions`, `Purse`.
+- `api/core/currencies.d.ts`: `defineCurrencies`, `CurrenciesDef`, `CurrencySelect`, `CurrencyDraftHelpers`, `CurrencyActions`, `Purse`.
 - `api/core/persist.d.ts`: `saveSetAside`, `clearSave`.
 - `api/core/feature.d.ts`: `ResetRule`, for the reset rules a wallet takes.

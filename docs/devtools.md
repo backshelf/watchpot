@@ -17,6 +17,8 @@ the game defines (`test/rules/headless.test.ts`).
 A game mounts it behind its own route (`useHashRoute`, from [`watchpot/react`](react.md)) and a build-time check, written inline so the
 bundler folds it; the template mounts it this way on `#dev`:
 
+<!-- example-code: guide-the-page.tsx -->
+
 ```tsx
 const [route, go] = useHashRoute();
 // ...

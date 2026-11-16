@@ -8,14 +8,12 @@
  * fake clock and prints what the page would show.
  */
 import {
-  type BuffsState,
   buffActive,
-  type ClickerState,
   clickShare,
   createGameStorage,
   createIdleStore,
   createMemoryBackend,
-  type Draft,
+  type Decimal,
   defineBuffs,
   defineClicker,
   defineGame,
@@ -25,31 +23,19 @@ import {
   defineUpgradeTree,
   type Effect,
   fmt,
-  type GaugeState,
+  foldContributions,
   type GeneratorsState,
   type GraphNode,
   gaugeFill,
   gaugeLocked,
   HOUR_MS,
   reach,
-  type SpawnsState,
   type StateOf,
-  statIndex,
   type TreeState,
   ZERO,
 } from "watchpot/core";
 import type { BuyMode } from "watchpot/ui";
-import { SIMMER, type Simmer, WORDS, wallet } from "./simmer/game-wallet";
-
-/** What the callbacks below read: chapter 4's Simmer, plus the slices this page adds. Written by hand: they read each other. */
-export type Page = Simmer & {
-  kitchen: TreeState;
-  foam: GaugeState;
-  kettles: GeneratorsState;
-  spoon: ClickerState;
-  boosts: BuffsState;
-  surface: SpawnsState;
-};
+import { SIMMER, stove, WORDS, wallet } from "./simmer/game-wallet";
 
 // ---------------------------------------------------------------------------------------------------------------
 // The kitchen: an upgrade tree used as a shop
@@ -102,21 +88,22 @@ export const kitchen = defineUpgradeTree({
   key: "kitchen",
   nodes: UPGRADES,
   wallet,
+  // The kettles reach the kitchen, so the kitchen names the kettles by their state type: one side of a pair does.
   reach: reach<{ kettles: GeneratorsState }>(),
   // The copper waits until there is a kettle to put it on.
   open: (s, node) => node.id !== "copper" || (s.kettles.owned.kettle ?? 0) > 0,
 });
 
-/** Whether an upgrade is bought. */
-const has = (s: Pick<Page, "kitchen">, id: string): boolean => (s.kitchen.ranks[id] ?? 0) > 0;
+type Kitchen = { kitchen: TreeState };
 
-/** The kitchen's two stats on the engine's stat graph, from a base of 1, each node counted once per rank held. */
-const KITCHEN = statIndex<Stat, never, Pick<Page, "kitchen">>({ base: () => 1 });
-for (const node of UPGRADES)
-  KITCHEN.add(node, { label: node.name, owner: "kitchen", times: (s) => s.kitchen.ranks[node.id] ?? 0 });
+/** Whether an upgrade is bought. */
+const has = (s: Kitchen, id: string): boolean => (s.kitchen.ranks[id] ?? 0) > 0;
 
 /** A stat's value from the kitchen's ranks: 1, plus its adds, times its muls. Chapter 8 serves stats as a feature. */
-export const statOf = (s: Pick<Page, "kitchen">, stat: Stat): number => KITCHEN.over(s).stat(stat).toNumber();
+export const statOf = (s: Kitchen, stat: Stat): number =>
+  foldContributions(kitchen.select.contributions(s), { base: () => 1 })
+    .stat(stat)
+    .toNumber();
 
 // ---------------------------------------------------------------------------------------------------------------
 // The foam: a gauge
@@ -179,7 +166,8 @@ export const kettles = defineGenerators({
 });
 
 /** Everything the pot makes a second on its own: the stove (lid and all) and the kettles. */
-const income = (s: Page) => s.stove.perSecond.add(s.kettles.perSecond.bubbles ?? ZERO);
+const income = (s: { stove: { perSecond: Decimal }; kettles: GeneratorsState }) =>
+  s.stove.perSecond.add(s.kettles.perSecond.bubbles ?? ZERO);
 
 // ---------------------------------------------------------------------------------------------------------------
 // The spoon: a clicker
@@ -188,34 +176,36 @@ export const spoon = defineClicker({
   key: "spoon",
   wallet,
   currency: "bubbles",
+  reach: () => [stove, kitchen, kettles, foam],
   // The stir stat, plus 2% of what the pot makes a second, up to twice that on a full head of foam.
-  power: (s: Page, { now }) => {
+  power: (s, { now }) => {
     const base = clickShare(statOf(s, "stir"), income(s), 0.02);
     return gaugeLocked(s.foam, now) ? base : base.mul(1 + gaugeFill(s.foam, FOAM.max));
   },
   crit: () => ({ chance: 0.03, mult: 10 }),
   maxPerSecond: 20,
   // A stir raises the foam, through the gauge's draft helper: a stir that takes it to the top spills it.
-  onClick: (d: Draft<Page>, _paid, now) => {
+  onClick: (d, _paid, now) => {
     foam.draft.nudge(d, FOAM.perStir, now);
   },
 });
 
 export const surface = defineSpawns({
   key: "surface",
+  reach: () => [wallet, stove, kitchen, kettles, boosts],
   kinds: [
     {
       id: "big-bubble",
       wait: { minMs: 45_000, maxMs: 150_000, ramp: { power: 3, stepMs: 1000 } },
       lifeMs: 12_000,
-      active: (s: Page) => has(s, "ladle"),
+      active: (s) => has(s, "ladle"),
       outcomes: [
         { id: "splash", weight: 60 },
         { id: "rolling-boil", weight: 40, noRepeat: true },
       ],
     },
   ],
-  onCatch: (d: Draft<Page>, outcome, now) => {
+  onCatch: (d, outcome, now) => {
     if (outcome === "splash") {
       wallet.draft.credit(d, "bubbles", income(d).mul(60).max(25)); // a minute of everything, 25 at least
       return;
@@ -251,7 +241,7 @@ export function kettleRow(s: StateOf<typeof game.features>, id: string, mode: Bu
 }
 
 /** The kitchen shelf: what is on offer, what the next rank costs, and whether it can be bought now. */
-export function shelf(s: Page) {
+export function shelf(s: StateOf<typeof game.features>) {
   return kitchen.def.nodes
     .filter((node) => kitchen.select.open(s, node.id))
     .map((node) => {

@@ -27,6 +27,8 @@ is a type error.
 
 A reverb is a return bus: declare it once, and send to it from the buses that want a room.
 
+<!-- example-code: sound-mix.ts -->
+
 ```ts
 room: { level: -6, fx: [{ kind: "reverb", size: 0.5, decay: 2, damping: 0.5, mix: 1 }] },
 sfx: { sends: { room: 0.2 } },

@@ -4,6 +4,8 @@ Automation as a system: things the game buys for the player on an interval, once
 writes each purchase (`run`, inside the tick's recipe, returning how many it bought); the feature owns the player's
 switches, the schedule on game time and the count, and fires the due ones highest priority first.
 
+<!-- example-code: autobuyers.ts -->
+
 ```ts
 import { defineAutobuyers, defineGame, defineGenerators } from "watchpot/core";
 import { wallet } from "./add-a-currency";

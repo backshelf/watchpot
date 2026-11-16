@@ -1,24 +1,40 @@
-import { clickShare, type Decimal, defineClicker, defineCurrencies, defineGame, fmt } from "watchpot/core";
+import {
+  clickShare,
+  D,
+  type Decimal,
+  defineClicker,
+  defineCurrencies,
+  defineGame,
+  feature,
+  fmt,
+} from "watchpot/core";
 import { TOY } from "./vocab";
 
-type State = { wallet: { gold: Decimal; gems: Decimal }; mine: { perSecond: Decimal } };
-
 const wallet = defineCurrencies({ key: "wallet", vocab: TOY });
+
+/** What the game makes a second without pressing: here a stand-in, a mine whose rate is its drills. */
+const mine = feature({
+  key: "mine",
+  initial: () => ({ drills: 4 }),
+  derived: { perSecond: (s) => D(s.mine.drills) },
+});
 
 export const tap = defineClicker({
   key: "tap",
   wallet,
   currency: "gold",
-  power: (s: State) => clickShare(1, s.mine.perSecond, 0.05), // 1 gold plus 5% of income a second
+  reach: [mine],
+  power: (s) => clickShare(1, s.mine.perSecond, 0.05), // 1 gold plus 5% of income a second
   crit: () => ({ chance: 0.02, mult: 10 }),
   combo: { windowMs: 800, step: 0.1, max: 3 },
   maxPerSecond: 20,
 });
+// store.getState().tap.click() → { amount, crit, combo }, or null past the cap
 
 export const game = defineGame({
   id: "tap",
   save: { key: "tap.save", version: 1 },
-  features: [wallet, tap],
+  features: [wallet, mine, tap],
   vocab: TOY,
 });
 

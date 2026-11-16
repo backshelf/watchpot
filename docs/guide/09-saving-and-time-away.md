@@ -33,10 +33,10 @@ into a Decimal on the way in. Here is a Simmer save after five taps, exactly as 
 *Printed by [`docs/examples/guide-saving.ts`](../examples/guide-saving.ts).*
 
 Three things are worth noticing. Each feature has its own entry. The engine's own `clock` feature is saved too: its
-`lastSeen` is how the game knows how long the player was gone. And the stove's `perSecond` is missing. It is
-[transient](../glossary.md#transient), as chapter 3 set it up: worked out from `burners` on every pass, and from
-`derive` whenever the state is made fresh, so there is nothing to keep. (A rate saved by last month's build would also
-carry last month's rules into today's.)
+`lastSeen` is how the game knows how long the player was gone. And the stove's `perSecond` is missing. It is a
+[derived value](../glossary.md#derived-value), as chapter 3 set it up: worked out from `burners` and the lid whenever
+they change, so there is nothing to keep. (A rate saved by last month's build would also carry last month's rules into
+today's.) A field listed in `transient` is left out the same way.
 
 The functions that do the writing are `serialize` and `deserialize`. You rarely call them yourself; the store does.
 
@@ -233,7 +233,6 @@ export const simmerV2 = defineGame({
   save: { key: "simmer.save", version: 2 },
   vocab: WORDS,
   features: [wallet, pot, stove, lid],
-  order: { rates: [...SIMMER_RATES] },
 });
 ```
 
@@ -466,17 +465,20 @@ A shorter absence, a quick look at another tab, is not time away. The clock pays
 at most each, so the player who glances away for three seconds comes back to exactly what they would have had by
 watching.
 
-### The default pays everything
+### Paying everything
 
-A step written as a bare function runs in **both** passes. Simmer's pot is one:
+A step that says `pass: "both"` runs in both passes. Simmer's pot is one:
 
 <!-- example-code: simmer/game-wallet.ts -->
 
 ```ts
 produce: {
   // Runs on every live tick and on the catch-up after time away.
-  simmer: (s, ctx) => {
-    wallet.draft.credit(s, "bubbles", (SIMMER_PER_SECOND * ctx.dtMs) / 1000);
+  simmer: {
+    pass: "both",
+    run: (s, ctx) => {
+      wallet.draft.credit(s, "bubbles", (SIMMER_PER_SECOND * ctx.dtMs) / 1000);
+    },
   },
 },
 ```
@@ -662,8 +664,8 @@ What to take from it:
   even there. Test every migration against a saved fixture.
 - **The load fills one level deep.** A key added two levels down in `initial` loads as missing. Use `fillDeep` in
   `merge`.
-- **A bare step pays for time away in full, with no cap.** It runs in both passes. Split it with `pass` (or pass
-  `away` to a factory) as soon as your game has a reason to prefer playing over leaving.
+- **`pass: "both"` pays for time away in full, with no cap.** Split the step into a `"tick"` step and a `"catchUp"`
+  one (or pass `away` to a factory) as soon as your game has a reason to prefer playing over leaving.
 - **A blocked save says nothing on its own.** A newer save, another tab or an unreadable save stops this tab's writes.
   Show `saveStatus` with the reason from `saveBlockedBy`, and `taken` from `useGameRuntime`.
 - **On an async backend, wait for `store.hydrated`.** Until it settles the store holds a new profile, writes nothing,
@@ -679,14 +681,13 @@ game is drawn on.
 - [`docs/migration.md`](../migration.md): versions, steps, `oldestReadable` and save fixtures.
 - [`docs/time-away.md`](../time-away.md): `offlineSteps`, the journal, `fillDeep`, `watchAway` and `useAwayReport`.
 - [`docs/generators.md`](../generators.md): the factory's `away` option.
-- `docs/stat-graph.md`: "The first pass after a load", on `derive`.
 - [`api/core/save.d.ts`](../../api/core/save.d.ts): the codec, `SaveError`, `oldestReadable`, `encodeProfile`,
   `savedRecord`.
 - [`api/core/storage.d.ts`](../../api/core/storage.d.ts): backends, `createGameStorage`, `KEPT_SUFFIX`.
 - [`api/core/persist.d.ts`](../../api/core/persist.d.ts): `flushSave`, `saveStatus`, `saveBlockedBy`, `saveSetAside`,
   `clearSave`, `watchSave`, `watchOtherTabs`.
 - [`api/core/store.d.ts`](../../api/core/store.d.ts): `exportProfile`, `importProfile`, `catchUp`, `hydrated`.
-- [`api/core/feature.d.ts`](../../api/core/feature.d.ts): `transient`, `derive`, `merge`, `migrations`, `Migration`.
+- [`api/core/feature.d.ts`](../../api/core/feature.d.ts): `derived`, `transient`, `merge`, `migrations`, `Migration`.
 - [`api/core/clock.d.ts`](../../api/core/clock.d.ts): `offlineCredit`, `offlineSteps`, `AWAY_AFTER_MS`,
   `AWAY_REPORT_MIN_MS`.
 - [`api/react/away.d.ts`](../../api/react/away.d.ts): `watchAway`, `useAwayReport`, `awayGains`.

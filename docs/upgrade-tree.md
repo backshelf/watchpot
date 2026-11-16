@@ -1,6 +1,6 @@
 # An upgrade tree
 
-Ranks bought one at a time over `GraphNode`s, each rank's effects handed to the `stats` feature as contributions.
+Ranks bought one at a time over `GraphNode`s, each rank's effects handed to the stats feature (`defineStats`) as contributions.
 
 Example: [`examples/upgrade-tree.ts`](examples/upgrade-tree.ts) (`bun docs/examples/upgrade-tree.ts`).
 
@@ -30,7 +30,7 @@ Example: [`examples/upgrade-tree.ts`](examples/upgrade-tree.ts) (`bun docs/examp
   nothing more, and returns how many. Cheapest is by the first line of each rank's price, ties in node order, so it
   suits a tree priced in one currency. A free node with no last rank is skipped unless you give a `limit`. The
   kernel carries it as `def.tree.buyCheapest(ranks, purse, { open, limit })`.
-- Read the effects through the `stats` feature: `contributions: (s) => mine.select.contributions(s)`, then `speed.select.value(s, "toy.speed")`. Each rank is a `{ source, effect }` sourced `<key>:<node>`.
+- Read the effects through the stats feature (`defineStats`): `contributions: (s) => mine.select.contributions(s)`, then `speed.select.value(s, "toy.speed")`. Each rank is a `{ source, effect }` sourced `<key>:<node>`.
 - To draw it, hand the nodes to `TreeGraph` (`watchpot/ui`), or to the template's `Tree` wrapper over it
   (`templates/game/src/ui/Tree.tsx`).
 - For a tree you keep elsewhere in your state, use `tree({ id, nodes })` for the rules alone.
@@ -46,11 +46,20 @@ A node that does not move the objective at once (an unlock, an offline cap) work
 For those, say a `worth(state, node)` in the tree's definition, in the same unit as the game's other moves in that
 currency:
 
+<!-- example-code: upgrade-tree.ts -->
+
 ```ts
+/**
+ * A tree as a feature: it saves `{ ranks }` and buys through the wallet. `open` holds the laser back until the
+ * player has swept up some dust: a closed node refuses with `closed`, and the feature's own readers say so too.
+ */
 export const mine = defineUpgradeTree({
   key: "mine",
   nodes: NODES,
   wallet,
+  open: (s, node) => node.id !== "laser" || s.wallet.goldEver.gte(100),
+  // The sim's auto-player gets a move per buyable node for free. Say a worth only for a node that does not raise
+  // its objective at once; the rest are worked out.
   worth: (_s, node) => (node.id === "laser" ? 3 : 1),
 });
 ```

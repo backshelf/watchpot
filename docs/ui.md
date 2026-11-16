@@ -259,6 +259,8 @@ export function Sheet({ title, children, ...root }: SheetProps) {
     </Dialog.Root>
   );
 }
+<!-- example-output: ui.tsx -->
+
 ```
 
 ```css

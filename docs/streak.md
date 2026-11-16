@@ -5,9 +5,18 @@ player's own calendar days, found by the calendar (`dayKey`, `previousDayKey`, `
 25-hour day across a daylight-saving change is still one day, and a claim just before midnight and one just after are
 two days in a row. The kernel is pure over the state and the `now` it is handed.
 
-```ts
-import { defineStreak } from "watchpot/core";
+<!-- example-code: streak.ts -->
 
+```ts
+import {
+  type Decimal,
+  defineCurrencies,
+  defineGame,
+  defineStreak,
+  fmtWait,
+  type StreakState,
+} from "watchpot/core";
+// ...
 export const daily = defineStreak({
   key: "daily",
   rewards: (day) => (day % 7 === 0 ? { gold: 0, gems: 5 } : { gold: 100 * (day % 7), gems: 0 }),
@@ -18,7 +27,6 @@ export const daily = defineStreak({
   grace: 1, // one missed day is forgiven
   keep: (draft, missed) => wallet.draft.debit(draft, "gems", missed * 10), // past that, gems save the run
 });
-// store.getState().daily.claim() → { day, reward, kept } or null; daily.select.status(s, now)
 ```
 
 Example: [`examples/streak.ts`](examples/streak.ts).

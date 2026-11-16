@@ -11,6 +11,8 @@ one more source on the number it changes.
 Example: [`examples/loadouts.ts`](examples/loadouts.ts) (`bun docs/examples/loadouts.ts`). Simmer's stove gets a kit
 of utensils:
 
+<!-- example-code: loadouts.ts -->
+
 ```ts
 /** Simmer's stove kit: three slots, and the pans and spoons a player has found. */
 export const UTENSILS: LoadoutItem<Effect<"simmer">>[] = [
@@ -52,22 +54,16 @@ export const game = defineGame({
   features: [cupboard, kit],
 });
 
-/** The pot's one stat on the engine's stat graph: a base of 1 bubble a second. */
-const POT = statIndex<"simmer", never, null>({ base: () => 1 });
-
-/** Bubbles a second with `slotted` in the kit: its contributions handed to one graph. */
+/** Bubbles a second with `slotted` in the kit, from a base of 1: its contributions folded with no game around them. */
 export const simmerRate = (slotted: Slotted) =>
-  POT.over(null, {
-    extra: () =>
-      kit.def.loadout
-        .contributions(slotted)
-        .map(({ source, effect }) => ({ effect, meta: { label: source, owner: "kit" } })),
-  })
+  foldContributions(kit.def.loadout.contributions(slotted), { base: () => 1 })
     .stat("simmer")
     .toNumber();
 ```
 
 Running it equips by hand, then lets `fillLoadout` find the best kit for `simmerRate`:
+
+<!-- example-output: loadouts.ts -->
 
 ```
 a spoon in the lid slot: wrong-kind
@@ -134,6 +130,8 @@ until none does. A single exchange fills and upgrades; a pair or a triple finds 
 of it are in, which filling one slot at a time never reaches. `slots` limits it to the slots that are open.
 
 It returns a slots record and changes nothing. To use it, equip it slot by slot, clearing the slots it left empty:
+
+<!-- example-code: loadouts.ts -->
 
 ```ts
   const owns = (item: string) => s().cupboard.held.includes(item);

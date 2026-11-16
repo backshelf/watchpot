@@ -12,6 +12,8 @@ contract](pacing-contract.md)).
 Example: [`examples/test-kit.ts`](examples/test-kit.ts) (`bun docs/examples/test-kit.ts`). Simmer's pot and burners,
 with the helpers a game's tests would keep:
 
+<!-- example-code: test-kit.ts -->
+
 ```ts
 /** A rule test: a fresh store, a minute of play, and what it made. */
 export function aMinuteOnTheStove() {
@@ -35,6 +37,8 @@ export function loadSave(text: string) {
 
 In a test file these read as one line each: `expect(aMinuteOnTheStove().toNumber()).toBe(60)`. Running the example
 prints what they return:
+
+<!-- example-output: test-kit.ts -->
 
 ```
 a minute on the stove: 60 bubbles
@@ -98,6 +102,8 @@ a native bridge. `peek(name)` reads the stored string at once, for an assertion,
 so far, and any write it led to, has answered. It is for testing the async load and write paths, and since
 `freshStore` needs a backend that answers at once, build that store yourself:
 
+<!-- example-code: test-kit.ts -->
+
 ```ts
 /** The async load path: the store returns holding a new profile and loads after. */
 export async function loadAsync(text: string) {
@@ -118,6 +124,8 @@ export async function loadAsync(text: string) {
 **`renderWith(store, ui)`** is Testing Library's `render` under the store's provider, kept across `rerender`: what a
 screen test mounts with. It needs a DOM (happy-dom, registered in a `bunfig.toml` preload, as the game template does)
 and `@testing-library/react`, an optional peer of `watchpot/test` that your game installs as a dev dependency.
+
+<!-- example-code: test-kit.ts -->
 
 ```ts
 /** A screen test (under `bun test`, with happy-dom registered): the component reads the store in context. */

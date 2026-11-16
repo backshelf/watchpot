@@ -14,13 +14,15 @@ import { TOY } from "./vocab";
 export const generatorCost = (owned: number) => D(10).mul(D(1.15).pow(owned));
 
 /**
- * A generator: owned count, a rate derived each tick, income on a tick and a capped, discounted payout for the
- * time the tab was closed. Phases run in order: `rates` before `produce`.
+ * A generator: owned count, a rate derived from it, income on a tick and a capped, discounted payout for the time
+ * the tab was closed.
  */
 export const generator = feature({
   key: "generator",
   reach: [wallet], // it touches the wallet's slice, so it names it
-  initial: () => ({ owned: 1, perSecond: D(1) }),
+  initial: () => ({ owned: 1 }),
+  // Worked out from the state whenever it changes, never saved.
+  derived: { perSecond: (s) => D(s.generator.owned) },
   actions: (api) => ({
     // `api.set` returns what the recipe returns, so the action reports whether the purchase went through.
     buy: (): boolean =>
@@ -31,11 +33,6 @@ export const generator = feature({
       }),
   }),
   steps: {
-    rates: {
-      perSecond: (s) => {
-        s.generator.perSecond = D(s.generator.owned);
-      },
-    },
     produce: {
       income: {
         pass: "tick",
@@ -58,7 +55,6 @@ export const generator = feature({
     {
       id: "buy-generator",
       cost: { currency: "gold", amount: generatorCost(s.generator.owned) },
-      worth: () => 1,
       apply: (store) => store.getState().generator.buy(),
     },
   ],

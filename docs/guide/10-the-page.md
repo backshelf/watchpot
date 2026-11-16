@@ -202,7 +202,7 @@ so nothing compares it.
 | Decoration that need not be exact (a margin's figures, a background's mood) | `useSampled(store, { sample, initial })` | reads a few times a second and re-renders only when the snapshot differs |
 | A clock in render (a countdown) | `useClockNow(intervalMs)` | the game clock as state, on one shared timer |
 
-`useSampled` and `useClockNow` come from `watchpot/react` too. The README's React section covers both.
+`useSampled` and `useClockNow` come from `watchpot/react` too. [React](../react.md) covers both.
 
 ## Calling actions
 
@@ -599,7 +599,7 @@ a production build (Bun's `--production` sets `process.env.NODE_ENV` to "product
 nothing, and the dynamic import that is the only way to the panel's module becomes dead code, so the panel's script
 and styles never reach the bundle. The inline check in your JSX then lets the bundler drop the route test and the
 element too. [dev-panel-workflow.md](../dev-panel-workflow.md) presents the inline check as the thing that keeps the
-panel out; the gate inside `DevPanel` is what actually does (the README's Dev panel section describes both). Write
+panel out; the gate inside `DevPanel` is what actually does ([Dev panel](../devtools.md) describes both). Write
 the check inline anyway, as shown.
 
 Warping moves the game clock (`gameNow()`) forward through the clock's offset. It never touches the wall clock and
@@ -636,7 +636,7 @@ never goes back. [dev-panel-workflow.md](../dev-panel-workflow.md) has the loop 
 - [theme.md](../theme.md): `tokens.json` and `buildTokens`.
 - [dev-panel-workflow.md](../dev-panel-workflow.md): the panel and the warp loop.
 - `templates/game/src/ui/README.md`: the copy-in registry and its token contract.
-- The README's React and Dev panel sections: `useSampled`, `useClockNow`, the paced view in full.
+- [React](../react.md) and [Dev panel](../devtools.md): `useSampled`, `useClockNow`, the paced view in full.
 - `api/react/store.d.ts` (`createRuntimeHooks`, `mountGame`), `api/react/paced.d.ts`, `api/react/runtime.d.ts`,
   `api/react/gameClock.d.ts`, `api/react/hashRoute.d.ts`, `api/react/sample.d.ts`, `api/react/clock.d.ts`, `api/devtools/gate.d.ts`,
   `api/hooks/index.d.ts`, `api/ui/press.d.ts`, `api/ui/feedback.d.ts`, `api/core/watch.d.ts`,

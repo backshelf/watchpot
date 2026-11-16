@@ -5,8 +5,10 @@ player says how much goes where. A sink either counts what is assigned to it (th
 fills a bar: each assigned unit does `speed` work a second, and a full bar levels the sink up on a cost curve. When
 the pool shrinks, the most recently assigned sink gives way first.
 
+<!-- example-code: allocation.ts -->
+
 ```ts
-import { defineAllocation, defineGame, type Effect, feature, defineStats } from "watchpot/core";
+import { defineAllocation, defineGame, defineStats, type Effect, feature } from "watchpot/core";
 import { TOY } from "./vocab";
 
 const crew = feature({ key: "crew", initial: () => ({ size: 12 }) });
@@ -62,7 +64,7 @@ export const game = defineGame({
   free into one sink). A sink that gains goes to the end of `order`.
 - **`select`** (questions over state): `pool`, `free`, `cap`, `perSecond(state, id)` (a bar's work a second),
   `bar(state, id)` → `{ level, into, need, share }`, and `contributions(state)` sourced `<key>:<id>`, which is what
-  the `stats` feature's `contributions` takes.
+  the stats feature (`defineStats`)'s `contributions` takes.
 - **`def`** (what it was given): `sinks`, `sink(id)`, and `contributions(slice)`, the same contributions from the
   saved slice alone (`{ level }`).
 - **`draft`** (inside a recipe or a step, named like the actions): `assign(draft, id, n)`, `unassign(draft, id, n)`,

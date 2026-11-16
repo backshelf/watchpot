@@ -5,22 +5,34 @@ range, floors its mantissa (nothing is rounded up in the player's favour), and p
 range each has its own form. `NOTATIONS` lists them for a settings screen, and `formatter({ notation })` binds one to
 every printer, so a game builds its formatter from the saved choice and passes it down.
 
+<!-- example-code: notations.ts -->
+
 ```ts
 import { type Formatter, formatter, NOTATIONS, type Notation } from "watchpot/core";
 
-export const FORMATTERS = Object.fromEntries(NOTATIONS.map((n) => [n, formatter({ notation: n })])) as Record<
-  Notation,
-  Formatter
->;
-// FORMATTERS[n].num(v) for 1234, 1.5e7, 2.2e12, 1e308:
-// suffix       1,234 · 15.00M · 2.20T · 1.00e308
-// scientific   1,234 · 1.50e7 · 2.20e12 · 1.00e308
-// engineering  1,234 · 15.0e6 · 2.20e12 · 100e306
-// letters      1,234 · 15.00b · 2.20d · 100.00cx
-// logarithm    1,234 · e7.17 · e12.34 · e308.00
+/** The settings screen's choices: one formatter per notation, built once. */
+export const FORMATTERS: Record<Notation, Formatter> = Object.fromEntries(
+  NOTATIONS.map((n) => [n, formatter({ notation: n })]),
+) as Record<Notation, Formatter>;
+
+/** The preview row the screen shows under each choice. */
+export function preview(n: Notation): string {
+  return [1234, 1.5e7, 2.2e12, 1e308].map((v) => FORMATTERS[n].num(v)).join(" · ");
+}
 ```
 
-Example: [`examples/notations.ts`](examples/notations.ts) (runs with `bun docs/examples/notations.ts`).
+Example: [`examples/notations.ts`](examples/notations.ts) (runs with `bun docs/examples/notations.ts`). It prints each
+notation's preview of 1234, 1.5e7, 2.2e12 and 1e308:
+
+<!-- example-output: notations.ts -->
+
+```
+suffix: 1,234 · 15.00M · 2.20T · 1.00e308
+scientific: 1,234 · 1.50e7 · 2.20e12 · 1.00e308
+engineering: 1,234 · 15.0e6 · 2.20e12 · 100e306
+letters: 1,234 · 15.00b · 2.20d · 100.00cx
+logarithm: 1,234 · e7.17 · e12.34 · e308.00
+```
 
 - **`suffix`** (the default) and **`scientific`**: K to Dc then `1.00e36`; `1.23e45` from `plainBelow`.
 - **`engineering`**: the exponent a multiple of 3 and three figures (`100e3`, `12.3e6`, `1.00e9`).

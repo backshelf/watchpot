@@ -13,6 +13,8 @@ it, a board: what one event keeps beyond the shared runtime.
 Example: [`examples/events.ts`](examples/events.ts) (`bun docs/examples/events.ts`). Simmer gets a tasting: a
 three-day cycle with spoons to spend, a tree, milestones, a shop, a pass and a mastery tree.
 
+<!-- example-code: events.ts -->
+
 ```ts
 /** What the event's nodes do: one effect of the game's own, and the two mastery kinds the framework reads. */
 type Effect = { kind: "taste"; mult: number } | KeepEffect | HeadStartEffect;
@@ -49,6 +51,8 @@ export const TASTING: EventDefinition<Effect, Reward, "tap"> = {
 
 The definition goes on with the mastery tree, three milestones on a `tasted` stat, a shop item, a pass and the fuel;
 the whole of it is in the example. The game's feature that runs it:
+
+<!-- example-code: events.ts -->
 
 ```ts
 /**
@@ -97,6 +101,8 @@ export const tasting = feature({
 ```
 
 Running it plays an hour and a half, a dozen tastes, a few purchases, and a look at the next cycle:
+
+<!-- example-output: events.ts -->
 
 ```
 spoons at the start: 3 | next in 3600000 ms
@@ -211,7 +217,7 @@ the event is benched.
 
 What one event keeps beyond the shared runtime (a dig's layer, a road's token) is an `EventBoard`, registered with a
 `boardRegistry()` and composed with `composeBoards`. [A timed event with a board](timed-event.md) is the recipe, and
-the README's Events section lists the rules.
+[Core](core.md#events) lists the rules.
 
 ## Sim and tuning
 

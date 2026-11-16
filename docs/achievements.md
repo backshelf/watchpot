@@ -5,19 +5,47 @@ global multiplier from the count earned and the rows completed (the usual achiev
 a row), and effects for the game's stats while earned. Most are checked by the feature every pass; some must hold for
 a while first, some are only true at a moment the game names, and the rest the game awards itself.
 
+<!-- example-code: achievements.ts -->
+
 ```ts
-import { type Achievement, defineAchievements, type Decimal, type Effect, defineStats } from "watchpot/core";
+import {
+  type Achievement,
+  type Decimal,
+  defineAchievements,
+  defineCurrencies,
+  defineGame,
+  defineStats,
+  type Effect,
+  type StatOf,
+} from "watchpot/core";
+import { TOY } from "./vocab";
 
 type State = { wallet: { gold: Decimal; gems: Decimal } };
-type Fx = Effect<"toy.speed">;
+/** An effect on one of the toy's stats. */
+type Fx = Effect<StatOf<typeof TOY>>;
+
+const wallet = defineCurrencies({ key: "wallet", vocab: TOY });
 
 const LIST: Achievement<State, Fx>[] = [
   { id: "ten", name: "Pocket money", line: "Hold 10 gold.", when: (s) => s.wallet.gold.gte(10) },
-  { id: "hoard", name: "Hoarder", line: "Hold 5 gems for 30 seconds.", when: (s) => s.wallet.gems.gte(5),
-    forMs: 30_000, effects: [{ stat: "toy.speed", add: 1 }] },
-  { id: "clean", name: "Clean slate", line: "Reset holding no gems.", secret: true, on: ["reset"],
-    when: (s) => s.wallet.gems.lte(0) },
-  { id: "found", name: "Found it", line: "Open the hidden door." }, // award("found")
+  {
+    id: "hoard",
+    name: "Hoarder",
+    line: "Hold 5 gems for 30 seconds.",
+    reward: "+1 speed",
+    when: (s) => s.wallet.gems.gte(5),
+    forMs: 30_000,
+    effects: [{ stat: "toy.speed", add: 1 }],
+  },
+  {
+    id: "clean",
+    name: "Clean slate",
+    line: "Reset holding no gems.",
+    secret: true,
+    on: ["reset"],
+    when: (s) => s.wallet.gems.lte(0),
+  },
+  { id: "found", name: "Found it", line: "Open the hidden door." }, // the game calls award("found")
 ];
 
 export const wall = defineAchievements({
@@ -28,7 +56,10 @@ export const wall = defineAchievements({
 });
 // before the reset: store.getState().wall.notify("reset")
 
-/** What the wall gives: the global multiplier as a source, the earned effects and full rows as contributions. */
+/**
+ * What the wall gives, on the engine's `stats`: the global multiplier (the count earned and the rows) as a source,
+ * and every earned achievement's and full row's effects as contributions. `s.stats["toy.speed"]` is the result.
+ */
 export const bonuses = defineStats({
   key: "stats",
   vocab: TOY,
@@ -42,6 +73,13 @@ export const bonuses = defineStats({
     },
   ],
   contributions: (s) => wall.select.contributions(s),
+});
+
+export const game = defineGame({
+  id: "wall",
+  save: { key: "wall.save", version: 1 },
+  features: [wallet, wall, bonuses],
+  vocab: TOY,
 });
 ```
 
