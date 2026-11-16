@@ -5,8 +5,9 @@ import type { AnyVocab, CurrencyOf } from "./vocab";
 /**
  * Currencies: a feature holding a balance per currency of a vocabulary, as Decimals at the top of its state
  * (`s.wallet.gold`), with the lifetime totals the game names kept beside them. Credit ignores nothing-or-less, debit
- * refuses what the balance cannot cover, and both keep the totals. The draft helpers (`credit`, `debit`, `balance`,
- * `canAfford`, `purse`) work inside any recipe or step; the actions of the same names work from outside.
+ * refuses what the balance cannot cover, and both keep the totals. `select` (`balance`, `canAfford`) and `draft`
+ * (`credit`, `debit`, `purse`) work inside any recipe or step, `def.currencies` lists the currencies, and the
+ * actions `credit` and `debit` work from outside.
  *
  * ```ts
  * const wallet = currencies({
@@ -42,25 +43,42 @@ export interface CurrencyActions<C extends string> {
 /** Any draft holding the feature's state under its key. */
 export type CurrencyDraft<K extends string> = { readonly [P in K]: object };
 
-/** The draft helpers, for recipes and steps. */
-export interface CurrencyHelpers<K extends string, C extends string> {
+/** The read-only questions over state, for recipes, steps and callbacks. */
+export interface CurrencySelect<K extends string, C extends string> {
+  balance(state: CurrencyDraft<K>, currency: C): Decimal;
+  canAfford(state: CurrencyDraft<K>, currency: C, amount: DecimalSource): boolean;
+}
+
+/** The fixed configuration of a currencies feature. */
+export interface CurrencyDef<C extends string> {
+  /** The vocabulary's currencies. */
+  readonly currencies: readonly C[];
+}
+
+/** The helpers that take a draft first and change it, named like the actions they mirror. */
+export interface CurrencyDraftHelpers<K extends string, C extends string> {
   /** Adds to a balance and to its `earned` total; an amount of zero or less does nothing. */
   credit(draft: CurrencyDraft<K>, currency: C, amount: DecimalSource): void;
   /** Takes from a balance and adds to its `spent` total, or refuses (false) when the balance is short. */
   debit(draft: CurrencyDraft<K>, currency: C, amount: DecimalSource): boolean;
-  balance(draft: CurrencyDraft<K>, currency: C): Decimal;
-  canAfford(draft: CurrencyDraft<K>, currency: C, amount: DecimalSource): boolean;
   /** The draft's balances as a `Purse`, for `tree.buy`. */
   purse(draft: CurrencyDraft<K>): Purse<C>;
 }
 
-/** A currencies feature: the feature, its vocabulary's currencies, and the draft helpers. */
+/** The three namespaces of a currencies feature; also what `CurrenciesDef.actions` receives as its second argument. */
+export interface CurrencyHelpers<K extends string, C extends string> {
+  readonly select: CurrencySelect<K, C>;
+  readonly def: CurrencyDef<C>;
+  readonly draft: CurrencyDraftHelpers<K, C>;
+}
+
+/** A currencies feature: the feature plus `select`, `def` and `draft`. */
 export type CurrenciesFeature<
   K extends string,
   C extends string,
   S extends object,
   A extends object,
-> = Feature<K, S, CurrencyActions<C> & A> & CurrencyHelpers<K, C> & { readonly currencies: readonly C[] };
+> = Feature<K, S, CurrencyActions<C> & A> & CurrencyHelpers<K, C>;
 
 /** Per currency, the name of a field that keeps a total of it. */
 export type TotalsMap<C extends string> = { readonly [P in C]?: string };
@@ -89,7 +107,7 @@ export interface CurrenciesDef<
   /** The game's own fields beside the balances (a pouch per rarity); its own helpers keep them. */
   readonly extra?: () => X;
   readonly reset?: ResetRule<CurrenciesState<CurrencyOf<V>, FieldOf<E> | FieldOf<P>, X>>;
-  /** The game's own actions, beside `credit` and `debit`, with the draft helpers to build them on. */
+  /** The game's own actions, beside `credit` and `debit`, with `{ select, def, draft }` to build them on. */
   readonly actions?: (api: FeatureApi<G>, helpers: CurrencyHelpers<K, CurrencyOf<V>>) => A;
 }
 
@@ -176,11 +194,16 @@ export function currencies<
     return true;
   };
   const helpers: CurrencyHelpers<K, C> = {
-    credit,
-    debit,
-    balance,
-    canAfford: (draft, c, amount) => balance(draft, c).gte(amount),
-    purse: (draft) => ({ balance: (c) => balance(draft, c), debit: (c, amount) => debit(draft, c, amount) }),
+    select: { balance, canAfford: (state, c, amount) => balance(state, c).gte(amount) },
+    def: { currencies: ids },
+    draft: {
+      credit,
+      debit,
+      purse: (draft) => ({
+        balance: (c) => balance(draft, c),
+        debit: (c, amount) => debit(draft, c, amount),
+      }),
+    },
   };
 
   const made = feature<K, S, CurrencyActions<C> & A, readonly [], Record<never, never>, G>({
@@ -203,7 +226,7 @@ export function currencies<
       return { ...own, ...theirs } as CurrencyActions<C> & A;
     },
   });
-  return Object.assign(made, helpers, { currencies: ids });
+  return Object.assign(made, helpers);
 }
 
 function fieldsOf<C extends string>(map: { readonly [P in C]?: string } | undefined): Map<C, string> {

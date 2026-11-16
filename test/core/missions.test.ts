@@ -50,8 +50,8 @@ const trips = missions({
       reward: () => ({ gems: 0 }),
     },
   ],
-  pay: (d, m) => (m.cost ? wallet.debit(d, "gold", m.cost.gold) : true),
-  onClaim: (d, reward) => wallet.credit(d, "gems", reward.gems),
+  pay: (d, m) => (m.cost ? wallet.draft.debit(d, "gold", m.cost.gold) : true),
+  onClaim: (d, reward) => wallet.draft.credit(d, "gems", reward.gems),
 });
 const game = defineGame({
   id: "trips",

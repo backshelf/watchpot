@@ -166,7 +166,7 @@ data. immer turns the changes into a new state when the recipe returns. Taught i
 ## Draft helper
 
 A function on a feature that takes a draft as its first argument, for use inside a recipe or step where calling an
-action is not allowed: `wallet.credit(s, "bubbles", 1)`. Taught in
+action is not allowed: `wallet.draft.credit(s, "bubbles", 1)`. Taught in
 [chapter 4](guide/04-words-and-numbers.md#the-wallet). Reference: [add a currency](add-a-currency.md).
 
 ## Effect

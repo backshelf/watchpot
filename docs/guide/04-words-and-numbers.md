@@ -241,7 +241,7 @@ when the balance is short. These are ordinary [actions](../glossary.md#action), 
 **From inside a recipe or a step, the draft helpers.** Recall from chapter 3 that an action changes state inside
 `api.set((s) => { ... })`, that `s` is a draft you edit in place, and that calling another action from in there
 throws. So the wallet also offers [draft helpers](../glossary.md#draft-helper): functions on the wallet feature
-itself that take the draft as their first argument. `wallet.credit(s, "bubbles", 1)` adds one bubble to the draft you
+itself that take the draft as their first argument. `wallet.draft.credit(s, "bubbles", 1)` adds one bubble to the draft you
 are already editing. The helpers are `credit`, `debit`, `balance`, `canAfford` and `purse`. The last one wraps the
 draft's balances as a `Purse`, the shape the engine's upgrade trees pay from (a tree's `buy` takes one).
 
@@ -299,7 +299,7 @@ export const pot = feature({
   actions: (api) => ({
     tap: () =>
       api.set((s) => {
-        wallet.credit(s, "bubbles", 1);
+        wallet.draft.credit(s, "bubbles", 1);
         s.pot.taps += 1;
       }),
   }),
@@ -307,7 +307,7 @@ export const pot = feature({
     produce: {
       // Runs on every live tick and on the catch-up after time away.
       simmer: (s, ctx) => {
-        wallet.credit(s, "bubbles", (SIMMER_PER_SECOND * ctx.dtMs) / 1000);
+        wallet.draft.credit(s, "bubbles", (SIMMER_PER_SECOND * ctx.dtMs) / 1000);
       },
     },
   },
@@ -344,7 +344,7 @@ After, one `wallet.debit` checks and pays together, and answers whether it did:
 ```ts
 buyBurner: () =>
   api.set((s) => {
-    if (!wallet.debit(s, "bubbles", burnerPrice(s.stove.burners))) return false;
+    if (!wallet.draft.debit(s, "bubbles", burnerPrice(s.stove.burners))) return false;
     s.stove.burners += 1;
     return true;
   }),
@@ -362,7 +362,7 @@ produce: {
   burn: {
     pass: "tick",
     run: (s, ctx) => {
-      wallet.credit(s, "bubbles", s.stove.perSecond.mul(ctx.dtMs / 1000));
+      wallet.draft.credit(s, "bubbles", s.stove.perSecond.mul(ctx.dtMs / 1000));
     },
   },
   // Time away pays half, for two hours at most.
@@ -370,7 +370,7 @@ produce: {
     pass: "catchUp",
     run: (s, ctx) => {
       const credited = Math.min(ctx.dtMs, AWAY_CAP_MS) * OFFLINE_RATE;
-      wallet.credit(s, "bubbles", s.stove.perSecond.mul(credited / 1000));
+      wallet.draft.credit(s, "bubbles", s.stove.perSecond.mul(credited / 1000));
     },
   },
 },
@@ -538,7 +538,7 @@ hold: {
     if (!holding(d)) return;
     const presses = (holdRate(d) * ctx.dtMs) / 1000;
     const clean = 1 + critChance(d) * (CRIT.mult - 1);
-    wallet.credit(d, MAIN, pressPower(d).mul(presses * clean));
+    wallet.draft.credit(d, MAIN, pressPower(d).mul(presses * clean));
     d.feed.presses += presses;
   },
 },
@@ -547,7 +547,7 @@ hold: {
 VOID IF REMOVED, `src/game/feed.ts`
 
 `presses` is a plain number (a count that only adds); the payment is a Decimal, built from `pressPower(d)`, and it
-goes into the wallet with `wallet.credit(d, MAIN, ...)`. (`pass: "tick"`, from chapter 3, limits the step to live play;
+goes into the wallet with `wallet.draft.credit(d, MAIN, ...)`. (`pass: "tick"`, from chapter 3, limits the step to live play;
 chapter 9 shows why that matters for time away.)
 
 And here is why `fmt` returns an object. The game prints its figures through one component, which sets the suffix
@@ -601,7 +601,7 @@ form always shows two.
 - **A wallet total named "lifetime" that is not.** The default reset wipes `earned` and `spent` totals with the
   balances. Add `reset: { keep: [...] }` for a total that should survive.
 - **Calling an action inside a recipe.** It throws. Inside `api.set` or a step, use the wallet's draft helpers
-  (`wallet.credit(s, ...)`), not `store.getState().wallet.credit(...)`.
+  (`wallet.draft.credit(s, ...)`), not `store.getState().wallet.credit(...)`.
 - **The names `credit` and `debit` are taken.** The wallet's actions sit beside its balances in the slice, so no
   currency, total or extra field can be called `credit`, `debit` or `__proto__`. `currencies` throws on any of them
   when you define the wallet.

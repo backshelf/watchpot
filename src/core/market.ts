@@ -260,7 +260,7 @@ export function market<
 
   const affordable = (state: G, t: T, now: number): Decimal => {
     const each = priceOf(state, t, now) * (1 + feeOf(state));
-    return wallet.balance(purse(state), def.pays).div(each).floor();
+    return wallet.select.balance(purse(state), def.pays).div(each).floor();
   };
   const yieldPerSecond = (state: G): Decimal => {
     let total = ZERO;
@@ -325,7 +325,7 @@ export function market<
     const n = units.floor();
     if (!t || !isOpen(state, t) || !n.gt(0)) return ZERO;
     const cost = n.mul(priceOf(draft, t, now) * (1 + feeOf(state)));
-    if (!wallet.debit(purse(draft), def.pays, cost)) return ZERO;
+    if (!wallet.draft.debit(purse(draft), def.pays, cost)) return ZERO;
     const s = own(draft);
     s.held[id] = heldOf(draft, id).add(n);
     s.paid[id] = paidOf(draft, id).add(cost);
@@ -348,7 +348,7 @@ export function market<
     s.paid[id] = paidOf(draft, id).sub(basis);
     s.realised = s.realised.add(takes.sub(basis));
     s.trades += 1;
-    wallet.credit(purse(draft), def.pays, takes);
+    wallet.draft.credit(purse(draft), def.pays, takes);
     return n;
   };
 
@@ -358,7 +358,7 @@ export function market<
     if (!due.gt(0)) return;
     const s = own(draft);
     s.yielded = s.yielded.add(due);
-    wallet.credit(purse(draft), def.pays, due);
+    wallet.draft.credit(purse(draft), def.pays, due);
   };
 
   const trader = def.trader;

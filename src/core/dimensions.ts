@@ -252,7 +252,7 @@ export function dimensions<
     affordable: (state, id) => {
       const hit = find(id);
       if (!hit || !open(state, hit[0], hit[1])) return 0;
-      const held = wallet.balance(state as unknown as CurrencyDraft<WK>, paysOf(hit[0]));
+      const held = wallet.select.balance(state as unknown as CurrencyDraft<WK>, paysOf(hit[0]));
       return maxAffordable(hit[0].cost, boughtOf(state, hit[0]), held);
     },
     untilSet: (state, id) => {
@@ -282,8 +282,8 @@ export function dimensions<
     const want = Math.max(0, Math.floor(count));
     const purse = draft as unknown as CurrencyDraft<WK>;
     const had = boughtOf(draft, t);
-    const n = partial ? maxAffordable(t.cost, had, wallet.balance(purse, paysOf(t)), want) : want;
-    if (n <= 0 || !wallet.debit(purse, paysOf(t), costOfMany(t.cost, had, n))) return 0;
+    const n = partial ? maxAffordable(t.cost, had, wallet.select.balance(purse, paysOf(t)), want) : want;
+    if (n <= 0 || !wallet.draft.debit(purse, paysOf(t), costOfMany(t.cost, had, n))) return 0;
     const s = own(draft);
     s.bought[t.id] = had + n;
     s.amount[t.id] = amountOf(draft, t).add(D(t.gives ?? 1).mul(n));
@@ -310,7 +310,7 @@ export function dimensions<
     );
     const s = own(draft);
     for (const [i, t] of tiers.entries()) s.amount[t.id] = step.amounts[i] ?? ZERO;
-    wallet.credit(draft as unknown as CurrencyDraft<WK>, def.makes, step.produced);
+    wallet.draft.credit(draft as unknown as CurrencyDraft<WK>, def.makes, step.produced);
   };
 
   const horizon = def.horizonS ?? 60;

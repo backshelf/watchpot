@@ -25,7 +25,7 @@ export const generator = feature({
     // `api.set` returns what the recipe returns, so the action reports whether the purchase went through.
     buy: (): boolean =>
       api.set((s) => {
-        if (!wallet.debit(s, "gold", generatorCost(s.generator.owned))) return false;
+        if (!wallet.draft.debit(s, "gold", generatorCost(s.generator.owned))) return false;
         s.generator.owned += 1;
         return true;
       }),
@@ -39,13 +39,13 @@ export const generator = feature({
     produce: {
       income: {
         pass: "tick",
-        run: (s, ctx) => wallet.credit(s, "gold", s.generator.perSecond.mul(ctx.dtMs / 1000)),
+        run: (s, ctx) => wallet.draft.credit(s, "gold", s.generator.perSecond.mul(ctx.dtMs / 1000)),
       },
       offline: {
         pass: "catchUp",
         // Half rate, at most an hour: `offlineCredit` turns the gap into credited time.
         run: (s, ctx) =>
-          wallet.credit(
+          wallet.draft.credit(
             s,
             "gold",
             s.generator.perSecond.mul(offlineCredit(ctx.dtMs, 0.5, HOUR_MS).creditedMs / 1000),

@@ -25,7 +25,7 @@ export const visitors = spawns({
     },
   ],
   onCatch: (draft: State, outcome) => {
-    if (outcome === "windfall") wallet.credit(draft, "gold", draft.mine.perSecond.mul(900));
+    if (outcome === "windfall") wallet.draft.credit(draft, "gold", draft.mine.perSecond.mul(900));
   },
 });
 // s.visitors.kinds.spark.live → null or { id, bornAt, diesAt }; store.getState().visitors.catch("spark")

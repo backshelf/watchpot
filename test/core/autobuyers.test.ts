@@ -52,7 +52,7 @@ const shop = feature({
 });
 type State = { wallet: { gold: Decimal }; shop: { carts: number; mills: number; unlocked: boolean } };
 const buyOne = (d: State, item: "carts" | "mills", price: number): number => {
-  if (!wallet.debit(d, "gold", price)) return 0;
+  if (!wallet.draft.debit(d, "gold", price)) return 0;
   d.shop[item] += 1;
   return 1;
 };

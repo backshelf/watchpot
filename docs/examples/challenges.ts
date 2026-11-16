@@ -25,7 +25,7 @@ export const trials = challenges({
     },
     { id: "short", unlocked: (s) => s.wallet.gold.gte(1e3), goal: (s) => s.wallet.gold.gte(1e9) },
   ],
-  onComplete: (d, _id, n) => wallet.credit(d, "gems", 10 * n), // in the same recipe as the completion
+  onComplete: (d, _id, n) => wallet.draft.credit(d, "gems", 10 * n), // in the same recipe as the completion
 });
 
 /** The game's own rule, reading the flag: gems cannot be spent inside "no-gems". */
@@ -36,7 +36,7 @@ export const shop = feature({
   actions: (api) => ({
     buyWithGems: () =>
       api.set((s) => {
-        if (challengeRule(s.trials, "noGems") || !wallet.debit(s, "gems", 1)) return;
+        if (challengeRule(s.trials, "noGems") || !wallet.draft.debit(s, "gems", 1)) return;
         s.shop.boughtWithGems += 1;
       }),
   }),

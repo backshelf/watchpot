@@ -35,7 +35,7 @@ export const pot = feature({
   actions: (api) => ({
     tap: () =>
       api.set((s) => {
-        wallet.credit(s, "bubbles", 1);
+        wallet.draft.credit(s, "bubbles", 1);
         s.pot.taps += 1;
       }),
   }),
@@ -44,7 +44,7 @@ export const pot = feature({
       simmer: {
         pass: "both",
         run: (s, ctx) => {
-          wallet.credit(s, "bubbles", (SIMMER_PER_SECOND * ctx.dtMs) / 1000);
+          wallet.draft.credit(s, "bubbles", (SIMMER_PER_SECOND * ctx.dtMs) / 1000);
         },
       },
     },

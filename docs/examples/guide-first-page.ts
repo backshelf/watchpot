@@ -212,7 +212,7 @@ export const surface = spawns({
   ],
   onCatch: (d: Draft<Page>, outcome, now) => {
     if (outcome === "splash") {
-      wallet.credit(d, "bubbles", income(d).mul(60).max(25)); // a minute of everything, 25 at least
+      wallet.draft.credit(d, "bubbles", income(d).mul(60).max(25)); // a minute of everything, 25 at least
       return;
     }
     boosts.start(d, outcome, now);

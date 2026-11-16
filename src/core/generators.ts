@@ -335,7 +335,7 @@ export function generators<
   };
   const affordable = (state: G, g: T, c: At): number => {
     if (!open(state, g, c)) return 0;
-    const held = wallet.balance(state as unknown as CurrencyDraft<WK>, g.pays);
+    const held = wallet.select.balance(state as unknown as CurrencyDraft<WK>, g.pays);
     return maxAffordable(g.cost, ownedOf(state, g), held);
   };
   const away = (state: G, c: At): GeneratorAway => def.away?.(state, c) ?? { rate: 1 };
@@ -406,8 +406,8 @@ export function generators<
     const want = Math.max(0, Math.floor(count));
     const purse = draft as unknown as CurrencyDraft<WK>;
     const had = ownedOf(draft, g);
-    const n = partial ? maxAffordable(g.cost, had, wallet.balance(purse, g.pays), want) : want;
-    if (n <= 0 || !wallet.debit(purse, g.pays, costOfMany(g.cost, had, n))) return 0;
+    const n = partial ? maxAffordable(g.cost, had, wallet.select.balance(purse, g.pays), want) : want;
+    if (n <= 0 || !wallet.draft.debit(purse, g.pays, costOfMany(g.cost, had, n))) return 0;
     own(draft).owned[g.id] = had + n;
     return n;
   };
@@ -423,7 +423,7 @@ export function generators<
       if (owned <= 0) continue;
       const length = cycleMs(state, g, c);
       if (length === null) {
-        wallet.credit(purse, g.makes, rate(state, g, c).mul(ms / 1000));
+        wallet.draft.credit(purse, g.makes, rate(state, g, c).mul(ms / 1000));
         continue;
       }
       const auto = automated(state, g, c);
@@ -431,7 +431,7 @@ export function generators<
       const step = cyclesIn(s.progress[g.id] ?? 0, ms, length, !auto);
       s.progress[g.id] = step.progress;
       if (step.completed > 0) {
-        wallet.credit(purse, g.makes, unit(state, g, c).mul(owned).mul(step.completed));
+        wallet.draft.credit(purse, g.makes, unit(state, g, c).mul(owned).mul(step.completed));
         if (!auto) s.running[g.id] = false;
       }
     }

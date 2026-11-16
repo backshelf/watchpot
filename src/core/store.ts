@@ -268,7 +268,7 @@ export function createIdleStore<F extends readonly FeatureSpec[], R extends obje
         const draft = <T>(recipe: (s: Draft<State>) => T): T => {
           if (drafting)
             throw new Error(
-              "watchpot: an action was called inside a recipe (a `set` or a step), where its change would be lost under the outer one's. Call the draft helper on the draft in hand instead (`wallet.credit(draft, …)`), or call the action once the recipe has returned.",
+              "watchpot: an action was called inside a recipe (a `set` or a step), where its change would be lost under the outer one's. Call the draft helper on the draft in hand instead (`wallet.draft.credit(draft, …)`), or call the action once the recipe has returned.",
             );
           let out: T | undefined;
           const run = (s: Draft<State>): void => {

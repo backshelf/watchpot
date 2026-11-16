@@ -12,11 +12,11 @@ export const daily = streak({
   key: "daily",
   rewards: (day) => (day % 7 === 0 ? { gold: 0, gems: 5 } : { gold: 100 * (day % 7), gems: 0 }),
   onClaim: (draft: State, reward) => {
-    wallet.credit(draft, "gold", reward.gold); // a credit of 0 does nothing
-    wallet.credit(draft, "gems", reward.gems);
+    wallet.draft.credit(draft, "gold", reward.gold); // a credit of 0 does nothing
+    wallet.draft.credit(draft, "gems", reward.gems);
   },
   grace: 1, // one missed day is forgiven
-  keep: (draft, missed) => wallet.debit(draft, "gems", missed * 10), // past that, gems save the run
+  keep: (draft, missed) => wallet.draft.debit(draft, "gems", missed * 10), // past that, gems save the run
 });
 // store.getState().daily.claim() → { day, reward, kept } or null; daily.status(s.daily, now)
 ```

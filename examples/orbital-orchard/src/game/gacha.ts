@@ -48,7 +48,7 @@ export const collection = withMoves(
         let ok = false;
         api.set((s) => {
           const free = Math.min(count, s.summon.tokens[BOX] ?? 0);
-          if (!wallet.debit(s, PREMIUM, PULL_PRICE * (count - free))) return;
+          if (!wallet.draft.debit(s, PREMIUM, PULL_PRICE * (count - free))) return;
           const open = summon.openDraft(s, BOX, count);
           s.collection.last = open.pulls.map((p) => p.item.id);
           for (const p of open.pulls)
@@ -67,7 +67,7 @@ export const collection = withMoves(
             const ms = s.collection.drip + (ctx.pass === "tick" ? ctx.dtMs : ctx.dtMs * DRIP_AWAY);
             const whole = Math.floor(ms / DRIP_MS);
             s.collection.drip = ms - whole * DRIP_MS;
-            if (whole > 0) wallet.credit(s, PREMIUM, whole);
+            if (whole > 0) wallet.draft.credit(s, PREMIUM, whole);
           },
         },
       },

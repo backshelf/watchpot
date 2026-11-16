@@ -16,11 +16,11 @@ export const wallet = currencies({
   earned: { gold: "lifetimeGold" }, // a field totalling every credit of gold
   spent: { gems: "gemsSpent" }, // a field totalling every debit of gems
   extra: () => ({ dust: D(0) }), // the game's own fields beside the balances
-  actions: ({ set }, w) => ({
+  actions: ({ set }, { draft }) => ({
     // Inside a recipe, use the draft helpers: they change the draft you hold.
     sweepDust: () =>
       set((s) => {
-        w.credit(s, "gems", s.wallet.dust);
+        draft.credit(s, "gems", s.wallet.dust);
         s.wallet.dust = D(0);
       }),
   }),
