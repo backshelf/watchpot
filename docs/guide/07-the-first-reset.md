@@ -490,10 +490,10 @@ export const stamps = achievements<"stamps", Reads, never>({
 
 VOID IF REMOVED, `src/game/stamps.ts`
 
-The game is still on engine 0.17, whose type arguments ran key, effect, state; on the current engine they run key,
-state, effect, so the same intent is spelled `achievements<"stamps", Reads>`. You rarely need them at all:
-`achievements` works out the state type from `when` and the effect type from `effects`, so
-`achievements({ key: "stamps", ... })` with an annotated list, as Simmer writes it, is the usual form.
+The game is still on an older engine, whose type arguments ran key, state, effect; on the current engine they run key,
+effect, reach, state, so nobody writes them by hand. `achievements` works out the state type from `reach` (or from an
+annotated `when`) and the effect type from `effects`, so `achievements({ key: "stamps", ... })` with an annotated
+list, as Simmer writes it, is the usual form.
 
 ## The same factory opens pages
 

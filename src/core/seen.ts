@@ -15,19 +15,27 @@ export interface SeenActions {
   forget(id: string): void;
 }
 
+/** The three namespaces of a `seenOnce` feature, all empty: the state is read directly and the actions change it. */
+export interface SeenHelpers {
+  readonly select: Record<never, never>;
+  readonly def: Record<never, never>;
+  readonly draft: Record<never, never>;
+}
+
+/** A `seenOnce` feature: the feature plus `select`, `def` and `draft` (each empty). */
+export type SeenFeature<K extends string> = Feature<K, SeenState, SeenActions> & SeenHelpers;
+
 /**
  * The saved "shown this once" set every game writes: under `key`, the ids of what has been introduced, read or
  * dismissed (a tip, a new tab's mark, a tutorial card, a page that says something only the first time), kept
  * through every run reset and saved with the profile. The ids are the game's own; whether a thing counts as seen
  * is `state[key].seen[id] === true`. An action that changes nothing writes nothing, so a caller may mark on every
- * render of the thing.
+ * render of the thing. `select`, `def` and `draft` are empty: it has nothing but state and actions.
  */
-export function seenOnce<const K extends string>(def: {
-  readonly key: K;
-}): Feature<K, SeenState, SeenActions> {
+export function seenOnce<const K extends string>(def: { readonly key: K }): SeenFeature<K> {
   // `feature` types its draft over a record keyed by `K`; the slice is the one thing the actions touch.
   const slice = (state: unknown): SeenState => (state as Record<K, SeenState>)[def.key];
-  return feature({
+  const made = feature({
     key: def.key,
     initial: (): SeenState => ({ seen: {} }),
     reset: "never",
@@ -54,4 +62,5 @@ export function seenOnce<const K extends string>(def: {
       },
     }),
   }) as unknown as Feature<K, SeenState, SeenActions>;
+  return Object.assign(made, { select: {}, def: {}, draft: {} } satisfies SeenHelpers);
 }

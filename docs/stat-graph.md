@@ -53,7 +53,7 @@ export const numbers = defineStats({
     ),
   ],
   label: (source) => NAMES.get(source) ?? source,
-  muted: (s, group) => challengeRule(s.trials, `mute:${group}`),
+  muted: (s, group) => trials.select.rule(s, `mute:${group}`),
 });
 ```
 

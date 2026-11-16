@@ -65,9 +65,9 @@ describe("advanceTrack", () => {
 });
 
 describe("stages feature", () => {
-  type State = { army: { force: number; loot: number; unlocked: boolean } };
   const army = feature({ key: "army", initial: () => ({ force: 5, loot: 0, unlocked: false }) });
-  const front = stages<"front", State>({
+  const front = stages({
+    reach: [army],
     key: "front",
     tracks: [ROAD, { id: "side", resistance: { base: 1, growth: 10 } }],
     force: (s) => s.army.force,
@@ -89,11 +89,35 @@ describe("stages feature", () => {
     expect(s.front.tracks.road).toMatchObject({ stage: 3, best: 3 });
     expect(s.front.tracks.side).toMatchObject({ stage: 0 });
     expect(s.army.loot).toBe(3);
-    expect(front.rules.fill(s, "road")).toBeCloseTo(30 / 400);
-    expect(front.rules.force(s, "road").eq(D(5))).toBe(true);
+    expect(front.select.fill(s, "road")).toBeCloseTo(30 / 400);
+    expect(front.select.force(s, "road").eq(D(5))).toBe(true);
     // Back to an earlier stage, never past the furthest.
     expect(s.front.enter("road", 1)).toBe(true);
     expect(store.getState().front.enter("road", 9)).toBe(false);
     expect(store.getState().front.tracks.road).toMatchObject({ stage: 1, best: 3 });
+  });
+
+  test("select asks the state, def holds the tracks and the resistance, draft is empty", () => {
+    const { store } = freshStore(game, { at: T0 });
+    const s = store.getState();
+    expect(front.select.passable(s, "road")).toBe(true);
+    expect(front.select.ended(s, "road")).toBe(false);
+    expect(front.select.ended(s, "nowhere")).toBe(true);
+    expect(front.select.secondsToClear(s, "road")).toBe(2);
+    expect(front.def.tracks.map((t) => t.id)).toEqual(["road", "side"]);
+    expect(front.def.track("side")?.id).toBe("side");
+    expect(front.def.resistance("road", 0).toNumber()).toBe(10);
+    expect(front.def.resistance("nowhere", 0).toNumber()).toBe(0);
+    expect(front.draft).toEqual({});
+  });
+
+  test("`reach` types the callbacks: a reached feature reads, an unreached one does not", () => {
+    stages({
+      key: "bad",
+      reach: [army],
+      tracks: [],
+      // @ts-expect-error nothing reached a "moon"
+      force: (s) => s.moon.phase,
+    });
   });
 });

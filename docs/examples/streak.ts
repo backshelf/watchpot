@@ -1,4 +1,4 @@
-import { currencies, type Decimal, defineGame, fmtWait, streak } from "watchpot/core";
+import { currencies, type Decimal, defineGame, fmtWait, type StreakState, streak } from "watchpot/core";
 import { TOY } from "./vocab";
 
 type State = { wallet: { gold: Decimal; gems: Decimal } };
@@ -25,8 +25,8 @@ export const game = defineGame({
 });
 
 /** The banner's line. */
-export function dailyLine(s: { daily: Parameters<typeof daily.status>[0] }, now: number): string {
-  const status = daily.status(s.daily, now);
+export function dailyLine(s: { daily: StreakState }, now: number): string {
+  const status = daily.select.status(s, now);
   if (status.canClaim) return status.broken ? "Start a new streak" : `Claim day ${status.count + 1}`;
   return `Day ${status.count} claimed · next in ${fmtWait(status.msUntilNext)}`;
 }

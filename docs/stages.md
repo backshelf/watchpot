@@ -15,7 +15,7 @@ Example: [`examples/stages.ts`](examples/stages.ts).
 - **The kernel.** `advanceTrack(state, force, dtMs, track)` returns `{ state, cleared }` (at most `STAGE_WALK_LIMIT`
   stages a step); `TrackState` is `{ stage, worn, best }`. Readers: `resistanceAt`, `passable`, `trackFill` (0 to 1),
   `secondsToClear` (null at a wall) and `trackEnded`.
-- **`stages({ key, tracks, force, open?, onClear?, away?, reset? })`** saves a `TrackState` per track and wears every
+- **`stages({ key, reach?, tracks, force, open?, onClear?, away?, reset? })`** saves a `TrackState` per track and wears every
   open track in `<key>.produce.advance`. `force(state, track)` is the wear a second, read off the whole game state (a
   stat, a share of a pool); `open(state, track)` holds a track still until it is unlocked; `onClear(draft, track,
   from, to, now)` runs in the recipe of a step that cleared stages `from` up to (not including) `to`. Over an absence

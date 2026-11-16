@@ -71,7 +71,7 @@ export const stats = defineStats({
     {
       label: "achievements",
       owner: "achievements",
-      effects: [{ stat: "output", mul: (q) => wall.board.power(q.achievements.earned, POWER) }],
+      effects: [{ stat: "output", mul: (q) => wall.select.power(q, POWER) }],
     },
     // @end
   ],

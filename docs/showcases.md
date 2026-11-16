@@ -179,7 +179,7 @@ whole state and the game time every [tick](glossary.md#tick), so the level can f
 VOID IF REMOVED's printhead heat is one ([chapter 6](guide/06-the-first-page.md#the-meter-gauge) quotes it). Holding
 FEED warms it, every second cools it, and the stat fold reads the level as a multiplier on print, up to double at full
 heat. Single taps warm it too: the tap is a `clicker`, and its `onClick` adds a little heat to the level in the same
-recipe as the tap. To do that in your own game, call the gauge feature's draft helper, `heat.nudge(draft, amount,
+recipe as the tap. To do that in your own game, call the gauge feature's draft helper, `heat.draft.nudge(draft, amount,
 now)`, from the recipe: it clamps and trips exactly as the `nudge` action does. `reset: "never"` keeps the heat
 through the first reset, so a player who starts a new roll keeps their momentum.
 
@@ -215,7 +215,7 @@ any other function.
 ```ts
 /** The shader's inputs, worked out from the game state alone: no event, no animation of the page's own. */
 export const glowUniforms = (s: { warmth: GaugeState; drips: SpawnsState }) => ({
-  u_heat: gaugeFill(s.warmth, warmth.rules.max), // 0 to 1
+  u_heat: gaugeFill(s.warmth, warmth.def.max), // 0 to 1
   u_wobble: s.drips.kinds.drip?.live ? 1 : 0, // 1 while there is something to catch
 });
 ```
@@ -311,12 +311,12 @@ a term from a page the player has not opened stays plain text.
 **The use:** [challenges](glossary.md#challenge) whose rule flags name a group of stat sources, so a restriction like
 "no tools this run" is one line of content and no rule code at all.
 
-**Why it works.** A challenge's `rules` are plain strings, and `challengeRule(state, rule)` is true only while a
+**Why it works.** A challenge's `rules` are plain strings, and `trials.select.rule(state, rule)` is true only while a
 challenge carrying that string is active. Separately, the engine's [stat graph](glossary.md#stat-graph) (`statIndex`,
 and the `stats` feature built on it) puts each source in an optional `group`, and `muted` silences the effects of any
 group it names: the rows stay in the breakdown, marked with the reason, and stop counting. Name the rule after the
 group and the two systems join with no code in between. (A `stats` feature takes the same function as its own
-``muted: (s, group) => challengeRule(s.trials, `mute:${group}`)``.)
+``muted: (s, group) => trials.select.rule(s, `mute:${group}`)``.)
 
 ```ts
 export const trials = challenges({
@@ -334,7 +334,7 @@ export const trials = challenges({
 class Reader {
   readonly graph: StatGraph<Stat, never>;
   constructor(readonly s: Kitchen) {
-    this.graph = INDEX.over(this, { muted: (group) => challengeRule(s.trials, `mute:${group}`) });
+    this.graph = INDEX.over(this, { muted: (group) => trials.select.rule(s, `mute:${group}`) });
   }
 }
 ```
@@ -386,7 +386,7 @@ export const shopWindow = feature({
 
 `docs/examples/showcase-on-display.ts`
 
-The player's choice (which two dishes to show) becomes a slow, visible investment, and `fame.rules.progress` gives the
+The player's choice (which two dishes to show) becomes a slow, visible investment, and `fame.select.progress` gives the
 bar under each dish for free. The step has no `pass`, so it runs in the catch-up too and a dish keeps learning while the
 tab is closed. If time away should not count, write the step as `{ pass: "tick", run }`.
 

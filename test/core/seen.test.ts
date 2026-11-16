@@ -74,4 +74,8 @@ describe("seenOnce", () => {
     store.getState().resetProfile();
     expect(store.getState().guide.seen).toEqual({});
   });
+
+  test("it has the three namespaces, each empty", () => {
+    expect([guide.select, guide.def, guide.draft]).toEqual([{}, {}, {}]);
+  });
 });

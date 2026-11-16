@@ -1,5 +1,13 @@
 import type { Draft } from "immer";
-import { type Feature, type FeatureApi, feature, type ResetRule } from "./feature";
+import {
+  type Feature,
+  type FeatureApi,
+  feature,
+  type NeedsOf,
+  type ReachOf,
+  type ReachShape,
+  type ResetRule,
+} from "./feature";
 import { dayKey, nextLocalMidnight, previousDayKey } from "./time";
 
 /**
@@ -107,29 +115,65 @@ export interface StreakActions<R> {
   claim(): StreakClaim<R> | null;
 }
 
-/** A `streak` feature, carrying its status read as `.status`. */
-export type StreakFeature<K extends string, R> = Feature<K, StreakState, StreakActions<R>> & {
+/** Any game state holding the feature's slice under its key. */
+export type StreakGame<K extends string> = { readonly [P in K]: StreakState };
+
+/** The read-only questions over state, for recipes, steps, callbacks and screens. */
+export interface StreakSelect<K extends string> {
   /** The streak at `now`, by the feature's grace. */
-  status(state: StreakState, now: number): StreakStatus;
-};
+  status(state: StreakGame<K>, now: number): StreakStatus;
+}
+
+/** The fixed configuration of a streak feature. */
+export interface StreakDefs<R> {
+  /** Missed days a run survives. */
+  readonly grace: number;
+  /** The reward of the day of the run. */
+  readonly rewards: (day: number) => R;
+}
+
+/** The helpers that take a draft first and change it. Streak has none: its one change is its action. */
+export type StreakDraftHelpers = Record<never, never>;
+
+/** The three namespaces of a streak feature. */
+export interface StreakHelpers<K extends string, R> {
+  readonly select: StreakSelect<K>;
+  readonly def: StreakDefs<R>;
+  readonly draft: StreakDraftHelpers;
+}
+
+/** A `streak` feature: the feature plus `select`, `def` and `draft`. */
+export type StreakFeature<K extends string, R> = Feature<K, StreakState, StreakActions<R>> &
+  StreakHelpers<K, R>;
 
 /**
  * The daily return as a feature. It saves `StreakState` under `key` and never resets with a run (unless `reset` says
  * otherwise). `claim()` claims today, reads `rewards(day)` for the day of the run claimed and runs `onClaim(draft,
  * reward, day, now)` in the same recipe. When the run would break, `keep(draft, missed)` may charge and return true to
- * save it. No steps: nothing happens until the player claims.
+ * save it. No steps: nothing happens until the player claims. The callbacks read the game state: the feature's own
+ * slice and whatever `reach` names.
+ *
+ * `select`: `status(state, now)`. `def`: `grace`, `rewards`. `draft`: empty.
  */
-export function streak<const K extends string, R, G extends object = object>(def: {
+export function streak<
+  const K extends string,
+  R,
+  const Re extends ReachShape = readonly [],
+  G extends object = Record<K, StreakState> & ReachOf<Re>,
+>(def: {
   readonly key: K;
+  /** The features the callbacks read, as `feature`'s `reach`. */
+  readonly reach?: Re | (() => Re);
   readonly rewards: (day: number) => R;
   readonly onClaim?: (draft: Draft<G>, reward: R, day: number, now: number) => void;
   readonly grace?: number;
   readonly keep?: (draft: Draft<G>, missed: number) => boolean;
   readonly reset?: ResetRule<StreakState>;
-}): StreakFeature<K, R> {
+}): StreakFeature<K, R> & { readonly needs?: NeedsOf<Re> } {
   type Own = Record<K, StreakState>;
   const own = (draft: unknown): StreakState => (draft as Own)[def.key];
-  const made = feature({
+  const made = feature<K, StreakState, StreakActions<R>, ReachShape, Record<never, never>, Own>({
+    reach: def.reach,
     key: def.key,
     initial: (): StreakState => ({ ...NO_STREAK }),
     reset: def.reset ?? "never",
@@ -154,7 +198,10 @@ export function streak<const K extends string, R, G extends object = object>(def
       },
     }),
   });
-  return Object.assign(made, {
-    status: (state: StreakState, now: number) => streakStatus(state, now, { grace: def.grace }),
-  });
+  const helpers: StreakHelpers<K, R> = {
+    select: { status: (state, now) => streakStatus(state[def.key], now, { grace: def.grace }) },
+    def: { grace: def.grace ?? 0, rewards: def.rewards },
+    draft: {},
+  };
+  return Object.assign(made, helpers) as StreakFeature<K, R> & { readonly needs?: NeedsOf<Re> };
 }

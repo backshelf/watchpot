@@ -19,7 +19,7 @@ const mine = feature({
   key: "mine",
   reach: [stats],
   initial: () => ({}),
-  steps: { produce: { count: { pass: "tick", run: (d) => stats.add(d, "gold", 1) } } },
+  steps: { produce: { count: { pass: "tick", run: (d) => stats.draft.add(d, "gold", 1) } } },
 });
 const game = defineGame({ id: "stats", save: { key: "stats.save", version: 1 }, features: [stats, mine] });
 
@@ -50,7 +50,7 @@ describe("records", () => {
   test("a step counts through the draft helper, in Decimals", () => {
     const { store } = freshStore(game);
     for (let i = 1; i <= 3; i++) store.getState().tick(1000, T0 + i * 1000);
-    expect(stats.value(store.getState().stats, "run", "gold")?.toNumber()).toBe(3);
+    expect(stats.select.value(store.getState(), "run", "gold")?.toNumber()).toBe(3);
   });
 
   test("a run reset pushes the run, keeps life, folds the best and the shortest run", () => {
@@ -99,5 +99,17 @@ describe("records", () => {
     expect(again.getState().stats.run("peak")?.toNumber()).toBe(3);
     expect(again.getState().stats.runs).toHaveLength(1);
     expect(again.getState().stats.life("clicks")).toBe(2);
+  });
+
+  test("select reads any scope, def holds the tracks, draft folds inside a recipe", () => {
+    const { store } = freshStore(game);
+    expect(stats.def.track.clicks.kind).toBe("sum");
+    store.setState((d) => {
+      stats.draft.add(d, "clicks", 2);
+      stats.draft.note(d, "lastPick", 7);
+    });
+    expect(stats.select.value(store.getState(), "run", "clicks")).toBe(2);
+    expect(stats.select.value(store.getState(), "life", "lastPick")).toBe(7);
+    expect(stats.select.value(store.getState(), "best", "clicks")).toBeUndefined();
   });
 });

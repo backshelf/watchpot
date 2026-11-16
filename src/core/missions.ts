@@ -1,5 +1,14 @@
 import type { Draft } from "immer";
-import { type Feature, type FeatureApi, feature, type Move, type ResetRule } from "./feature";
+import {
+  type Feature,
+  type FeatureApi,
+  feature,
+  type Move,
+  type NeedsOf,
+  type ReachOf,
+  type ReachShape,
+  type ResetRule,
+} from "./feature";
 import { nextFloat, type RngState, seedRng } from "./rng";
 
 /**
@@ -8,7 +17,8 @@ import { nextFloat, type RngState, seedRng } from "./rng";
  * too, on the feature's own saved rng, and stored with it: a reload cannot reroll it, and a screen can show it before
  * it lands. Missions run on game time, so they finish during an absence like any other time.
  *
- * `missionLeftMs` and `missionReady` read one entry; `missions({ key, slots, list })` is the feature.
+ * `missionLeftMs` and `missionReady` read one entry (pure kernels, no state); `missions({ key, slots, list })` is the
+ * feature, with `select`, `def` and `draft`.
  */
 
 /** One mission: how long it takes, when it can be sent, its cost (the game's own shape) and its reward roll. */
@@ -71,10 +81,8 @@ export interface MissionActions {
   cancel(activeId: string): boolean;
 }
 
-/** A mission list's rules. */
-export interface MissionRules<G, R, X> {
-  readonly list: readonly MissionDef<G, R, X>[];
-  mission(id: string): MissionDef<G, R, X> | undefined;
+/** The read-only questions over state, for recipes, steps, callbacks and screens. */
+export interface MissionSelect<G, R> {
   /** The slots now. */
   slots(state: G): number;
   /** Slots not taken. */
@@ -83,10 +91,26 @@ export interface MissionRules<G, R, X> {
   ready(state: G, now: number): ActiveMission<R>[];
 }
 
-/** A `missions` feature, carrying its rules as `.rules`. */
-export type MissionsFeature<K extends string, G, R, X> = Feature<K, MissionsState<R>, MissionActions> & {
-  readonly rules: MissionRules<G, R, X>;
-};
+/** The fixed configuration of a missions feature. */
+export interface MissionDefs<G, R, X> {
+  readonly list: readonly MissionDef<G, R, X>[];
+  /** One mission of the list by id. */
+  mission(id: string): MissionDef<G, R, X> | undefined;
+}
+
+/** The helpers that take a draft first and change it. Missions has none: its changes are its actions. */
+export type MissionDraftHelpers = Record<never, never>;
+
+/** The three namespaces of a missions feature. */
+export interface MissionHelpers<G, R, X> {
+  readonly select: MissionSelect<G, R>;
+  readonly def: MissionDefs<G, R, X>;
+  readonly draft: MissionDraftHelpers;
+}
+
+/** A `missions` feature: the feature plus `select`, `def` and `draft`. */
+export type MissionsFeature<K extends string, G, R, X> = Feature<K, MissionsState<R>, MissionActions> &
+  MissionHelpers<G, R, X>;
 
 /**
  * Missions as a feature. It saves `{ active, done, rng, serial }` under `key` and needs no step: an entry is back once
@@ -94,17 +118,27 @@ export type MissionsFeature<K extends string, G, R, X> = Feature<K, MissionsStat
  * free (`slots(state)`) and that `pay(draft, mission)` takes the cost (a mission with no `cost` never calls it; `pay`
  * must write nothing when it refuses), then rolls and stores the reward. `claim` runs `onClaim(draft, reward,
  * mission)` in its recipe. Auto-player moves: claim every entry back, start every mission that fits. A prestige reset
- * clears the entries unless `reset` says otherwise. The callbacks read the whole game state, so annotate one of them
- * with the game's state type.
+ * clears the entries unless `reset` says otherwise. The callbacks read the game state: the feature's own slice and
+ * whatever `reach` names, so none needs an annotation.
+ *
+ * `select`: `slots`, `freeSlots`, `ready`. `def`: `list`, `mission(id)`. `draft`: empty.
  */
-export function missions<const K extends string, R, X = never, G extends object = object>(def: {
+export function missions<
+  const K extends string,
+  R,
+  X = never,
+  const Re extends ReachShape = readonly [],
+  G extends object = Record<K, MissionsState<R>> & ReachOf<Re>,
+>(def: {
   readonly key: K;
+  /** The features the callbacks read, as `feature`'s `reach`. */
+  readonly reach?: Re | (() => Re);
   readonly slots: (state: G) => number;
   readonly list: readonly MissionDef<G, R, X>[];
   readonly pay?: (draft: Draft<G>, mission: MissionDef<G, R, X>) => boolean;
   readonly onClaim?: (draft: Draft<G>, reward: R, mission: string) => void;
   readonly reset?: ResetRule<MissionsState<R>>;
-}): MissionsFeature<K, G, R, X> {
+}): MissionsFeature<K, G, R, X> & { readonly needs?: NeedsOf<Re> } {
   const byId = new Map<string, MissionDef<G, R, X>>();
   for (const m of def.list) {
     if (byId.has(m.id)) throw new Error(`missions "${def.key}": the mission "${m.id}" appears twice`);
@@ -116,12 +150,14 @@ export function missions<const K extends string, R, X = never, G extends object 
   const slots = (state: G): number => Math.max(0, Math.floor(def.slots(state)));
   const freeSlots = (state: G): number => Math.max(0, slots(state) - own(state).active.length);
 
-  const rules: MissionRules<G, R, X> = {
-    list: def.list,
-    mission: (id) => byId.get(id),
-    slots,
-    freeSlots,
-    ready: (state, now) => own(state).active.filter((a) => missionReady(a, now)),
+  const helpers: MissionHelpers<G, R, X> = {
+    select: {
+      slots,
+      freeSlots,
+      ready: (state, now) => own(state).active.filter((a) => missionReady(a, now)),
+    },
+    def: { list: def.list, mission: (id) => byId.get(id) },
+    draft: {},
   };
 
   const startDraft = (draft: Draft<Own>, id: string, now: number): MissionFailure | null => {
@@ -147,7 +183,8 @@ export function missions<const K extends string, R, X = never, G extends object 
     return null;
   };
 
-  const made = feature<K, MissionsState<R>, MissionActions, readonly [], Record<never, never>, Own>({
+  const made = feature<K, MissionsState<R>, MissionActions, ReachShape, Record<never, never>, Own>({
+    reach: def.reach,
     key: def.key,
     initial: (ctx): MissionsState<R> => ({
       active: [],
@@ -216,5 +253,5 @@ export function missions<const K extends string, R, X = never, G extends object 
       return out;
     },
   });
-  return Object.assign(made, { rules });
+  return Object.assign(made, helpers) as MissionsFeature<K, G, R, X> & { readonly needs?: NeedsOf<Re> };
 }

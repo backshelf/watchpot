@@ -197,7 +197,7 @@ export const spoon = clicker({
   maxPerSecond: 20,
   // A stir raises the foam, through the gauge's draft helper: a stir that takes it to the top spills it.
   onClick: (d: Draft<Page>, _paid, now) => {
-    foam.nudge(d, FOAM.perStir, now);
+    foam.draft.nudge(d, FOAM.perStir, now);
   },
 });
 

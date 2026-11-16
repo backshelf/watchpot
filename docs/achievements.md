@@ -38,10 +38,10 @@ export const bonuses = defineStats({
     {
       label: "The wall",
       owner: "wall",
-      effects: [{ stat: "toy.speed", mul: (q) => wall.board.power(q.wall.earned, { each: 1.03, row: 1.25 }) }],
+      effects: [{ stat: "toy.speed", mul: (q) => wall.select.power(q, { each: 1.03, row: 1.25 }) }],
     },
   ],
-  contributions: (s) => wall.board.contributions(s.wall.earned),
+  contributions: (s) => wall.select.contributions(s),
 });
 ```
 
@@ -55,18 +55,24 @@ Example: [`examples/achievements.ts`](examples/achievements.ts).
   a short last row included), `count`, `rowsComplete`, `contributions(earned)` (sourced `<id>:<achievement>`, then
   `<id>:row:<index>` from 0 for each complete row's `rowEffects(row)`) and `power(earned, { each, row? })` =
   `each^count × row^rowsComplete` as a Decimal. A repeated id throws.
-- **`achievements({ key, list, columns, rowEffects?, keepFresh?, onEarn?, reset? })`** saves `{ earned, fresh, holding
-  }` and carries the rules as `.board`. Its step `<key>.settle.check` checks every unearned achievement with a `when`
+- **`achievements({ key, reach?, list, columns, rowEffects?, keepFresh?, onEarn?, reset? })`** saves `{ earned, fresh, holding
+  }`. Its step `<key>.settle.check` checks every unearned achievement with a `when`
   and no `on`, after the pass's production. With `forMs` the timer (`holding`) starts the first pass the condition
   holds and clears the first pass it is broken; over a catch-up the gap counts only if it holds at the end.
+- **`wall.select`** reads the wall off the game state, state first: `rows(state)`, `count(state)`,
+  `rowsComplete(state)`, `contributions(state)` and `power(state, { each, row? })`, the board's questions over the
+  `earned` record of the state's `wall` slice. **`wall.def`** holds `list`, `columns` and the pure `board` kernel
+  (`wall.def.board.rows(earned)`, for a screen that subscribes to the `earned` record alone). **`wall.draft.earn(draft,
+  id, now)`** is `award` inside a recipe.
+- **`reach`** names the features the callbacks read (`reach: () => [wallet]`, as on `feature`); their state then
+  types `when`, `onEarn` and the rest without an annotation.
 - **Actions:** `award(id)` (the game's own; false when unknown or already earned), `notify(event)` (checks only the
   achievements whose `on` names it, earning one with no `when` outright; returns the ids earned) and
-  `acknowledge(ids?)` (clears `fresh`, the toast queue, capped at `keepFresh`, default 20). `.earn(draft, id, now)`
-  does the same as `award` inside a recipe, and `onEarn(draft, achievement, now)` runs in the recipe that earns one.
+  `acknowledge(ids?)` (clears `fresh`, the toast queue, capped at `keepFresh`, default 20). `onEarn(draft,
+  achievement, now)` runs in the recipe that earns one.
 - `reset` defaults to `"never"`: a run reset keeps the wall.
-- **Type arguments** are rarely needed: annotate the state on one `when` (or type the list, as above) and inference
-  does the rest. When you do write them, the order is key, state, effect, the same as `Achievement<G, E>`:
-  `achievements<"wall", State, Effect>`, or `achievements<"wall", State>` for a wall with no effects.
+- **Type arguments** are rarely needed: name the features in `reach`, or type the list (as above), and inference does
+  the rest. The factory's order is key, effect, reach, state; the list's own `Achievement<G, E>` is state, effect.
 
 ## Latches: achievements as one-way unlocks
 

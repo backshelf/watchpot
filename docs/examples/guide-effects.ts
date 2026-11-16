@@ -51,7 +51,7 @@ export const boosts = buffs<"boosts", Effect<"heat">>({
 });
 
 /** An achievement: ten burners lit. While it is earned, heat is 10% higher. */
-export const medals = achievements<"medals", Simmer, Effect<"heat">>({
+export const medals = achievements({
   key: "medals",
   columns: 5,
   list: [
@@ -59,7 +59,7 @@ export const medals = achievements<"medals", Simmer, Effect<"heat">>({
       id: "ten-burners",
       name: "Full stove",
       line: "Light ten burners.",
-      effects: [{ stat: "heat", mul: 1.1 }],
+      effects: [{ stat: "heat", mul: 1.1 } satisfies Effect<"heat">],
       when: (s: Simmer) => s.stove.burners >= 10,
     },
   ],
@@ -98,7 +98,7 @@ export const heat = defineStats({
     ...kitchen.tree.contributions(s.kitchen.ranks),
     // The buffs' own step ends a buff whose time is up at the start of every pass, so each one listed is running.
     ...boosts.select.contributions(s, Number.NEGATIVE_INFINITY),
-    ...medals.board.contributions(s.medals.earned),
+    ...medals.select.contributions(s),
     ...milestones(s),
   ],
   label: (source) => NAMES[source] ?? source,

@@ -58,4 +58,8 @@ describe("settings", () => {
     expect(store.getState().prefs.sound).toBe(false);
     expect(store.getState().run.n).toBe(0);
   });
+
+  test("it has the three namespaces, each empty", () => {
+    expect([prefs.select, prefs.def, prefs.draft]).toEqual([{}, {}, {}]);
+  });
 });

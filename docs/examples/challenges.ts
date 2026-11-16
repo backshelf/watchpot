@@ -1,12 +1,4 @@
-import {
-  challengeRule,
-  challenges,
-  type Decimal,
-  defineGame,
-  defineStats,
-  type Effect,
-  feature,
-} from "watchpot/core";
+import { challenges, type Decimal, defineGame, defineStats, type Effect, feature } from "watchpot/core";
 import { wallet } from "./add-a-currency";
 import { TOY } from "./vocab";
 
@@ -36,7 +28,7 @@ export const shop = feature({
   actions: (api) => ({
     buyWithGems: () =>
       api.set((s) => {
-        if (challengeRule(s.trials, "noGems") || !wallet.draft.debit(s, "gems", 1)) return;
+        if (trials.select.rule(s, "noGems") || !wallet.draft.debit(s, "gems", 1)) return;
         s.shop.boughtWithGems += 1;
       }),
   }),
@@ -48,7 +40,7 @@ export const rewards = defineStats({
   vocab: TOY,
   reach: () => [trials],
   stats: { "toy.speed": { base: 1 } },
-  contributions: (s) => trials.rules.contributions(s.trials),
+  contributions: (s) => trials.select.contributions(s),
 });
 
 export const game = defineGame({

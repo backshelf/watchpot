@@ -1,13 +1,12 @@
 # Challenges
 
 A run under a restriction, for a permanent reward. Entering a challenge resets the run and switches on its named rule
-flags, which the game's own rules read with `challengeRule`; when its goal holds it completes (counted, its best time
+flags, which the game's own rules read with `select.rule`; when its goal holds it completes (counted, its best time
 kept, the run reset again, the flags off), and what the completions give feeds the game's `stats`. The feature holds
 the record, so it never resets with the run and survives the very reset it triggers.
 
 ```ts
 import {
-  challengeRule,
   challenges,
   type Decimal,
   defineGame,
@@ -44,7 +43,7 @@ export const shop = feature({
   actions: (api) => ({
     buyWithGems: () =>
       api.set((s) => {
-        if (challengeRule(s.trials, "noGems") || !wallet.draft.debit(s, "gems", 1)) return;
+        if (trials.select.rule(s, "noGems") || !wallet.draft.debit(s, "gems", 1)) return;
         s.shop.boughtWithGems += 1;
       }),
   }),
@@ -56,7 +55,7 @@ export const rewards = defineStats({
   vocab: TOY,
   reach: () => [trials],
   stats: { "toy.speed": { base: 1 } },
-  contributions: (s) => trials.rules.contributions(s.trials),
+  contributions: (s) => trials.select.contributions(s),
 });
 
 export const game = defineGame({
@@ -69,7 +68,7 @@ export const game = defineGame({
 // store.getState().trials.exit()
 ```
 
-- **`challenges({ key, list, onComplete?, depth? })`** saves `{ active, startedAt, rules, completions, bestMs }` under
+- **`challenges({ key, reach?, list, onComplete?, depth? })`** saves `{ active, startedAt, rules, completions, bestMs }` under
   `key` (the contributions' source prefix too) with `reset: "never"`. A profile reset clears it; a run reset never
   does. `depth` (default 1) is how deep entering, leaving and completing reset: challenges of a higher layer reset at
   its depth.
@@ -80,8 +79,12 @@ export const game = defineGame({
   run and pays nothing. **`<key>.settle.goal`** completes the active challenge when its goal holds: completions + 1,
   the time since entering kept if it is the best, the run reset at the pass's `now`, the flags cleared, then
   `onComplete(draft, id, completions)`. It runs on a catch-up too.
-- **Flags:** `challengeRule(state.<key>, "noUpgrades")` is true only while a challenge carrying the flag is active.
+- **Flags:** `trials.select.rule(state, "noUpgrades")` is true only while a challenge carrying the flag is active.
   A rule flag can also name a mute group of the stats (`mute:tools`), read in the stats feature's `muted`
   ([showcases](showcases.md#7-a-challenge-rule-that-switches-off-a-group)).
-- **Rules (`.rules`):** `check(state, id)`, `maxed(slice, id)` and `contributions(slice)`, sourced `<key>:<id>`, for a
-  `stats` feature's `contributions`.
+- **`trials.select`** (questions over the game state, state first): `check(state, id)`, `maxed(state, id)`,
+  `rule(state, flag)` and `contributions(state)`, sourced `<key>:<id>`, for a `stats` feature's `contributions`.
+  **`trials.def`** holds `list` and `challenge(id)`; **`trials.draft`** is empty (a challenge changes the run through
+  its actions and its step).
+- **`reach`** names the features the callbacks read (`reach: () => [wallet]`, as on `feature`), so `goal`,
+  `unlocked` and `onComplete` need no state annotation.

@@ -124,7 +124,7 @@ The medal:
 <!-- example-code: guide-effects.ts -->
 
 ```ts
-export const medals = achievements<"medals", Simmer, Effect<"heat">>({
+export const medals = achievements({
   key: "medals",
   columns: 5,
   list: [
@@ -132,7 +132,7 @@ export const medals = achievements<"medals", Simmer, Effect<"heat">>({
       id: "ten-burners",
       name: "Full stove",
       line: "Light ten burners.",
-      effects: [{ stat: "heat", mul: 1.1 }],
+      effects: [{ stat: "heat", mul: 1.1 } satisfies Effect<"heat">],
       when: (s: Simmer) => s.stove.burners >= 10,
     },
   ],
@@ -182,7 +182,7 @@ export const heat = defineStats({
     ...kitchen.tree.contributions(s.kitchen.ranks),
     // The buffs' own step ends a buff whose time is up at the start of every pass, so each one listed is running.
     ...boosts.select.contributions(s, Number.NEGATIVE_INFINITY),
-    ...medals.board.contributions(s.medals.earned),
+    ...medals.select.contributions(s),
     ...milestones(s),
   ],
   label: (source) => NAMES[source] ?? source,
@@ -200,9 +200,9 @@ Line by line:
   its `base`. There is no default base: 1 here, because heat multiplies.
 - `reach: () => SOURCES` is the state the contributions read: chapter 4's features and the three above.
 - `kitchen.tree.contributions(ranks)` is every rank held, sourced `kitchen:<node>`.
-- `boosts.select.contributions(state, now)` is every buff running at `now`, sourced `boosts:<id>`. A stat reads the state and
+- `boosts.contributions(state, now)` is every buff running at `now`, sourced `boosts:<id>`. A stat reads the state and
   never the clock, and the buffs end themselves at the start of each pass, so every buff still listed counts.
-- `medals.board.contributions(earned)` is every earned medal's effects, sourced `medals:<id>`.
+- `medals.select.contributions(state)` is every earned medal's effects, sourced `medals:<id>`.
 - `label` turns a source id into the name a player reads (the table is in the tooltip section below).
 
 Then the one order, the same everywhere in the engine:

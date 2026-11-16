@@ -58,12 +58,10 @@ export const bonuses = defineStats({
     {
       label: "The wall",
       owner: "wall",
-      effects: [
-        { stat: "toy.speed", mul: (q) => wall.board.power(q.wall.earned, { each: 1.03, row: 1.25 }) },
-      ],
+      effects: [{ stat: "toy.speed", mul: (q) => wall.select.power(q, { each: 1.03, row: 1.25 }) }],
     },
   ],
-  contributions: (s) => wall.board.contributions(s.wall.earned),
+  contributions: (s) => wall.select.contributions(s),
 });
 
 export const game = defineGame({

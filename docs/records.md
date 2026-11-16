@@ -17,7 +17,7 @@ export const stats = records({
     gemsHeld: { kind: "last", scope: ["life"] },
   },
 });
-// in a step or recipe: stats.add(draft, "gold", earned); from outside: store.getState().stats.add("presses", 1)
+// in a step or recipe: stats.draft.add(draft, "gold", earned); from outside: store.getState().stats.add("presses", 1)
 // reads: s.stats.run("gold"), s.stats.life("presses"), s.stats.best("richest"), s.stats.runs, s.stats.bestRunMs
 ```
 
@@ -28,9 +28,9 @@ Example: [`examples/records.ts`](examples/records.ts).
   a number; the names and their value types are read off `track`.
 - **`records({ key, track, keepRuns? })`** saves `{ values: { run, life, best }, runs, runStart, bestRunMs }`. Actions:
   `add(name, n)` (for a sum; on another kind the same as `note`), `note(name, value)` (folds by the kind at every scope
-  the record keeps), `run(name)`, `life(name)`, `best(name)`. The draft helpers `.add(draft, name, n)` and
-  `.note(draft, name, value)` do the same inside a recipe or step, and `.value(state, scope, name)` reads the slice
-  for a selector. No steps.
+  the record keeps), `run(name)`, `life(name)`, `best(name)`. The draft helpers `stats.draft.add(draft, name, n)` and
+  `stats.draft.note(draft, name, value)` do the same inside a recipe or step, `stats.select.value(state, scope, name)` reads one off the game state and `stats.def.track` holds the tracks.
+  No steps.
 - **A run reset** pushes `{ endedAt, lengthMs, values }` (the run scope) onto `runs`, oldest first, `keepRuns`
   (default 10) at most; folds each run value into `best` (higher is better, lower for a `min`, or the track's
   `best: "high" | "low"`); keeps the shortest run as `bestRunMs`; then clears the run scope. The life scope stays.

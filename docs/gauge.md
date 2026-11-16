@@ -50,7 +50,7 @@ export const kettle = feature({
     tap: () =>
       api.set((d) => {
         d.kettle.cups = d.kettle.cups.add(1);
-        return pressure.nudge(d, PRESSURE.perTap, api.now());
+        return pressure.draft.nudge(d, PRESSURE.perTap, api.now());
       }),
     light: () =>
       api.set((d) => {
@@ -82,7 +82,7 @@ kernel: 95 + 10 → level 25 | tripped true | locked for 30000 ms
 
 ## The factory
 
-**`gauge({ key, max, rate, trip?, awayRate?, onTrip?, reset? })`** saves a `GaugeState` under `key`:
+**`gauge({ key, reach?, max, rate, trip?, awayRate?, onTrip?, reset? })`** saves a `GaugeState` under `key`:
 `{ level, lockedUntil, trips }`. `lockedUntil` is the game time the lock ends (0 when it never tripped), and `trips`
 counts every trip since the gauge last started over.
 
@@ -100,11 +100,14 @@ counts every trip since the gauge last started over.
   (put the flame out, start a cooldown buff, write a journal line).
 - **`reset`**: a run reset starts the gauge over (level 0, unlocked) unless you say otherwise. A gauge that should
   survive a prestige says `reset: "never"`.
+- **`reach`**: the features the callbacks read (`reach: () => [kitchen]`, as on `feature`), so `rate`, `awayRate` and
+  `onTrip` see their state without an annotation.
 
-The feature carries two extras:
+The feature carries `select`, `def` and `draft`, and nothing else:
 
-- **`.rules`** is `{ max, trip }`, the fixed bounds, for the kernel and the readers below.
-- **`.nudge(draft, amount, now)`** is the draft helper: the `nudge` action inside a recipe of yours. It clamps, trips
+- **`pressure.def`** is `{ max, trip }`, the fixed bounds, for the kernel and the readers below.
+- **`pressure.select`** asks the game state, state first: `locked(state, now)`, `fill(state)` and `secondsToTrip(state, perSecond)`, the three readers below with the feature's own slice and `max` filled in.
+- **`pressure.draft.nudge(draft, amount, now)`** is the draft helper: the `nudge` action inside a recipe of yours. It clamps, trips
   and runs `onTrip` exactly as the action does, and returns whether it tripped. This is how a press that warms the
   gauge belongs inside the press's own recipe (a clicker's `onClick`, a buy that costs heat).
 
@@ -115,7 +118,7 @@ The feature carries two extras:
   changes nothing.
 
 Call the action from a handler. Inside a recipe (an `api.set`, a step, another feature's callback) call
-`pressure.nudge(draft, amount, now)` instead: an action called inside a recipe throws, telling you so.
+`pressure.draft.nudge(draft, amount, now)` instead: an action called inside a recipe throws, telling you so.
 
 ## The step
 
@@ -164,7 +167,7 @@ Tuning numbers to work out on paper before you play:
 ## Things that bite
 
 - **Writing the level by hand skips the trip.** `d.pressure.level += 8` inside a recipe clamps nothing and never trips,
-  never locks and never runs `onTrip`. Use `pressure.nudge(draft, amount, now)`.
+  never locks and never runs `onTrip`. Use `pressure.draft.nudge(draft, amount, now)`.
 - **`onTrip`'s `now` is the pass's, not the trip's.** The kernel starts the lock at the exact moment the top was
   reached inside the step; `onTrip` is handed the pass's `now`. The moment of the trip is `lockedUntil - lockMs`.
 - **One trip per step, and nothing after its lock.** A step trips at most once, and the part of the step after the
@@ -177,12 +180,12 @@ Tuning numbers to work out on paper before you play:
 - **Pass real game times to the kernel.** `nudgeGauge` models a nudge as a one-second step ending at `now`, so at a
   `now` under 1000 it reads its own step as still inside a lock and moves nothing. A store's game time is always far
   past that; a hand-written kernel test that starts at 0 is not.
-- **`.rules` holds only the bounds.** Unlike `generators.rules`, a gauge's `.rules` is `{ max, trip }`, not readers
-  over the state. The readers are the free functions above.
+- **`def` holds only the bounds.** A gauge's `def` is `{ max, trip }`; its readers are `select`
+  (state first) and the free functions above, which take the slice.
 
 ## Where the guide teaches it
 
 - [Chapter 6, The first page](guide/06-the-first-page.md#the-meter-gauge): the foam on Simmer's pot, raised by
-  each stir through `foam.nudge`, and the printhead heat of VOID IF REMOVED.
+  each stir through `foam.draft.nudge`, and the printhead heat of VOID IF REMOVED.
 - [Chapter 11, Look and sound](guide/11-look-and-sound.md): a gauge level as a 0 to 1 number for a shader.
 - API: [`api/core/gauge.d.ts`](../api/core/gauge.d.ts).

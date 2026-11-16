@@ -175,7 +175,7 @@ export const spoon = clicker({
   maxPerSecond: 20,
   // A stir raises the foam, through the gauge's draft helper: a stir that takes it to the top spills it.
   onClick: (d: Draft<Page>, _paid, now) => {
-    foam.nudge(d, FOAM.perStir, now);
+    foam.draft.nudge(d, FOAM.perStir, now);
   },
 });
 ```
@@ -215,10 +215,10 @@ catch-up it uses `awayRate` instead, which by default drains the whole gauge in 
 cool meter.
 
 There are two ways to move the level by hand. The action `nudge(amount)` works from outside a recipe. Inside one (a
-press, a catch) the feature's draft helper `.nudge(draft, amount, now)` does the same with the same clamp, trip and
+press, a catch) the feature's draft helper `draft.nudge(draft, amount, now)` does the same with the same clamp, trip and
 `onTrip`. The kernel underneath is `stepGauge` (and `nudgeGauge` for a nudge), and the readers are free functions:
 `gaugeFill(state, max)` (0 to 1), `gaugeLocked(state, now)` and `secondsToTrip(state, perSecond, max)`. The feature's
-`.rules` holds its fixed bounds, `{ max, trip }`.
+`def` holds its fixed bounds, `{ max, trip }`, and `select` reads the state (`locked`, `fill`, `secondsToTrip`).
 
 The game's heat never trips and survives the first reset:
 
@@ -239,7 +239,7 @@ VOID IF REMOVED, `src/game/feed.ts`
 
 While FEED is held the head warms by the hold rate times a press's warmth; otherwise it cools by `HEAT.decay` a
 second. A single tap warms it too: the clicker's `onClick` adds to `d.heat.level` itself, capped at `HEAT.max`. That is
-safe because this gauge has no trip; on the current engine `heat.nudge(d, amount, now)` is the call for it, and it
+safe because this gauge has no trip; on the current engine `heat.draft.nudge(d, amount, now)` is the call for it, and it
 would trip a gauge that had one. Reading the level is a single selector on the screen,
 `useGameState((g) => g.heat.level)`, and the game turns the level into a print multiplier in its stat bus:
 
@@ -272,7 +272,7 @@ export const foam = gauge({
 
 `docs/examples/guide-first-page.ts`
 
-`trip: { lockMs, dropTo }` is the spill. Because the stir raises the foam through `foam.nudge(d, ...)`, a stir that
+`trip: { lockMs, dropTo }` is the spill. Because the stir raises the foam through `foam.draft.nudge(d, ...)`, a stir that
 reaches the top trips it in the same recipe as the payment. The script at the end of the file stirs thirty times in
 three seconds, and the foam spills once.
 

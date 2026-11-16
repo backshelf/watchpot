@@ -18,7 +18,7 @@ export const daily = streak({
   grace: 1, // one missed day is forgiven
   keep: (draft, missed) => wallet.draft.debit(draft, "gems", missed * 10), // past that, gems save the run
 });
-// store.getState().daily.claim() → { day, reward, kept } or null; daily.status(s.daily, now)
+// store.getState().daily.claim() → { day, reward, kept } or null; daily.select.status(s, now)
 ```
 
 Example: [`examples/streak.ts`](examples/streak.ts).
@@ -31,7 +31,7 @@ Example: [`examples/streak.ts`](examples/streak.ts).
   (a clock set back) blocks claiming until that day and breaks nothing.
 - **`claimStreak(state, now, { grace?, keep? })`** → `{ state, day, kept }`, or null when today is claimed: the run
   goes up by one, or starts again at 1 when broken, unless `keep(missed)` returns true.
-- **`streak({ key, rewards, onClaim?, grace?, keep?, reset? })`** saves `StreakState` and has one action, `claim()`,
+- **`streak({ key, reach?, rewards, onClaim?, grace?, keep?, reset? })`** saves `StreakState` and has one action, `claim()`,
   which returns `{ day, reward, kept }` (the reward `rewards(day)` for the day of the run claimed) and runs
   `onClaim(draft, reward, day, now)` in the same recipe; `keep(draft, missed)` may charge in that recipe to save a run.
-  `.status(state, now)` reads the status with the feature's grace. No steps; `reset` defaults to `"never"`.
+  `daily.select.status(state, now)` reads the status with the feature's grace; `daily.def` is `{ grace, rewards }`; `draft` is empty. No steps; `reset` defaults to `"never"`.
