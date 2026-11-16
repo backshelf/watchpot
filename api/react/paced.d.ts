@@ -34,7 +34,8 @@ export interface PacedView<S> {
 export declare function createPacedView<S>(store: PaceableStore<S>, options?: PacedViewOptions): PacedView<S>;
 /**
  * The one paced view every reader of `store` shares, made at the first call (its `options` are the ones kept): one
- * subscription and one timer, however many screens read it.
+ * subscription and one timer, however many screens read it. A later call's different `options` are dropped; in
+ * development the first such call is warned about. A later call with none takes the kept ones quietly.
  */
 export declare function pacedView<S>(store: PaceableStore<S>, options?: PacedViewOptions): PacedView<S>;
 /**

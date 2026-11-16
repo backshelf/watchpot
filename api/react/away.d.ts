@@ -10,7 +10,10 @@ import type { Decimal } from "../core/decimal";
 export interface AwayReturn<S> {
     before: S;
     after: S;
-    /** Game time the catch-up credited the gap for, ms. */
+    /**
+     * The time away, ms: the whole jump in the clock's `lastSeen` across the catch-up. The offline cap may have
+     * credited less of it; the states say what was paid.
+     */
     ms: number;
 }
 /** Options of `watchAway` and `useAwayReport`. */
@@ -31,6 +34,14 @@ interface Subscribable<S> {
 }
 /** Calls `onReturn` after each catch-up over at least `minMs`; returns the unsubscribe. */
 export declare function watchAway<S extends object>(store: Subscribable<S>, onReturn: (away: AwayReturn<S>) => void, options?: AwayOptions): () => void;
+/**
+ * Keeps the states either side of `store`'s opening catch-up: `before` from just ahead of it, the store's state now
+ * after it. `useGameClock` calls this; a game has no need to.
+ * @internal
+ */
+export declare function noteOpening(store: {
+    getState(): object;
+}, before: object): void;
 /** What `useAwayReport` returns: the game's report of the last return (null for none) and its dismissal. */
 export interface AwayReport<R> {
     report: R | null;
@@ -38,8 +49,9 @@ export interface AwayReport<R> {
 }
 /**
  * The last return as the game's own report, held until dismissed: `summarize` turns the states into it (null for a
- * return not worth telling). Listens from a layout effect, so it hears the first catch-up a parent's runtime makes.
- * Reads the store in context.
+ * return not worth telling). It hears the clock's opening catch-up wherever it is called: in a child of the
+ * component that starts the clock, or after `useGameClock` or `useGameRuntime` in that same component. Reads the
+ * store in context.
  */
 export declare function useAwayReport<S extends object, R>(summarize: (away: AwayReturn<S>) => R | null, options?: AwayOptions): AwayReport<R>;
 /** One figure that went up while away: its id and the gain. */

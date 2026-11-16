@@ -9,7 +9,8 @@ export interface GlslChunk {
 export declare function chunk(name: string, code: string, deps?: readonly GlslChunk[]): GlslChunk;
 /**
  * A fragment from chunks and code: every chunk once, each after the chunks it depends on (in the order first met),
- * then the strings (the game's uniforms and `main`) in the order given. Pure.
+ * then the strings (the game's uniforms and `main`) in the order given, after a marking comment line when there are
+ * chunks before them, so a compile log reads their lines as `main:N` (`fixLog`). Pure.
  */
 export declare function compose(...parts: readonly (GlslChunk | string)[]): string;
 /** `PI` and `TAU`. */

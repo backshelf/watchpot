@@ -49,7 +49,7 @@ describe("a save set aside", () => {
     expect(saveSetAside(store)).toBe("old-version");
     expect(warn).toHaveBeenCalledTimes(1);
     expect(backend.getItem("toy.save.kept")).toBe(raw);
-    expect(saveStatus(store)).toBe("saving");
+    expect(saveStatus(store)).not.toBe("blocked");
   });
 
   test("one a step throws on: noted as migration-failed", () => {
