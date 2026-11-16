@@ -25,6 +25,8 @@ feature. So is its stove.
 
 Here is the pot, exactly as you wrote it in chapter 2:
 
+<!-- example-code: simmer/game.ts -->
+
 ```ts
 export const pot = feature({
   key: "pot",
@@ -66,6 +68,8 @@ exactly one slice, under its key.
 
 `defineGame` collects the features into a [game](../glossary.md#game). With the lid added, Simmer's reads:
 
+<!-- example-code: guide-mental-model.ts -->
+
 ```ts
 export const game = defineGame({
   id: "simmer",
@@ -84,6 +88,8 @@ action named like a piece of state, or an `order` entry that names a step nobody
 you did not write, the clock, under the key `clock`. You will meet it later in this chapter.
 
 To play the game you make a [store](../glossary.md#store) from it, as chapter 2's `game.ts` does on its last line:
+
+<!-- example-code: simmer/game.ts -->
 
 ```ts
 export const store = createIdleStore(game, { now: Date.now });
@@ -165,6 +171,8 @@ they need no special care.
 
 `api.set` returns whatever the recipe returns. The stove's `buyBurner` uses that to say whether it bought:
 
+<!-- example-code: guide-mental-model.ts -->
+
 ```ts
 buyBurner: () =>
   api.set((s) => {
@@ -190,6 +198,8 @@ both recipes. Chapter 4's wallet is built that way.
 The stove spends the pot's bubbles and pays bubbles back. For that its recipes need `s.pot`. A feature says which
 other features it touches with [`reach`](../glossary.md#reach):
 
+<!-- example-code: guide-mental-model.ts -->
+
 ```ts
 export const stove = feature({
   key: "stove",
@@ -214,6 +224,8 @@ The stove's slice has grown two fields since chapter 2: `off`, a switch you will
 no `s.pot`. Each feature lists what it touches itself.
 
 Here is the lid, the new feature this chapter adds. With the lid on, the stove works twice as hard:
+
+<!-- example-code: guide-mental-model.ts -->
 
 ```ts
 export const lid = feature({
@@ -297,6 +309,8 @@ checked last, against the state after everything else has moved.
 In chapter 2 the stove worked out its rate and paid it in one `produce` step. Now it follows the phases: `flame` sets
 the rate in `rates`, and `burn` pays it in `produce`:
 
+<!-- example-code: guide-mental-model.ts -->
+
 ```ts
 // Both passes: the rate is worked out before anything is paid.
 rates: {
@@ -319,6 +333,8 @@ produce: {
 <sub>`docs/examples/guide-mental-model.ts`</sub>
 
 `flameOf` is a small helper beside the stove: the stove's own rate, before anything multiplies it.
+
+<!-- example-code: guide-mental-model.ts -->
 
 ```ts
 /** The stove's own rate, in bubbles a second, before anything multiplies it. */
@@ -363,6 +379,8 @@ A test that asserts this list is a cheap way to make sure a later change does no
 
 A step may return the string `"stop"`. The stove's guard does, when the stove is switched off:
 
+<!-- example-code: guide-mental-model.ts -->
+
 ```ts
 // A stove that is off heats nothing: stop the pass before any work phase runs.
 guard: { cold: (s) => (s.stove.off ? "stop" : undefined) },
@@ -398,6 +416,8 @@ A step can say which pass it belongs to:
 
 The stove uses both forms in `produce`, so live play and time away pay differently:
 
+<!-- example-code: guide-mental-model.ts -->
+
 ```ts
 // Time away pays half, for two hours at most.
 away: {
@@ -412,6 +432,8 @@ away: {
 <sub>`docs/examples/guide-mental-model.ts`</sub>
 
 with the two numbers it uses declared beside the stove:
+
+<!-- example-code: guide-mental-model.ts -->
 
 ```ts
 /** How much of an absence the stove pays for, and for how long at most. */
@@ -446,6 +468,8 @@ run, default to `performance.now()`; that is never game time.)
 The reason is control. A test passes a fake clock and moves it by hand, so a test of "an hour away" takes no time at
 all. The sim lab plays a game for days in seconds the same way. The example does it too:
 
+<!-- example-code: guide-mental-model.ts -->
+
 ```ts
 let wall = 1_000_000;
 const store = createIdleStore(game, {
@@ -474,6 +498,8 @@ console.log("a second with the stove off:", fmt(play().pot.bubbles).text);
 ```
 
 <sub>`docs/examples/guide-mental-model.ts`</sub>
+
+<!-- example-prints: guide-mental-model.ts | after a second: 3 | after a minute away: 123 | a second with the stove off: 123 -->
 
 `createMemoryBackend()` keeps the save in memory, so the script touches nothing on disk. Run it and you should see 3
 bubbles after the live second (the pot's 1, plus one burner doubled to 2), 123 after the minute away (the pot's 60 in
@@ -547,6 +573,8 @@ my save" button, not a game mechanic.
 Not everything in a slice belongs in the save. The stove's `perSecond` is worked out from `burners` on every pass;
 saving it would only store a number that could go stale. So the stove lists it as
 [transient](../glossary.md#transient):
+
+<!-- example-code: guide-mental-model.ts -->
 
 ```ts
 initial: () => ({ burners: 0, off: false, perSecond: ZERO }),

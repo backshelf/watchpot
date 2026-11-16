@@ -19,6 +19,8 @@ list of [features](../glossary.md#feature) (a piece of state plus the rules that
 Here is a taste: the heart of Simmer, the game the guide builds, a pot you tap for bubbles that also simmers them up
 on its own.
 
+<!-- example-code: simmer/game.ts -->
+
 ```ts
 import { costAt, createIdleStore, D, defineGame, feature, ZERO } from "watchpot/core";
 

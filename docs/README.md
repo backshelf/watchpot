@@ -123,3 +123,27 @@ and `watchpot/sound/pack`, are under `api/kit/theme/` and `api/sound/pack/`.
 Examples import from `watchpot/core`, `watchpot/sim`, `watchpot/test`, `watchpot/react`, `watchpot/kit`, `watchpot/ui`,
 `watchpot/shader`, `watchpot/sound`, `watchpot/sound/pack` and `watchpot/three` as a consumer would. The long-form
 reference for every entry is the root [README](../README.md).
+
+## Keeping the guide's examples true
+
+For whoever edits the guide. A chapter's code and output are checked against the runnable files in `docs/examples/`
+by `test/docs/guide-examples.slow.test.ts` (`bun run test:slow`, about four seconds). The check reads one-line HTML
+comments in the chapters, each naming an example by its path under `docs/examples/`:
+
+- `<!-- example-output: guide-pacing.ts -->` above a fenced block: the block is what the example prints on stdout.
+  `lines=3-7` makes it lines 3 to 7 of that output (1-based, inclusive), for a block that quotes part of it.
+- `<!-- example-code: simmer/game.ts -->` above a fenced block: the code is in the example file. Lines compare
+  trimmed. A line that is only `// ...` marks something left out, and the parts either side must appear in order. The
+  quote may also leave out the example's whole-line comments.
+- `<!-- example-prints: guide-effects.ts | first text | second text -->` above a paragraph (no block): each text is a
+  whole line the example prints. Use it where prose or a code comment quotes a printed value.
+
+Rules for the examples: one that a chapter quotes the output of must have an `import.meta.main` block, print the same
+every run, and hand the engine its own clock and seed (the engine reads no wall clock). It runs as `bun <file>` from
+the repository root.
+
+When an example's output changes on purpose, run `bun scripts/guide-examples.ts --write`: it rewrites every
+`example-output` block from the real output (code and `prints` markers need a hand edit). Run
+`bun scripts/guide-examples.ts` alone for the same findings the test gives. The test also fails on a marker that
+names a missing file and on a `guide-*` or `simmer/` example no chapter mentions. A new chapter block that quotes an
+example gets a marker; an excerpt that is rewritten or only inspired by an example does not.

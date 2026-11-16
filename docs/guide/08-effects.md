@@ -76,6 +76,8 @@ contribution is only an object.
 
 Here are Simmer's four, each declared where it lives. First the upgrade, a copper base for the stove:
 
+<!-- example-code: guide-effects.ts -->
+
 ```ts
 const COPPER: GraphNode<Effect, "bubbles"> = {
   id: "copper",
@@ -97,6 +99,8 @@ becomes the first half of the source: `kitchen:copper`.
 
 The buff, a rolling boil:
 
+<!-- example-code: guide-effects.ts -->
+
 ```ts
 export const boosts = buffs<"boosts", Effect>({
   key: "boosts",
@@ -115,6 +119,8 @@ bus can count it with everything else. The second type argument, `Effect`, says 
 the engine's types are generic over it so a game can bring its own effect shape (more on that at the end).
 
 The medal:
+
+<!-- example-code: guide-effects.ts -->
 
 ```ts
 export const medals = achievements({
@@ -136,6 +142,8 @@ export const medals = achievements({
 
 And the milestone, which no engine system makes for you here, so you write the contribution yourself:
 
+<!-- example-code: guide-effects.ts -->
+
 ```ts
 function milestones(s: Pick<Simmer, "stove">): Contribution[] {
   const reached = Math.floor(s.stove.burners / 25);
@@ -152,6 +160,8 @@ times 1.25", and that is the whole of its job.
 
 The [stat bus](../glossary.md#stat-bus) is where the claims meet. `busOf` takes every contribution in one list and
 sums them per stat: the adds into one total, the multipliers into one product. `statValue` then reads one stat off it.
+
+<!-- example-code: guide-effects.ts -->
 
 ```ts
 export const HEAT: StatDef = { softcap: { start: 20, power: 0.5, label: "The pot spits over the rim" } };
@@ -199,6 +209,8 @@ it came from, because every add lands before every multiplier.
 The stove sets its rate in its own `rates.flame` step, and chapter 3's lid doubles it in `rates.trap`. Heat applies the
 same way: a small feature folds the bus at the pass's `now` and multiplies the stove's rate by the result, right after
 the lid.
+
+<!-- example-code: guide-effects.ts -->
 
 ```ts
 /** Heat as the stove reads it: the bus folded at `now`, with a base of 1 and the softcap. */
@@ -265,6 +277,8 @@ Now the third problem: telling the player why. `explainStat` takes the same bus 
 and returns a `StatBreakdown`: the base, the summed adds, the product of the multipliers, the value before and after the
 caps, which cap is biting, and `sources`, every contribution to that stat in the order they were collected.
 
+<!-- example-code: guide-effects.ts -->
+
 ```ts
 const NAMES: Record<string, string> = {
   "kitchen:copper": "Copper base",
@@ -303,6 +317,8 @@ Two things here are work the engine leaves to you, and it is fair to say so.
 
 Run the file and the tooltip prints:
 
+<!-- example-output: guide-effects.ts lines=3-7 -->
+
 ```
    ×1.95  Copper base
    ×3.00  Rolling boil
@@ -323,6 +339,8 @@ first stat worked out before the second.
 For those the engine has a second tool, the [live graph](../glossary.md#live-graph) (`liveIndex`, on the shelf as
 [The stat graph](../stat-graph.md)). You index each source once, from content, with effects whose `value` is a function
 of the state:
+
+<!-- example-code: guide-effects.ts -->
 
 ```ts
 const LIVE = liveIndex<"heat", never, Cooking>({ caps: { heat: HEAT } });
@@ -354,6 +372,8 @@ What is different from the bus:
   games pass that, and the live graph does not care.
 - **`LIVE.over(s)` makes a graph for one state.** It works each stat out the first time you read it and keeps it, so
   make a new graph whenever the state changes.
+
+<!-- example-prints: guide-effects.ts | live heat ×11.71 [ "×1.95  Copper base", "×6.00  A full pot" ] -->
 
 The script ends by asking the live graph about the same pot holding a million bubbles, and prints
 `live heat ×11.71 [ "×1.95  Copper base", "×6.00  A full pot" ]`.
