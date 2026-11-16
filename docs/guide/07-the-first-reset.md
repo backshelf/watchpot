@@ -63,7 +63,7 @@ export const pot = feature({
 
 `docs/examples/simmer/game-wallet.ts`
 
-This chapter's pot is the same feature with two changes:
+This chapter's pot is the same feature with one change:
 
 <!-- example-code: guide-first-reset.ts -->
 
@@ -71,7 +71,7 @@ This chapter's pot is the same feature with two changes:
 export const pot = feature({
   key: "pot",
   reach: [wallet],
-  initial: (ctx) => ({ taps: 0, startedAt: ctx.now }),
+  initial: () => ({ taps: 0 }),
   // A boil-over starts the run again, but the count of taps is the player's for good.
   reset: { keep: ["taps"] },
   // ...
@@ -80,13 +80,10 @@ export const pot = feature({
 
 `docs/examples/guide-first-reset.ts`
 
-The trimmed lines are chapter 4's `tap` action and `simmer` step, unchanged. The two changes:
-
-- `reset: { keep: ["taps"] }` says: start over, but copy `taps` back. Everything else in the slice gets its fresh value.
-- `startedAt: ctx.now` records when the run began. `initial` is called again on every reset, and on a run reset
-  `ctx.now` is the game time of the reset, so this field always holds the start of the current run. (For a brand-new
-  profile `ctx.now` is the wall clock, which is the same thing while the game's clock offset is 0, as Simmer's always
-  is.) Section "Is it worth pressing" below uses it.
+The trimmed lines are chapter 4's `tap` action and `simmer` step, unchanged. `reset: { keep: ["taps"] }` says: start
+over, but copy `taps` back. Everything else in the slice gets its fresh value. (`initial` is called again on every
+reset, and on a run reset `ctx.now` is the game time of the reset, so a field written from `ctx.now` always holds the
+start of the current run. The prestige below keeps one for you, `runStart`.)
 
 The number the reset will pay on is already in the core: the wallet's `earned` total, every bubble credited this run.
 It belongs to the run, so it goes back to zero with the run. Keep it apart from `bubbles`, the balance the player
@@ -183,10 +180,10 @@ export const wallet = currencies({
 
 VOID IF REMOVED, `src/game/wallet.ts`
 
-Start fresh, then copy back every balance whose depth is deeper than this reset reaches. Notice what is not copied
-back: `earned`, the total of every label credited. It comes from `fresh`, so it counts labels this run only, which is
-exactly what NEW ROLL pays on. The option is called `earned` and the engine's own comment calls these "lifetime totals",
-but under any rule that does not keep it, it is a per-run total. Name it for what your rule makes it.
+Start fresh, then copy back every balance whose depth is deeper than this reset reaches. The engine now says the same
+thing in one option: `depth: { cores: 2 }` on `currencies` wipes each currency only at its own depth, so the function
+rule is no longer needed. The totals say which kind they are: `earnedThisRun` goes back to zero with its currency (what
+a prestige pays on), and `earnedEver` is never touched by a run reset.
 
 Shops follow the same idea with the shorthand form. The game builds every shop on the engine's `upgradeTree`, passing
 the shop's depth straight through:
@@ -242,11 +239,12 @@ nothing can happen between "paid" and "reset". Inside a step there is `ctx.reset
 
 ## `prestige`: a reset that pays
 
-`prestige` is a feature factory. It gives you a feature that holds three numbers and one action:
+`prestige` is a feature factory. It gives you a feature that holds a few numbers and one action:
 
 - `runs`: how many resets so far (the first run has 0);
-- `currency`: the prestige currency not yet spent;
+- `currency`: the prestige currency not yet spent (unless it pays into a wallet, below);
 - `lifetime`: every unit ever paid;
+- `runStart` and `peak`: when this run began, and its best reset pace (section "Is it worth pressing");
 - the reset action, called `reset` unless you name it with `action`.
 
 When the action runs it checks `canReset`, reads `gain`, adds the gain to `currency` and `lifetime`, calls `resetRun` at
@@ -257,34 +255,27 @@ Simmer's prestige is the pot boiling over. It pays steam:
 <!-- example-code: guide-first-reset.ts -->
 
 ```ts
-/** What steam reads: the wallet's `earned` (this run's bubbles) and when the run began. */
-type Run = StateOf<readonly [typeof wallet, typeof pot]>;
+/** What steam reads: the wallet's `earned`, this run's bubbles. */
+type Run = StateOf<readonly [typeof wallet]>;
 
 /** Steam a boil-over pays: none under 1,000 bubbles this run, then the square root of how many thousands. */
 export const steamGain = (s: Run): Decimal => powerGain(s.wallet.earned, { k: 1, exp: 0.5, per: 1000 });
-
-// ...
 
 export const steam = prestige({
   key: "steam",
   action: "boilOver",
   reach: [wallet, pot, stove],
-  initial: () => ({ peak: 0 }),
   gain: (s) => steamGain(s),
-  afterReset: (s) => {
-    s.steam.peak = 0; // a new run, a new best pace
-  },
+  // Past its peak once the pace falls under 85% of this run's best; never in a run's first ten seconds.
+  pace: { past: 0.85, floorS: 10 },
   steps: {
     rates: {
       // Every steam ever made adds a tenth to the stove: 1 + 0.1 x lifetime steam.
-      drive: (s) => {
-        s.stove.perSecond = s.stove.perSecond.mul(lifetimeMultiplier(s.steam.lifetime, { k: 0.1, exp: 1 }));
-      },
-    },
-    settle: {
-      peak: (s, ctx) => {
-        const pace = boilPace(s, ctx.now);
-        if (pace > s.steam.peak) s.steam.peak = pace;
+      drive: {
+        after: "lid.rates.trap",
+        run: (s) => {
+          s.stove.perSecond = s.stove.perSecond.mul(lifetimeMultiplier(s.steam.lifetime, { k: 0.1, exp: 1 }));
+        },
       },
     },
   },
@@ -297,12 +288,16 @@ export const steam = prestige({
   `s.steam.lifetime`. Steam is not one of the wallet's currencies: it lives in the prestige feature.
 - `action: "boilOver"` names the button's action: `store.getState().steam.boilOver()`.
 - `reach: [wallet, pot, stove]` lets the callbacks read those slices. Chapter 3 covered `reach`.
-- `initial` adds the feature's own fields beside `runs`, `currency` and `lifetime`. Here, the best pace seen this run.
-- `gain` must be pure: the button's preview and the reset both call it, and they have to agree.
+- `gain` must be pure: the button's preview, the reset and the pace all call it, and they have to agree.
 - There is no `canReset`. The default is "the gain is above zero", which is right for Simmer.
-- `afterReset` runs after the run is reset, so anything it writes lands in the new run.
-- `Run` is the state `steamGain` reads, worked out from the two features it needs with `StateOf`, the same helper that
+- `pace` tunes the "is it worth pressing" reading, below.
+- `Run` is the state `steamGain` reads, worked out from the feature it needs with `StateOf`, the same helper that
   types the whole game.
+
+A game whose prestige currency belongs in the wallet, beside the others, says `payInto: { wallet, currency }`: the reset
+credits the wallet after the run is reset, and the layer keeps no `currency` of its own, so there is one ledger.
+`steam.select.held(state)` reads what is held either way. The wallet must keep that currency through the reset
+(`depth: { steam: "never" }`), or the next reset would take it back; the factory refuses it otherwise.
 
 ### `powerGain`: the usual curve
 
@@ -337,7 +332,7 @@ A currency the player cannot use is not a reason to reset. Simmer spends nothing
 to the stove, through the engine's `lifetimeMultiplier(lifetime, { k, exp })`, which is `1 + k × lifetime ^ exp` and
 exactly 1 before the first reset. That is the `rates.drive` step above. It works the way chapter 3's lid does: the
 stove sets `perSecond` in its `rates.flame` step, the lid doubles it in `rates.trap`, and the steam multiplies it
-after both. The game pins that order:
+after both: the step says `after: "lid.rates.trap"`. The game lists its features:
 
 <!-- example-code: guide-first-reset.ts -->
 
@@ -347,8 +342,6 @@ export const game = defineGame({
   save: { key: "simmer.save", version: 1 },
   vocab: WORDS,
   features: [...BELOW, medals, pages],
-  // The steam's push lands after the stove sets its rate and the lid doubles it.
-  order: { rates: [...SIMMER_RATES, "steam.rates.drive"] },
 });
 ```
 
@@ -365,8 +358,7 @@ feature below it stays as it was.
 The boost reads `lifetime`, not `currency`, so a future shop that spends steam would not take the boost away.
 
 VOID IF REMOVED does both: every core paid raises print by `(1 + cores) ^ 0.6`, and the spindle sells upgrades for them. Its
-prestige credits the cores into the wallet in `afterReset`, so they sit beside labels and every shop pays from one
-place. Its `prestige` feature still adds the gain to its own `currency` and `lifetime`, which the game never reads.
+cores sit in the wallet beside labels, so every shop pays from one place; on the engine today that is `payInto`.
 
 ## Is it worth pressing?
 
@@ -378,58 +370,31 @@ player keeps, in orders of magnitude a second. It is `log10(1 + gain / kept) / s
 pace rises. Once the run slows down, it falls. The best moment to reset is shortly after its peak.
 
 So the recipe is: track the best pace this run, and call the run "past its peak" when the pace falls below a share of
-that best. Simmer's version:
+that best. Every `prestige` does this for you. Simmer's line, from the steam above:
 
 <!-- example-code: guide-first-reset.ts -->
 
 ```ts
-/** Seconds since this run began. */
-const runSeconds = (s: Run, now: number): number => Math.max(0, (now - s.pot.startedAt) / 1000);
-
-/** How fast boiling over now would grow the steam held, in orders of magnitude a second. */
-export const boilPace = (s: Run & { steam: { currency: Decimal } }, now: number): number =>
-  resetPace(steamGain(s), s.steam.currency, runSeconds(s, now), 10);
-
-/** Past its peak: the pot pays, and its pace has fallen under 85% of this run's best. */
-export const pastPeak = (s: Run & { steam: { currency: Decimal; peak: number } }, now: number): boolean =>
-  steamGain(s).gte(1) && boilPace(s, now) < s.steam.peak * 0.85;
+  // Past its peak once the pace falls under 85% of this run's best; never in a run's first ten seconds.
+  pace: { past: 0.85, floorS: 10 },
 ```
 
 `docs/examples/guide-first-reset.ts`
 
-- `runSeconds` reads the `startedAt` the pot's `initial` wrote. That is why the pot records it.
-- `kept` is the steam the player already holds, `s.steam.currency`. The first reset has nothing kept; `resetPace`
-  treats anything under 1 as 1, so the first pace is still a finite number.
-- The last argument, `floorS`, is the fewest seconds the pace divides by. In a run's first moments the pace only rises,
-  so nothing can look past its peak before ten seconds.
-- The `settle.peak` step in `steam` (above) keeps `s.steam.peak` up to date every pass, and `afterReset` zeroes it.
-- The two readers name only the slices of steam they read (`Run & { steam: ... }`), because the steam feature itself
-  uses them and cannot name its own finished type.
+- The layer reads the seconds since `s.steam.runStart`, which lands on the moment of every reset.
+- `kept` is what the reset grows. By default it is `s.steam.lifetime`, every steam paid (here the same as what is held,
+  since Simmer spends none); `pace: { kept: (s) => s.steam.currency }` measures against what is held instead. The
+  first reset has nothing kept; `resetPace` treats anything under 1 as 1, so the first pace is still a finite number.
+- `floorS` is the fewest seconds the pace divides by. In a run's first moments the pace only rises, so nothing can look
+  past its peak before ten seconds.
+- The layer's own `settle.pace` step keeps `s.steam.peak` up to date every pass, and a reset puts it back to zero.
+- The slice serves three derived values (chapter 3): `s.steam.pace`, `s.steam.peakShare` (the pace over the best, 1 at
+  the peak) and `s.steam.pastPeak`. `steam.select.pace(state, now)` is the pace at any moment, for a page that redraws
+  between passes.
 
-VOID IF REMOVED shows this on the roll page as its pace meter, and its own check reads:
-
-```ts
-export const ROLL_PACE = { past: 0.85, floorS: 10 };
-```
-
-VOID IF REMOVED, `src/content/roll.ts`
-
-```ts
-export function pastPeak(s: Reads, now: number): boolean {
-  // ...
-  return rollPace(s, now) < rollPeak(s) * ROLL_PACE.past;
-}
-```
-
-VOID IF REMOVED, `src/game/roll.ts`
-
-The game's `roll` feature holds the peak the same way Simmer's does, in a `settle` step. It tags the peak with the start
-time of the run it belongs to, where Simmer zeroes it in `afterReset`. Either works, since the prestige feature itself
-never resets; Simmer's is shorter. The roll page reads the gain, the pace and the peak while it renders and calls
-`store.getState().roll.change()` from the button. Chapter 10 builds pages like that one.
-
-In VOID IF REMOVED the sim's player resets on the same `pastPeak`, so the meter the player sees and the pacing the game
-proves (chapter 12) rest on one number.
+A page's meter, an autobuyer that resets for the player and the sim's player all read the same `pastPeak`, so the
+meter the player sees and the pacing the game proves (chapter 12) rest on one number. VOID IF REMOVED built this
+recipe by hand around `resetPace` before the engine kept it; the shape of `pace` is taken from it.
 
 ## `resetProfile`: starting over for real
 
@@ -629,15 +594,14 @@ something permanent on completion. Both are taught there on the engine's example
 
 - **A feature with no `reset` is wiped on every prestige.** The default is `"run"`. A tally, a setting or a "seen the
   tutorial" flag added without a rule disappears the first time the player resets, and nothing warns you.
-- **`currencies` resets everything by default, prestige currency included.** If your prestige currency lives in the
-  wallet, as it does in VOID IF REMOVED, the wallet needs a rule that keeps it (a depth-aware function, as above), or the
-  second reset takes away what the first paid.
-- **The `earned` totals in `currencies` are per-run unless your rule keeps them.** The option's documentation calls them
-  lifetime totals. Under the default rule they start at zero every run. Pick the meaning and name the field for it.
-- **`prestige` always pays into its own `currency` and `lifetime`.** If you credit the payout elsewhere in `afterReset`,
-  those two fields still count it. Read one ledger and ignore the other on purpose.
+- **A currency's default depth is 1: every reset wipes it.** If your prestige currency lives in the wallet, give it
+  `depth: { shards: "never" }` (or the depth of the layer above); `payInto` refuses a currency its own reset would take
+  back.
+- **Pick the kind of total you mean.** `earnedThisRun` starts at zero whenever its currency is wiped; `earnedEver`
+  never does. A prestige formula usually wants the first, a "made in total" readout the second.
 - **`initial` runs again on every reset.** Anything it computes from `ctx.now` gets the reset's game time. That is what
-  makes `startedAt` work; it also means an `initial` with side effects runs them again.
+  makes a run-start field work (prestige's `runStart` is one); it also means an `initial` with side effects runs them
+  again.
 - **`resetProfile` ignores every rule.** It is not a bigger run reset; it is a new player.
 
 ## Next
@@ -651,10 +615,10 @@ reads, without a hand-written `boost` function for each.
   `depth`.
 - [Achievements](../achievements.md): `achievements`, `achievementBoard`, `forMs`, `on` and `notify`, row effects.
 - [An upgrade tree](../upgrade-tree.md): a shop with its own `reset` rule.
-- [Add a currency](../add-a-currency.md): `currencies`, `earned` and `spent` totals.
+- [Add a currency](../add-a-currency.md): `currencies`, `depth`, this-run and ever totals.
 - [Layers](../layers.md) and [Challenges](../challenges.md): resets beyond the first.
 - `api/core/feature.d.ts`: `ResetRule`, `ReachedRule`, `ResetRunContext`, `InitialContext`.
 - `api/core/store.d.ts`: `RootActions.resetRun`, `RootActions.resetProfile`.
-- `api/core/prestige/prestige.d.ts`: `prestige`, `PrestigeDef`, `PrestigeCore`, `powerGain`, `lifetimeMultiplier`,
-  `resetPace`.
+- `api/core/prestige/prestige.d.ts`: `prestige`, `PrestigeDef`, `PrestigeCore`, `PrestigePaceDef`,
+  `PrestigePaceValues`, `powerGain`, `lifetimeMultiplier`, `resetPace`.
 - `api/core/achievements.d.ts`: `achievements`, `Achievement`, `AchievementsState`, `AchievementsActions`.

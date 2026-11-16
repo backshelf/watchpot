@@ -3,6 +3,7 @@ import {
   createGameStorage,
   createIdleStore,
   createMemoryBackend,
+  currencies,
   D,
   defineGame,
   feature,
@@ -12,8 +13,11 @@ import {
   prestige,
   type RngState,
   resetPace,
+  vocab,
 } from "watchpot/core";
 import { generator, T0, wallet } from "./toy";
+
+const memory = () => createGameStorage(createMemoryBackend(), { debounceMs: 0, onError: () => {} });
 
 /** The prestige primitive over the toy's wallet and generator: shards for every 100 gold earned this run. */
 
@@ -125,7 +129,7 @@ describe("the draft helper", () => {
         automate: {
           reset: (d, ctx) => {
             if (d.wallet.lifetime.lt(300)) return;
-            if (layer.resetDraft(d, { now: ctx.now, resetRun: ctx.resetRun })) d.auto.fired += 1;
+            if (layer.draft.reset(d, { now: ctx.now, resetRun: ctx.resetRun })) d.auto.fired += 1;
           },
         },
       },
@@ -152,6 +156,176 @@ describe("the draft helper", () => {
     expect(s.ascension.currency.gte(3)).toBe(true);
     expect(s.wallet.lifetime.lt(100)).toBe(true);
     expect(hooks).toEqual([T0 + 2000]);
+  });
+});
+
+describe("the reset pace", () => {
+  /** A layer paying one unit per gold earned this run, over the toy's generator (a gold a second). */
+  function paced() {
+    const layer = prestige({
+      key: "ascension",
+      reach: [wallet, generator],
+      gain: (s) => powerGain(s.wallet.lifetime, { k: 1, exp: 1, per: 1 }),
+      pace: { past: 0.8, floorS: 10 },
+    });
+    const game = defineGame({
+      id: "toy-pace",
+      save: { key: "toy-pace.save", version: 1 },
+      features: [wallet, generator, layer],
+    });
+    const store = createIdleStore(game, { storage: memory(), now: () => T0, seed: "pace" });
+    store.getState().catchUp(T0);
+    return { store, layer };
+  }
+
+  test("keeps the run's best pace and serves the pace, its share of the best and whether the run is past it", () => {
+    const { store } = paced();
+    let peak = 0;
+    let past = -1;
+    for (let i = 1; i <= 60; i++) {
+      store.getState().tick(1000, T0 + i * 1000);
+      const s = store.getState().ascension;
+      // The peak never falls inside a run, and the pace never stands above it once a pass has run.
+      expect(s.peak).toBeGreaterThanOrEqual(peak);
+      peak = s.peak;
+      expect(s.pace).toBeLessThanOrEqual(s.peak);
+      expect(s.peakShare).toBeGreaterThan(0);
+      expect(s.peakShare).toBeLessThanOrEqual(1);
+      // Past the peak exactly when the pace has fallen under `past` of the best.
+      expect(s.pastPeak).toBe(s.peakShare < 0.8);
+      if (s.pastPeak && past < 0) past = i;
+    }
+    // Nothing is past its peak inside the floor; this run (a steady gold a second) gets there soon after.
+    expect(past).toBeGreaterThan(10);
+    expect(past).toBeLessThan(60);
+  });
+
+  test("a reset starts the run: the run start lands on the reset's time and the peak on zero", () => {
+    const { store, layer } = paced();
+    for (let i = 1; i <= 20; i++) store.getState().tick(1000, T0 + i * 1000);
+    expect(store.getState().ascension.peak).toBeGreaterThan(0);
+    expect(store.getState().ascension.runStart).toBe(T0);
+    expect(store.getState().ascension.reset(T0 + 20_000)).toBe(true);
+    const s = store.getState().ascension;
+    expect(s.runStart).toBe(T0 + 20_000);
+    expect(s.peak).toBe(0);
+    expect(s.pastPeak).toBe(false);
+    expect(layer.select.runSeconds(store.getState(), T0 + 25_000)).toBe(5);
+  });
+
+  test("select answers at any moment: the gain, the held currency, the pace at a given time", () => {
+    const { store, layer } = paced();
+    for (let i = 1; i <= 5; i++) store.getState().tick(1000, T0 + i * 1000);
+    const s = store.getState();
+    expect(layer.select.gain(s).eq(s.wallet.lifetime.floor())).toBe(true);
+    expect(layer.select.pace(s, T0 + 5000)).toBeCloseTo(s.ascension.pace, 9);
+    expect(layer.select.held(s).eq(0)).toBe(true);
+    store.getState().ascension.reset(T0 + 5000);
+    expect(layer.select.held(store.getState()).eq(store.getState().ascension.currency)).toBe(true);
+    expect(layer.def).toMatchObject({
+      action: "reset",
+      depth: 1,
+      pace: { past: 0.8, floorS: 10 },
+      payInto: null,
+    });
+  });
+
+  test("a deeper reset starts a shallower layer's run too; a shallower one leaves a deeper layer's run alone", () => {
+    const low = prestige({
+      key: "low",
+      reach: [wallet],
+      gain: (s) => powerGain(s.wallet.lifetime, { k: 1, exp: 1, per: 1 }),
+      reset: { depth: 2 },
+    });
+    const high = prestige({
+      key: "high",
+      reach: [low],
+      gain: (s) => s.low.lifetime,
+      depth: 2,
+    });
+    const game = defineGame({
+      id: "toy-layers",
+      save: { key: "toy-layers.save", version: 1 },
+      features: [wallet, generator, low, high],
+    });
+    const store = createIdleStore(game, { storage: memory(), now: () => T0 });
+    store.getState().catchUp(T0);
+    store.getState().wallet.earn(10);
+    expect(store.getState().low.reset(T0 + 1000)).toBe(true);
+    expect(store.getState().low.runStart).toBe(T0 + 1000);
+    expect(store.getState().high.runStart).toBe(T0);
+    expect(store.getState().high.reset(T0 + 2000)).toBe(true);
+    expect(store.getState().high.runStart).toBe(T0 + 2000);
+    expect(store.getState().low.runStart).toBe(T0 + 2000);
+    // The low layer's own rule still ran: a depth-2 reset starts its state over.
+    expect(store.getState().low.lifetime.eq(0)).toBe(true);
+    expect(store.getState().high.currency.eq(10)).toBe(true);
+  });
+
+  test("refuses a past share outside (0, 1] and a game step that takes the layer's own name", () => {
+    const gain = () => D(0);
+    expect(() => prestige({ key: "p", gain, pace: { past: 0 } })).toThrow(/pace.past/);
+    expect(() => prestige({ key: "p", gain, pace: { past: 1.5 } })).toThrow(/pace.past/);
+    expect(() => prestige({ key: "p", gain, steps: { settle: { pace: () => {} } } })).toThrow(
+      /settle step "pace"/,
+    );
+  });
+});
+
+describe("paying into a wallet", () => {
+  const WORDS = vocab({ currencies: ["gold", "shards"], stats: [], rarities: ["common"] } as const);
+  const purse = currencies({
+    key: "purse",
+    vocab: WORDS,
+    depth: { shards: "never" },
+    earnedThisRun: { gold: "goldThisRun" },
+    earnedEver: { shards: "shardsEver" },
+  });
+  const layer = prestige({
+    key: "ascension",
+    action: "ascend",
+    reach: [purse],
+    payInto: { wallet: purse, currency: "shards" },
+    gain: (s) => powerGain(s.purse.goldThisRun, { k: 1, exp: 1, per: 100 }),
+  });
+  const game = defineGame({
+    id: "toy-pay",
+    save: { key: "toy-pay.save", version: 1 },
+    features: [purse, layer],
+    vocab: WORDS,
+  });
+
+  test("the reset credits the wallet's currency after the run resets, and the layer keeps no balance of its own", () => {
+    const store = createIdleStore(game, { storage: memory(), now: () => T0 });
+    store.getState().catchUp(T0);
+    store.getState().purse.credit("gold", 450);
+    expect(store.getState().ascension.ascend()).toBe(true);
+    const s = store.getState();
+    expect(s.purse.shards.eq(4)).toBe(true);
+    expect(s.purse.shardsEver.eq(4)).toBe(true);
+    expect(s.purse.gold.eq(0)).toBe(true);
+    expect(s.ascension.lifetime.eq(4)).toBe(true);
+    expect("currency" in s.ascension).toBe(false);
+    // One home for what is held: the wallet, and `select.held` reads it there.
+    expect(layer.select.held(s).eq(s.purse.shards)).toBe(true);
+    expect(layer.def.payInto).toEqual({ wallet: "purse", currency: "shards" });
+  });
+
+  test("refuses a currency the wallet lacks, or one the layer's own reset would wipe", () => {
+    const shallow = currencies({ key: "shallow", vocab: WORDS });
+    const gain = () => D(0);
+    expect(() => prestige({ key: "p", gain, payInto: { wallet: shallow, currency: "shards" } })).toThrow(
+      /wiped by a reset of depth 1/,
+    );
+    expect(() =>
+      // @ts-expect-error not a currency of the wallet
+      prestige({ key: "p", gain, payInto: { wallet: shallow, currency: "keys" } }),
+    ).toThrow(/no currency "keys"/);
+    const two = currencies({ key: "two", vocab: WORDS, depth: { shards: 2 } });
+    expect(() => prestige({ key: "p", gain, payInto: { wallet: two, currency: "shards" } })).not.toThrow();
+    expect(() =>
+      prestige({ key: "p", gain, depth: 2, payInto: { wallet: two, currency: "shards" } }),
+    ).toThrow();
   });
 });
 

@@ -58,7 +58,7 @@ export type Currency = CurrencyOf<typeof WORDS>; // "bubbles"
 export const wallet = currencies({
   key: "wallet",
   vocab: WORDS,
-  earned: { bubbles: "earned" },
+  earnedThisRun: { bubbles: "earned" },
 });
 
 /** The pot: the tap that makes a bubble, how many taps, and the simmer that makes them over time. */

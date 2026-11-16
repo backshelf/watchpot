@@ -416,7 +416,8 @@ Short for a run reset: the run ends, and each feature follows its reset rule. Se
 ## Reset pace
 
 `resetPace(gain, kept, seconds)`: how fast a reset now would grow what the player keeps, in orders of magnitude a
-second. It rises, peaks and falls over a run, and "past its peak" is the moment to reset. Taught in
+second. It rises, peaks and falls over a run, and "past its peak" is the moment to reset. Every `prestige` keeps its
+run's best and serves `pace` and `pastPeak` on its slice. Taught in
 [chapter 7](guide/07-the-first-reset.md#is-it-worth-pressing). Reference: [a prestige layer](prestige-layer.md).
 
 ## Reset rule

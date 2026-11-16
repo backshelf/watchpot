@@ -336,9 +336,10 @@ export const toy = defineGame({ id: "toy", save: { key: "toy.save", version: 1 }
 
 ## Prestige
 
-`prestige({ key, gain, … })` is a feature factory for a layer above the run. It owns `runs`, `currency` and
-`lifetime` (never reset), and one action that pays the gain and calls the store's `resetRun`. Everything else in
-the layer (a tree to spend on, offers, a phase) is the feature's own state and actions beside it:
+`prestige({ key, gain, … })` is a feature factory for a layer above the run. It owns `runs`, `lifetime` (every unit
+paid while its own state lasts), `runStart`, the run's best reset `peak`, and `currency` unless it pays into a wallet;
+and one action that pays the gain and calls the store's `resetRun`. Everything else in the layer (a tree to spend on,
+offers, a phase) is the feature's own state and actions beside it:
 
 ```ts
 import { powerGain, prestige } from "watchpot/core";
@@ -355,22 +356,29 @@ const ascension = prestige({
 ```
 
 - **The reset**, inside one recipe: `canReset(draft)` (default: the gain is above zero; it may settle the draft
-  first), `beforeReset(draft)` (end what the gain should count), `gain(draft)` added to `currency` and `lifetime`,
-  `resetRun` at `now` (the action's argument, default game time) with the rng `runLabel(runs + 1)` (default
-  `run<n>`, read off saved state so a seeded store draws the same runs after a reload), `runs` counted, then
-  `afterReset(draft, { gain, now, run })`. The action returns whether it ran.
-- **Inside a step:** `layer.resetDraft(draft, { now, resetRun })` runs the same reset in a recipe the caller already
-  holds (an autobuyer's `run` passes `ctx.now` and `ctx.resetRun`). `depth` makes it a layer above another layer and
-  `reset` says what a deeper reset does to this one (Core › Resets).
+  first), `beforeReset(draft)` (end what the gain should count), `gain(draft)` added to `lifetime` (and to
+  `currency` when the layer holds it), `resetRun` at `now` (the action's argument, default game time) with the rng
+  `runLabel(runs + 1)` (default `run<n>`, read off saved state so a seeded store draws the same runs after a reload),
+  the gain credited to the `payInto` wallet, `runs` counted, then `afterReset(draft, { gain, now, run })`. The action
+  returns whether it ran.
+- **One ledger.** `payInto: { wallet, currency }` credits the reset to a wallet currency (which must outlive the
+  layer's own reset: `depth: { shards: "never" }` on the wallet) and leaves no `currency` on the slice;
+  `layer.select.held(state)` reads what is held either way.
+- **When to reset.** Every layer keeps its reset pace: `resetPace(gain, kept, seconds into the run, floorS)`, how
+  fast a reset would grow what it pays into, in orders of magnitude a second (`log10(1 + gain / kept) / seconds`).
+  Its `settle.pace` step keeps this run's best in `peak`; a run start (its own reset or a deeper one) zeroes it and
+  moves `runStart`. The slice serves `pace`, `peakShare` (the pace over the best) and `pastPeak` as derived values,
+  so an autobuyer, a sim's player and a "past its peak" light on the page read one number. `pace: { past, floorS,
+  kept }` tunes it (defaults 0.8, 1 and the layer's `lifetime`).
+- **`select`, `def`, `draft`.** `layer.select` has `held`, `gain`, `runSeconds(state, now)` and `pace(state, now)`;
+  `layer.def` the action's name, depth, pace tuning and `payInto`; `layer.draft.<action>(draft, { now, resetRun })`
+  runs the same reset in a recipe the caller already holds (an autobuyer's `run` passes `ctx.now` and
+  `ctx.resetRun`). `depth` makes it a layer above another layer and `reset` says what a deeper reset does to this
+  one (Core › Resets).
 - **The layer's own actions** come from `actions(api, reset)`; `reset` is the reset action, to wrap or call.
-  `steps`, `transient`, `migrations` and `merge` are `feature`'s.
+  `reach`, `steps`, `transient`, `migrations` and `merge` are `feature`'s.
 - **Curves.** `powerGain(amount, { k, exp, per, mult })` is `floor(k × (amount / per) ^ exp × mult)`, never
   negative; `lifetimeMultiplier(lifetime, { k, exp })` is `1 + k × lifetime ^ exp`, exactly 1 with nothing earned.
-- **When to reset.** `resetPace(gain, kept, seconds, floorS?)` is how fast a reset would grow what it pays into, in
-  orders of magnitude a second (`log10(1 + gain / kept) / seconds`): the gain a second while the gain is small
-  beside what is kept, the leap a second once it dwarfs it. Keep its best since the last reset and reset (an
-  autobuyer, a sim's player, a "past its peak" light on the page) when it falls to a share of that. A plain
-  gain-a-second rule sits in a reset whose next run would be worth many times this one.
 
 ## Gacha
 
@@ -429,12 +437,19 @@ export const wallet = currencies({
   key: "wallet",
   vocab: TOY,
   start: { gold: 30 }, // every other currency starts at zero
-  earned: { gold: "lifetimeGold" }, // a field totalling every credit of gold
-  spent: { gems: "gemsSpent" }, // a field totalling every debit of gems
+  depth: { gems: "never" }, // gold goes with every reset (depth 1); gems with none
+  earnedThisRun: { gold: "goldThisRun" }, // every credit of gold since the gold was last wiped
+  earnedEver: { gold: "goldEver" }, // every credit of gold ever: no run reset touches it
+  spentEver: { gems: "gemsSpent" }, // every debit of gems ever
   extra: () => ({ dust: D(0) }), // the game's own fields beside the balances
-  actions: ({ set }, w) => ({ claim: () => set((s) => w.credit(s, "gems", 5)) }),
+  actions: ({ set }, w) => ({ claim: () => set((s) => w.draft.credit(s, "gems", 5)) }),
 });
 ```
+
+- **Reset depth and totals.** `depth` says per currency how deep a reset must be to wipe it back to `start`
+  (default 1; `"never"`); `wallet.def.depth` reads them back. `earnedThisRun` / `spentThisRun` totals go with their
+  currency; `earnedEver` / `spentEver` totals stay through every run reset. `reset` covers the `extra` fields only.
+  `reach` is `feature`'s, for `actions` that read other features.
 
 - **Actions:** `credit(currency, amount)` and `debit(currency, amount): boolean`, plus the game's own from `actions`.
   Credit ignores an amount of zero or less; debit refuses (false, nothing touched) what the balance cannot cover.

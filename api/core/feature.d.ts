@@ -279,6 +279,11 @@ export declare function resetRuleOf(reset: FeatureSpec["reset"]): {
     depth: number;
     rule: AnyReachedRule;
 };
+/**
+ * What a `ReachedRule` makes of a state once a reset reaches it: `fresh` for `"run"`, `fresh` with the kept keys
+ * from `before`, or the function's result. For a factory that wraps the game's rule in its own.
+ */
+export declare function applyReachedRule<S extends object>(rule: ReachedRule<S>, before: S, fresh: S, ctx: InitialContext): S;
 /** A declared feature: its key, its state and actions types, and the spec the game reads. */
 export interface Feature<K extends string, S extends object, A extends object, N = unknown, Dv = unknown> extends FeatureSpec {
     /** Type only: the feature's derived values, by name. */

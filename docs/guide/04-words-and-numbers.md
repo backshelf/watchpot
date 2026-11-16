@@ -219,7 +219,7 @@ A [wallet](../glossary.md#wallet) is a feature that does that for every currency
 export const wallet = currencies({
   key: "wallet",
   vocab: WORDS,
-  earned: { bubbles: "earned" },
+  earnedThisRun: { bubbles: "earned" },
 });
 ```
 
@@ -228,8 +228,9 @@ From `docs/examples/simmer/game-wallet.ts`.
 - `key` is the slice's name in the store, like any feature's. The state reads `s.wallet.bubbles`: a Decimal balance
   per currency, at the top of the slice.
 - `vocab` is the vocabulary. The wallet holds one balance for each of its currencies, starting at zero.
-- `earned` asks for a running total. `{ bubbles: "earned" }` means "keep a field called `earned` that adds up every
-  bubble credited". There is also `spent`, which adds up every debit, and `start`, which sets opening balances
+- `earnedThisRun` asks for a running total. `{ bubbles: "earned" }` means "keep a field called `earned` that adds up
+  every bubble credited this run". There is also `spentThisRun`, which adds up every debit, their twins
+  `earnedEver` and `spentEver`, which no reset of the run touches, and `start`, which sets opening balances
   (`start: { bubbles: 5 }`).
 
 The wallet has two ways in, and which one you use depends on where you are.
@@ -444,18 +445,17 @@ console.log(w.bubbles.toString(), w.earned.toString()); // 90 100: spending does
 
 store.getState().resetRun();
 const after = store.getState().wallet;
-console.log(after.bubbles.toString(), after.earned.toString()); // 0 0: the default reset wipes the total too
+console.log(after.bubbles.toString(), after.earned.toString()); // 0 0: a this-run total goes with its currency
 ```
 
 From `docs/examples/guide-words-and-numbers.ts`. `scriptStore`, from `game-wallet.ts`, makes a store on a clock you
 pass (here, always 0) with its save kept in memory, so the script touches nothing on disk.
 
-A reset (chapter 7) starts a new run: it puts features back to their fresh state, each following its `reset` rule.
-The default rule is `"run"`, which means "back to `initial`". The wallet's totals are fields of the wallet like any
-other, so the default wipes them along with the balances. Out of the box, `earned` means "earned since the last
-reset that reached the wallet", which is what a prestige formula usually wants: pay the player for this run.
+A reset (chapter 7) starts a new run: it puts features back to their fresh state. Each currency says how deep a reset
+must be to wipe it (`depth`, default 1: every reset), and its this-run totals go with it. That is what a prestige
+formula usually wants: pay the player for this run.
 
-When you do want a total that survives, say so with the reset rule:
+When you also want a total that survives, ask for the other kind:
 
 <!-- example-code: guide-words-and-numbers.ts -->
 
@@ -463,16 +463,15 @@ When you do want a total that survives, say so with the reset rule:
 export const keepingWallet = currencies({
   key: "wallet",
   vocab: WORDS,
-  earned: { bubbles: "lifetime" },
-  reset: { keep: ["lifetime"] },
+  earnedThisRun: { bubbles: "earned" },
+  earnedEver: { bubbles: "earnedEver" },
 });
 ```
 
 From `docs/examples/guide-words-and-numbers.ts`.
 
-`{ keep: [...] }` resets the slice and carries the named fields over. Name the field for what it holds. The engine's
-own examples call a wallet total `lifetimeGold` without a `keep`, so it is wiped at every reset; if you copy that,
-rename it or keep it.
+`earnedEver` adds up every credit and no run reset touches it; only a profile reset clears it. The option says which
+kind you asked for, so name the field to match.
 
 ## In VOID IF REMOVED
 

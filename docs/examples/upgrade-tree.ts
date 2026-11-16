@@ -53,8 +53,7 @@ const tree = upgradeTree({
   key: "mine",
   nodes: NODES,
   wallet,
-  open: (s: { wallet: { lifetimeGold: Decimal } }, node) =>
-    node.id !== "laser" || s.wallet.lifetimeGold.gte(100),
+  open: (s: { wallet: { goldEver: Decimal } }, node) => node.id !== "laser" || s.wallet.goldEver.gte(100),
 });
 
 /**

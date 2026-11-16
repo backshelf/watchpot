@@ -20,7 +20,7 @@ export const ascension = prestige({
   action: "ascend", // the reset action's name; default "reset"
   reach: [wallet],
   initial: () => ({ lastGain: "0" }), // the layer's own fields
-  gain: (s) => powerGain(s.wallet.lifetimeGold, { k: 1, exp: 0.5, per: 1000 }),
+  gain: (s) => powerGain(s.wallet.goldThisRun, { k: 1, exp: 0.5, per: 1000 }),
   afterReset: (s, { gain }) => {
     s.ascension.lastGain = gain.toString();
   },

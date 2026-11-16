@@ -25,17 +25,21 @@ in the first hour), the reference game in `examples/orbital-orchard`, and small 
 
 **Why it works.** The `autobuyers` factory owns three things: the player's on/off switches, the schedule, and a count.
 It does not know what "buying" is. Each autobuyer's `run` is any change to the draft that returns a number, and the
-feature only adds that number to its count. Separately, every `prestige` carries a draft helper, `resetDraft`, which runs
-the same reset as the button from inside a recipe. Put the two together and the "purchase" is the reset.
+feature only adds that number to its count. Separately, every `prestige` carries the reset as a draft helper, under the
+action's name (`rebirth.draft.rebirth`), which runs the same reset as the button from inside a recipe, and keeps the
+run's best reset pace, serving `pastPeak` on its slice. Put the two together and the "purchase" is the reset.
 
 ```ts
-/** When this run began and the best pace it has reached: a fresh slice every run, since it resets with it. */
-export const pace = feature({
-  key: "pace",
-  initial: (ctx) => ({ since: ctx.now, peak: 0 }),
+/** The layer keeps this run's best reset pace itself, and says when the run is past it (`pastPeak`). */
+export const rebirth = prestige({
+  key: "rebirth",
+  action: "rebirth",
+  reach: [wallet],
+  gain: (s) => gainOf(s.wallet.gold),
+  pace: { past: 0.8 },
 });
 
-// ...
+type State = { rebirth: { currency: Decimal; pastPeak: boolean } };
 
 export const auto = autobuyers({
   key: "auto",
@@ -47,13 +51,7 @@ export const auto = autobuyers({
       unlocked: (s: State) => s.rebirth.currency.gte(10),
       intervalMs: () => 1000,
       priority: -1, // after every buy in the same tick, so the reset sees what they bought
-      run: (d, ctx) => {
-        const seconds = (ctx.now - d.pace.since) / 1000;
-        const now = resetPace(gainOf(d.wallet.gold), d.rebirth.currency, seconds);
-        if (now > d.pace.peak) d.pace.peak = now;
-        else if (now < d.pace.peak * 0.8 && rebirth.resetDraft(d, ctx)) return 1;
-        return 0;
-      },
+      run: (d: State, ctx) => (d.rebirth.pastPeak && rebirth.draft.rebirth(d, ctx) ? 1 : 0),
     },
   ],
 });
@@ -63,16 +61,15 @@ export const auto = autobuyers({
 
 Line by line:
 
-- `pace` is a tiny [feature](glossary.md#feature) holding when the run began and the best pace seen. Its default reset
-  rule is `"run"`, so every reset hands it a fresh `initial`, with `ctx.now` set to the moment of the reset. You never
-  clear it yourself.
+- `pace: { past: 0.8 }` tunes the layer's reset pace, the "is it worth pressing?" figure from
+  [chapter 7](guide/07-the-first-reset.md#is-it-worth-pressing): how fast a reset would grow what it pays into, in
+  orders of magnitude a second. It rises while the run is young, peaks, then falls. The layer keeps the run's best
+  (`peak`, back to zero on every reset, with `runStart`), and `pastPeak` turns true once the pace drops below 80% of
+  it. Nothing else in the game tracks it.
 - `priority: -1` matters. Autobuyers fire highest priority first, and the default is 0, so the stall buyer goes first
   and the reset sees the stall it just bought.
-- `resetPace` is the "is it worth pressing?" figure from [chapter 7](guide/07-the-first-reset.md#is-it-worth-pressing):
-  how fast a reset would grow what you hold, in orders of magnitude a second. It rises while the run is young, peaks,
-  then falls. The autobuyer remembers the peak and resets once the pace drops below 80% of it.
-- `rebirth.resetDraft(d, ctx)` takes the step's context as it is. The helper needs the game time and the store's run
-  reset, and the context an autobuyer's `run` is handed already carries both (`now` and `resetRun`).
+- `rebirth.draft.rebirth(d, ctx)` takes the step's context as it is. The helper needs the game time and the store's
+  run reset, and the context an autobuyer's `run` is handed already carries both (`now` and `resetRun`).
 
 The same trick turns an autobuyer into anything that should happen "every so often, if the player has it switched on":
 catching whatever a [spawn](glossary.md#spawn) left on screen (`spawns.take(draft, kind, now)` is the draft helper for
@@ -469,7 +466,7 @@ That is the end of the guide. The [glossary](glossary.md) defines every term it 
 ## Reference
 
 - Autobuyers and resets: [autobuyers.md](autobuyers.md), [prestige-layer.md](prestige-layer.md),
-  `api/core/autobuyers.d.ts`, `api/core/prestige/prestige.d.ts` (`resetDraft`, `resetPace`)
+  `api/core/autobuyers.d.ts`, `api/core/prestige/prestige.d.ts` (`PrestigeDraftHelpers`, `PrestigePaceDef`, `resetPace`)
 - Upgrade trees and prices: [upgrade-tree.md](upgrade-tree.md), `api/core/tree.d.ts`, `api/core/graph/nodes.d.ts`
   (`NodeCost`, `rankCost`)
 - Buffs and spawns: [buffs.md](buffs.md), [spawns.md](spawns.md), `api/core/buffs.d.ts`, `api/core/spawns.d.ts`
