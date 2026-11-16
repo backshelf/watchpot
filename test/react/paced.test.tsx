@@ -1,4 +1,4 @@
-import { afterEach, beforeEach, describe, expect, jest, test } from "bun:test";
+import { afterEach, beforeEach, describe, expect, jest, spyOn, test } from "bun:test";
 import { act, fireEvent, render, screen } from "@testing-library/react";
 import { StrictMode } from "react";
 import type { RuntimeStore } from "../../src/react";
@@ -167,6 +167,23 @@ describe("usePacedState", () => {
     expect(jest.getTimerCount()).toBe(0);
     // With nobody listening the view answers with the state as it is.
     expect(pacedView(store).get().n).toBe(3);
+  });
+
+  test("the shared view keeps its first options and warns once about a later call's different ones", () => {
+    const store = fakeStore(1);
+    const warn = spyOn(console, "warn").mockImplementation(() => {});
+    try {
+      const view = pacedView(store, { idleMs: 300 });
+      expect(pacedView(store)).toBe(view);
+      expect(pacedView(store, { idleMs: 300 })).toBe(view);
+      expect(warn).not.toHaveBeenCalled();
+      expect(pacedView(store, { idleMs: 100 })).toBe(view);
+      expect(pacedView(store, { inputMs: 0 })).toBe(view);
+      expect(warn).toHaveBeenCalledTimes(1);
+      expect(String(warn.mock.calls[0]?.[0])).toContain('"idleMs":100');
+    } finally {
+      warn.mockRestore();
+    }
   });
 
   test("a view of its own hands on only a new state object, and reads the store while nobody listens", () => {

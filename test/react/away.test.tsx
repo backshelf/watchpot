@@ -3,6 +3,7 @@ import { act, render, screen } from "@testing-library/react";
 import { StrictMode } from "react";
 import { D } from "../../src/core/decimal";
 import { type AwayReturn, awayGains, useAwayReport, watchAway } from "../../src/react/away";
+import { useGameClock } from "../../src/react/gameClock";
 import { IdleStoreProvider, type RuntimeStore } from "../../src/react/store";
 import { freshStore } from "../../src/test/store";
 import { toy } from "../core/toy";
@@ -103,4 +104,38 @@ describe("useAwayReport", () => {
     act(() => slip.click());
     expect(screen.queryByRole("button")).toBeNull();
   });
+
+  for (const [order, Shell] of [
+    ["before", ClockThenReport],
+    ["after", ReportThenClock],
+  ] as const)
+    test(`hears the clock's opening catch-up with the clock ${order} it in one component, under StrictMode`, () => {
+      const { store, clock } = freshStore(toy);
+      clock.advance(900_000);
+      const view = render(
+        <StrictMode>
+          <IdleStoreProvider store={store as unknown as RuntimeStore}>
+            <Shell store={store as unknown as RuntimeStore} />
+          </IdleStoreProvider>
+        </StrictMode>,
+      );
+      expect(screen.getByText("900s")).toBeInTheDocument();
+      view.unmount();
+    });
 });
+
+const summarize = (a: AwayReturn<ToyState>) => (a.ms >= 600_000 ? `${a.ms / 1000}s` : null);
+
+/** The clock, then the report, in one component. */
+function ClockThenReport({ store }: { store: RuntimeStore }) {
+  useGameClock(store as never);
+  const { report } = useAwayReport<ToyState, string>(summarize);
+  return report ? <p>{report}</p> : null;
+}
+
+/** The report, then the clock, in one component. */
+function ReportThenClock({ store }: { store: RuntimeStore }) {
+  const { report } = useAwayReport<ToyState, string>(summarize);
+  useGameClock(store as never);
+  return report ? <p>{report}</p> : null;
+}

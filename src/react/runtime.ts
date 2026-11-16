@@ -12,10 +12,10 @@ export interface RuntimeSound {
 
 /** Options for `usePageRuntime`: the motion and colour-scheme settings and the sound engine. */
 export interface PageRuntimeOptions {
-  /** The in-game motion setting; "system" defers to the OS. */
-  motion: MotionOverride;
-  /** The in-game colour scheme; "system" follows the OS, live. */
-  scheme: SchemePreference;
+  /** The in-game motion setting; "system" (the default) defers to the OS. */
+  motion?: MotionOverride;
+  /** The in-game colour scheme; "system" (the default) follows the OS, live. */
+  scheme?: SchemePreference;
   /** The game's sound engine and whether sound is on: unlocked on the first gesture, muted while off. */
   sound?: { engine: RuntimeSound; on: boolean };
 }
@@ -39,11 +39,13 @@ export interface GameRuntime extends PageRuntime {
  * Everything a page starts once that is not the clock: the motion and colour-scheme settings on <html>, and the
  * sound's unlock and mute. For a shell that shows something before the game runs (a title, a splash) and starts
  * the clock itself (`useGameClock`) when that is over; it needs no store. The motion and the scheme are written in
- * layout effects, so the first paint is already right.
+ * layout effects, so the first paint is already right: `data-motion` on <html> is the resolved motion, "reduced" or
+ * "full" (the OS answers for "system"), so a stylesheet reads that attribute alone.
  */
-export function usePageRuntime(options: PageRuntimeOptions): PageRuntime {
-  const { motion, scheme, sound } = options;
+export function usePageRuntime(options: PageRuntimeOptions = {}): PageRuntime {
+  const { motion = "system", scheme = "system", sound } = options;
   const osReduced = useReducedMotion();
+  const reduced = motion === "reduced" || (motion === "system" && osReduced);
 
   const engine = sound?.engine;
   const on = sound?.on ?? true;
@@ -51,14 +53,15 @@ export function usePageRuntime(options: PageRuntimeOptions): PageRuntime {
   // Effects read the setting through `setReducedMotion`, the CSS through `data-motion` on <html>.
   useLayoutEffect(() => {
     setReducedMotion(motion);
+    return () => setReducedMotion("system");
+  }, [motion]);
+  useLayoutEffect(() => {
     const root = document.documentElement;
-    if (motion === "reduced") root.dataset.motion = "reduced";
-    else delete root.dataset.motion;
+    root.dataset.motion = reduced ? "reduced" : "full";
     return () => {
-      setReducedMotion("system");
       delete root.dataset.motion;
     };
-  }, [motion]);
+  }, [reduced]);
   // `data-scheme` on <html>; "system" follows the OS live.
   useLayoutEffect(() => applyColorScheme(scheme), [scheme]);
   // The mute is the sound engine's module flag: a shell that goes leaves it unmuted for whatever mounts next.
@@ -68,7 +71,7 @@ export function usePageRuntime(options: PageRuntimeOptions): PageRuntime {
     return () => engine.setMuted(false);
   }, [engine, on]);
 
-  return { reduced: motion === "reduced" || (motion === "system" && osReduced) };
+  return { reduced };
 }
 
 /**
@@ -80,7 +83,10 @@ export function usePageRuntime(options: PageRuntimeOptions): PageRuntime {
  * The clock starts in a layout effect, so the first catch-up lands before any child's passive effect reads the
  * store; the motion and the scheme are written in layout effects too, so the first paint is already right.
  */
-export function useGameRuntime(store: { getState(): RootActions }, options: GameRuntimeOptions): GameRuntime {
+export function useGameRuntime(
+  store: { getState(): RootActions },
+  options: GameRuntimeOptions = {},
+): GameRuntime {
   const { taken } = useGameClock(store);
   const { reduced } = usePageRuntime(options);
   return { reduced, taken };

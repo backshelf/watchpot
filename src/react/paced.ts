@@ -115,17 +115,37 @@ export function createPacedView<S>(store: PaceableStore<S>, options: PacedViewOp
   };
 }
 
-const views = new WeakMap<object, PacedView<unknown>>();
+const views = new WeakMap<object, { view: PacedView<unknown>; options: PacedViewOptions | undefined }>();
+/** The stores whose dropped options have been warned about: once each. */
+const warned = new WeakSet<object>();
+
+/** Two calls' options read the same: the same paces, and a clock given in both or neither. */
+const samePace = (a: PacedViewOptions = {}, b: PacedViewOptions = {}) =>
+  a.idleMs === b.idleMs && a.inputMs === b.inputMs && (a.now === undefined) === (b.now === undefined);
 
 /**
  * The one paced view every reader of `store` shares, made at the first call (its `options` are the ones kept): one
- * subscription and one timer, however many screens read it.
+ * subscription and one timer, however many screens read it. A later call's different `options` are dropped; in
+ * development the first such call is warned about. A later call with none takes the kept ones quietly.
  */
 export function pacedView<S>(store: PaceableStore<S>, options?: PacedViewOptions): PacedView<S> {
   const had = views.get(store);
-  if (had) return had as PacedView<S>;
+  if (had) {
+    if (
+      process.env.NODE_ENV !== "production" &&
+      options !== undefined &&
+      !warned.has(store) &&
+      !samePace(had.options, options)
+    ) {
+      warned.add(store);
+      console.warn(
+        `watchpot: this store's paced view was made with ${JSON.stringify(had.options ?? {})}; a later call's ${JSON.stringify(options)} is dropped. Pass the same pace everywhere (createRuntimeHooks({ view }) sets it once), or make a view of its own with createPacedView.`,
+      );
+    }
+    return had.view as PacedView<S>;
+  }
   const view = createPacedView(store, options);
-  views.set(store, view);
+  views.set(store, { view: view as PacedView<unknown>, options });
   return view;
 }
 

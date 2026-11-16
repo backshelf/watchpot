@@ -1,6 +1,6 @@
 // A shader's palette from the game's design tokens: CSS custom properties read at the canvas's scope as colours,
 // read again when that scope's theme, scheme or classes change.
-import { type RefObject, useLayoutEffect, useState } from "react";
+import { type RefObject, useLayoutEffect, useRef, useState } from "react";
 
 const HEX = /^#([0-9a-f]{3,4}|[0-9a-f]{6}|[0-9a-f]{8})$/i;
 
@@ -65,16 +65,30 @@ export function readTokens<N extends string>(el: Element, names: readonly N[]): 
 const same = (a: Record<string, string> | null, b: Record<string, string> | null) =>
   a === b || (a !== null && b !== null && Object.keys(a).every((k) => a[k] === b[k]));
 
+/** Development only: names the tokens with no value at `el`, the usual reason a read stays null. */
+function warnMissing(el: Element, names: readonly string[]): boolean {
+  if (typeof getComputedStyle !== "function") return false;
+  const style = getComputedStyle(el);
+  const missing = names.filter((name) => style.getPropertyValue(name).trim() === "");
+  if (missing.length === 0) return false;
+  console.warn(
+    `watchpot/shader: useShaderTokens has no value for ${missing.join(", ")} at its element, so it returns null and the still shows. Define them on the element or an ancestor (the theme's :root), spelled as here.`,
+  );
+  return true;
+}
+
 /**
  * The colour tokens `names` at `ref`'s element, as `#rrggbbaa` strings a shader's uniforms take directly; null
  * until every one reads as a colour (no stylesheet: show the still). Read again when `data-theme`, `data-scheme`,
- * `class` or `style` changes on the element or any ancestor, and when the system colour scheme flips.
+ * `class` or `style` changes on the element or any ancestor, and when the system colour scheme flips. In
+ * development a token with no value there is named in a console warning, once per mount.
  */
 export function useShaderTokens<N extends string>(
   ref: RefObject<Element | null>,
   names: readonly N[],
 ): Record<N, string> | null {
   const [value, setValue] = useState<Record<N, string> | null>(null);
+  const warned = useRef(false);
   const key = names.join("|");
   // biome-ignore lint/correctness/useExhaustiveDependencies: `key` stands for `names` by value
   useLayoutEffect(() => {
@@ -82,6 +96,8 @@ export function useShaderTokens<N extends string>(
     if (!el) return;
     const read = () => {
       const next = readTokens(el, names);
+      if (next === null && !warned.current && process.env.NODE_ENV !== "production")
+        warned.current = warnMissing(el, names);
       setValue((was) => (same(was, next) ? was : next));
     };
     read();

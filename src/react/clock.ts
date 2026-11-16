@@ -17,7 +17,7 @@ export function clockLens(store: object): ClockLens {
 
 /** The game clock at the tick's resolution, for anything that moves between seconds. */
 export function useTickNow(): number {
-  const store = useIdleStore();
+  const store = useIdleStore("useTickNow");
   const lens = clockLens(store);
   return useStore(store as never, (s: object) => readClock(s, lens).lastSeen);
 }
@@ -79,7 +79,7 @@ function joinTicker(store: RuntimeStore, intervalMs: number, reader: (now: numbe
  * that already ticks): then nothing ticks and the override is returned as is.
  */
 export function useClockNow(intervalMs = 1000, override?: number): number {
-  const store = useIdleStore();
+  const store = useIdleStore("useClockNow");
   const [now, setNow] = useState(() => override ?? store.getState().gameNow());
   useEffect(() => {
     if (override !== undefined) return;
