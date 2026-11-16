@@ -248,6 +248,7 @@ export interface FeatureDef<
   R extends ReachShape,
   G extends object,
   Dv = Record<never, never>,
+  Dd = DerivedDef<Record<K, S> & ReachOf<R>, Dv>,
 > {
   /** The saved key: explicit and stable, never a position. */
   readonly key: K;
@@ -273,8 +274,12 @@ export interface FeatureDef<
    * and throws, naming the loop, when they go round. The function sees the feature's saved state and its reach; it
    * must be pure (no rng, no clock, nothing written). Write it after `initial` and `reach` and before `actions`
    * and `steps`, which is the order the types are read in.
+   *
+   * A value that reads another of this same feature goes in a later layer: `derived: [{ price: … }, { canBuy: (s)
+   * => s.pot.bubbles.gte(s.stove.price) }]`. Each layer sees the ones before it (up to four). The layers are only
+   * how the types are read; the engine still orders every value by what it reads.
    */
-  readonly derived?: DerivedDef<Record<K, S> & ReachOf<R>, Dv>;
+  readonly derived?: Dd;
   readonly actions?: (api: FeatureApi<G>) => A;
   readonly steps?: FeatureSteps<G>;
   readonly reset?: ResetRule<S>;
@@ -358,8 +363,6 @@ export interface Feature<K extends string, S extends object, A extends object, N
   readonly merge?: (merged: S, fresh: S) => S;
 }
 
-const noActions = <A extends object>(): A => ({}) as A;
-
 /** A feature reached by its state type instead of by value: `reach<{ lid: LidState }>()`. */
 export interface ReachType<T extends object> {
   readonly reachType: true;
@@ -393,8 +396,34 @@ function resolveReach(given: ReachShape | (() => ReachShape) | undefined): () =>
   };
 }
 
+/** The layers of a `derived` block as one record; throws on a name given in two layers. */
+function flatDerived(given: unknown): Readonly<Record<string, (state: never) => unknown>> {
+  type Block = Record<string, (state: never) => unknown>;
+  if (!Array.isArray(given)) return (given ?? {}) as Block;
+  const out: Block = {};
+  for (const layer of given as readonly (Block | undefined)[])
+    for (const [name, fn] of Object.entries(layer ?? {})) {
+      if (name in out) throw new Error(`a derived value "${name}" is declared in two layers`);
+      out[name] = fn;
+    }
+  return out;
+}
+
 /** A feature's `derived` block: each value as a function of the state `In` (its saved slice and its reach). */
 export type DerivedDef<In, Dv> = { readonly [P in keyof Dv]: (state: In) => Dv[P] };
+
+/**
+ * A `derived` block in layers: one block, or up to four in a list, each seeing the values of the blocks before it
+ * on the feature's own slice.
+ */
+export type DerivedLayers<K extends string, S, Reached, D1, D2, D3, D4> =
+  | DerivedDef<Record<K, S> & Reached, D1>
+  | readonly [
+      DerivedDef<Record<K, S> & Reached, D1>,
+      DerivedDef<Record<K, S & D1> & Reached, D2>?,
+      DerivedDef<Record<K, S & D1 & D2> & Reached, D3>?,
+      DerivedDef<Record<K, S & D1 & D2 & D3> & Reached, D4>?,
+    ];
 
 /**
  * Declares a feature. `K`, `S`, `A`, the reach `R` and the derived values are read off the definition; `G`, the
@@ -403,11 +432,27 @@ export type DerivedDef<In, Dv> = { readonly [P in keyof Dv]: (state: In) => Dv[P
 export function feature<
   const K extends string,
   S extends object,
+  A extends object,
+  const R extends ReachShape,
+  D1,
+  D2,
+  D3,
+  D4,
+  G extends object = Record<K, S & D1 & D2 & D3 & D4> & ReachOf<R>,
+>(
+  def: FeatureDef<K, S, A, R, G, D1 & D2 & D3 & D4, DerivedLayers<K, S, ReachOf<R>, D1, D2, D3, D4>>,
+): Feature<K, S, A, NeedsOf<R>, D1 & D2 & D3 & D4>;
+export function feature<
+  const K extends string,
+  S extends object,
   A extends object = Record<never, never>,
   const R extends ReachShape = readonly [],
   Dv = Record<never, never>,
   G extends object = Record<K, S & Dv> & ReachOf<R>,
->(def: FeatureDef<K, S, A, R, G, Dv>): Feature<K, S, A, NeedsOf<R>, Dv> {
+>(def: FeatureDef<K, S, A, R, G, Dv>): Feature<K, S, A, NeedsOf<R>, Dv>;
+export function feature(
+  def: FeatureDef<string, object, object, ReachShape, object, unknown, unknown>,
+): Feature<string, object, object, unknown, unknown> {
   if (def.key.includes(".")) throw new Error(`feature "${def.key}": a key cannot contain "."`);
   for (const phase of EARNING_PHASES)
     for (const [name, entry] of Object.entries(def.steps?.[phase] ?? {}))
@@ -420,12 +465,12 @@ export function feature<
     reach: resolveReach(def.reach),
     initial: def.initial,
     transient: def.transient ?? [],
-    actions: def.actions ?? noActions<A>,
+    actions: def.actions ?? (() => ({})),
     steps: def.steps ?? {},
     reset: def.reset ?? "run",
     migrations: def.migrations ?? {},
     merge: def.merge,
-    derived: (def.derived ?? {}) as Readonly<Record<string, (state: never) => unknown>>,
+    derived: flatDerived(def.derived),
     vocab: def.vocab,
     moves: def.moves,
   };

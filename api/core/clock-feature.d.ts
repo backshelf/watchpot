@@ -14,7 +14,7 @@ export interface ClockState {
 /** The key the built-in clock feature saves under. */
 export declare const CLOCK_KEY = "clock";
 /** The built-in clock. A run reset keeps the offset; a profile reset zeroes it. */
-export declare const clockFeature: import("./feature").Feature<"clock", ClockState, Record<never, never>, unknown, Record<never, never>>;
+export declare const clockFeature: import("./feature").Feature<"clock", ClockState, object, object, unknown>;
 /** The type of the built-in clock feature. */
 export type ClockFeature = typeof clockFeature;
 type NumberKeys<T> = {

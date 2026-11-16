@@ -211,7 +211,7 @@ export interface FeatureApi<G extends object> {
     readonly store: IdleStoreApi<G>;
 }
 /** The definition `feature` takes: key, initial state, actions, steps, reset rule, transient keys, migrations and merge. */
-export interface FeatureDef<K extends string, S extends object, A extends object, R extends ReachShape, G extends object, Dv = Record<never, never>> {
+export interface FeatureDef<K extends string, S extends object, A extends object, R extends ReachShape, G extends object, Dv = Record<never, never>, Dd = DerivedDef<Record<K, S> & ReachOf<R>, Dv>> {
     /** The saved key: explicit and stable, never a position. */
     readonly key: K;
     /**
@@ -236,8 +236,12 @@ export interface FeatureDef<K extends string, S extends object, A extends object
      * and throws, naming the loop, when they go round. The function sees the feature's saved state and its reach; it
      * must be pure (no rng, no clock, nothing written). Write it after `initial` and `reach` and before `actions`
      * and `steps`, which is the order the types are read in.
+     *
+     * A value that reads another of this same feature goes in a later layer: `derived: [{ price: … }, { canBuy: (s)
+     * => s.pot.bubbles.gte(s.stove.price) }]`. Each layer sees the ones before it (up to four). The layers are only
+     * how the types are read; the engine still orders every value by what it reads.
      */
-    readonly derived?: DerivedDef<Record<K, S> & ReachOf<R>, Dv>;
+    readonly derived?: Dd;
     readonly actions?: (api: FeatureApi<G>) => A;
     readonly steps?: FeatureSteps<G>;
     readonly reset?: ResetRule<S>;
@@ -323,9 +327,20 @@ export type DerivedDef<In, Dv> = {
     readonly [P in keyof Dv]: (state: In) => Dv[P];
 };
 /**
+ * A `derived` block in layers: one block, or up to four in a list, each seeing the values of the blocks before it
+ * on the feature's own slice.
+ */
+export type DerivedLayers<K extends string, S, Reached, D1, D2, D3, D4> = DerivedDef<Record<K, S> & Reached, D1> | readonly [
+    DerivedDef<Record<K, S> & Reached, D1>,
+    DerivedDef<Record<K, S & D1> & Reached, D2>?,
+    DerivedDef<Record<K, S & D1 & D2> & Reached, D3>?,
+    DerivedDef<Record<K, S & D1 & D2 & D3> & Reached, D4>?
+];
+/**
  * Declares a feature. `K`, `S`, `A`, the reach `R` and the derived values are read off the definition; `G`, the
  * game the callbacks see, is the feature's own slice (derived values included) plus its reach.
  */
+export declare function feature<const K extends string, S extends object, A extends object, const R extends ReachShape, D1, D2, D3, D4, G extends object = Record<K, S & D1 & D2 & D3 & D4> & ReachOf<R>>(def: FeatureDef<K, S, A, R, G, D1 & D2 & D3 & D4, DerivedLayers<K, S, ReachOf<R>, D1, D2, D3, D4>>): Feature<K, S, A, NeedsOf<R>, D1 & D2 & D3 & D4>;
 export declare function feature<const K extends string, S extends object, A extends object = Record<never, never>, const R extends ReachShape = readonly [], Dv = Record<never, never>, G extends object = Record<K, S & Dv> & ReachOf<R>>(def: FeatureDef<K, S, A, R, G, Dv>): Feature<K, S, A, NeedsOf<R>, Dv>;
 /**
  * The same feature with its auto-player moves: for a feature a factory made (`currencies`, `prestige`, `gacha`),
