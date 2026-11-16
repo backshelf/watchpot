@@ -5,7 +5,7 @@ import { describe, expect, test } from "bun:test";
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
 import { transform } from "sucrase";
-import { createGameStorage, createMemoryBackend, D } from "watchpot/core";
+import { createGameStorage, createIdleStore, createMemoryBackend, D } from "watchpot/core";
 import {
   defaultsFor,
   editFor,
@@ -112,7 +112,7 @@ function runEdited(page: PageDef, piece: string) {
   }).code;
   const made: unknown[] = [];
   const modules = modulesFor(files, main, {});
-  runModules(
+  const exports = runModules(
     { main, js: { ...modules.js, [main]: code } },
     harness(
       made,
@@ -120,7 +120,16 @@ function runEdited(page: PageDef, piece: string) {
       () => createGameStorage(createMemoryBackend()),
     ),
   );
-  return made[0] as { getState(): Record<string, Record<string, unknown>> } | undefined;
+  // As the worker does: the store the example made, or one made from its `game` when it made none.
+  const store =
+    made[0] ??
+    (exports.game
+      ? createIdleStore(exports.game as never, {
+          now: () => 0,
+          storage: createGameStorage(createMemoryBackend()),
+        })
+      : undefined);
+  return store as { getState(): Record<string, Record<string, unknown>> } | undefined;
 }
 
 /** Calls one of the pot's actions, failing the test when there is none. */
