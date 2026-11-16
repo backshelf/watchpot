@@ -1,5 +1,6 @@
 import type { Draft } from "immer";
 import { type Feature, type FeatureApi, feature, type Move, type ResetRule } from "./feature";
+import type { CallbackContext } from "./gauge";
 import { nextFloat, pickWeighted, type RngState, seedRng } from "./rng";
 
 /**
@@ -26,8 +27,8 @@ export interface SpawnWait {
 export interface SpawnOutcome<G> {
   readonly id: string;
   readonly weight: number;
-  /** Open only while this holds. */
-  readonly when?: (state: G) => boolean;
+  /** Open only while this holds, read at the game time the outcome is drawn. */
+  readonly when?: (state: G, ctx: CallbackContext) => boolean;
   /** Never the same outcome as the last catch of this kind. */
   readonly noRepeat?: boolean;
 }
@@ -74,15 +75,19 @@ export function drawSpawnWait(rng: RngState, wait: SpawnWait): [number, RngState
   return [min + u * span, next];
 }
 
-/** Draws an outcome among those open (`when` holds, and not a `noRepeat` repeat of `last`); null when none is. Pure. */
+/**
+ * Draws an outcome among those open (`when` holds at `ctx`, default game time 0, and not a `noRepeat` repeat of
+ * `last`); null when none is. Pure.
+ */
 export function drawOutcome<G>(
   rng: RngState,
   outcomes: readonly SpawnOutcome<G>[],
   state: G,
   last: string | null,
+  ctx: CallbackContext = { now: 0 },
 ): [string | null, RngState] {
   const weights = outcomes.map((o) =>
-    (o.when?.(state) ?? true) && !(o.noRepeat && o.id === last) ? Math.max(0, o.weight) : 0,
+    (o.when?.(state, ctx) ?? true) && !(o.noRepeat && o.id === last) ? Math.max(0, o.weight) : 0,
   );
   if (!weights.some((w) => w > 0)) return [null, rng];
   const [i, next] = pickWeighted(rng, weights);
@@ -158,16 +163,16 @@ export function advanceSpawn(
 export interface SpawnKind<G> {
   readonly id: string;
   /** The wait between arrivals, fixed or read off the game state (upgrades that bring them sooner). */
-  readonly wait: SpawnWait | ((state: G) => SpawnWait);
+  readonly wait: SpawnWait | ((state: G, ctx: CallbackContext) => SpawnWait);
   /** How long one stays catchable. */
-  readonly lifeMs: number | ((state: G) => number);
+  readonly lifeMs: number | ((state: G, ctx: CallbackContext) => number);
   readonly outcomes: readonly SpawnOutcome<G>[];
   /** `"catch"` (default): the outcome is drawn when caught. `"birth"`: drawn at arrival and shown on `live.outcome`. */
   readonly drawAt?: "catch" | "birth";
   /** While this is false nothing arrives, and the wait starts over once it holds. Default: always. */
-  readonly active?: (state: G) => boolean;
+  readonly active?: (state: G, ctx: CallbackContext) => boolean;
   /** What catching it is worth to the auto-player (default 1). */
-  readonly worth?: (state: G) => number;
+  readonly worth?: (state: G, ctx: CallbackContext) => number;
 }
 
 /** The spawns feature's saved state: each kind's, by id. */
@@ -209,10 +214,12 @@ export function spawns<const K extends string, G extends object = object>(def: {
   }
   type Own = Record<K, SpawnsState>;
   const kindsOf = (draft: unknown): Record<string, SpawnState> => (draft as Own)[def.key].kinds;
-  const waitOf = (k: SpawnKind<G>, state: G): SpawnWait =>
-    typeof k.wait === "function" ? k.wait(state) : k.wait;
-  const lifeOf = (k: SpawnKind<G>, state: G): number =>
-    typeof k.lifeMs === "function" ? k.lifeMs(state) : k.lifeMs;
+  const waitOf = (k: SpawnKind<G>, state: G, at: CallbackContext): SpawnWait =>
+    typeof k.wait === "function" ? k.wait(state, at) : k.wait;
+  const lifeOf = (k: SpawnKind<G>, state: G, at: CallbackContext): number =>
+    typeof k.lifeMs === "function" ? k.lifeMs(state, at) : k.lifeMs;
+  /** The store's game time, read where a move is valued (0 off a store). */
+  const gameNowOf = (st: object): number => (st as { gameNow?: () => number }).gameNow?.() ?? 0;
   const fresh = (k: SpawnKind<G>, rng: RngState): SpawnState => ({
     nextAt: 0,
     live: null,
@@ -232,7 +239,7 @@ export function spawns<const K extends string, G extends object = object>(def: {
     const state = d as unknown as G;
     let outcome = live.outcome ?? null;
     if (outcome === null) {
-      const [drawn, rng] = drawOutcome(s.rng, k.outcomes, state, s.last);
+      const [drawn, rng] = drawOutcome(s.rng, k.outcomes, state, s.last, { now });
       s.rng = rng;
       outcome = drawn;
     }
@@ -240,7 +247,7 @@ export function spawns<const K extends string, G extends object = object>(def: {
     s.live = null;
     s.caught += 1;
     s.last = outcome;
-    const [wait, rng] = drawSpawnWait(s.rng, waitOf(k, state));
+    const [wait, rng] = drawSpawnWait(s.rng, waitOf(k, state, { now }));
     s.rng = rng;
     s.nextAt = now + wait;
     def.onCatch?.(d as Draft<G>, outcome, now, kind);
@@ -277,22 +284,23 @@ export function spawns<const K extends string, G extends object = object>(def: {
       sync: {
         arrive: (d: Draft<Own>, ctx) => {
           const state = d as unknown as G;
+          const at: CallbackContext = { now: ctx.now };
           const all = kindsOf(d);
           for (const k of def.kinds) {
             const s = all[k.id];
             if (!s) continue;
-            if (k.active && !k.active(state)) {
+            if (k.active && !k.active(state, at)) {
               if (s.nextAt !== 0 || s.live) all[k.id] = { ...s, nextAt: 0, live: null };
               continue;
             }
             const atBirth =
               k.drawAt === "birth"
-                ? (rng: RngState, last: string | null) => drawOutcome(rng, k.outcomes, state, last)
+                ? (rng: RngState, last: string | null) => drawOutcome(rng, k.outcomes, state, last, at)
                 : undefined;
             const step = advanceSpawn(s, ctx.now, {
               kind: k.id,
-              wait: waitOf(k, state),
-              lifeMs: lifeOf(k, state),
+              wait: waitOf(k, state, at),
+              lifeMs: lifeOf(k, state, at),
               atBirth,
             });
             if (step.state !== s) all[k.id] = step.state;
@@ -306,7 +314,7 @@ export function spawns<const K extends string, G extends object = object>(def: {
         .map(
           (k): Move<typeof s> => ({
             id: `${def.key}:${k.id}`,
-            value: (st) => k.worth?.(st as unknown as G) ?? 1,
+            value: (st) => k.worth?.(st as unknown as G, { now: gameNowOf(st) }) ?? 1,
             apply: (store) => (store.getState() as Record<K, SpawnsActions>)[def.key].catch(k.id) !== null,
           }),
         ),

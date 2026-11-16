@@ -2,6 +2,7 @@ import type { Draft } from "immer";
 import type { CurrenciesFeature } from "./currencies";
 import { type Decimal, type DecimalSource } from "./decimal";
 import { type Feature, type ResetRule } from "./feature";
+import type { CallbackContext } from "./gauge";
 import { type RngState } from "./rng";
 /**
  * The clicker: a press pays a currency. What one press pays is the game's (`power`, often a base plus a share of
@@ -76,10 +77,10 @@ export interface ClickerDef<K extends string, WK extends string, C extends strin
     /** The currencies feature a press pays into. */
     readonly wallet: CurrenciesFeature<WK, C, WS, WA>;
     readonly currency: C;
-    /** What one press pays before a crit and the combo, read off the whole game state. */
-    readonly power: (state: G) => DecimalSource;
-    /** The crit, read off the whole game state. None without it. */
-    readonly crit?: (state: G) => ClickCrit;
+    /** What one press pays before a crit and the combo, read off the whole game state at the press's game time. */
+    readonly power: (state: G, ctx: CallbackContext) => DecimalSource;
+    /** The crit, read off the whole game state at the press's game time. None without it. */
+    readonly crit?: (state: G, ctx: CallbackContext) => ClickCrit;
     readonly combo?: ClickCombo;
     /** The most presses paid in one second of game time; the rest are dropped. No cap without it. */
     readonly maxPerSecond?: number;

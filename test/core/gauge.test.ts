@@ -108,4 +108,16 @@ describe("gauge feature", () => {
     expect(store.getState().heat.nudge(70)).toBe(true);
     expect(store.getState().heat.level).toBe(0);
   });
+
+  test("the draft helper trips inside another recipe and tells the game", () => {
+    const draft = { heat: { ...COLD, level: 90 }, knob: { hot: true, tripsSeen: 0 } };
+    expect(heat.nudge(draft, 5, T0)).toBe(false);
+    expect(draft.heat.level).toBe(95);
+    expect(heat.nudge(draft, 50, T0)).toBe(true);
+    expect(draft.heat.level).toBe(0);
+    expect(draft.knob.tripsSeen).toBe(1);
+    expect(gaugeLocked(draft.heat, T0 + 29_999)).toBe(true);
+    expect(heat.nudge(draft, 500, T0 + 1000)).toBe(false);
+    expect(draft.heat.level).toBe(0);
+  });
 });

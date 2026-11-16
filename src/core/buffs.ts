@@ -45,9 +45,12 @@ export interface BuffRule {
   readonly maxStacks?: number;
 }
 
-/** A buff as the feature declares it: its rules and its effects at a count of stacks and a strength. */
+/**
+ * A buff as the feature declares it: its rules and its effects at a count of stacks and a strength. Without `effects`
+ * it is a timer: read with `buffActive` and `buffLeftMs`, and adding nothing to `contributions`.
+ */
 export interface BuffDef<E> extends BuffRule {
-  readonly effects: (stacks: number, strength: number | undefined) => readonly E[];
+  readonly effects?: (stacks: number, strength: number | undefined) => readonly E[];
 }
 
 /** What one start may override: the duration, and the strength it runs at. */
@@ -238,7 +241,7 @@ export function buffs<const K extends string, E, G extends object = object>(def:
       const out: { source: string; effect: E }[] = [];
       for (const b of def.list) {
         const on = running(state, b.id, now);
-        if (on)
+        if (on && b.effects)
           for (const effect of b.effects(on.stacks, on.strength))
             out.push({ source: `${def.key}:${b.id}`, effect });
       }

@@ -38,9 +38,12 @@ export interface BuffRule {
     /** With `stack`: the most stacks (default 1). */
     readonly maxStacks?: number;
 }
-/** A buff as the feature declares it: its rules and its effects at a count of stacks and a strength. */
+/**
+ * A buff as the feature declares it: its rules and its effects at a count of stacks and a strength. Without `effects`
+ * it is a timer: read with `buffActive` and `buffLeftMs`, and adding nothing to `contributions`.
+ */
 export interface BuffDef<E> extends BuffRule {
-    readonly effects: (stacks: number, strength: number | undefined) => readonly E[];
+    readonly effects?: (stacks: number, strength: number | undefined) => readonly E[];
 }
 /** What one start may override: the duration, and the strength it runs at. */
 export interface BuffStart {
