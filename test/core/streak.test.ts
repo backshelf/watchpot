@@ -137,10 +137,36 @@ describe("streak feature", () => {
     expect(store.getState().daily.claim()?.reward).toBe(200);
     store.getState().resetRun();
     expect(store.getState().daily.count).toBe(2);
-    expect(daily.status(store.getState().daily, clock.now()).canClaim).toBe(false);
+    expect(daily.select.status(store.getState(), clock.now()).canClaim).toBe(false);
 
     clock.set(at(2026, 4, 4, 10)); // one day missed: 5 gems to keep the run
     expect(store.getState().daily.claim()).toEqual({ day: 3, reward: 300, kept: true });
     expect(store.getState().bank).toEqual({ gems: 5, gold: 300 }); // the bank started over with the run
+  });
+
+  test("def holds the grace and the rewards, draft is empty", () => {
+    expect(daily.def.grace).toBe(0);
+    expect(daily.def.rewards(3)).toBe(300);
+    expect(daily.draft).toEqual({});
+  });
+
+  test("`reach` types the callbacks: a reached feature reads, an unreached one does not", () => {
+    const reached = streak({
+      key: "visits",
+      reach: () => [bank],
+      grace: 1,
+      rewards: (day) => day,
+      onClaim: (d, reward) => {
+        d.bank.gold += reward + d.visits.count;
+      },
+    });
+    streak({
+      key: "bad",
+      reach: [bank],
+      rewards: (day) => day,
+      // @ts-expect-error nothing reached a "moon"
+      keep: (d) => d.moon.phase > 0,
+    });
+    expect(reached.def.grace).toBe(1);
   });
 });

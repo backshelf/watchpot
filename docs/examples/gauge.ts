@@ -56,7 +56,7 @@ export const kettle = feature({
     tap: () =>
       api.set((d) => {
         d.kettle.cups = d.kettle.cups.add(1);
-        return pressure.nudge(d, PRESSURE.perTap, api.now());
+        return pressure.draft.nudge(d, PRESSURE.perTap, api.now());
       }),
     light: () =>
       api.set((d) => {
@@ -85,7 +85,7 @@ export const game = defineGame({
 
 /** The kernel alone, pure: a nudge from 95 by 10 trips the pressure at `now`, and the lock runs from then. */
 export const kernelTrip = (now: number) =>
-  nudgeGauge({ level: 95, lockedUntil: 0, trips: 0 }, 10, now, pressure.rules);
+  nudgeGauge({ level: 95, lockedUntil: 0, trips: 0 }, 10, now, pressure.def);
 
 if (import.meta.main) {
   let wall = Date.UTC(2026, 0, 1);

@@ -56,7 +56,7 @@ export const game = defineGame({
 // store.getState().trips.claim(entry.id) · .cancel(entry.id) · missionLeftMs(entry, store.getState().gameNow())
 ```
 
-- **`missions({ key, slots, list, pay?, onClaim?, reset? })`** saves `{ active, done, rng, serial }` under `key` and
+- **`missions({ key, reach?, slots, list, pay?, onClaim?, reset? })`** saves `{ active, done, rng, serial }` under `key` and
   adds no step: an entry is back once game time passes its `endsAt`, tab open or not. `slots(state)` is read at each
   start, so a slot the game takes away never cancels what is under way. A run reset clears the entries unless
   `reset` says otherwise.
@@ -68,7 +68,7 @@ export const game = defineGame({
 - **Actions:** `start(missionId)` returns null or why not: `unknown`, `unavailable`, `no-slot`, `cannot-pay`.
   `claim(activeId)` only once the entry is back: it frees the slot, counts `done`, and runs `onClaim(draft, reward,
   mission)` in its recipe. `cancel(activeId)` frees the slot with no reward and no refund.
-- **Reads:** `missionLeftMs(entry, now)` and `missionReady(entry, now)`; `.rules.slots`, `freeSlots` and
-  `ready(state, now)`. Entry ids are `<mission>#<n>`.
+- **Reads:** `missionLeftMs(entry, now)` and `missionReady(entry, now)`; `trips.select.slots`, `freeSlots` and
+  `ready(state, now)` over the game state; `trips.def` is `list` and `mission(id)`; `draft` is empty. Entry ids are `<mission>#<n>`.
 - **Auto-player moves:** a free claim per entry (refused until it is back) and a free start per available mission
   while a slot is free.

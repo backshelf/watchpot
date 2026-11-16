@@ -1,12 +1,12 @@
-import { currencies, type Decimal, defineGame, stages } from "watchpot/core";
+import { currencies, defineGame, stages } from "watchpot/core";
 import { TOY } from "./vocab";
 
 const wallet = currencies({ key: "wallet", vocab: TOY });
-type State = { wallet: { gold: Decimal; gems: Decimal } };
 
 /** Two roads: one that only ever gets harder, and a short one with a clock on every stage. */
-export const roads = stages<"roads", State>({
+export const roads = stages({
   key: "roads",
+  reach: [wallet],
   tracks: [
     { id: "north", resistance: { base: 10, growth: 1.6 }, boss: { every: 10, mult: 8 } },
     { id: "pass", resistance: { base: 1000, growth: 3 }, limitMs: 30_000, length: 25 },
@@ -24,5 +24,5 @@ export const game = defineGame({
   features: [wallet, roads],
   vocab: TOY,
 });
-// roads.rules.fill(state, "north") · roads.rules.secondsToClear(state, "pass") (null at a wall)
+// roads.select.fill(state, "north") · roads.select.secondsToClear(state, "pass") (null at a wall)
 // store.getState().roads.enter("north", 20) stands in front of an earlier stage again

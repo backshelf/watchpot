@@ -29,7 +29,7 @@ export const drips = spawns({
 
 /** The shader's inputs, worked out from the game state alone: no event, no animation of the page's own. */
 export const glowUniforms = (s: { warmth: GaugeState; drips: SpawnsState }) => ({
-  u_heat: gaugeFill(s.warmth, warmth.rules.max), // 0 to 1
+  u_heat: gaugeFill(s.warmth, warmth.def.max), // 0 to 1
   u_wobble: s.drips.kinds.drip?.live ? 1 : 0, // 1 while there is something to catch
 });
 

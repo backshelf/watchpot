@@ -87,7 +87,7 @@ describe("achievementBoard", () => {
     );
   });
 
-  test("contributions feed the stat bus, sourced by achievement and by row", () => {
+  test("contributions feed the stats feature, sourced by achievement and by row", () => {
     const narrow = achievementBoard({
       id: "w",
       list: LIST,
@@ -168,7 +168,7 @@ describe("achievements feature", () => {
     expect(store.getState().wall.award("given")).toBe(true);
     expect(store.getState().wall.award("given")).toBe(false);
     expect(store.getState().wall.award("nobody")).toBe(false);
-    expect(wall.board.rows(store.getState().wall.earned)[1]?.tiles[0]?.earned).toBe(true);
+    expect(wall.select.rows(store.getState())[1]?.tiles[0]?.earned).toBe(true);
   });
 
   test("fresh is capped, oldest first out", () => {
@@ -197,5 +197,28 @@ describe("achievements feature", () => {
     const { store: again } = freshStore(game, { save: saved });
     expect(again.getState().wall.earned).toEqual({ first: T0 + 1000 });
     expect(again.getState().wall.holding).toEqual({ patient: T0 + 1000 });
+  });
+
+  test("select reads the state, def holds the list and the board, draft earns inside a recipe", () => {
+    const { store } = start();
+    expect(wall.def.list).toBe(LIST);
+    expect(wall.def.columns).toBe(3);
+    expect(wall.def.board.achievement("rich")?.name).toBe("Rich");
+    expect(wall.select.count(store.getState())).toBe(0);
+    expect(wall.select.power(store.getState(), { each: 2 }).toNumber()).toBe(1);
+
+    store.setState((s) => {
+      expect(wall.draft.earn(s, "first", T0)).toBe(true);
+      expect(wall.draft.earn(s, "first", T0)).toBe(false);
+      expect(wall.draft.earn(s, "nobody", T0)).toBe(false);
+    });
+    const state = store.getState();
+    expect(wall.select.count(state)).toBe(1);
+    expect(wall.select.power(state, { each: 2 }).toNumber()).toBe(2);
+    expect(wall.select.rowsComplete(state)).toBe(0);
+    expect(wall.select.contributions(state)).toEqual([
+      { source: "wall:first", effect: { stat: "speed", add: 1 } },
+    ]);
+    expect(wall.select.rows(state)[0]?.tiles[0]?.earned).toBe(true);
   });
 });

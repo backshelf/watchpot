@@ -1,4 +1,4 @@
-import { defineGame, feature, fmtPlayed, records } from "watchpot/core";
+import { defineGame, feature, fmtPlayed, type RecordsState, records } from "watchpot/core";
 
 export const stats = records({
   key: "stats",
@@ -17,7 +17,10 @@ export const mine = feature({
   initial: () => ({ perSecond: 2 }),
   steps: {
     produce: {
-      income: { pass: "both", run: (d, ctx) => stats.add(d, "gold", (d.mine.perSecond * ctx.dtMs) / 1000) },
+      income: {
+        pass: "both",
+        run: (d, ctx) => stats.draft.add(d, "gold", (d.mine.perSecond * ctx.dtMs) / 1000),
+      },
     },
   },
 });
@@ -29,6 +32,6 @@ export const game = defineGame({
 });
 
 /** The "last runs" table: each finished run's length and gold. */
-export function lastRuns(s: { stats: Parameters<typeof stats.value>[0] }): string[] {
+export function lastRuns(s: { stats: RecordsState }): string[] {
   return s.stats.runs.map((r) => `${fmtPlayed(r.lengthMs)} · ${String(r.values.gold ?? 0)} gold`);
 }

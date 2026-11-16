@@ -62,7 +62,7 @@ const WORDS: AchievementWords = { hiddenName: "???", hiddenLine: "A secret.", ea
 /** The wall: every achievement in rows of eight, and what the earned ones give. */
 export function AchievementsScreen() {
   const earned = useGameState((st) => st.achievements.earned);
-  const rows: AchievementRow[] = wall.board.rows(earned).map((row) => ({
+  const rows: AchievementRow[] = wall.def.board.rows(earned).map((row) => ({
     complete: row.complete,
     tiles: row.tiles.map((tile) => ({
       id: tile.achievement.id,
@@ -77,12 +77,12 @@ export function AchievementsScreen() {
       hidden: tile.hidden,
     })),
   }));
-  const count = wall.board.count(earned);
+  const count = wall.def.board.count(earned);
   return (
     <div className={s.screen}>
       <Title>{TAB_NAMES.achievements}</Title>
       <p className={`small ${s.muted}`}>
-        {count} of {ACHIEVEMENTS.length} · {STAT.output} ×{fmt(wall.board.power(earned, POWER), { decimals: 2 }).text}
+        {count} of {ACHIEVEMENTS.length} · {STAT.output} ×{fmt(wall.def.board.power(earned, POWER), { decimals: 2 }).text}
       </p>
       <AchievementWall
         label={WALL_NAME}

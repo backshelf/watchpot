@@ -111,13 +111,43 @@ describe("gauge feature", () => {
 
   test("the draft helper trips inside another recipe and tells the game", () => {
     const draft = { heat: { ...COLD, level: 90 }, knob: { hot: true, tripsSeen: 0 } };
-    expect(heat.nudge(draft, 5, T0)).toBe(false);
+    expect(heat.draft.nudge(draft, 5, T0)).toBe(false);
     expect(draft.heat.level).toBe(95);
-    expect(heat.nudge(draft, 50, T0)).toBe(true);
+    expect(heat.draft.nudge(draft, 50, T0)).toBe(true);
     expect(draft.heat.level).toBe(0);
     expect(draft.knob.tripsSeen).toBe(1);
     expect(gaugeLocked(draft.heat, T0 + 29_999)).toBe(true);
-    expect(heat.nudge(draft, 500, T0 + 1000)).toBe(false);
+    expect(heat.draft.nudge(draft, 500, T0 + 1000)).toBe(false);
     expect(draft.heat.level).toBe(0);
+  });
+
+  test("select reads the state against the fixed bounds in def", () => {
+    const state = { heat: { ...COLD, level: 25, lockedUntil: T0 + 5000 } };
+    expect(heat.def).toEqual({ max: 100, trip: { lockMs: 30_000 } });
+    expect(heat.select.fill(state)).toBe(0.25);
+    expect(heat.select.locked(state, T0 + 4999)).toBe(true);
+    expect(heat.select.locked(state, T0 + 5000)).toBe(false);
+    expect(heat.select.secondsToTrip(state, 5)).toBe(15);
+    expect(heat.select.secondsToTrip(state, 0)).toBeNull();
+  });
+
+  test("`reach` types the callbacks: a reached feature reads, an unreached one does not", () => {
+    const reached = gauge({
+      key: "steam",
+      reach: () => [knob],
+      max: 10,
+      rate: (s) => (s.knob.hot ? 1 : 0) + s.steam.level,
+      onTrip: (d) => {
+        d.knob.tripsSeen += 1;
+      },
+    });
+    gauge({
+      key: "bad",
+      reach: [knob],
+      max: 10,
+      // @ts-expect-error nothing reached a "moon"
+      rate: (s) => s.moon.phase,
+    });
+    expect(reached.def.max).toBe(10);
   });
 });

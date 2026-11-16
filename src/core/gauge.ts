@@ -1,11 +1,20 @@
 import type { Draft } from "immer";
-import { type Feature, type FeatureApi, feature, type ResetRule } from "./feature";
+import {
+  type Feature,
+  type FeatureApi,
+  feature,
+  type NeedsOf,
+  type ReachOf,
+  type ReachShape,
+  type ResetRule,
+} from "./feature";
 
 /**
  * Gauges: a bounded level that a rate fills or drains over time, and that trips at the top. A trip locks the gauge
  * for a while and drops the level; what a lock means (no output, a closed shop) is the game's to read. The risk
  * meter of a push-your-luck loop: heat, pressure, suspicion, strain. `stepGauge` is the pure kernel; `gauge({ key,
- * max, rate, trip })` is a feature that steps its level every tick and over an absence. Without a `trip` a gauge is a
+ * max, rate, trip })` is a feature that steps its level every tick and over an absence, with `select`, `def` and
+ * `draft` beside it. Without a `trip` a gauge is a
  * plain bounded meter (fill, mood, stamina) that holds at `max`: a supported use, not a half-made one.
  */
 
@@ -127,34 +136,67 @@ export interface GaugeActions {
   nudge(amount: number): boolean;
 }
 
-/** A `gauge` feature, carrying its rules as `.rules` and its draft helper as `.nudge`. */
-export type GaugeFeature<K extends string> = Feature<K, GaugeState, GaugeActions> & {
-  readonly rules: GaugeRules;
+/** Any game state holding the feature's slice under its key. */
+export type GaugeGame<K extends string> = { readonly [P in K]: GaugeState };
+
+/** The read-only questions over state, for recipes, steps, callbacks and screens. */
+export interface GaugeSelect<K extends string> {
+  /** Whether the gauge is locked at `now`. */
+  locked(state: GaugeGame<K>, now: number): boolean;
+  /** The level as a share of `max`, 0 to 1. */
+  fill(state: GaugeGame<K>): number;
+  /** Seconds until the level reaches the top at `perSecond`, or null when it is not rising. */
+  secondsToTrip(state: GaugeGame<K>, perSecond: number): number | null;
+}
+
+/** The fixed bounds and trip of a gauge: what `stepGauge` works to. */
+export type GaugeDef = GaugeRules;
+
+/** The helpers that take a draft first and change it, named like the actions they mirror. */
+export interface GaugeDraftHelpers {
   /**
-   * Draft helper: the `nudge` action inside a recipe at game time `now` (a press that warms the gauge), with the same
-   * clamp, trip and `onTrip`. Returns whether it tripped.
+   * `nudge` inside a recipe at game time `now` (a press that warms the gauge), with the same clamp, trip and
+   * `onTrip`. Returns whether it tripped.
    */
   nudge(draft: object, amount: number, now: number): boolean;
-};
+}
+
+/** The three namespaces of a gauge feature. */
+export interface GaugeHelpers<K extends string> {
+  readonly select: GaugeSelect<K>;
+  readonly def: GaugeDef;
+  readonly draft: GaugeDraftHelpers;
+}
+
+/** A `gauge` feature: the feature plus `select`, `def` and `draft`. */
+export type GaugeFeature<K extends string> = Feature<K, GaugeState, GaugeActions> & GaugeHelpers<K>;
 
 /**
- * A gauge as a feature. `rate(state, { now })` is the level's change per second with the tab open, read off the whole
- * game state each tick; `awayRate(state, { now })` the same over an absence (default: the gauge drains at `max` per
+ * A gauge as a feature. `rate(state, { now })` is the level's change per second with the tab open, read off the game
+ * state each tick; `awayRate(state, { now })` the same over an absence (default: the gauge drains at `max` per
  * hour, so a player comes back to a cool one). A rate is read once per step and held across it, so one that depends on
  * the level is only as fine as the step: a live tick steps at most `MAX_STEP_MS`, and an absence is one step.
  * `onTrip(draft, now)` runs in the same recipe as a trip. Its step is
  * `<key>.rates.level`, before `produce`, so a game's income step already sees a lock. A prestige reset starts the
- * gauge over unless `reset` says otherwise.
+ * gauge over unless `reset` says otherwise. The callbacks read the feature's own slice and whatever `reach` names.
+ *
+ * `select`: `locked`, `fill`, `secondsToTrip`. `def`: `max`, `trip`. `draft`: `nudge`.
  */
-export function gauge<const K extends string, G extends object = object>(def: {
+export function gauge<
+  const K extends string,
+  const R extends ReachShape = readonly [],
+  G extends object = Record<K, GaugeState> & ReachOf<R>,
+>(def: {
   readonly key: K;
+  /** The features the callbacks read, as `feature`'s `reach`. */
+  readonly reach?: R | (() => R);
   readonly max: number;
   readonly trip?: GaugeTrip;
   readonly rate: (state: G, ctx: CallbackContext) => number;
   readonly awayRate?: (state: G, ctx: CallbackContext) => number;
   readonly onTrip?: (draft: Draft<G>, now: number) => void;
   readonly reset?: ResetRule<GaugeState>;
-}): GaugeFeature<K> {
+}): GaugeFeature<K> & { readonly needs?: NeedsOf<R> } {
   const rules: GaugeRules = { max: def.max, trip: def.trip };
   type Own = Record<K, GaugeState>;
   const slice = (draft: unknown): GaugeState => (draft as Own)[def.key];
@@ -167,7 +209,8 @@ export function gauge<const K extends string, G extends object = object>(def: {
     land(draft, step, now);
     return step.tripped;
   };
-  const made = feature({
+  const made = feature<K, GaugeState, GaugeActions, ReachShape, Record<never, never>, Own>({
+    reach: def.reach,
     key: def.key,
     initial: (): GaugeState => ({ level: 0, lockedUntil: 0, trips: 0 }),
     reset: def.reset ?? "run",
@@ -194,5 +237,14 @@ export function gauge<const K extends string, G extends object = object>(def: {
       },
     },
   });
-  return Object.assign(made, { rules, nudge });
+  const helpers: GaugeHelpers<K> = {
+    select: {
+      locked: (state, now) => gaugeLocked(state[def.key], now),
+      fill: (state) => gaugeFill(state[def.key], def.max),
+      secondsToTrip: (state, perSecond) => secondsToTrip(state[def.key], perSecond, def.max),
+    },
+    def: rules,
+    draft: { nudge },
+  };
+  return Object.assign(made, helpers) as GaugeFeature<K> & { readonly needs?: NeedsOf<R> };
 }

@@ -30,7 +30,7 @@ export const shopWindow = feature({
       age: {
         pass: "both",
         run: (d, ctx) => {
-          for (const id of d.window.shown) fame.gain(d, id, ctx.dtMs / 1000);
+          for (const id of d.window.shown) fame.draft.gain(d, id, ctx.dtMs / 1000);
         },
       },
     },
@@ -42,4 +42,4 @@ export const game = defineGame({
   save: { key: "window.save", version: 1 },
   features: [fame, shopWindow],
 });
-// fame.rules.progress(state.fame, "soup") → { level, into, need, share }: the bar under the dish
+// fame.select.progress(state, "soup") → { level, into, need, share }: the bar under the dish

@@ -1,12 +1,4 @@
-import {
-  type ChallengesState,
-  challengeRule,
-  challenges,
-  D,
-  type Decimal,
-  type StatGraph,
-  statIndex,
-} from "watchpot/core";
+import { type ChallengesState, challenges, D, type Decimal, type StatGraph, statIndex } from "watchpot/core";
 
 type Stat = "speed";
 type Group = "tools" | "helpers";
@@ -45,7 +37,7 @@ INDEX.add(
 class Reader {
   readonly graph: StatGraph<Stat, never>;
   constructor(readonly s: Kitchen) {
-    this.graph = INDEX.over(this, { muted: (group) => challengeRule(s.trials, `mute:${group}`) });
+    this.graph = INDEX.over(this, { muted: (group) => trials.select.rule(s, `mute:${group}`) });
   }
 }
 

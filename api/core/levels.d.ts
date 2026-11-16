@@ -1,14 +1,14 @@
 import type { Draft } from "immer";
 import { type Decimal, type DecimalSource } from "./decimal";
-import { type Feature, type ResetRule } from "./feature";
+import { type Feature, type NeedsOf, type ReachOf, type ReachShape, type ResetRule } from "./feature";
 /**
  * Levels: experience and levels, as curves with exact inverses. A curve says how much XP each level takes; the
  * readers go both ways, from a level to the total XP it needs and from a total back to the level it reaches, always
  * consistent with each other: `totalXpAt(levelAt(x)) ≤ x < totalXpAt(levelAt(x) + 1)`. Geometric and polynomial curves
  * invert in closed form, a table by binary search, a function by bisection.
  *
- * `levels({ key, tracks })` is a feature holding the XP of several named tracks (skills), with a draft helper and an
- * action to gain XP that report the levels gained.
+ * `levels({ key, tracks })` is a feature holding the XP of several named tracks (skills), with `select`, `def` and
+ * `draft`, and an action (and its draft helper) to gain XP that report the levels gained.
  */
 /**
  * An XP curve. Level 0 is where every track starts, at 0 XP.
@@ -66,41 +66,60 @@ export interface LevelActions {
     /** Adds XP to a track. Returns the levels gained. */
     gain(track: string, amount: DecimalSource): number;
 }
-/** The draft helper, for a recipe or a step: the same gain, inside it. */
-export interface LevelHelpers {
-    gain(draft: object, track: string, amount: DecimalSource): number;
-}
-/** A track list's rules, over the feature's own slice. */
-export interface LevelRules<T extends TrackDef, E> {
-    readonly tracks: readonly T[];
-    track(id: string): T | undefined;
+/** Any game state holding the feature's XP under its key. */
+export type LevelsGame<K extends string> = {
+    readonly [P in K]: Pick<LevelsState, "xp">;
+};
+/** The read-only questions over state, for recipes, steps, callbacks and screens. */
+export interface LevelSelect<K extends string, E> {
     /** The track's level. */
-    level(slice: Pick<LevelsState, "xp">, track: string): number;
+    level(state: LevelsGame<K>, track: string): number;
     /** Where the track stands. */
-    progress(slice: Pick<LevelsState, "xp">, track: string): LevelProgress;
-    /** Every track's effects at its level, sourced `<key>:<track>`. */
-    contributions(slice: Pick<LevelsState, "xp">): {
+    progress(state: LevelsGame<K>, track: string): LevelProgress;
+    /** Every track's effects at its level, sourced `<key>:<track>`, as the `stats` feature's `contributions` take them. */
+    contributions(state: LevelsGame<K>): {
         source: string;
         effect: E;
     }[];
 }
-/** A `levels` feature, carrying its rules as `.rules` and the draft helper `gain`. */
-export type LevelsFeature<K extends string, T extends TrackDef, E> = Feature<K, LevelsState, LevelActions> & LevelHelpers & {
-    readonly rules: LevelRules<T, E>;
-};
+/** The fixed configuration of a levels feature. */
+export interface LevelDefs<T extends TrackDef> {
+    readonly tracks: readonly T[];
+    /** One track of the list by id. */
+    track(id: string): T | undefined;
+}
+/** The helpers that take a draft first and change it, named like the actions they mirror. */
+export interface LevelDraftHelpers {
+    /** `gain` inside a recipe or a step: adds XP to a track and returns the levels gained. */
+    gain(draft: object, track: string, amount: DecimalSource): number;
+}
+/** The three namespaces of a levels feature. */
+export interface LevelHelpers<K extends string, T extends TrackDef, E> {
+    readonly select: LevelSelect<K, E>;
+    readonly def: LevelDefs<T>;
+    readonly draft: LevelDraftHelpers;
+}
+/** A `levels` feature: the feature plus `select`, `def` and `draft`. */
+export type LevelsFeature<K extends string, T extends TrackDef, E> = Feature<K, LevelsState, LevelActions> & LevelHelpers<K, T, E>;
 /**
- * Levelled tracks as a feature. It saves `{ xp }` (a total per track) under `key` (the stat bus's source prefix too);
- * levels are read off the totals, never stored. `gain(track, amount)` adds XP (the action, or the draft helper of the
- * same name inside a recipe), stops at the track's `maxLevel`, runs `onLevel(draft, track, from, to)` in the same
- * recipe when the level rises, and returns the levels gained. `effects(track, level)` feeds the stat bus through
- * `.rules.contributions`. A prestige reset clears the XP unless `reset` says otherwise.
+ * Levelled tracks as a feature. It saves `{ xp }` (a total per track) under `key` (the contributions' source prefix
+ * too); levels are read off the totals, never stored. `gain(track, amount)` adds XP (the action, or `draft.gain` inside
+ * a recipe), stops at the track's `maxLevel`, runs `onLevel(draft, track, from, to)` in the same recipe when the level
+ * rises, and returns the levels gained. `effects(track, level)` (`{ stat, add }` / `{ stat, mul }`) feeds the `stats`
+ * feature through `select.contributions`. A prestige reset clears the XP unless `reset` says otherwise.
+ *
+ * `select`: `level`, `progress`, `contributions`. `def`: `tracks`, `track(id)`. `draft`: `gain`.
  */
-export declare function levels<const K extends string, T extends TrackDef, E = never, G extends object = object>(def: {
+export declare function levels<const K extends string, T extends TrackDef, E = never, const R extends ReachShape = readonly [], G extends object = Record<K, LevelsState> & ReachOf<R>>(def: {
     readonly key: K;
+    /** The features `onLevel` reads, as `feature`'s `reach`. */
+    readonly reach?: R | (() => R);
     readonly tracks: readonly T[];
     /** The level every track stops at unless its own says otherwise (default: none). */
     readonly maxLevel?: number;
     readonly onLevel?: (draft: Draft<G>, track: string, from: number, to: number) => void;
     readonly effects?: (track: T, level: number) => readonly E[];
     readonly reset?: ResetRule<LevelsState>;
-}): LevelsFeature<K, T, E>;
+}): LevelsFeature<K, T, E> & {
+    readonly needs?: NeedsOf<R>;
+};

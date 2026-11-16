@@ -33,8 +33,8 @@ export const game = defineGame({
   features: [wallet, skills],
   vocab: TOY,
 });
-// store.getState().skills.gain("gather", 500) → levels gained · skills.gain(draft, "trade", 20) inside a recipe
-// skills.rules.progress(state.skills, "gather") → { level, into, need, share } · skills.rules.contributions(...) feeds a `stats` feature
+// store.getState().skills.gain("gather", 500) → levels gained · skills.draft.gain(draft, "trade", 20) inside a recipe
+// skills.select.progress(state, "gather") → { level, into, need, share } · skills.select.contributions(state) feeds a `stats` feature
 export const where = (xp: number) => ({ level: levelAt(steady, xp), bar: levelProgress(steady, xp).share });
 ```
 
@@ -46,11 +46,11 @@ export const where = (xp: number) => ({ level: levelAt(steady, xp), bar: levelPr
   (closed form for geometric and polynomial, checked either side; binary search over a table; doubling then
   bisection over a function, up to `LEVEL_LIMIT`) and `levelProgress(curve, xp)` → `{ level, into, need, share }`
   (at a table's top the need is Infinity and the share 1).
-- **`levels({ key, tracks, maxLevel?, onLevel?, effects?, reset? })`** saves `{ xp }`, a Decimal total per track,
+- **`levels({ key, reach?, tracks, maxLevel?, onLevel?, effects?, reset? })`** saves `{ xp }`, a Decimal total per track,
   under `key` (the contributions' source prefix too); levels are read off the totals, never stored. `TrackDef` is `{ id,
   curve, maxLevel? }`; a track at its max keeps no XP past that level's total.
-- **Gaining:** the action `gain(track, amount)` and the draft helper `skills.gain(draft, track, amount)` both return
+- **Gaining:** the action `gain(track, amount)` and the draft helper `skills.draft.gain(draft, track, amount)` both return
   the levels gained and run `onLevel(draft, track, from, to)` once in the same recipe when the level rises. A gain
   of zero or less does nothing.
-- **Rules (`.rules`):** `level(slice, track)`, `progress(slice, track)` and `contributions(slice)` through
-  `effects(track, level)`, sourced `<key>:<track>`. A run reset clears the XP unless `reset` says otherwise.
+- **`skills.select`** (state first): `level(state, track)`, `progress(state, track)` and `contributions(state)` through
+  `effects(track, level)`, sourced `<key>:<track>`. `skills.def` is `tracks` and `track(id)`. A run reset clears the XP unless `reset` says otherwise.

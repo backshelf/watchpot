@@ -71,7 +71,7 @@ describe("missions", () => {
     expect(store.getState().wallet.gold.toNumber()).toBe(40);
     expect(store.getState().trips.start("short")).toBeNull();
     expect(store.getState().trips.start("short")).toBe("no-slot");
-    expect(trips.rules.freeSlots(store.getState())).toBe(0);
+    expect(trips.select.freeSlots(store.getState())).toBe(0);
   });
 
   test("the reward is rolled at the start, stored, and survives a reload", () => {
@@ -115,7 +115,7 @@ describe("missions", () => {
     if (!long || !short) throw new Error("no entries");
     clock.advance(2 * HOUR_MS);
     store.getState().catchUp();
-    expect(trips.rules.ready(store.getState(), clock.now()).length).toBe(2);
+    expect(trips.select.ready(store.getState(), clock.now()).length).toBe(2);
     expect(store.getState().trips.cancel(short.id)).toBe(true);
     expect(store.getState().trips.cancel("nothing")).toBe(false);
     expect(store.getState().trips.claim(long.id)).toBe(true);
@@ -132,7 +132,41 @@ describe("missions", () => {
     }
     const s = world.store.getState();
     expect(s.trips.done.short ?? 0).toBeGreaterThan(5);
-    expect(s.trips.active.length).toBe(trips.rules.slots(s));
+    expect(s.trips.active.length).toBe(trips.select.slots(s));
     expect(s.wallet.gems.toNumber()).toBeGreaterThan(0);
+  });
+});
+
+describe("missions namespaces and reach", () => {
+  test("def holds the list and a lookup, draft is empty", () => {
+    expect(trips.def.list.map((m) => m.id)).toEqual(["short", "long", "late"]);
+    expect(trips.def.mission("long")?.durationMs({} as never)).toBe(HOUR_MS);
+    expect(trips.def.mission("nothing")).toBeUndefined();
+    expect(trips.draft).toEqual({});
+  });
+
+  test("`reach` types the callbacks: a reached feature reads, an unreached one does not", () => {
+    const reached = missions({
+      key: "errands",
+      reach: () => [wallet],
+      slots: (s) => (s.wallet.gems.gte(1) ? 2 : 1),
+      list: [
+        {
+          id: "a",
+          durationMs: () => 1,
+          available: (s) => s.wallet.gold.gte(1) && s.errands.serial >= 0,
+          reward: () => 1,
+        },
+      ],
+      onClaim: (d) => wallet.draft.credit(d, "gems", 1),
+    });
+    missions({
+      key: "bad",
+      reach: [wallet],
+      // @ts-expect-error nothing reached a "moon"
+      slots: (s) => s.moon.phase,
+      list: [],
+    });
+    expect(reached.def.list.length).toBe(1);
   });
 });

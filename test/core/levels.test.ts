@@ -97,7 +97,7 @@ describe("levels", () => {
     expect(store.getState().skills.gain("mining", 5)).toBe(0);
     expect(store.getState().skills.gain("mining", 65)).toBe(3); // 70: 10 + 20 + 40
     expect(store.getState().log.ups).toEqual(["mining:0->3"]);
-    expect(skills.rules.level(store.getState().skills, "mining")).toBe(3);
+    expect(skills.select.level(store.getState(), "mining")).toBe(3);
     expect(store.getState().skills.gain("mining", -50)).toBe(0);
     expect(store.getState().skills.gain("nothing", 50)).toBe(0);
   });
@@ -106,21 +106,21 @@ describe("levels", () => {
     const { store } = freshStore(game);
     expect(store.getState().skills.gain("fishing", 1e6)).toBe(3);
     expect(store.getState().skills.xp.fishing?.toNumber()).toBe(45);
-    expect(skills.rules.progress(store.getState().skills, "fishing")).toMatchObject({ level: 3, share: 1 });
+    expect(skills.select.progress(store.getState(), "fishing")).toMatchObject({ level: 3, share: 1 });
     expect(store.getState().skills.gain("fishing", 10)).toBe(0);
   });
 
-  test("the draft helper gains inside a recipe; levels feed the bus", () => {
+  test("the draft helper gains inside a recipe; levels feed the stats feature", () => {
     const { store } = freshStore(game);
     let gained = 0;
     store.setState((d) => {
-      gained = skills.gain(d, "mining", 30) + skills.gain(d, "fishing", 20);
+      gained = skills.draft.gain(d, "mining", 30) + skills.draft.gain(d, "fishing", 20);
     });
     expect(gained).toBe(4);
-    const fed = skills.rules.contributions(store.getState().skills);
+    const fed = skills.select.contributions(store.getState());
     expect(totals(fed, "speed").add).toBe(2);
     expect(totals(fed, "luck").add).toBe(2);
-    expect(skills.rules.contributions(store.getState().skills)[0]?.source).toBe("skills:mining");
+    expect(skills.select.contributions(store.getState())[0]?.source).toBe("skills:mining");
   });
 
   test("a save keeps the XP; a run reset clears it", () => {
@@ -131,5 +131,30 @@ describe("levels", () => {
     expect(store.getState().skills.xp.mining?.toNumber()).toBe(0);
     store.getState().importProfile(saved);
     expect(store.getState().skills.xp.mining?.toNumber()).toBe(1234.5);
+  });
+
+  test("def holds the tracks and a lookup", () => {
+    expect(skills.def.tracks.map((t) => t.id)).toEqual(["mining", "fishing"]);
+    expect(skills.def.track("fishing")?.maxLevel).toBe(3);
+    expect(skills.def.track("nothing")).toBeUndefined();
+  });
+
+  test("`reach` types onLevel: a reached feature reads, an unreached one does not", () => {
+    const reached = levels({
+      key: "craft",
+      reach: () => [log],
+      tracks: [{ id: "smith", curve: { kind: "polynomial", base: 1, power: 1 } }],
+      onLevel: (d, track) => {
+        d.log.ups.push(`${track}:${d.craft.xp.smith?.toString()}`);
+      },
+    });
+    levels({
+      key: "bad",
+      reach: [log],
+      tracks: [],
+      // @ts-expect-error nothing reached a "moon"
+      onLevel: (d) => d.moon.phase,
+    });
+    expect(reached.def.tracks.length).toBe(1);
   });
 });

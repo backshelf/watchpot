@@ -551,8 +551,9 @@ export const boiler = gauge({
   where the rate applies. A rate is read once per step and held across it: a live tick steps at most `MAX_STEP_MS`,
   and an absence is one step. `onTrip(draft, now)` runs in the same recipe as the trip. One action, `nudge(amount)`,
   moves the level at once (a click that costs heat) and returns whether it tripped; inside another recipe (a press
-  that also warms the gauge) the draft helper `boiler.nudge(draft, amount, now)` does the same, trip and `onTrip`
-  included. A prestige reset starts it over unless `reset` says otherwise.
+  that also warms the gauge) the draft helper `boiler.draft.nudge(draft, amount, now)` does the same, trip and `onTrip`
+  included. `boiler.select` reads the game state (`locked`, `fill`, `secondsToTrip`) and `boiler.def` is `{ max, trip }`.
+  A prestige reset starts it over unless `reset` says otherwise.
 
 The shelf page, with a worked example and the numbers to tune by: [docs/gauge.md](docs/gauge.md).
 

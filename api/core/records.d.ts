@@ -59,20 +59,40 @@ export interface RecordsActions<T extends Record<string, RecordTrack>> {
     life<N extends Name<T>>(name: N): TrackedValue<T[N]> | undefined;
     best<N extends Name<T>>(name: N): TrackedValue<T[N]> | undefined;
 }
-/** A `records` feature, carrying its tracks as `.track` and its draft helpers. */
-export type RecordsFeature<K extends string, T extends Record<string, RecordTrack>> = Feature<K, RecordsState, RecordsActions<T>> & {
-    readonly track: T;
-    /** Draft helper: `add` inside a recipe or step. */
-    add<N extends Name<T>>(draft: object, name: N, n: DecimalSource): void;
-    /** Draft helper: `note` inside a recipe or step. */
-    note<N extends Name<T>>(draft: object, name: N, value: DecimalSource): void;
-    /** A record's value at a scope, read off the feature's state (a selector's read). */
-    value<N extends Name<T>>(state: RecordsState, scope: RecordScope | "best", name: N): TrackedValue<T[N]> | undefined;
+/** Any game state holding the feature's slice under its key. */
+export type RecordsGame<K extends string> = {
+    readonly [P in K]: RecordsState;
 };
+/** The read-only questions over state, for recipes, steps, callbacks and screens. */
+export interface RecordsSelect<K extends string, T extends Record<string, RecordTrack>> {
+    /** A record's value at a scope (`run`, `life` or the `best` of any finished run), or undefined before it has one. */
+    value<N extends Name<T>>(state: RecordsGame<K>, scope: RecordScope | "best", name: N): TrackedValue<T[N]> | undefined;
+}
+/** The fixed configuration of a records feature. */
+export interface RecordsDefs<T extends Record<string, RecordTrack>> {
+    /** Each record's name and how it folds and where it is kept. */
+    readonly track: T;
+}
+/** The helpers that take a draft first and change it, named like the actions they mirror. */
+export interface RecordsDraftHelpers<T extends Record<string, RecordTrack>> {
+    /** `add` inside a recipe or step. */
+    add<N extends Name<T>>(draft: object, name: N, n: DecimalSource): void;
+    /** `note` inside a recipe or step. */
+    note<N extends Name<T>>(draft: object, name: N, value: DecimalSource): void;
+}
+/** The three namespaces of a records feature. */
+export interface RecordsHelpers<K extends string, T extends Record<string, RecordTrack>> {
+    readonly select: RecordsSelect<K, T>;
+    readonly def: RecordsDefs<T>;
+    readonly draft: RecordsDraftHelpers<T>;
+}
+/** A `records` feature: the feature plus `select`, `def` and `draft`. */
+export type RecordsFeature<K extends string, T extends Record<string, RecordTrack>> = Feature<K, RecordsState, RecordsActions<T>> & RecordsHelpers<K, T>;
 /**
  * Statistics as a feature. `track` maps each record's name to `{ kind, scope, decimal?, best? }`; it saves
- * `RecordsState` under `key`. The draft helpers `.add(draft, name, n)` and `.note(draft, name, value)` fold a value in
- * from a recipe or a step, the actions of the same names from outside. A run reset (the feature's own `reset`) pushes
+ * `RecordsState` under `key`. The draft helpers `draft.add(draft, name, n)` and `draft.note(draft, name, value)` fold a
+ * value in from a recipe or a step, the actions of the same names from outside; `select.value(state, scope, name)`
+ * reads one and `def.track` holds the tracks. A run reset (the feature's own `reset`) pushes
  * the run scope onto `runs` (`keepRuns`, default 10) with the run's length, folds it into `best` and `bestRunMs`, and
  * clears it; the life scope stays. No steps: the game notes what it counts where it happens.
  */
