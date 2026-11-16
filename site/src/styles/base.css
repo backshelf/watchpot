@@ -21,12 +21,14 @@
   --live-deep: oklch(0.47 0.115 238);
   --on-live: oklch(0.25 0.1 266);
   --hatch: oklch(0.29 0.105 266 / 0.16);
-  --focus: oklch(0.47 0.115 238);
+  --focus: var(--ink);
+  /* The faintest ink still read as text (step numbers, line numbers): --ink-faint alone is a line weight. */
+  --text-faint: color-mix(in oklch, var(--ink-soft) 45%, var(--ink-faint));
 
   /* Code: one ink at four strengths and the mid-tone, so a listing reads as part of the drawing. */
   --hl-foreground: var(--ink);
   --hl-background: transparent;
-  --hl-token-constant: var(--live-deep);
+  --hl-token-constant: oklch(0.4 0.13 250);
   --hl-token-string: oklch(0.42 0.1 235);
   --hl-token-comment: color-mix(in oklch, var(--ink-soft) 45%, var(--ink-faint));
   --hl-token-keyword: oklch(0.36 0.16 275);
@@ -34,7 +36,7 @@
   --hl-token-function: oklch(0.33 0.13 252);
   --hl-token-string-expression: oklch(0.42 0.1 235);
   --hl-token-punctuation: var(--ink-soft);
-  --hl-token-link: var(--live-deep);
+  --hl-token-link: oklch(0.4 0.13 250);
 
   --font-sans: "Archivo", "Helvetica Neue", Arial, sans-serif;
   --font-mono: "Chivo Mono", ui-monospace, "Cascadia Mono", Consolas, monospace;
@@ -67,10 +69,12 @@
   --live-deep: oklch(0.86 0.12 200);
   --on-live: oklch(0.2 0.075 264);
   --hatch: oklch(0.93 0.028 235 / 0.16);
-  --focus: oklch(0.86 0.12 200);
+  --focus: var(--ink);
 
-  --hl-token-string: oklch(0.84 0.09 205);
-  --hl-token-string-expression: oklch(0.84 0.09 205);
+  --hl-token-constant: oklch(0.88 0.06 252);
+  --hl-token-link: oklch(0.88 0.06 252);
+  --hl-token-string: oklch(0.85 0.05 232);
+  --hl-token-string-expression: oklch(0.85 0.05 232);
   --hl-token-keyword: oklch(0.86 0.07 275);
   --hl-token-function: oklch(0.9 0.06 230);
 }
@@ -107,8 +111,8 @@ body {
 }
 
 ::selection {
-  background: var(--live);
-  color: var(--on-live);
+  background: var(--ink);
+  color: var(--paper);
 }
 
 h1,

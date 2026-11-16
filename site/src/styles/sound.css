@@ -368,7 +368,7 @@ legend.knob__name {
 .sound__said {
   color: var(--ink);
   text-decoration: underline;
-  text-decoration-color: var(--live-deep);
+  text-decoration-color: var(--ink);
   text-decoration-thickness: 2px;
   text-underline-offset: 0.25em;
 }

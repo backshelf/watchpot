@@ -1,4 +1,4 @@
-// The site's dev server: build, serve `site/dist`, rebuild when a source changes (refresh the page to see it).
+// The site's dev server: build into `site/dist-dev`, serve it, rebuild when a source changes (refresh the page to see it).
 // It serves the same files at `/` and at `/watchpot/`, the path GitHub Pages uses, so a root-relative URL that
 // would break there breaks here too.
 import { watch } from "node:fs";
@@ -9,7 +9,8 @@ const here = import.meta.dir;
 const repoRoot = join(here, "..");
 // `--out=<dir>` builds somewhere else (two dev servers at once need a folder each).
 const outArg = process.argv.find((a) => a.startsWith("--out="))?.slice(6);
-const out = outArg ? resolve(outArg) : join(here, "dist");
+// The dev build has a folder of its own: `site/dist` is only ever the release build.
+const out = outArg ? resolve(outArg) : join(here, "dist-dev");
 
 let building = false;
 let again = false;

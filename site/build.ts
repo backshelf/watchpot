@@ -56,6 +56,14 @@ export interface BuildResult {
   warnings: string[];
 }
 
+/** The guide's first page (as its built address under docs/) once `docs/guide/` has an index; else nothing. */
+async function guideEntry(): Promise<string> {
+  for (const name of ["README.md", "index.md"]) {
+    if (await Bun.file(join(repoRoot, "docs/guide", name)).exists()) return "guide/index.html";
+  }
+  return "";
+}
+
 export async function build({ dev = false, out = join(here, "dist") } = {}): Promise<BuildResult> {
   const started = performance.now();
   await rm(out, { recursive: true, force: true });
@@ -73,7 +81,10 @@ export async function build({ dev = false, out = join(here, "dist") } = {}): Pro
       chunk: "assets/[name]-[hash].[ext]",
       asset: "assets/[name]-[hash].[ext]",
     },
-    define: { "process.env.NODE_ENV": JSON.stringify(dev ? "development" : "production") },
+    define: {
+      "process.env.NODE_ENV": JSON.stringify(dev ? "development" : "production"),
+      "process.env.SITE_GUIDE": JSON.stringify(await guideEntry()),
+    },
   });
   if (!bundle.success) {
     for (const log of bundle.logs) console.error(log);

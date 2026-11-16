@@ -50,7 +50,7 @@
 .mast__sheets a[aria-current="true"] {
   color: var(--ink);
   text-decoration: underline;
-  text-decoration-color: var(--live-deep);
+  text-decoration-color: var(--ink);
   text-decoration-thickness: 2px;
   text-underline-offset: 0.45em;
 }
@@ -160,9 +160,9 @@
 }
 
 .button--primary:hover:not(:disabled, [aria-disabled="true"]) {
-  background: var(--live);
+  background: var(--paper);
   border-color: var(--ink);
-  color: var(--on-live);
+  color: var(--ink);
 }
 
 .button:disabled,

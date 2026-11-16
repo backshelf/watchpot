@@ -74,6 +74,9 @@
 }
 
 .slab__label {
+  /* A chunk's name is an identifier: it never breaks inside itself. */
+  overflow-wrap: normal;
+  word-break: keep-all;
   display: grid;
   grid-template-columns: auto minmax(0, 1fr);
   gap: 0.1rem 0.45rem;
@@ -238,13 +241,13 @@
 
 .slab__slider::-webkit-slider-runnable-track {
   height: 0.5rem;
-  background: linear-gradient(to right, var(--live) calc(var(--value, 0) * 100%), var(--paper) 0);
+  background: linear-gradient(to right, var(--ink) calc(var(--value, 0) * 100%), var(--paper) 0);
   border: var(--hair) solid var(--ink);
 }
 
 .slab__slider::-moz-range-track {
   height: 0.5rem;
-  background: linear-gradient(to right, var(--live) calc(var(--value, 0) * 100%), var(--paper) 0);
+  background: linear-gradient(to right, var(--ink) calc(var(--value, 0) * 100%), var(--paper) 0);
   border: var(--hair) solid var(--ink);
 }
 
@@ -352,13 +355,13 @@
   margin: 0;
   padding: 0.6rem 0.45rem 0.6rem 0.6rem;
   list-style: none;
-  color: var(--ink-faint);
+  color: var(--text-faint);
   text-align: right;
 }
 
 .slab__gutter li[data-error] {
-  background: var(--live);
-  color: var(--on-live);
+  background: var(--ink);
+  color: var(--paper);
   font-weight: 700;
 }
 

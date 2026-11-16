@@ -51,7 +51,7 @@
   align-items: center;
   min-height: 1.75rem;
   font-size: 0.9375rem;
-  text-decoration-color: var(--live-deep);
+  text-decoration-color: var(--ink);
   text-decoration-thickness: 2px;
 }
 
@@ -68,13 +68,25 @@
   }
 }
 
+/* A phone sets each part as one run: its name, then what it is. */
 @media (max-width: 30rem) {
   .parts tr {
-    grid-template-columns: minmax(0, 1fr);
-    gap: 0.1rem;
+    display: block;
+    padding: 0.7rem 0;
+  }
+
+  .parts th,
+  .parts td {
+    display: inline;
+    padding: 0;
   }
 
   .parts th a {
-    min-height: 2.75rem;
+    display: inline;
+    margin-right: 0.6rem;
+  }
+
+  .parts td {
+    line-height: 1.6;
   }
 }

@@ -194,7 +194,7 @@
 }
 
 .pot__steps > [data-lit] {
-  background: var(--live);
+  background: var(--ink);
 }
 
 .pot__stepsays {
@@ -424,7 +424,7 @@
 }
 
 .uiread__none {
-  color: var(--ink-faint);
+  color: var(--text-faint);
 }
 
 .uiread__attrs .is-live .uiread__none {

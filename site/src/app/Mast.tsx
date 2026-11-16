@@ -50,7 +50,7 @@ export function Mast() {
           className="scheme"
           type="button"
           onClick={toggleScheme}
-          aria-label={`Switch to the ${schemeName(other).toLowerCase()} (${other})`}
+          aria-label={`${schemeName(scheme)}: switch to the ${schemeName(other).toLowerCase()} (${other})`}
         >
           <span data-scheme-label>{schemeName(scheme)}</span>
         </button>

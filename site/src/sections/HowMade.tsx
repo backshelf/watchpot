@@ -5,7 +5,23 @@ export function HowMade() {
   return (
     <section className="how" aria-labelledby="how-made-title">
       <div className="how__inner" id="how-made">
-        <h2 id="how-made-title">How this was made.</h2>
+        <div className="how__head">
+          <h2 id="how-made-title">How this was made.</h2>
+          <dl className="titleblock">
+            <div>
+              <dt className="lettering">Drawn</dt>
+              <dd>an AI model (Claude)</dd>
+            </div>
+            <div>
+              <dt className="lettering">Directed, checked</dt>
+              <dd>a person</dd>
+            </div>
+            <div>
+              <dt className="lettering">Rev</dt>
+              <dd className="num">{version}</dd>
+            </div>
+          </dl>
+        </div>
         <div className="how__say">
           <p>
             Most of the code here was written by an AI model (Anthropic's Claude), working with a person who

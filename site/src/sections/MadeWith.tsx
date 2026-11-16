@@ -1,6 +1,7 @@
 // The one sheet where colour enters the page: a game made on the engine, wearing its own look. The captures are of
 // its opening minutes only (its owner is playing it blind): see site/assets/game/README.md for how they were taken.
 
+import { useRef, useState } from "react";
 import firstPage2x from "../../assets/game/first-page@2x.webp";
 import firstPage from "../../assets/game/first-page.webp";
 import opening from "../../assets/game/opening.mp4";
@@ -17,6 +18,8 @@ const at = (file: string) => new URL(file, import.meta.url).href;
 
 export function MadeWith() {
   const name = SITE.game.name;
+  const clip = useRef<HTMLVideoElement>(null);
+  const [playing, setPlaying] = useState(false);
   return (
     <section className="sheet section" id="made-with" aria-labelledby="made-with-title">
       <header className="section__head">
@@ -30,9 +33,35 @@ export function MadeWith() {
 
       <div className="made">
         <figure className="made__clip">
-          <video controls muted loop playsInline preload="none" poster={at(poster)} width={1440} height={900}>
-            <source src={at(opening)} type="video/mp4" />
-          </video>
+          <div className="made__frame">
+            <video
+              ref={clip}
+              muted
+              loop
+              playsInline
+              preload="none"
+              poster={at(poster)}
+              width={1440}
+              height={900}
+              onPlay={() => setPlaying(true)}
+              onPause={() => setPlaying(false)}
+            >
+              <source src={at(opening)} type="video/mp4" />
+            </video>
+            <button
+              type="button"
+              className="button made__play"
+              aria-pressed={playing}
+              onClick={() => {
+                const video = clip.current;
+                if (!video) return;
+                if (video.paused) void video.play();
+                else video.pause();
+              }}
+            >
+              {playing ? "Pause the opening" : "Play the opening"}
+            </button>
+          </div>
           <figcaption>
             The first press, and the page printing in behind it. Thirteen seconds, no sound.
           </figcaption>

@@ -194,7 +194,7 @@
 .live__steps li::before {
   content: counter(step, decimal-leading-zero);
   margin-right: 0.6rem;
-  color: var(--ink-faint);
+  color: var(--text-faint);
 }
 
 .live__save pre {
@@ -256,4 +256,19 @@
   .live__steps {
     columns: 1;
   }
+}
+
+/* Short of the price: the button is ruled through, but the price itself stays readable. */
+.source__buy[aria-disabled="true"] .num:last-child {
+  color: var(--ink-soft);
+}
+
+.live__how {
+  margin: 0.75rem 0 0;
+  color: var(--ink-soft);
+  font-size: var(--step--1);
+}
+
+.live__save .caption {
+  margin-top: 0.6rem;
 }

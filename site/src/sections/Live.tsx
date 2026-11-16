@@ -134,6 +134,10 @@ export function Live() {
               </Pressable>
             </div>
 
+            <p className="live__how">
+              A press of the lid pays a tenth of a second of the pot's own output, and never less than 1.
+            </p>
+
             <div className="live__listhead">
               <h4 className="lettering">Heat</h4>
               <BuyAmount
@@ -281,6 +285,10 @@ export function Live() {
               <pre tabIndex={0}>
                 <code>{save}</code>
               </pre>
+              <p className="caption">
+                The store's own export, as it would be written: a Decimal is kept as its digits, float noise
+                and all.
+              </p>
               <div className="live__saveactions">
                 <button
                   type="button"

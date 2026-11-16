@@ -12,7 +12,9 @@ export function Readout({ watch }: { watch: Watch }) {
       <div className="plate__head">
         <h3>What the engine wrote</h3>
         <span className="num uiread__count">
-          {snap.classed === 0 ? "no class names on the panel" : `${snap.classed} elements with a class`}
+          {snap.classed === 0
+            ? "no class names on the panel"
+            : `${snap.classed} class names, every one this page's`}
         </span>
       </div>
       <div className="plate__body uiread__body">

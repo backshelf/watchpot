@@ -15,6 +15,9 @@ import { ASSEMBLY, anchorOf, facesOf, fit, type Geometry, PARTS, partAt } from "
 
 const TOKENS = ["--paper", "--ink", "--live"] as const;
 
+/** The guide's first page under docs/, once the docs have one (the build looks); until then the first recipe leads. */
+const GUIDE = process.env.SITE_GUIDE ?? "";
+
 /** How wide a label column must be to carry a part's line under its name. */
 const ROOMY = 128;
 
@@ -140,7 +143,7 @@ export function Hero() {
 
   return (
     <section className="hero sheet" aria-labelledby="hero-title">
-      <div className="hero__words">
+      <div className="hero__pitch">
         <h1 id="hero-title">The mechanism of an idle game, and none of its look.</h1>
         <p className="hero__lede">
           watchpot is a framework-light engine for idle and incremental games, for Bun, TypeScript and React
@@ -148,49 +151,13 @@ export function Hero() {
           stylesheet, no font and no colour: that part is the game's.
         </p>
         <p className="hero__actions">
-          <a className="button button--primary" href="./docs/index.html">
-            Read the guide
+          <a className="button button--primary" href={GUIDE ? `./docs/${GUIDE}` : "./docs/start-a-game.html"}>
+            {GUIDE ? "Read the guide" : "Read the first recipe"}
           </a>
           <a className="button" href="#live">
             Watch it run
           </a>
         </p>
-
-        <div className="hero__foot">
-          <div className="notes">
-            <h2 className="lettering">Notes</h2>
-            <ol>
-              <li>Every figure on this page is the engine running, not a recording of it.</li>
-              <li>
-                The engine never reads the wall clock: the caller passes <code>now</code>.
-              </li>
-              <li>Numbers are Decimals throughout, past 1e308.</li>
-            </ol>
-          </div>
-          <dl className="titleblock">
-            <div className="titleblock__wide">
-              <dt className="lettering">Title</dt>
-              <dd>watchpot, an idle-game engine</dd>
-            </div>
-            <div>
-              <dt className="lettering">Drawn</dt>
-              <dd>an AI model (Claude)</dd>
-            </div>
-            <div>
-              <dt className="lettering">Directed, checked</dt>
-              <dd>a person</dd>
-            </div>
-            <div>
-              <dt className="lettering">Rev</dt>
-              <dd className="num">{version}</dd>
-            </div>
-            <div className="titleblock__wide">
-              <dd>
-                Most of the code was written by an AI model. <a href="#how-made">How this was made</a>
-              </dd>
-            </div>
-          </dl>
-        </div>
       </div>
 
       <div
@@ -276,6 +243,42 @@ export function Hero() {
             </ul>
           </>
         ) : null}
+      </div>
+
+      <div className="hero__foot">
+        <div className="notes">
+          <h2 className="lettering">Notes</h2>
+          <ol>
+            <li>Every working figure on this page is the engine running, not a recording of it.</li>
+            <li>
+              The engine never reads the wall clock: the caller passes <code>now</code>.
+            </li>
+            <li>Numbers are Decimals throughout, past 1e308.</li>
+          </ol>
+        </div>
+        <dl className="titleblock">
+          <div className="titleblock__wide">
+            <dt className="lettering">Title</dt>
+            <dd>watchpot, an idle-game engine</dd>
+          </div>
+          <div>
+            <dt className="lettering">Drawn</dt>
+            <dd>an AI model (Claude)</dd>
+          </div>
+          <div>
+            <dt className="lettering">Directed, checked</dt>
+            <dd>a person</dd>
+          </div>
+          <div>
+            <dt className="lettering">Rev</dt>
+            <dd className="num">{version}</dd>
+          </div>
+          <div className="titleblock__wide">
+            <dd>
+              Most of the code was written by an AI model. <a href="#how-made">How this was made</a>
+            </dd>
+          </div>
+        </dl>
       </div>
     </section>
   );

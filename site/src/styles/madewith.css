@@ -114,3 +114,46 @@
     grid-template-columns: minmax(0, 1fr);
   }
 }
+
+/* The clip's one control is drawn like every other control on the page. */
+.made__clip {
+  position: relative;
+}
+
+.made__frame {
+  position: relative;
+}
+
+.made__play {
+  position: absolute;
+  left: 0.75rem;
+  bottom: 0.75rem;
+  background: var(--ink);
+  border-color: var(--paper);
+  color: var(--paper);
+}
+
+.made__play:hover:not(:disabled, [aria-disabled="true"]) {
+  background: var(--paper);
+  border-color: var(--ink);
+  color: var(--ink);
+}
+
+/* The sheet is signed where a drawing is: a title block under its heading. */
+.how__head {
+  display: grid;
+  gap: 2rem;
+  align-content: space-between;
+}
+
+.how .titleblock {
+  border-color: var(--paper);
+}
+
+.how .titleblock > div {
+  border-color: oklch(from var(--paper) l c h / 0.4);
+}
+
+.how .titleblock dt {
+  color: oklch(from var(--paper) l c h / 0.8);
+}

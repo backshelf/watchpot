@@ -41,7 +41,10 @@ function paintSchemeSwitch() {
   const scheme = currentScheme();
   const other: Scheme = scheme === "dark" ? "light" : "dark";
   for (const button of $$("[data-scheme-toggle]")) {
-    button.setAttribute("aria-label", `Switch to the ${schemeName(other).toLowerCase()} (${other})`);
+    button.setAttribute(
+      "aria-label",
+      `${schemeName(scheme)}: switch to the ${schemeName(other).toLowerCase()} (${other})`,
+    );
     const label = $("[data-scheme-label]", button);
     if (label) label.textContent = schemeName(scheme);
   }

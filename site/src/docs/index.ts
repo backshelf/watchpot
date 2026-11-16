@@ -119,7 +119,7 @@ function renderToc(page: ParsedPage): string {
 }
 
 function crumbs(group: string | null): string {
-  return `<p class="doc__crumbs">Docs${group ? ` / ${escapeHtml(group)}` : ""}</p>`;
+  return group ? `<p class="doc__crumbs">In the docs, under ${escapeHtml(group)}.</p>` : "";
 }
 
 export async function buildDocs(options: DocsOptions): Promise<DocsResult> {
@@ -271,7 +271,7 @@ export async function buildDocs(options: DocsOptions): Promise<DocsResult> {
         return resolved;
       },
     });
-    const content = `<article class="doc"><header class="doc__head">${crumbs(group)}<h1>${escapeHtml(page.title)}</h1></header><div class="doc__body">${body}</div></article>`;
+    const content = `<article class="doc"><header class="doc__head"><h1>${escapeHtml(page.title)}</h1>${crumbs(group)}</header><div class="doc__body">${body}</div></article>`;
     const description = firstSentences(page.parsed.prose, 160);
     writes.push(
       Bun.write(
@@ -311,7 +311,7 @@ export async function buildDocs(options: DocsOptions): Promise<DocsResult> {
     const folder = posix.dirname(shown);
     const group = folder === "." ? null : deslug(folder.split("/")[0] ?? folder);
     const lang = grammarFor(ext) ? ext : "text";
-    const content = `<article class="doc doc--source"><header class="doc__head">${crumbs(group)}<h1><code>${escapeHtml(shown)}</code></h1></header>${usedByHtml}${codeFigure(highlight(code, ext), lang)}</article>`;
+    const content = `<article class="doc doc--source"><header class="doc__head"><h1><code>${escapeHtml(shown)}</code></h1>${crumbs(group)}</header>${usedByHtml}${codeFigure(highlight(code, ext), lang)}</article>`;
     const description = users.length
       ? `The source of ${shown}, the example for ${users.map((u) => u.title).join(", ")}.`
       : `The source of ${shown}.`;
