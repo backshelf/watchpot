@@ -18,7 +18,7 @@ import {
   useSnapshot,
 } from "../kit";
 import { Bundled, BundledHost } from "../kit/bundled";
-import { Breakdown, Listing } from "../kit/more";
+import { Breakdown, Listing, Shortcut } from "../kit/more";
 
 type S = StateOf<typeof FirstPage.game.features>;
 type Example = typeof FirstPage;
@@ -61,7 +61,13 @@ function Shelf() {
               args={[item.id]}
               ready={(s) => shelf(s).find((i) => i.id === item.id)?.canBuy ?? false}
             >
-              {item.price === null ? "Bought" : <span className="num">{item.price}</span>}
+              {item.price === null ? (
+                "Bought"
+              ) : (
+                <>
+                  Buy: <span className="num">{item.price}</span>
+                </>
+              )}
             </Act>
             <span style={{ gridColumn: "1 / -1", fontSize: "0.875rem", color: "var(--ink-soft)" }}>
               {node?.line}
@@ -103,10 +109,14 @@ function TheKitchen() {
         </Readouts>
         <Actions>
           <Act call="spoon.click">Stir the pot</Act>
-          <Act call="wallet.credit" args={["bubbles", 1000]}>
-            Add 1,000 bubbles
-          </Act>
         </Actions>
+        <Shortcut
+          call="wallet.credit"
+          args={["bubbles", 1000]}
+          note="The wallet's credit: no waiting on this page."
+        >
+          Add 1,000 bubbles
+        </Shortcut>
         <Shelf />
         <TheStir />
         <StartOver />

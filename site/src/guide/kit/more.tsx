@@ -50,6 +50,32 @@ export function CodeName({ children }: { children: string }) {
   );
 }
 
+/**
+ * A small press that calls one of the game's actions as a convenience of the page, not a move in the game ("Add
+ * 1,000 bubbles"): set small and apart from the game's own buttons, with a line saying what it does.
+ */
+export function Shortcut({
+  call,
+  args = [],
+  children,
+  note,
+}: {
+  call: string;
+  args?: unknown[];
+  children: ReactNode;
+  note: ReactNode;
+}) {
+  const { host } = useGuide();
+  return (
+    <div className="panel__row">
+      <button type="button" className="button button--small" onClick={() => host.call(call, ...args)}>
+        {children}
+      </button>
+      <span style={{ fontSize: "0.8125rem", color: "var(--ink-soft)" }}>{note}</span>
+    </div>
+  );
+}
+
 // ---------------------------------------------------------------------------------------------------------------
 // A listing whose tokens may span several coloured runs
 
@@ -162,7 +188,7 @@ export function PriceCurve({
   return (
     <figure style={{ margin: 0, display: "grid", gap: "0.45rem" }}>
       <figcaption style={label}>
-        The price of each {what[0]}, the 1st to the {ordinal(n)}
+        Each {what[0]}'s price, 1st to {ordinal(n)}
       </figcaption>
       <div
         role="img"
@@ -292,15 +318,24 @@ export function Breakdown({
           <td style={figure}>{base}</td>
         </tr>
         {rows.map((row, i) => (
-          <tr
-            key={i}
-            style={
-              row.off
-                ? { color: "var(--text-faint)", backgroundImage: HATCH, backgroundSize: "auto" }
-                : undefined
-            }
-          >
-            <th scope="row" style={{ ...cell, textAlign: "left", fontWeight: 400 }}>
+          <tr key={i} style={row.off ? { color: "var(--text-faint)" } : undefined}>
+            <th
+              scope="row"
+              style={{
+                ...cell,
+                textAlign: "left",
+                fontWeight: 400,
+                // Not counting: a ruled strip at the row's head, the words left clear to read.
+                ...(row.off
+                  ? {
+                      paddingLeft: "0.9rem",
+                      backgroundImage: HATCH,
+                      backgroundSize: "0.45rem 100%",
+                      backgroundRepeat: "no-repeat",
+                    }
+                  : {}),
+              }}
+            >
               {row.label}
             </th>
             <td style={{ ...cell, fontSize: "0.8125rem", color: row.off ? undefined : "var(--ink-soft)" }}>
@@ -540,8 +575,9 @@ function writeSkew(key: string, value: number) {
 /** The styles for an example's own markup inside the panel: the page's look over plain elements. */
 const OWN_CSS = `
 .own-game main { display: grid; gap: 1rem; }
-.own-game h2 { margin: 0; font-family: var(--font-mono); font-size: clamp(2rem, 1.5rem + 1.6vw, 2.75rem);
-  font-weight: 450; letter-spacing: -0.03em; line-height: 1.05; overflow-wrap: anywhere; }
+.own-game h2 { margin: 0; font-size: clamp(2rem, 1.5rem + 1.6vw, 2.75rem); font-stretch: 112%;
+  font-weight: 620; font-variant-numeric: tabular-nums; letter-spacing: -0.03em; line-height: 1.05;
+  overflow-wrap: anywhere; }
 .own-game header p { margin: 0.2rem 0 0; color: var(--ink-soft); font-family: var(--font-mono); }
 .own-game p { margin: 0; }
 .own-game section { display: flex; flex-wrap: wrap; align-items: center; gap: 0.5rem 0.75rem;
@@ -549,7 +585,7 @@ const OWN_CSS = `
 .own-game section > p { flex: 1 1 100%; }
 .own-game ul { flex: 1 1 100%; display: grid; gap: 0.5rem; margin: 0; padding: 0; list-style: none; }
 .own-game li { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 0.4rem 0.75rem; }
-.own-game li > span { font-family: var(--font-mono); font-size: 0.9375rem; }
+.own-game li > span { font-variant-numeric: tabular-nums; }
 .own-game button { display: inline-flex; align-items: center; justify-content: center; min-height: 2.5rem;
   padding: 0 0.9rem; background: transparent; border: var(--hair) solid var(--ink); border-radius: 2px;
   color: var(--ink); font-weight: 560; font-stretch: 108%; line-height: 1.15;

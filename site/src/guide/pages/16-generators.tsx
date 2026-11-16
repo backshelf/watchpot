@@ -7,7 +7,6 @@ import type { BuyMode } from "watchpot/ui";
 import * as FirstPage from "../../../../docs/examples/guide-first-page";
 import {
   Act,
-  Actions,
   definePage,
   Note,
   Panel,
@@ -20,7 +19,7 @@ import {
   useSnapshot,
 } from "../kit";
 import { Bundled, BundledHost } from "../kit/bundled";
-import { Listing, PanelChoice } from "../kit/more";
+import { Listing, PanelChoice, Shortcut } from "../kit/more";
 
 type S = StateOf<typeof FirstPage.game.features>;
 type Example = typeof FirstPage;
@@ -41,36 +40,39 @@ function Rows({ mode }: { mode: BuyMode }) {
   const { state } = useSnapshot();
   const s = state as S;
   return (
-    <ul style={{ display: "grid", gap: "0.75rem", margin: 0, padding: 0, listStyle: "none" }}>
+    <ul style={{ display: "grid", gap: "0.9rem", margin: 0, padding: 0, listStyle: "none" }}>
       {kettles.def.list.map((def) => {
         const row = kettleRow(s, def.id, mode, s.clock.lastSeen);
         return (
-          <li key={def.id} style={{ display: "grid", gap: "0.45rem" }}>
-            <div className="readouts">
-              <div className="readout">
-                <span className="readout__label">{def.name}s owned</span>
-                <span className="readout__value num">{row.owned}</span>
-              </div>
-              <div className="readout">
-                <span className="readout__label">Making</span>
-                <span className="readout__value num">{row.perSecond}/s</span>
-              </div>
-              <div className="readout">
-                <span className="readout__label">Next milestone</span>
-                <span className="readout__value num">
-                  {row.untilNext === null ? "none left" : `in ${row.untilNext}`}
-                </span>
-              </div>
-            </div>
-            <Actions>
-              <Act<S>
-                call="kettles.buy"
-                args={[def.id, Math.max(1, row.count)]}
-                ready={(g) => kettleRow(g, def.id, mode, g.clock.lastSeen).canBuy}
-              >
-                Buy {Math.max(1, row.count)}: <span className="num">{row.price}</span>
-              </Act>
-            </Actions>
+          <li
+            key={def.id}
+            style={{
+              display: "grid",
+              gridTemplateColumns: "minmax(0, 1fr) auto",
+              gap: "0.3rem 0.75rem",
+              alignItems: "center",
+            }}
+          >
+            <span style={{ fontWeight: 560 }}>
+              {def.name}{" "}
+              <span className="num" style={{ fontWeight: 400, color: "var(--ink-soft)" }}>
+                × {row.owned}
+              </span>
+            </span>
+            <Act<S>
+              call="kettles.buy"
+              args={[def.id, Math.max(1, row.count)]}
+              ready={(g) => kettleRow(g, def.id, mode, g.clock.lastSeen).canBuy}
+            >
+              Buy {Math.max(1, row.count)}: <span className="num">{row.price}</span>
+            </Act>
+            <span
+              className="num"
+              style={{ gridColumn: "1 / -1", fontSize: "0.875rem", color: "var(--ink-soft)" }}
+            >
+              {row.perSecond}/s
+              {row.untilNext === null ? ", every milestone passed" : `, doubles in ${row.untilNext}`}
+            </span>
           </li>
         );
       })}
@@ -87,11 +89,13 @@ function TheKettles() {
           <Readout<S> big label="Bubbles" select={(s) => fmt(s.wallet.bubbles).text} />
           <Readout<S> label="The kettles make" select={(s) => fmtRate(s.kettles.perSecond.bubbles ?? 0)} />
         </Readouts>
-        <Actions>
-          <Act call="wallet.credit" args={["bubbles", 1000]}>
-            Add 1,000 bubbles
-          </Act>
-        </Actions>
+        <Shortcut
+          call="wallet.credit"
+          args={["bubbles", 1000]}
+          note="The wallet's credit: no waiting on this page."
+        >
+          Add 1,000 bubbles
+        </Shortcut>
         <PanelChoice title="Each press buys" options={MODES} value={mode} onChange={setMode} />
         <Rows mode={mode} />
         <StartOver />

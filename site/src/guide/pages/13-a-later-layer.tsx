@@ -108,10 +108,11 @@ export default definePage({
           reaches 0 as the button lights, and jumps back up when you buy.
         </li>
         <li>
-          Make a value read itself: change <code>canBuy</code> to{" "}
-          <code>(s) =&gt; s.stove.canBuy || s.wallet.bubbles.gte(s.stove.nextPrice)</code> ("once it could
-          buy, it always can"). The box refuses it and says why; the game keeps running your last version that
-          worked.
+          Make a value read itself ("once it could buy, it always can"):
+          <pre className="guide-snippet">
+            <code>{"canBuy: (s) => s.stove.canBuy || s.wallet.bubbles.gte(s.stove.nextPrice),"}</code>
+          </pre>
+          The box refuses it and says why, and the game keeps running your last version that worked.
         </li>
       </Try>
 

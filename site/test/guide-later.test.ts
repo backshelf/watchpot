@@ -88,7 +88,7 @@ describe("step 13's layer", () => {
 
   test("a canBuy that reads itself is refused, the loop named", () => {
     const loop = "{ canBuy: (s) => s.stove.canBuy || s.wallet.bubbles.gte(s.stove.nextPrice) },";
-    expect(words).toContain("(s) =&gt; s.stove.canBuy || s.wallet.bubbles.gte(s.stove.nextPrice)");
+    expect(words).toContain("canBuy: (s) => s.stove.canBuy || s.wallet.bubbles.gte(s.stove.nextPrice),");
     expect(() => runEdited(original().replace(SECOND, `\n  ${loop}\n`))).toThrow(/loop: stove\.canBuy/);
   });
 });

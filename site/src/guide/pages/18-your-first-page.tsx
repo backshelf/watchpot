@@ -23,7 +23,7 @@ function YourPage() {
 function Step({ n, slug, children }: { n: number; slug: string; children: string }) {
   return (
     <a href={`${String(n).padStart(2, "0")}-${slug}.html`}>
-      {children} (step {n})
+      {children}, step {n}
     </a>
   );
 }
