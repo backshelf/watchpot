@@ -61,7 +61,9 @@ async function guideEntry(): Promise<string> {
   for (const name of ["README.md", "index.md"]) {
     if (await Bun.file(join(repoRoot, "docs/guide", name)).exists()) return "guide/index.html";
   }
-  return "";
+  // A guide of numbered chapters and no index opens at its first chapter.
+  const chapters = [...new Bun.Glob("*.md").scanSync(join(repoRoot, "docs/guide"))].sort();
+  return chapters[0] ? `guide/${chapters[0].replace(/\.md$/, ".html")}` : "";
 }
 
 export async function build({ dev = false, out = join(here, "dist") } = {}): Promise<BuildResult> {
