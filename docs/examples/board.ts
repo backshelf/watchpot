@@ -1,5 +1,6 @@
 import {
   type BoardPiece,
+  type BoardState,
   boardFeature,
   defineGame,
   defineStats,
@@ -26,12 +27,13 @@ const PLANTS: readonly BoardPiece<Fx>[] = [
 type State = { shed: { seeds: Record<string, number>; beds: number } };
 export const shed = feature({
   key: "shed",
-  initial: () => ({ seeds: { moss: 3, fern: 4, ivy: 2 }, beds: 3 }),
+  initial: (): State["shed"] => ({ seeds: { moss: 3, fern: 4, ivy: 2 }, beds: 3 }),
 });
 
 /** A 4 x 4 bed of which the top-left `beds` x `beds` is dug, planted from the seeds in the shed. */
-export const garden = boardFeature<"garden", Fx, State>({
+export const garden = boardFeature({
   key: "garden",
+  reach: [shed],
   width: 4,
   height: 4,
   pieces: PLANTS,
@@ -45,7 +47,7 @@ export const growth = defineStats({
   vocab: WORDS,
   reach: () => [shed, garden],
   stats: { growth: { base: 1 } },
-  contributions: (s) => garden.contributions(s),
+  contributions: (s) => garden.select.contributions(s),
 });
 
 export const game = defineGame({
@@ -54,15 +56,15 @@ export const game = defineGame({
   vocab: WORDS,
   features: [shed, garden, growth],
 });
-// store.getState().garden.place(garden.board.cellOf(0, 0), "ivy") → null, or why not
+// store.getState().garden.place(garden.def.board.cellOf(0, 0), "ivy") → null, or why not
 
 /** An auto-arrange: a good layout for what the shed holds, laid in one action. */
 export function arrange(store: {
-  getState(): State & { garden: { lay(cells: Record<number, string>): void } };
+  getState(): State & { garden: BoardState & { lay(cells: Record<number, string>): void } };
 }) {
   const s = store.getState();
-  const cells = fillBoard(garden.board, {
-    ...garden.limits(s),
+  const cells = fillBoard(garden.def.board, {
+    ...garden.select.limits(s),
     score: (parts) => parts.reduce((n, p) => n * Number(p.effect.mul ?? 1), 1),
   });
   s.garden.lay(cells);

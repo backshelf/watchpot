@@ -1,13 +1,4 @@
-import {
-  buffActive,
-  buffs,
-  defineGame,
-  defineStats,
-  type Effect,
-  feature,
-  overlapMs,
-  vocab,
-} from "watchpot/core";
+import { buffs, defineGame, defineStats, type Effect, feature, vocab } from "watchpot/core";
 
 const WORDS = vocab({ currencies: ["gold"], stats: ["speed"] });
 
@@ -22,7 +13,7 @@ export const boosts = buffs<"boosts", Effect<"speed">>({
       maxStacks: 5,
       effects: (stacks) => [{ stat: "speed", add: stacks }],
     },
-    // A timer: no `effects`, so it adds nothing to the stats. The game asks `buffActive` and decides what it means.
+    // A timer: no `effects`, so it adds nothing to the stats. The game asks `boosts.select.active` and decides what it means.
     { id: "cooldown", durationMs: 10_000, stack: "ignore" },
   ],
 });
@@ -37,7 +28,7 @@ export const mine = feature({
       income: {
         pass: "both",
         run: (d, ctx) => {
-          const rushed = overlapMs(d.boosts, "rush", ctx.now - ctx.dtMs, ctx.now);
+          const rushed = boosts.select.overlapMs(d, "rush", ctx.now - ctx.dtMs, ctx.now);
           d.mine.gold += (ctx.dtMs + 6 * rushed) / 1000;
         },
       },
@@ -54,7 +45,7 @@ export const speed = defineStats({
   vocab: WORDS,
   reach: () => [boosts],
   stats: { speed: { base: 1 } },
-  contributions: (s) => boosts.contributions(s.boosts, Number.NEGATIVE_INFINITY),
+  contributions: (s) => boosts.select.contributions(s, Number.NEGATIVE_INFINITY),
 });
 
 export const game = defineGame({
@@ -65,5 +56,5 @@ export const game = defineGame({
 });
 
 /** The timer buff read directly: the game's own button checks this before it lets the player press again. */
-export const coolingDown = (s: { boosts: Parameters<typeof boosts.contributions>[0] }, now: number) =>
-  buffActive(s.boosts, "cooldown", now);
+export const coolingDown = (s: Parameters<typeof boosts.select.active>[0], now: number) =>
+  boosts.select.active(s, "cooldown", now);

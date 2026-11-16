@@ -1,4 +1,3 @@
-import type { Draft } from "immer";
 import { type Feature, type ResetRule } from "../feature";
 import { type RngState } from "../rng";
 import type { AnyVocab, Ladder, OddsTable } from "../vocab";
@@ -7,7 +6,7 @@ import { type PityRule, type PityState, type PityTrigger } from "./kernel";
  * The gacha primitive: a feature that owns a set of boxes' pity counters, one rng stream, the opens per box, the
  * free opens held per box and the last open. A box draws its rarity through the kernel, then `roll` (the post-draw
  * roll: a card from a catalogue, a gear piece's slot and substats) turns the rarity into an item on the same stream.
- * The primitive charges nothing: a game's paying action takes the price in its own recipe and calls `openDraft`.
+ * The primitive charges nothing: a game's paying action takes the price in its own recipe and calls `draft.open`.
  */
 /** The post-draw roll: the item a pull of `rarity` gives, and the rng after it. */
 export type GachaRoll<R extends string, B extends string, P> = (pull: {
@@ -42,7 +41,7 @@ export interface GachaState<B extends string, R extends string, P> {
 }
 /** A gacha's actions: `open` and `grant`. */
 export interface GachaActions<B extends string, R extends string, P> {
-    /** Opens `count` of a box for free (tokens first, then nothing owed): a game that charges uses `openDraft`. */
+    /** Opens `count` of a box for free (tokens first, then nothing owed): a game that charges uses `draft.open`. */
     open(box: B, count?: number): GachaOpen<B, R, P>;
     /** Hands out free opens of a box. */
     grant(box: B, count: number): void;
@@ -62,10 +61,33 @@ export interface GachaDef<K extends string, R extends string, B extends string, 
     /** The vocabulary the ladder came from, for `defineGame`'s check. */
     readonly vocab?: AnyVocab;
 }
-/** The feature, plus the draft helper a game's paying action opens with. */
+/** Any state or draft holding the gacha's state under its key. */
+export type GachaHost<K extends string, R extends string, B extends string, P> = {
+    readonly [Q in K]: GachaState<B, R, P>;
+};
+/** The read-only questions over state. A gacha has none of its own: its counters are `state[key]`. */
+export type GachaSelect = Record<never, never>;
+/** The fixed configuration of a gacha: what it was declared with. */
+export interface GachaFixed<R extends string, B extends string> {
+    /** The rarity ladder. */
+    readonly ladder: Ladder<R>;
+    /** The boxes (the keys of `odds`), in declaration order. */
+    readonly boxes: readonly B[];
+    /** Each box's odds table. */
+    readonly odds: Readonly<Record<B, OddsTable<R>>>;
+    /** Each box's guarantees. */
+    readonly pity: Readonly<Record<B, PityRule<R>>>;
+}
+/** The helpers that take a draft first and change it, named like the actions they mirror. */
+export interface GachaDraftHelpers<K extends string, R extends string, B extends string, P> {
+    /** Opens `count` of a box inside the caller's recipe (tokens first) and records it; a game's paying action calls it. */
+    open(draft: GachaHost<K, R, B, P>, box: B, count: number): GachaOpen<B, R, P>;
+}
+/** A gacha feature: the feature plus `select`, `def` and `draft`. */
 export type GachaFeature<K extends string, R extends string, B extends string, P> = Feature<K, GachaState<B, R, P>, GachaActions<B, R, P>> & {
-    /** Draft helper: opens `count` of a box inside the caller's recipe (tokens first) and records it. */
-    openDraft(draft: Draft<Record<K, GachaState<B, R, P>>>, box: B, count: number): GachaOpen<B, R, P>;
+    readonly select: GachaSelect;
+    readonly def: GachaFixed<R, B>;
+    readonly draft: GachaDraftHelpers<K, R, B, P>;
 };
 /**
  * `count` pulls in sequence from one box's table and rule, threading pity and rng: the rarity, then `roll`. Pure,

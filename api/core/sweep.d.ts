@@ -1,11 +1,11 @@
 import type { Draft } from "immer";
-import { type Feature, type ResetRule } from "./feature";
+import { type Feature, type NeedsOf, type ReachOf, type ReachShape, type ResetRule } from "./feature";
 import { type RngState } from "./rng";
 /**
  * Sweeps: a timing bar. A cursor crosses a track whose length is 1, its place a pure function of game time; targets
  * sit on the track; a strike is graded by how near the cursor is to a target's centre, and a run of hits is a streak.
- * A scanner, a fishing line, a perfect-press meter. `sweepAt` and `gradeStrike` are the kernel; `sweep({ key, motion,
- * grades, targets })` is a feature that keeps the targets, the streak and the tallies and takes `strike()`. What a
+ * A scanner, a fishing line, a perfect-press meter. `sweepAt` and `gradeStrike` are the kernel; `sweep({ key, setup,
+ * grades })` is a feature that keeps the targets, the streak and the tallies and takes `strike()`. What a
  * hit pays is the game's (`onStrike`).
  */
 /** How the cursor moves: across in `periodMs` and back at the start (`saw`), or there and back in `periodMs`. */
@@ -78,14 +78,32 @@ export interface SweepSetup {
     readonly count: number;
     readonly width: number;
 }
-/** A `sweep` feature, carrying its grades and its setup reader. */
-export type SweepFeature<K extends string, G> = Feature<K, SweepState, SweepActions> & {
-    readonly grades: readonly SweepGrade[];
+/** Any state or draft holding the sweep's state under its key. */
+export type SweepHost<K extends string> = {
+    readonly [P in K]: SweepState;
+};
+/** The read-only questions over state. */
+export interface SweepSelect<G> {
+    /** The motion and the targets' count and width the game's state gives now. */
     setup(state: G): SweepSetup;
-    /** The cursor's place now. */
+    /** The cursor's place at game time `now`. */
     cursor(state: G, now: number): number;
+}
+/** The fixed configuration of a sweep feature. */
+export interface SweepFixed {
+    /** The grades a strike can earn, tightest first. */
+    readonly grades: readonly SweepGrade[];
+}
+/** The helpers that take a draft first and change it, named like the actions they mirror. */
+export interface SweepDraftHelpers<K extends string> {
     /** A strike inside a recipe of the game's. */
-    strike(draft: object, now: number): StrikeResult;
+    strike(draft: SweepHost<K>, now: number): StrikeResult;
+}
+/** A `sweep` feature: the feature plus `select`, `def` and `draft`. */
+export type SweepFeature<K extends string, G> = Feature<K, SweepState, SweepActions> & {
+    readonly select: SweepSelect<G>;
+    readonly def: SweepFixed;
+    readonly draft: SweepDraftHelpers<K>;
 };
 /**
  * A sweep as a feature. `setup(state)` gives the motion and the targets' count and width, read each pass so an
@@ -93,13 +111,18 @@ export type SweepFeature<K extends string, G> = Feature<K, SweepState, SweepActi
  * new target drawn clear of the rest on the feature's own saved stream. `strike()` grades the cursor's place at the
  * game time of the call: a hit removes its target and extends the streak, a miss ends the streak, and `onStrike`
  * runs in the same recipe with the result. `kind(rng)` may name each new target's kind. A prestige reset keeps the
- * tallies and clears the streak unless `reset` says otherwise.
+ * tallies and clears the streak unless `reset` says otherwise. The callbacks see the feature's own slice and what
+ * `reach` names; `select.cursor` and `draft.strike` are the cursor and the strike for steps and recipes.
  */
-export declare function sweep<const K extends string, G extends object = object>(def: {
+export declare function sweep<const K extends string, const R extends ReachShape = readonly [], G extends object = Record<K, SweepState> & ReachOf<R>>(def: {
     readonly key: K;
+    /** The features the callbacks read, as `feature`'s `reach`. */
+    readonly reach?: R | (() => R);
     readonly setup: (state: G) => SweepSetup;
     readonly grades: readonly SweepGrade[];
     readonly kind?: (roll: number, state: G) => string | undefined;
     readonly onStrike?: (draft: Draft<G>, result: StrikeResult, now: number) => void;
     readonly reset?: ResetRule<SweepState>;
-}): SweepFeature<K, G>;
+}): SweepFeature<K, G> & {
+    readonly needs?: NeedsOf<R>;
+};

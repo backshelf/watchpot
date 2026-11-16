@@ -17,9 +17,11 @@ Example: [`examples/board.ts`](examples/board.ts).
   `contributions` (sourced `<id>:<piece>@<x>,<y>`) and `settle` (the cells with whatever the limits no longer allow
   taken up). Every call takes `BoardLimits`: `open(x, y)` for which cells are unlocked and `held(piece)` for how many
   the player has.
-- **`boardFeature({ key, width, height, pieces, held?, open?, reset? })`** saves `{ cells }` with the actions `place`,
+- **`boardFeature({ key, width, height, pieces, held?, open?, reach?, reset? })`** saves `{ cells }` with the actions `place`,
   `lift`, `move`, `clear` and `lay(cells)` (a whole layout at once: a preset, an auto-arrange), and carries the rules
-  as `.board`. `held(state, piece)` and `open(state, x, y)` read the whole game state, so the board grows and its
+  as `def.board`, with `select.limits(s)` (the `BoardLimits` the game gives) and `select.contributions(s)` (every effect
+  on the board; `draft` is empty, the actions are the changes). `held(state, piece)` and `open(state, x, y)` read the
+  board's own slice and what `reach` names (`reach: [shed]`), so the board grows and its
   pieces are earned however the game likes. A piece no longer held, or on a cell no longer open, stops counting but
   stays where it was put. A run reset keeps the layout unless `reset` says otherwise.
 - **`fillBoard(board, { score, held?, open?, start?, passes? })`** finds a good layout greedily: the best placement

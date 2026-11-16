@@ -35,21 +35,37 @@ export interface LayersDef<K extends string, L extends string, S extends string,
   readonly migrations?: Readonly<Record<number, Migration>>;
 }
 
-/** The layers feature, carrying its rules and query as `.model`. */
+/** Any state or draft holding the layers' state under its key. */
+export type LayersHost<K extends string, L extends string> = { readonly [P in K]: LayersState<L> };
+
+/** The read-only questions over state. */
+export interface LayersSelect<K extends string, L extends string> {
+  /** What a game state holds of a resource (the auto-player's `balance`): the base, a layer's amount or a power. */
+  balance(state: LayersHost<K, L>, currency: string): Decimal;
+}
+
+/** The fixed configuration of a layers feature. */
+export interface LayersFixed<L extends string, S extends string, B extends string> {
+  /** The layer model: its rules and its query, pure over the saved `LayersState` (`def.model.query(state.climb)`). */
+  readonly model: LayerModel<L, S, B>;
+}
+
+/** The layers feature: the feature plus `select`, `def` and `draft` (which is empty: the actions are the changes). */
 export type LayersFeature<K extends string, L extends string, S extends string, B extends string> = Feature<
   K,
   LayersState<L>,
   LayersActions<L>
 > & {
-  readonly model: LayerModel<L, S, B>;
-  /** What a game state holds of a resource (the auto-player's `balance`): the base, a layer's amount or a power. */
-  balance(state: object, currency: string): Decimal;
+  readonly select: LayersSelect<K, L>;
+  readonly def: LayersFixed<L, S, B>;
+  readonly draft: Record<never, never>;
 };
 
 /**
  * A layer system as a feature. Saves `LayersState` under `key`, loads an older save through `fillDeep` (a layer or a
  * field added since takes its fresh value; a challenge entered in a layer that is gone is dropped), and steps it:
- * `<key>.produce.advance` on every tick, `<key>.produce.away` over an absence (`advanceAway`).
+ * `<key>.produce.advance` on every tick, `<key>.produce.away` over an absence (`advanceAway`). The rules and the
+ * query are `def.model`; `select.balance` reads a resource off a game state.
  *
  * Its auto-player moves, valued simply: every upgrade and buyable level it can afford (and is not automated) is worth
  * 1, so the auto-player buys the cheapest share of each balance first; a reset is a free move worth its row (the
@@ -150,9 +166,12 @@ export function layers<const K extends string, L extends string, S extends strin
       return out;
     },
   });
-  return Object.assign(made, {
-    model,
-    balance: (state: object, currency: string) =>
-      model.resource(slice(state), currency as LayerResourceRef<L, B>),
-  });
+  const helpers: Pick<LayersFeature<K, L, S, B>, "select" | "def" | "draft"> = {
+    select: {
+      balance: (state, currency) => model.resource(slice(state), currency as LayerResourceRef<L, B>),
+    },
+    def: { model },
+    draft: {},
+  };
+  return Object.assign(made, helpers);
 }

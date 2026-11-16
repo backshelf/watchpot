@@ -79,10 +79,10 @@ describe("challenges at a depth", () => {
 });
 
 describe("a spawn taken inside a recipe", () => {
-  type State = { tally: { caught: string[] } };
   const tally = feature({ key: "tally", initial: () => ({ caught: [] as string[] }) });
-  const birds = spawns<"birds", State>({
+  const birds = spawns({
     key: "birds",
+    reach: [tally],
     kinds: [
       { id: "bird", wait: { minMs: 1000, maxMs: 1000 }, lifeMs: 5000, outcomes: [{ id: "seed", weight: 1 }] },
     ],
@@ -95,7 +95,7 @@ describe("a spawn taken inside a recipe", () => {
     steps: {
       automate: {
         // An automatic catcher: whatever is live is taken in the pass that sees it.
-        sweep: (d: object, ctx) => void birds.take(d, "bird", ctx.now),
+        sweep: (d, ctx) => void birds.draft.catch(d, "bird", ctx.now),
       },
     },
   });

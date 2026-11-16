@@ -12,6 +12,9 @@ import {
 } from "watchpot/core";
 import { freshStore, T0 } from "watchpot/test";
 
+/** A copy of a state without its actions: what a recipe is handed, for calling a draft helper directly. */
+const plain = <T>(state: T): T => JSON.parse(JSON.stringify(state));
+
 const GRADES = [
   { id: "perfect", within: 0.25 },
   { id: "good", within: 1 },
@@ -63,9 +66,9 @@ describe("sweep kernel", () => {
 
 describe("sweep feature", () => {
   const purse = feature({ key: "purse", initial: () => ({ paid: 0, wide: 0.2 }) });
-  type State = { purse: { paid: number; wide: number }; line: { streak: number } };
-  const line = sweep<"line", State>({
+  const line = sweep({
     key: "line",
+    reach: [purse],
     setup: (s) => ({ motion: { periodMs: 2000 }, count: 3, width: s.purse.wide }),
     grades: GRADES,
     onStrike: (d, result) => {
@@ -98,5 +101,33 @@ describe("sweep feature", () => {
     clock.set(store.getState().line.since + free * 1000);
     expect(store.getState().line.strike()).toMatchObject({ hit: null, streak: 0 });
     expect(store.getState().line).toMatchObject({ strikes: 2, misses: 1, best: 1, hits: { perfect: 1 } });
+  });
+
+  test("select reads the setup and the cursor off the game; draft strikes inside a recipe", () => {
+    const { store } = freshStore(game, { at: T0, seed: "sweep" });
+    const s = store.getState();
+    expect(line.select.setup(s)).toMatchObject({ count: 3, width: 0.2 });
+    expect(line.select.cursor(s, s.line.since + 500)).toBeCloseTo(0.5);
+    expect(line.def.grades).toBe(GRADES);
+    const draft = plain({ line: s.line, purse: s.purse });
+    expect(line.draft.strike(draft, s.line.since + 100)).toMatchObject({ streak: expect.any(Number) });
+    expect(draft.line.strikes).toBe(1);
+  });
+
+  test("a callback reads a reached feature; one it does not reach is a type error", () => {
+    const other = feature({ key: "other", initial: () => ({ m: 0 }) });
+    const peek = sweep({
+      key: "peek",
+      reach: [purse],
+      grades: GRADES,
+      setup: (s) => ({
+        motion: { periodMs: 1000 },
+        count: 1,
+        // @ts-expect-error `other` is not in the reach
+        width: s.other.m + s.purse.wide,
+      }),
+    });
+    expect(peek.key).toBe("peek");
+    expect(other.key).toBe("other");
   });
 });

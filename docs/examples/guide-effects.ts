@@ -97,7 +97,7 @@ export const heat = defineStats({
   contributions: (s) => [
     ...kitchen.tree.contributions(s.kitchen.ranks),
     // The buffs' own step ends a buff whose time is up at the start of every pass, so each one listed is running.
-    ...boosts.contributions(s.boosts, Number.NEGATIVE_INFINITY),
+    ...boosts.select.contributions(s, Number.NEGATIVE_INFINITY),
     ...medals.board.contributions(s.medals.earned),
     ...milestones(s),
   ],

@@ -87,7 +87,7 @@ export const climb = layers({
 
 if (import.meta.main) {
   // The rules run on plain state too: a sim, a test or this script.
-  const m = climb.model;
+  const m = climb.def.model;
   const s = m.fresh();
   for (let t = 0; t < 3600 && !s.layers.c.established; t++) {
     m.advance(s, 1000);

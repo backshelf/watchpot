@@ -41,7 +41,7 @@ export const collection = withMoves(
         api.set((s) => {
           const free = Math.min(count, s.summon.tokens[BOX] ?? 0);
           if (!wallet.draft.debit(s, PREMIUM, PULL_PRICE * (count - free))) return;
-          const open = summon.openDraft(s, BOX, count);
+          const open = summon.draft.open(s, BOX, count);
           s.collection.last = open.pulls.map((p) => p.item.id);
           for (const p of open.pulls) s.collection.owned[p.item.id] = (s.collection.owned[p.item.id] ?? 0) + 1;
           ok = true;

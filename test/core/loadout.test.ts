@@ -74,10 +74,11 @@ describe("loadoutFeature", () => {
   });
   const kit = loadoutFeature({
     key: "kit",
+    reach: [bag],
     slots: SLOTS,
     items: ITEMS,
     sets: SETS,
-    owns: (s: { bag: { held: string[] } }, item) => s.bag.held.includes(item),
+    owns: (s, item) => s.bag.held.includes(item),
   });
   const game = defineGame({ id: "lo", save: { key: "lo.save", version: 1 }, features: [bag, kit] });
 
@@ -91,6 +92,27 @@ describe("loadoutFeature", () => {
     expect(store.getState().kit.slotted.head).toBe("cap");
     expect(store.getState().kit.clear("head")).toBe(true);
     expect(store.getState().kit.slotted.head).toBeNull();
+  });
+
+  test("def carries the rules over the slots record; select and draft are empty", () => {
+    expect(kit.def.loadout.id).toBe("kit");
+    expect(kit.def.loadout.contributions({ head: "cap", hand: null, spare: null }).length).toBeGreaterThan(0);
+    expect(kit.select).toEqual({});
+    expect(kit.draft).toEqual({});
+  });
+
+  test("`owns` reads a reached feature; one it does not reach is a type error", () => {
+    const other = feature({ key: "other", initial: () => ({ m: 0 }) });
+    const peek = loadoutFeature({
+      key: "peek",
+      reach: [bag],
+      slots: SLOTS,
+      items: ITEMS,
+      // @ts-expect-error `other` is not in the reach
+      owns: (s, item) => s.other.m > 0 && s.bag.held.includes(item),
+    });
+    expect(peek.key).toBe("peek");
+    expect(other.key).toBe("other");
   });
 });
 

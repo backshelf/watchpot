@@ -49,7 +49,7 @@ if (import.meta.main) {
     now: () => Date.UTC(2026, 0, 1),
     seed: "docs", // a seeded store replays the same pulls
   });
-  // `open` is free; a game that charges takes the price and calls `summon.openDraft(draft, box, count)` in one recipe.
+  // `open` is free; a game that charges takes the price and calls `summon.draft.open(draft, box, count)` in one recipe.
   const opened = store.getState().summon.open("banner", 10);
   console.log(
     opened.pulls.map((p) => `${p.rarity}:${p.item.id}${p.triggered ? `(${p.triggered})` : ""}`).join(" "),

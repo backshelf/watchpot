@@ -113,8 +113,9 @@ describe("board", () => {
 
 describe("boardFeature", () => {
   const bag = feature({ key: "bag", initial: () => ({ pairs: 1, size: 2 }) });
-  const sheet = boardFeature<"sheet", Fx, { bag: { pairs: number; size: number } }>({
+  const sheet = boardFeature({
     key: "sheet",
+    reach: [bag],
     width: 3,
     height: 3,
     pieces: PIECES,
@@ -135,14 +136,37 @@ describe("boardFeature", () => {
     });
     expect(act().place(1, "pair")).toBeNull();
     expect(act().place(8, "plain")).toBeNull();
-    expect(sheet.contributions(store.getState()).map((c) => c.effect.mult)).toEqual([2, 2, 2]);
+    expect(sheet.select.contributions(store.getState()).map((c) => c.effect.mult)).toEqual([2, 2, 2]);
     // The board shrinks again: the piece on the closed cell stops counting but stays where it was put.
     store.setState((s) => {
       s.bag.size = 2;
     });
-    expect(sheet.contributions(store.getState())).toHaveLength(2);
+    expect(sheet.select.contributions(store.getState())).toHaveLength(2);
     expect(store.getState().sheet.cells[8]).toBe("plain");
     act().lay({ 0: "plain", 4: "rim", 8: "rim" });
     expect(store.getState().sheet.cells).toEqual({ 0: "plain", 4: "rim" });
+  });
+
+  test("def carries the rules, select the state-reading questions, draft nothing", () => {
+    expect(sheet.def.board.width).toBe(3);
+    expect(sheet.draft).toEqual({});
+    const { store } = freshStore(game);
+    expect(sheet.select.limits(store.getState()).held?.("pair")).toBe(1);
+  });
+
+  test("a callback reads a reached feature; one it does not reach is a type error", () => {
+    const other = feature({ key: "other", initial: () => ({ m: 0 }) });
+    const peek = boardFeature({
+      key: "peek",
+      reach: [bag],
+      width: 1,
+      height: 1,
+      pieces: PIECES,
+      held: (s) => s.bag.pairs,
+      // @ts-expect-error `other` is not in the reach
+      open: (s) => s.other.m === 0,
+    });
+    expect(peek.key).toBe("peek");
+    expect(other.key).toBe("other");
   });
 });

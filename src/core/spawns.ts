@@ -1,5 +1,14 @@
 import type { Draft } from "immer";
-import { type Feature, type FeatureApi, feature, type Move, type ResetRule } from "./feature";
+import {
+  type Feature,
+  type FeatureApi,
+  feature,
+  type Move,
+  type NeedsOf,
+  type ReachOf,
+  type ReachShape,
+  type ResetRule,
+} from "./feature";
 import type { CallbackContext } from "./gauge";
 import { nextFloat, pickWeighted, type RngState, seedRng } from "./rng";
 
@@ -186,11 +195,29 @@ export interface SpawnsActions {
   catch(kind: string): string | null;
 }
 
-/** A `spawns` feature, carrying its kinds as `.kinds`. */
-export type SpawnsFeature<K extends string, G> = Feature<K, SpawnsState, SpawnsActions> & {
+/** Any state or draft holding the spawns' state under its key. */
+export type SpawnsHost<K extends string> = { readonly [P in K]: SpawnsState };
+
+/** The read-only questions over state. A spawns feature has none of its own: the live arrival is `state[key].kinds[id].live`. */
+export type SpawnsSelect = Record<never, never>;
+
+/** The fixed configuration of a spawns feature. */
+export interface SpawnsFixed<G> {
+  /** The kinds the feature was given. */
   readonly kinds: readonly SpawnKind<G>[];
+}
+
+/** The helpers that take a draft first and change it, named like the actions they mirror. */
+export interface SpawnsDraftHelpers<K extends string> {
   /** The catch inside a recipe or a step of the game's (an automatic catcher): the outcome's id, or null. */
-  take(draft: object, kind: string, now: number): string | null;
+  catch(draft: SpawnsHost<K>, kind: string, now: number): string | null;
+}
+
+/** A `spawns` feature: the feature plus `select`, `def` and `draft`. */
+export type SpawnsFeature<K extends string, G> = Feature<K, SpawnsState, SpawnsActions> & {
+  readonly select: SpawnsSelect;
+  readonly def: SpawnsFixed<G>;
+  readonly draft: SpawnsDraftHelpers<K>;
 };
 
 /**
@@ -199,14 +226,21 @@ export type SpawnsFeature<K extends string, G> = Feature<K, SpawnsState, SpawnsA
  * the missed ones counted, never paid; at most one is left live). `catch(kind)` draws the outcome (or takes the one
  * drawn at birth) and runs `onCatch(draft, outcome, now, kind)` in the same recipe; the next wait starts then. A run
  * reset clears what is live and starts the waits over, and keeps the counts and streams unless `reset` says otherwise.
- * The auto-player catches whatever is live.
+ * The auto-player catches whatever is live. The kinds' callbacks and `onCatch` see the feature's own slice and what
+ * `reach` names; `draft.catch` is the same catch inside a recipe.
  */
-export function spawns<const K extends string, G extends object = object>(def: {
+export function spawns<
+  const K extends string,
+  const R extends ReachShape = readonly [],
+  G extends object = Record<K, SpawnsState> & ReachOf<R>,
+>(def: {
   readonly key: K;
+  /** The features the callbacks read, as `feature`'s `reach`. */
+  readonly reach?: R | (() => R);
   readonly kinds: readonly SpawnKind<G>[];
   readonly onCatch?: (draft: Draft<G>, outcome: string, now: number, kind: string) => void;
   readonly reset?: ResetRule<SpawnsState>;
-}): SpawnsFeature<K, G> {
+}): SpawnsFeature<K, G> & { readonly needs?: NeedsOf<R> } {
   const byId = new Map<string, SpawnKind<G>>();
   for (const k of def.kinds) {
     if (byId.has(k.id)) throw new Error(`spawns "${def.key}": the kind "${k.id}" appears twice`);
@@ -231,7 +265,7 @@ export function spawns<const K extends string, G extends object = object>(def: {
   });
 
   /** The catch itself, in a recipe: the outcome's id, or null when none is live or none is open. */
-  const take = (d: object, kind: string, now: number): string | null => {
+  const take = (d: unknown, kind: string, now: number): string | null => {
     const k = byId.get(kind);
     const s = kindsOf(d)[kind];
     const live = s?.live;
@@ -254,7 +288,8 @@ export function spawns<const K extends string, G extends object = object>(def: {
     return outcome;
   };
 
-  const made = feature({
+  const made = feature<K, SpawnsState, SpawnsActions, ReachShape, Record<never, never>, Own>({
+    reach: def.reach,
     key: def.key,
     initial: (ctx): SpawnsState => ({
       kinds: Object.fromEntries(def.kinds.map((k) => [k.id, fresh(k, ctx.rng)])),
@@ -319,5 +354,10 @@ export function spawns<const K extends string, G extends object = object>(def: {
           }),
         ),
   });
-  return Object.assign(made, { kinds: def.kinds, take });
+  const helpers: Pick<SpawnsFeature<K, G>, "select" | "def" | "draft"> = {
+    select: {},
+    def: { kinds: def.kinds },
+    draft: { catch: take },
+  };
+  return Object.assign(made, helpers) as SpawnsFeature<K, G> & { readonly needs?: NeedsOf<R> };
 }

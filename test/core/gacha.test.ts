@@ -160,7 +160,7 @@ const purse = feature({
         const owed = (count - Math.min(s.bag.tokens.shiny, count)) * 10;
         if (s.purse.gems < owed) return;
         s.purse.gems -= owed;
-        bag.openDraft(s, "shiny", count);
+        bag.draft.open(s, "shiny", count);
         ok = true;
       });
       return ok;
@@ -258,5 +258,19 @@ describe("gacha()", () => {
     store.getState().bag.open("shiny", 3);
     store.getState().resetRun();
     expect(store.getState().bag.opened.shiny).toBe(3);
+  });
+
+  test("def carries what it was declared with; draft.open is the paying action's open", () => {
+    expect(bag.def.boxes).toEqual(["plain", "shiny"]);
+    expect(bag.def.ladder).toBe(STONES);
+    expect(bag.def.odds.plain).toBe(ODDS);
+    expect(bag.def.pity.plain).toBe(RULE);
+    expect(bag.select).toEqual({});
+    const { store } = bagStore("draft");
+    const draft = {
+      bag: JSON.parse(JSON.stringify(store.getState().bag)) as ReturnType<typeof store.getState>["bag"],
+    };
+    expect(bag.draft.open(draft, "plain", 4).pulls).toHaveLength(4);
+    expect(draft.bag.opened.plain).toBe(4);
   });
 });

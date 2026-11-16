@@ -1,10 +1,11 @@
-import { type Feature, type ResetRule } from "./feature";
+import { type Feature, type NeedsOf, type ReachOf, type ReachShape, type ResetRule } from "./feature";
 /**
  * Loadouts: a few slots, the items a player holds, and what the items in the slots do together. An item fits a slot
  * of its `kind`; every slotted item gives its own effects, and a `LoadoutSet` gives more once enough slotted items
  * carry its tag. `loadout({ id, slots, items, sets })` is the rules over a slots record the game keeps wherever it
- * saves it; `loadoutFeature({ key, …, owns })` is a feature that owns the record. The effects are the game's own
- * type: with the engine's `Effect`, `contributions` feeds a `stats` feature as a tree's do.
+ * saves it; `loadoutFeature({ key, …, owns })` is a feature that owns the record, with the rules under `def.loadout`.
+ * The effects are the game's own type: with the stats feature's `{ stat, add }` / `{ stat, mul }` effects,
+ * `contributions` feeds its `contributions` as a tree's do.
  */
 /** One slot. With a `kind` it takes only items of that kind; without one it takes anything. */
 export interface LoadoutSlot {
@@ -43,7 +44,7 @@ export interface SetStanding<E> {
 }
 /** The definition `loadout` takes. */
 export interface LoadoutDef<E> {
-    /** The contributions' source prefix: `<id>:<item>` for an item, `<id>:set:<set>` for a set. */
+    /** The source prefix of its contributions: `<id>:<item>` for an item, `<id>:set:<set>` for a set. */
     readonly id: string;
     readonly slots: readonly LoadoutSlot[];
     readonly items: readonly LoadoutItem<E>[];
@@ -102,20 +103,36 @@ export interface LoadoutActions {
     /** Empties a slot. */
     clear(slot: string): boolean;
 }
-/** A `loadoutFeature`, carrying its rules as `.loadout`. */
-export type LoadoutFeature<K extends string, E> = Feature<K, LoadoutState, LoadoutActions> & {
+/**
+ * The read-only questions over state. A loadout feature has none of its own: what sits in the slots is
+ * `state[key].slotted`, and `def.loadout` answers over it (`kit.def.loadout.contributions(s.kit.slotted)`).
+ */
+export type LoadoutSelect = Record<never, never>;
+/** The fixed configuration of a loadout feature. */
+export interface LoadoutFixed<E> {
+    /** The loadout's rules: pure over a slots record (`def.loadout.equip(slotted, …)`). */
     readonly loadout: Loadout<E>;
+}
+/** A `loadoutFeature`: the feature plus `select`, `def` and `draft` (both empty but `def`: the actions are the changes). */
+export type LoadoutFeature<K extends string, E> = Feature<K, LoadoutState, LoadoutActions> & {
+    readonly select: LoadoutSelect;
+    readonly def: LoadoutFixed<E>;
+    readonly draft: Record<never, never>;
 };
 /**
- * A loadout as a feature: it saves `{ slotted }` under `key` (the contributions' source prefix too). `owns(state, item)`
- * is the game's rule for what the player holds, read off the whole game state. A prestige reset keeps the slots
- * unless `reset` says otherwise.
+ * A loadout as a feature: it saves `{ slotted }` under `key` (the stat source prefix too). `owns(state, item)` is
+ * the game's rule for what the player holds, read off the whole game state (its own slice plus what `reach` names). A
+ * prestige reset keeps the slots unless `reset` says otherwise.
  */
-export declare function loadoutFeature<const K extends string, E, G extends object = object>(def: {
+export declare function loadoutFeature<const K extends string, E, const R extends ReachShape = readonly [], G extends object = Record<K, LoadoutState> & ReachOf<R>>(def: {
     readonly key: K;
+    /** The features `owns` reads, as `feature`'s `reach`. */
+    readonly reach?: R | (() => R);
     readonly slots: readonly LoadoutSlot[];
     readonly items: readonly LoadoutItem<E>[];
     readonly sets?: readonly LoadoutSet<E>[];
     readonly owns: (state: G, item: string) => boolean;
     readonly reset?: ResetRule<LoadoutState>;
-}): LoadoutFeature<K, E>;
+}): LoadoutFeature<K, E> & {
+    readonly needs?: NeedsOf<R>;
+};

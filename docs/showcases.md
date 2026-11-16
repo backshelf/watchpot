@@ -72,7 +72,7 @@ Line by line:
   run reset, and the context an autobuyer's `run` is handed already carries both (`now` and `resetRun`).
 
 The same trick turns an autobuyer into anything that should happen "every so often, if the player has it switched on":
-catching whatever a [spawn](glossary.md#spawn) left on screen (`spawns.take(draft, kind, now)` is the draft helper for
+catching whatever a [spawn](glossary.md#spawn) left on screen (`spawns.draft.catch(draft, kind, now)` is the draft helper for
 that), or moving a slider.
 
 ## 2. A price that is asked for every time
@@ -161,7 +161,7 @@ whose amount reads the other stat: `{ active: (q) => buffActive(q.boosts, "hot-r
 
 The chain into the buff is one string long. The misfeed is a `spawns` kind whose outcomes are `"hot-run"`, `"box"` and
 `"double-feed"`. Its `onCatch` credits a box of labels for `"box"`, and for the other two calls
-`boosts.start(d, outcome, now, { durationMs })`: the spawn's outcome id is the buff's id, so it passes straight through.
+`boosts.draft.start(d, outcome, now, { durationMs })`: the spawn's outcome id is the buff's id, so it passes straight through.
 The FEED pad reads `buffLeftMs(g.boosts, "hot-run", g.gameNow()) > 0` to light up while a hot run is going.
 
 The game is still on engine 0.17 and writes `effects: () => []` on both. On the current engine leave `effects` out: a
