@@ -1,5 +1,5 @@
 import { isDraft } from "immer";
-import { catchUpSteps } from "../clock";
+import { offlineSteps } from "../clock";
 import { D, Decimal, ZERO } from "../decimal";
 import { checkLayers } from "./check";
 import { indexLayers, type LayerIndex, LayerQuery } from "./query";
@@ -59,7 +59,7 @@ export interface LayerModel<L extends string, S extends string, B extends string
    * each passive share of a normal layer's raw gain), then all of it lands, `playedMs` moves and the state settles.
    */
   advance(state: LayersState<L>, dtMs: number): void;
-  /** Time away: `catchUpSteps` over the model's `away` options, then `advance` once per step. Returns the credited ms. */
+  /** Time away: `offlineSteps` over the model's `away` options, then `advance` once per step. Returns the credited ms. */
   advanceAway(state: LayersState<L>, awayMs: number): number;
 }
 
@@ -297,7 +297,7 @@ export function layerModel<L extends string, S extends string, B extends string>
 
   const advanceAway = (s: LayersState<L>, awayMs: number): number => {
     const a = def.away ?? {};
-    const span = catchUpSteps(awayMs, {
+    const span = offlineSteps(awayMs, {
       capMs: a.capMs ?? 8 * 3_600_000,
       rate: a.rate,
       maxSteps: a.maxSteps,

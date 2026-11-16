@@ -21,7 +21,7 @@ Example: [`examples/board.ts`](examples/board.ts).
   `lift`, `move`, `clear` and `lay(cells)` (a whole layout at once: a preset, an auto-arrange), and carries the rules
   as `.board`. `held(state, piece)` and `open(state, x, y)` read the whole game state, so the board grows and its
   pieces are earned however the game likes. A piece no longer held, or on a cell no longer open, stops counting but
-  stays where it was put. A prestige reset keeps the layout unless `reset` says otherwise.
+  stays where it was put. A run reset keeps the layout unless `reset` says otherwise.
 - **`fillBoard(board, { score, held?, open?, start?, passes? })`** finds a good layout greedily: the best placement
   that does not lower `score`, again and again, then moves and lifts that score higher. For an auto-arrange button or
   a sim's player; it costs cells × pieces scorings a placement, so call it on a change, never every tick.

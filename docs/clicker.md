@@ -32,6 +32,9 @@ Example: [`examples/clicker.ts`](examples/clicker.ts).
   null when the cap dropped it (a dropped press pays nothing and moves no combo). `onClick(draft, result, now)` runs in
   the same recipe; `.press(draft, now)` is the same press inside a recipe of the game's.
 - **`clickShare(base, perSecond, share)`** is `base + perSecond × share`.
+- **The moment:** `power` and `crit` are handed a last argument `{ now }` in game time (`CallbackContext`), so a
+  running buff can raise a press where it applies:
+  `power: (s, { now }) => (buffActive(s.boosts, "frenzy", now) ? 7 : 1)`.
 - **Crit:** `crit(state)` gives `{ chance, mult }`; the roll is on the feature's own stream (seeded from the profile and
   the key), saved, so a reload replays the same rolls.
 - **Combo:** `{ windowMs, step, max }`. A press within `windowMs` of the last paid one pays at the last's multiplier

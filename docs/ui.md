@@ -1,11 +1,16 @@
 # Headless UI
 
 `watchpot/ui` is behaviour without a look: state, keyboard, focus, ARIA, structure and data attributes come from the
-engine; every pixel and every word come from the game. No primitive ships a stylesheet, a class name, a font, a colour
-or an English default. It peers on `react` and `react-dom` alone (`test/rules/headless.test.ts` proves the walk from its
-entry reaches no kit and no `.css`).
+engine; every pixel and every word come from the game. No primitive ships a stylesheet or a class name, and it peers
+on `react` and `react-dom` alone (`test/rules/headless.test.ts` checks both: the walk from its entry reaches no kit and
+no `.css`). No font, no colour and no English default either, though that part is a convention the test does not check.
 
 Example: [`examples/ui.tsx`](examples/ui.tsx).
+
+You rarely style these from nothing. The template's copy-in registry, `templates/game/src/ui/`, is a styled component
+over each primitive that a new game owns and restyles; its [README](../templates/game/src/ui/README.md) lists what is
+there, and its [token contract](../templates/game/src/ui/README.md#the-token-contract) is the set of `--ui-*`
+variables every one of them reads, so one `theme.css` restyles them all ([a theme](theme.md)).
 
 ## The rules every primitive keeps
 
@@ -158,7 +163,7 @@ button controls the detail region. Style `[data-node][data-state="locked"]`, `[d
 
 ```css
 .floats > [data-float] { animation: rise 900ms ease-out forwards; }
-@media (prefers-reduced-motion: reduce) { .floats > [data-float] { animation-duration: 1ms; } }
+:root[data-motion="reduced"] .floats > [data-float] { animation-duration: 1ms; }
 ```
 
 **Near** and **Marquee**: anticipation as state. `useNear(value, { at?, names?, hysteresis? })` names the band a 0..1

@@ -48,13 +48,12 @@ The first three never change after this section. The last two grow, step by step
     "typecheck": "bun check"
   },
   "dependencies": {
-    "watchpot": "git+ssh://github.com/backshelf/watchpot.git#v0.17.0",
+    "watchpot": "git+ssh://github.com/backshelf/watchpot.git#v0.18.0",
     "break_eternity.js": "2.1.3",
     "immer": "11.2.9",
     "react": "19.3.1",
     "react-dom": "19.3.1",
-    "zustand": "5.0.16",
-    "zzfx": "1.4.0"
+    "zustand": "5.0.16"
   },
   "devDependencies": {
     "@types/bun": "^1.4.4",
@@ -72,11 +71,12 @@ Line by line:
   the web, and `typecheck` runs `bun check`, Bun's typecheck command.
 - `watchpot` is the engine, pinned to a released version by its git tag. Write the URL exactly as shown: the
   `github:` shorthand and `git+https://` forms do not work for this repository, and the URL must not contain a user
-  name.
-- The next six are the engine's [peers](../glossary.md#peer): packages the engine imports but does not install, so that your game and
-  the engine share one copy of each. `break_eternity.js` is the big-number library (more on it in step 1), `immer`
-  and `zustand` hold the state, `react` and `react-dom` draw the page, and `zzfx` is the sound synthesiser. Simmer
-  makes no sound, but the engine still expects `zzfx` to be installed.
+  name. The engine states the Bun it needs, so an older Bun says so when it installs.
+- The next five are the engine's [peers](../glossary.md#peer): packages the engine imports but does not install, so
+  that your game and the engine share one copy of each. `break_eternity.js` is the big-number library (more on it in
+  step 1), `immer` and `zustand` hold the state, and `react` and `react-dom` draw the page. A few more peers are
+  optional, each needed only by one part of the engine (the sound synthesiser `zzfx`, for instance, only by
+  `watchpot/sound`); Simmer uses none of those parts, so it installs none of them.
 - The dev dependencies are types for Bun and React, and the TypeScript compiler `bun check` uses.
 
 The engine is published as TypeScript source, not compiled JavaScript. That is why Bun matters here: it reads `.ts`
@@ -99,22 +99,22 @@ files directly, both when it bundles and when it runs a script. A tool chain tha
     "skipLibCheck": true,
     "verbatimModuleSyntax": true,
     "allowImportingTsExtensions": true,
-    "types": ["bun"]
+    "types": ["bun", "watchpot/env"]
   },
-  "include": ["*.ts", "*.tsx", "node_modules/watchpot/env.d.ts", "node_modules/watchpot/src/css-vars.d.ts"]
+  "include": ["*.ts", "*.tsx"]
 }
 ```
 
 These are the same compiler options the engine and its game template use. The ones that matter to you:
 `"moduleResolution": "bundler"` lets you import `watchpot/core` the way a bundler resolves it, `"jsx": "react-jsx"`
 lets `.tsx` files hold JSX without importing React, and `"noEmit": true` says TypeScript only checks; Bun does the
-building.
+building. `include` names your own files.
 
-The `include` line needs a word. The first two entries are your own files. The last two are declaration files that
-live inside the engine. Because the engine ships source, TypeScript checks the engine's files too, and a few of them
-(the development panel, which you will meet in a later chapter) import CSS modules and set CSS custom properties.
-Those two files teach TypeScript what a CSS import is and that `--name` is a valid style key. Leave them out and
-`bun check` reports about twenty errors, all inside `node_modules/watchpot`, none of them yours.
+The `types` line needs a word. Because the engine ships source, TypeScript checks the engine's files too, and a few
+of them (the development panel, which you will meet in a later chapter) import CSS modules and set CSS custom
+properties. `watchpot/env` is a declarations-only entry of the engine that teaches TypeScript what a CSS import is
+and that `--name` is a valid style key. Leave it out and `bun check` reports about twenty errors, all inside
+`node_modules/watchpot`, none of them yours.
 
 ### index.html
 
@@ -153,7 +153,7 @@ Create `game.ts`:
 ```ts
 import { createIdleStore, defineGame, feature, ZERO } from "watchpot/core";
 
-const pot = feature({
+export const pot = feature({
   key: "pot",
   initial: () => ({ bubbles: ZERO }),
   actions: (api) => ({
@@ -193,6 +193,9 @@ everything that changes it. The pot is one:
 **`defineGame` lists the features and says where the game saves.** `id` names the game. `save.key` is the key its
 save is stored under, and `save.version` is the version of the save's shape; you bump it when the shape changes,
 which [chapter 9](09-saving-and-time-away.md) covers. `features` is the list. Right now it is one.
+
+Everything in `game.ts` is `export`ed, so that other files can import it: the page in step 2 imports the store, and
+in later chapters you will import the pot itself.
 
 **`createIdleStore` runs the game.** The [store](../glossary.md#store) holds the current state of every feature, the
 actions next to it, and a handful of actions of its own. The one option you must pass is `now`, the function that
@@ -270,8 +273,7 @@ What is new here:
   `.text` to get the string. It always rounds down, so the player never sees a number they do not have.
 - **`mountGame(store, <App />)`** finds `#root`, makes the store available to every hook below it, and renders.
 
-If you wait a second and reload the page, the count is still there. Nothing you wrote asked for that. Step 4
-explains it, and why the second matters.
+Reload the page, and the count is still there. Nothing you wrote asked for that; step 4 explains it.
 
 ## Step 3: the clock
 
@@ -289,7 +291,7 @@ export const BURNER_PER_SECOND = 1;
 // ...
 
 /** The pot: the bubbles you have, the tap that makes one, and the simmer that makes them over time. */
-const pot = feature({
+export const pot = feature({
   key: "pot",
   initial: () => ({ bubbles: ZERO }),
   actions: (api) => ({
@@ -341,9 +343,8 @@ function App() {
 Save both files and look at the page. The count now climbs by one every second, and taps still add one on top.
 
 `useGameClock` starts the engine's clock when the page mounts and stops it when the page goes away. Call it once, in
-the component at the top of your page. While it runs it ticks the store every 100 milliseconds. It also does two
-things you will see in the next two steps: it saves when the tab is hidden, and when the page opens it first pays for
-the time since the game last ran.
+the component at the top of your page. While it runs it ticks the store every 100 milliseconds. It also does one
+thing you will see in step 5: when the page opens, it first pays for the time since the game last ran.
 
 ## Step 4: the save
 
@@ -367,10 +368,10 @@ Three things are in it:
 
 Now reload the page. The count picks up where it was.
 
-Saving is not instant. The store waits until a second has passed without a change before it writes, so a game that
-changes ten times a second does not write ten times a second. When the tab is hidden or closed, the clock writes at
-once, so nothing is lost when the player leaves. In step 2 there was no clock yet, which is why a reload had to wait
-for that second.
+Saving is not instant. The store writes at most once a second: the first change after a write schedules the next one
+a second later, carrying whatever the state is by then, so a game that changes ten times a second does not write ten
+times a second. When the page is hidden, reloaded or closed, the store writes at once, so nothing is lost when the
+player leaves. That is why the reload in step 2 kept your taps.
 
 If the browser has no `localStorage` at all (some privacy modes block it), the store keeps the save in memory instead
 and the game still runs; it just forgets everything when the tab closes.
@@ -383,6 +384,9 @@ The count is higher than when you left: the pot kept simmering while the tab was
 [catch-up](../glossary.md#catch-up). When the page opens, the clock does not start ticking straight away. First it
 runs the steps once over the whole gap since `lastSeen`, with `ctx.dtMs` set to the length of that gap. Your `simmer`
 step does not know or care whether it is paying for 100 milliseconds or for a week: it multiplies by `dtMs` either way.
+
+A glance at another tab is not time away. When a hidden tab comes back within 5 seconds, the clock pays the gap as
+ordinary ticks; only a longer absence goes to the catch-up.
 
 Paying for the time is half of it. The other half is telling the player. Add a note that appears when they come back.
 In `main.tsx`, add `fmtPlayed` to the import from `watchpot/core`, and `type AwayReturn`, `type StoreState` and
@@ -398,7 +402,7 @@ function summarize({ before, after, ms }: AwayReturn<State>) {
   return { made: after.pot.bubbles.sub(before.pot.bubbles), ms };
 }
 
-/** The welcome back. A child of `App`, so it is listening before the clock's first catch-up. */
+/** The welcome back, shown after an absence of 30 seconds or more until the player dismisses it. */
 function AwayNote() {
   const { report, dismiss } = useAwayReport(summarize);
   if (!report) return null;
@@ -442,10 +446,8 @@ How it works:
   are paid for silently; you can change the threshold with the `minMs` option.
 - **`StoreState<typeof store>`** is the type of the store's state, so `before.pot.bubbles` is typed.
 - **`fmtPlayed(ms)`** prints a length of time: `0m 48s`, or `4h 25m` past an hour.
-- **`AwayNote` is a child of `App`, and that matters.** The clock pays the catch-up the moment `App` mounts. React
-  starts a child's effects before its parent's, so the child is already listening when that happens. Call
-  `useAwayReport` in `App` itself, after `useGameClock`, and the first catch-up has already happened by the time it
-  starts listening.
+- **`AwayNote` is its own component** only to keep `App` short. `useAwayReport` hears the clock's first catch-up
+  wherever it sits under `mountGame`, in a child of `App` or in `App` itself after `useGameClock`.
 
 ## Step 6: a burner you can buy
 
@@ -465,23 +467,25 @@ export function burnerPrice(owned: number) {
   return costAt(BURNER_COST, owned);
 }
 
-/** The stove: how many burners are lit, buying one, and the heat they add. */
-const stove = feature({
+/** The stove: how many burners are lit, buying one, and the bubbles they make. */
+export const stove = feature({
   key: "stove",
   reach: [pot],
   initial: () => ({ burners: 0 }),
   actions: (api) => ({
+    // `api.set` hands back what the recipe returns, so the action says whether it bought.
     buyBurner: () =>
       api.set((s) => {
         const price = burnerPrice(s.stove.burners);
-        if (s.pot.bubbles.lt(price)) return;
+        if (s.pot.bubbles.lt(price)) return false;
         s.pot.bubbles = s.pot.bubbles.sub(price);
         s.stove.burners += 1;
+        return true;
       }),
   }),
   steps: {
     produce: {
-      heat: (s, ctx) => {
+      burn: (s, ctx) => {
         const made = D(s.stove.burners * BURNER_PER_SECOND).mul(ctx.dtMs / 1000);
         s.pot.bubbles = s.pot.bubbles.add(made);
       },
@@ -518,10 +522,12 @@ What is new:
   Without it the second burner would cost 11.5 bubbles, `fmt` would show it as 11, and the player would see a button
   they cannot press with 11 bubbles in the pot.
 - **`buyBurner` checks before it spends.** `lt` is "less than"; Decimals compare with methods, not `<`. If the pot
-  cannot pay, the action returns without changing anything.
+  cannot pay, the recipe returns `false` without changing anything; otherwise it pays and returns `true`.
+- **`api.set` returns what the recipe returns,** so `buyBurner()` answers whether it bought. The page below ignores
+  the answer; a test, or a sound that plays only on a real purchase, can use it.
 - **`burners` is a plain number.** You will never own more burners than JavaScript can count. Only amounts that grow
   without limit, like bubbles, need to be Decimals. `D(n)` turns a plain number into a Decimal when the two meet.
-- **`heat` is a second `produce` step.** Both the pot's `simmer` and the stove's `heat` run every tick, and both run
+- **`burn` is a second `produce` step.** Both the pot's `simmer` and the stove's `burn` run every tick, and both run
   in the catch-up, so burners earn while you are away too.
 
 Now the page. In `main.tsx`, add `fmtCounted` and `fmtRate` to the import from `watchpot/core`, and import
@@ -597,7 +603,7 @@ export function perSecond(burners: number): number {
 }
 
 /** The pot: the bubbles you have, the tap that makes one, and the simmer that makes them over time. */
-const pot = feature({
+export const pot = feature({
   key: "pot",
   initial: () => ({ bubbles: ZERO }),
   actions: (api) => ({
@@ -624,23 +630,25 @@ export function burnerPrice(owned: number) {
   return costAt(BURNER_COST, owned);
 }
 
-/** The stove: how many burners are lit, buying one, and the heat they add. */
-const stove = feature({
+/** The stove: how many burners are lit, buying one, and the bubbles they make. */
+export const stove = feature({
   key: "stove",
   reach: [pot],
   initial: () => ({ burners: 0 }),
   actions: (api) => ({
+    // `api.set` hands back what the recipe returns, so the action says whether it bought.
     buyBurner: () =>
       api.set((s) => {
         const price = burnerPrice(s.stove.burners);
-        if (s.pot.bubbles.lt(price)) return;
+        if (s.pot.bubbles.lt(price)) return false;
         s.pot.bubbles = s.pot.bubbles.sub(price);
         s.stove.burners += 1;
+        return true;
       }),
   }),
   steps: {
     produce: {
-      heat: (s, ctx) => {
+      burn: (s, ctx) => {
         const made = D(s.stove.burners * BURNER_PER_SECOND).mul(ctx.dtMs / 1000);
         s.pot.bubbles = s.pot.bubbles.add(made);
       },
@@ -715,7 +723,7 @@ function summarize({ before, after, ms }: AwayReturn<State>) {
   return { made: after.pot.bubbles.sub(before.pot.bubbles), ms };
 }
 
-/** The welcome back. A child of `App`, so it is listening before the clock's first catch-up. */
+/** The welcome back, shown after an absence of 30 seconds or more until the player dismisses it. */
 function AwayNote() {
   const { report, dismiss } = useAwayReport(summarize);
   if (!report) return null;
@@ -769,23 +777,20 @@ Put `dist/` on any static host and the game runs there, saving to each player's 
   catch-up, so a player who leaves for a month comes back to a month of income at the full rate. That is fine for
   Simmer and wrong for most games. [Chapter 9](09-saving-and-time-away.md) shows how to pay a share of the time, up to
   a cap.
-- **A brief switch to another tab counts as time away too.** When a hidden tab comes back, the clock pays the gap as a catch-up, not
-  as ticks. With full-rate steps you cannot tell the difference. Once you pay time away at a lower rate (chapter 9),
-  you will see a brief switch to another tab earn at that lower rate.
 - **Deleting the save while the page is open does not delete it.** If you remove `simmer.save` in the developer tools
-  and reload, the page writes its save one last time as it unloads, and the old game comes back. To start over, close
-  every tab of the game before deleting the entry, or give yourself a button that calls the store's own reset:
-  `<button type="button" onClick={() => store.getState().resetProfile()}>Start over</button>`.
+  and reload, the store writes its save one last time as the page hides, and the old game comes back. To start over,
+  call `clearSave(store)` from `watchpot/core` and then reload: it stops the store writing before it deletes the save,
+  so nothing puts it back. As a button:
+  `<button type="button" onClick={() => { clearSave(store); location.reload(); }}>Start over</button>`.
 - **A second tab stops the first.** Open Simmer in two tabs and the one that saved last wins: the other tab notices
   the newer save, stops its clock and stops writing, so it can never overwrite the newer game. It does not say so on
   screen unless you show it; `useGameClock` returns `{ taken }` for that.
-- **The away note needs 30 seconds and the right place in the tree.** Shorter absences are paid but not reported.
-  And `useAwayReport` must be in a component below the one that calls `useGameClock` (step 5 explains why).
+- **The away note needs 30 seconds.** Shorter absences are paid but not reported; the `minMs` option changes that.
 - **`fmt` returns an object.** `{fmt(n)}` in JSX is an error; write `{fmt(n).text}`. And because `fmt` rounds down,
   a price with a fraction shows lower than it is: round prices to whole numbers (`round: "ceil"`), as the burner does.
 - **`bun check` fails inside `node_modules/watchpot`.** If you see about twenty errors in the engine's development
-  panel files about `.module.css` or `--` style keys, the two engine declaration files are missing from your
-  `tsconfig.json`'s `include`.
+  panel files about `.module.css` or `--` style keys, `"watchpot/env"` is missing from your `tsconfig.json`'s
+  `types`.
 
 ## Next
 
@@ -801,7 +806,7 @@ the tick and its phases, the clock and the catch-up) and shows the order they ru
 - [`README.md`](../../README.md#install): install, and the React section on the store hooks.
 - `api/core/feature.d.ts` (`feature`, steps and phases), `api/core/game.d.ts` (`defineGame`),
   `api/core/store.d.ts` (`createIdleStore`, `IdleStoreOptions`, the root actions), `api/core/storage.d.ts` (the
-  save's storage), `api/core/cost.d.ts` (`costAt`), `api/core/fmt.d.ts` (`fmt`, `fmtRate`, `fmtCounted`,
+  save's storage), `api/core/persist.d.ts` (`clearSave`), `api/core/cost.d.ts` (`costAt`), `api/core/fmt.d.ts` (`fmt`, `fmtRate`, `fmtCounted`,
   `fmtPlayed`), `api/core/decimal.d.ts` (`D`, `ZERO`).
 - `api/react/store.d.ts` (`createRuntimeHooks`, `mountGame`, `StoreState`), `api/react/gameClock.d.ts`
   (`useGameClock`), `api/react/away.d.ts` (`useAwayReport`, `AwayReturn`).

@@ -53,4 +53,4 @@ export const where = (xp: number) => ({ level: levelAt(steady, xp), bar: levelPr
   the levels gained and run `onLevel(draft, track, from, to)` once in the same recipe when the level rises. A gain
   of zero or less does nothing.
 - **Rules (`.rules`):** `level(slice, track)`, `progress(slice, track)` and `contributions(slice)` through
-  `effects(track, level)`, sourced `<key>:<track>`. A prestige reset clears the XP unless `reset` says otherwise.
+  `effects(track, level)`, sourced `<key>:<track>`. A run reset clears the XP unless `reset` says otherwise.

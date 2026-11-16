@@ -62,7 +62,7 @@ void main() {
   float band = dot(uv - 0.5, vec2(cos(u_angle), sin(u_angle))) * 3.0 + u_time * 0.15;
   vec3 foil = cosinePalette(band, vec3(0.5), vec3(0.5), vec3(1.0), vec3(0.0, 0.33, 0.67));
   vec3 cells = voronoi(uv * 12.0);
-  float sparkle = smoothstep(0.08, 0.0, cells.x) * step(0.85, fract(cells.z + u_time * 0.5));
+  float sparkle = (1.0 - smoothstep(0.0, 0.08, cells.x)) * step(0.85, fract(cells.z + u_time * 0.5));
   vec3 colour = mix(u_tint.rgb, foil, 0.35) + sparkle;
   float alpha = u_tint.a;
   fragColor = vec4(colour * alpha, alpha);
@@ -87,7 +87,7 @@ void main() {
   float d = sdRoundBox(gl_FragCoord.xy - centre, halfSize, 10.0 * u_pixelRatio);
   float inside = sdfCoverage(d);
   float halo = glow(d, 4.0 * u_pixelRatio) * (1.0 - inside);
-  float sweep = smoothstep(0.1, 0.0, abs(fract(u_time * 0.4) * 1.6 - 0.3 - screenUv().x)) * inside;
+  float sweep = (1.0 - smoothstep(0.0, 0.1, abs(fract(u_time * 0.4) * 1.6 - 0.3 - screenUv().x))) * inside;
   float alpha = clamp((halo + 0.25 * sweep) * u_ready, 0.0, 1.0);
   fragColor = vec4(u_glow.rgb * alpha, alpha);
 }

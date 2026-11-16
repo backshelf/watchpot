@@ -1,13 +1,4 @@
-import {
-  createGameStorage,
-  createIdleStore,
-  createMemoryBackend,
-  D,
-  defineGame,
-  feature,
-  localStorageBackend,
-  startGameClock,
-} from "watchpot/core";
+import { createIdleStore, D, defineGame, feature, startGameClock } from "watchpot/core";
 
 /** One feature: a wallet with one action. Its state, its actions and its tick steps are all declared here. */
 const wallet = feature({
@@ -33,19 +24,16 @@ const wallet = feature({
 export const game = defineGame({ id: "start", save: { key: "start.save", version: 1 }, features: [wallet] });
 
 /**
- * The store. `now` is the one wall read the game makes: pass `Date.now` here and nowhere else. A browser game
- * uses `localStorageBackend()`; a test or a server falls back to memory.
+ * The store. `now` is the one wall read the game makes: pass `Date.now` here and nowhere else. With no `storage`,
+ * the store saves to localStorage, or to memory (and says it is not keeping anything) where there is none.
  */
 export function buildStore(now: () => number = Date.now) {
-  return createIdleStore(game, {
-    storage: createGameStorage(localStorageBackend() ?? createMemoryBackend()),
-    now,
-  });
+  return createIdleStore(game, { now });
 }
 
 /** Boot: one catch-up for the time away, then a clock ticking on an interval. Returns the clock's stop. */
 export function boot(store: ReturnType<typeof buildStore>) {
-  return startGameClock(store, {});
+  return startGameClock(store);
 }
 
 if (import.meta.main) {

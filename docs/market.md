@@ -38,7 +38,7 @@ Example: [`examples/market.ts`](examples/market.ts).
   paid, realised, yielded, trades }` under `key`. `fee(state)` is the share of every trade the market keeps (on the
   way in and on the way out), `yieldMult(state)` the game's multiplier on every yield, `open(state, ticker)` which
   tickers trade. The step `<key>.produce.yield` pays the holdings' yield over a tick and over an absence (`away`,
-  default all of it). A prestige reset clears the holdings and draws a new seed unless `reset` says otherwise.
+  default all of it). A run reset clears the holdings and draws a new seed unless `reset` says otherwise.
 - **Actions**, in whole units, each returning the units traded: `buy(id, units)` (all or nothing), `buyMax(id,
   share = 1)` (what that share of the balance covers), `sell(id, units)` and `sellAll(id)`. A holding keeps what it
   cost (`paid`); a sale takes the basis out in proportion and books the difference in `realised`.

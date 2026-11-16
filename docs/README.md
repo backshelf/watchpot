@@ -11,7 +11,7 @@ Read these in order. Each chapter opens with what you will have by the end and c
 wrong, a link to the next chapter, and the reference pages for what it covered.
 
 1. [**What watchpot is**](guide/01-what-watchpot-is.md): what the engine does for you and what it leaves to you, the
-   ten entries, and what you need installed.
+   twelve entries, and what you need installed.
 2. [**Your first game**](guide/02-your-first-game.md): Simmer, from an empty folder to a page that ticks, saves and
    pays for time away.
 3. [**The mental model**](guide/03-the-mental-model.md): features and slices, the store, the tick and its eight
@@ -33,8 +33,8 @@ wrong, a link to the next chapter, and the reference pages for what it covered.
 11. [**Look and sound**](guide/11-look-and-sound.md): a shader backdrop driven by the game, and a first sound table.
 12. [**Proving the pacing**](guide/12-proving-the-pacing.md): the sim lab, pacing contracts, the test kit, and plan
     and fit for a large game.
-13. [**From the template**](guide/13-from-the-template.md): starting a real project from the game template, the daily
-    loop, and changing the engine and a game together.
+13. [**From the template**](guide/13-from-the-template.md): starting a real project from the game template in one
+    command, the daily loop, and changing the engine and a game together.
 
 In a hurry: read chapters 2 and 3, then jump to the chapter for whatever you are building.
 
@@ -63,7 +63,9 @@ type-checks and, where the page says so, runs with `bun docs/examples/<name>.ts`
 | A prestige layer | [prestige-layer](prestige-layer.md) | `prestige-layer.ts` |
 | A save migration | [migration](migration.md) | `migration.ts` |
 | A pacing contract | [pacing-contract](pacing-contract.md) | `pacing-contract.ts` |
-| A persona | [persona](persona.md) | `persona.ts` |
+| The auto-player and fixture plays | [persona](persona.md) | `persona.ts` |
+| The test kit: a fresh store, fixture saves, playing time in a test | [test-kit](test-kit.md) | `test-kit.ts` |
+| The React runtime: mounting, the clock hooks, motion and scheme | [react-runtime](react-runtime.md) | `react-runtime.tsx` |
 | A theme | [theme](theme.md) | `theme.ts` |
 | A sound table: cues, takes, the governor | [sound-table](sound-table.md) | `sound-table.ts` |
 | The mix: buses, effects, scenes, the mod matrix, placement | [sound-mix](sound-mix.md) | `sound-mix.ts` |
@@ -106,14 +108,17 @@ The systems of the root README's `Systems` section, one page each:
 | Records: run, lifetime and best | [records](records.md) | `records.ts` |
 | A daily streak | [streak](streak.md) | `streak.ts` |
 | Notations | [notations](notations.md) | `notations.ts` |
-
-The gauge has no page of its own yet; it is the [Gauges](../README.md#gauges) section of the root README.
+| A gauge: a level that fills, drains and can trip | [gauge](gauge.md) | `gauge.ts` |
+| Loadouts | [loadouts](loadouts.md) | `loadouts.ts` |
+| Prefs and the pace clock | [prefs](prefs.md) | `prefs.ts` |
+| Settings and seen-once flags | [settings](settings.md) | `settings.ts` |
+| Events: a framework for timed events | [events](events.md) | `events.ts` |
 
 ## The API report
 
-[`api/`](../api) holds the generated type declarations for the ten entries, with a doc line on each export. When the
-guide or a reference page and `api/` disagree, `api/` is right. The two build-tool paths, `watchpot/kit/theme` and
-`watchpot/sound/pack`, have no file there; read their source under `src/kit/theme/` and `src/sound/pack/`.
+[`api/`](../api) holds the generated type declarations for the twelve entries, with a doc line on each export. When
+the guide or a reference page and `api/` disagree, `api/` is right. The two build-tool paths, `watchpot/kit/theme`
+and `watchpot/sound/pack`, are under `api/kit/theme/` and `api/sound/pack/`.
 
 Examples import from `watchpot/core`, `watchpot/sim`, `watchpot/test`, `watchpot/react`, `watchpot/kit`, `watchpot/ui`,
 `watchpot/shader`, `watchpot/sound`, `watchpot/sound/pack` and `watchpot/three` as a consumer would. The long-form

@@ -33,37 +33,33 @@ It has three layers, and this chapter takes them in order:
 The auto-player knows nothing about your game. It asks each feature what a player could do right now, and a
 feature answers through an optional `moves` function. The store never calls it; only the sim does.
 
-Here is Simmer's pot again, the pot and burners from chapters 2 and 3 folded into one feature so the example file
-stands on its own, with one addition at the bottom:
+Simmer's features were written without moves, so the example imports them from
+[`simmer/game-wallet.ts`](../examples/simmer/game-wallet.ts) and adds one with `withMoves(feature, moves)`, which
+hands back the same feature with the moves attached:
 
 ```ts
-export const pot = feature({
-  key: "pot",
-  initial: () => ({ bubbles: ZERO, burners: 0 }),
-  actions: (api) => ({
-    // ...
-    buyBurner: (): boolean => {
-      let bought = false;
-      api.set((s) => {
-        const cost = burnerCost(s.pot.burners);
-        if (s.pot.bubbles.lt(cost)) return;
-        s.pot.bubbles = s.pot.bubbles.sub(cost);
-        s.pot.burners += 1;
-        bought = true;
-      });
-      return bought;
-    },
-  }),
-  // ...
-  // What a player could do now, for the sim's auto-player. The store never reads this.
-  moves: (s) => [
-    {
-      id: "buy-burner",
-      cost: { currency: "bubbles", amount: burnerCost(s.pot.burners) },
-      value: () => 1, // a bubble a second: the only thing a burner does
-      apply: (store) => store.getState().pot.buyBurner(),
-    },
-  ],
+/**
+ * Simmer's pot, carrying what a player could do now, for the sim's auto-player: light a burner. The store never reads
+ * this. Moves read the whole state, so any feature can carry them. The stove would be the natural home, but the lid
+ * reaches the stove itself, and a stove with moves is a new object, so the lid would have to be rebuilt too. Nothing
+ * reaches the pot.
+ */
+export const playablePot = withMoves(pot, (s: Simmer) => [
+  {
+    id: "buy-burner",
+    cost: { currency: "bubbles", amount: burnerPrice(s.stove.burners) },
+    value: () => BURNER_PER_SECOND, // bubbles a second: the only thing a burner does
+    apply: (store) => store.getState().stove.buyBurner(),
+  },
+]);
+
+/** Simmer with the playable pot in the pot's place: the same key, the same save. */
+export const game = defineGame({
+  id: "simmer",
+  save: { key: "simmer.save", version: 1 },
+  vocab: WORDS,
+  features: [wallet, playablePot, stove, lid],
+  order: { rates: [...SIMMER_RATES] },
 });
 ```
 
@@ -73,10 +69,16 @@ A [move](../glossary.md#move) has four parts:
 
 - `id` names it. If its `apply` refuses, the auto-player does not try that id again in the same look.
 - `cost` says what it costs and in which currency. A move with no cost is a free move: a claim, an open, a toggle.
+  `burnerPrice` is the core's own price (`costAt`, rounded up), so the sim pays exactly what the page charges.
 - `value` says what it is worth, in any unit you like, as long as every move in that currency uses the same one. A
-  burner makes a bubble a second, so its worth is 1.
+  burner makes a bubble a second, so its worth is `BURNER_PER_SECOND`, 1.
 - `apply` plays it through the store's own actions and says whether it went through. `buyBurner` already returns
   that, so the move hands it straight back.
+
+The comment explains why the moves ride on the pot. `defineGame` checks each feature's `reach` against the list by
+identity: the lid reaches the very `stove` object chapter 3 made, so a game that lists a changed copy of the stove
+in its place fails with "feature "lid" reaches "stove", which the game does not list". A feature nothing reaches
+can be swapped freely, and the pot is one.
 
 At each look the auto-player buys the purchase with the best worth for the share of its balance it spends, again and
 again while one is affordable, then takes every free move worth anything, and goes round once more if either did
@@ -87,23 +89,24 @@ Several of the engine's ready-made systems carry their moves already: a `generat
 generator, valued at the income it adds, and a `clicker` offers one press per look. Others need you to say what a
 move is worth, because only your game knows. An `upgradeTree` gets its moves from `treeMoves(key, nodes, worth)`, and
 you attach them, like any moves for a feature a factory made (`prestige`, say), with `withMoves(feature, moves)`.
-Until you do, the auto-player never buys from that feature, and nothing tells you so. Here is a one-upgrade tree with
-its moves attached:
+Until you do, the auto-player never buys from that feature, and nothing at run time tells you so. The second example
+file adds a kitchen to the playable Simmer: an `upgradeTree` with one upgrade, a copper base that doubles the stove
+(a small `copper` feature reads its rank in a `rates` step after the lid's). Here is the tree with its moves attached:
 
 ```ts
 // The tree the store runs, plus the moves the sim buys from. `worth` is in the unit the burners' moves use, bubbles
-// a second; it gets no state, so it is a fair guess: the lid is worth about five burners.
+// a second; it gets no state, so it is a fair guess: the copper base is worth about five burners.
 const kitchen = withMoves(
-  upgradeTree({ key: "kitchen", nodes: [LID], wallet }),
-  treeMoves("kitchen", [LID], () => 5),
+  upgradeTree({ key: "kitchen", nodes: [COPPER], wallet }),
+  treeMoves("kitchen", [COPPER], () => 5),
 );
 ```
 
 `docs/examples/guide-pacing-tree.ts`
 
 `withMoves` and `treeMoves` both come from `watchpot/core`. The first argument to `treeMoves` is the tree's `key`,
-and the list is the same nodes the tree was built from. `withMoves` hands back the same feature with the moves
-attached, and you put that one in the game's feature list.
+and the list is the same nodes the tree was built from. You put the wrapped tree in the game's feature list, and
+since nothing reaches it yet, there is no identity to keep.
 
 Notice that tapping the pot is not a move. That is deliberate, and the reason is the first thing that bites in
 [Things that bite](#things-that-bite).
@@ -116,12 +119,12 @@ Now the run itself. This plays one day of Simmer, around the clock:
 export function playSimmer(seed = "simmer"): Run {
   const start = Date.UTC(2026, 0, 1);
   const world = createSimWorld((now) => simStore(game, now, seed), start);
-  const player = autoPlayer(game, { balance: (s: { pot: { bubbles: Decimal } }) => s.pot.bubbles });
+  const player = autoPlayer(game);
 
   const hoursIn = () => (world.now() - start) / HOUR_MS;
   const read = (): Row => {
     const s = world.store.getState();
-    return { hours: hoursIn(), bubbles: s.pot.bubbles.toNumber(), burners: s.pot.burners };
+    return { hours: hoursIn(), bubbles: s.wallet.bubbles.toNumber(), burners: s.stove.burners };
   };
   const timeline = sampler({
     marks: [5, 15, 30, 60, 120, 240].map((min) => min * MINUTE_MS),
@@ -138,7 +141,7 @@ export function playSimmer(seed = "simmer"): Run {
     rng: rngFor(seed, "auto"),
     look: (at) => {
       for (let i = 0; i < at.presses; i++) world.store.getState().pot.tap();
-      const before = world.store.getState().pot.burners;
+      const before = world.store.getState().stove.burners;
       if (player.look(world.store).bought === 0) return;
       // ...
     },
@@ -159,15 +162,16 @@ Line by line:
   you, and it opens that store at `start` with one catch-up, as a first page load would. `simStore(game, now, seed)` is
   the store to build: your game, on storage that never writes (saving after every change is the slowest thing a sim
   could do), with its random draws seeded so one seed is always one run.
-- `autoPlayer(game, { balance })` makes the player. `balance` tells it how much of a currency the state holds, so it
-  only reaches for what it can pay. Simmer has one currency, so the reader ignores the currency's name and returns
-  the bubbles. In a game with a `currencies` wallet it reads `s.wallet[currency]`.
+- `autoPlayer(game)` makes the player. It has to know how much of each currency the state holds, so it only reaches
+  for what it can pay. A game with one `currencies` feature, as Simmer has, needs to say nothing: the player reads
+  that wallet. A game with two wallets, or none, passes `balance(state, currency)` to say where to look.
 - `read` takes one row: the hours since the start, the bubbles and the burners. A row holds whatever you want the
   contract to look at later.
 - `sampler` keeps the timeline. It takes a row each time the run passes one of the `marks` (five minutes, a quarter
   hour, and so on), and `at` tells it when a row was taken.
 - `playDays` is the loop. Each look it calls your `look` with where it is (`at.presses` among it), plays the time to
-  the next look, then calls `afterLook`. At the end of each day it calls `dayEnd`.
+  the next look, then calls `afterLook`. At the end of each day it calls `dayEnd`. It plays whole `days` unless you
+  stop it sooner (below).
 - `activeSchedule(10, 3)` is the schedule: at the game around the clock, a look every ten seconds, three keypresses
   at each look. Why this schedule and not a more lifelike one is the next section but one.
 - `rngFor(seed, "auto")` is the seeded stream a schedule draws its days from. This schedule draws nothing, but
@@ -187,33 +191,39 @@ Run the file:
 bun docs/examples/guide-pacing.ts
 ```
 
-It plays a whole day in about a third of a second and prints this:
+It plays a whole day in well under half a second and prints this:
 
 ```text
 0:00  burner 1
-0:01  burner 10
-0:03  burner 25
-0:30  burner 50
-9:56  burner 75
+0:00  burner 10
+0:02  burner 25
+0:29  burner 50
+9:47  burner 75
 | hours | bubbles | burners |
 | --- | --- | --- |
-| 0.08 | 330 | 31 |
-| 0.25 | 1258 | 43 |
-| 0.50 | 7666 | 49 |
-| 1.00 | 20639 | 55 |
-| 2.00 | 42410 | 61 |
-| 4.00 | 68152 | 67 |
-| 24.00 | 41871 | 82 |
+| 0.08 | 912 | 32 |
+| 0.25 | 3775 | 43 |
+| 0.50 | 2087 | 50 |
+| 1.00 | 5052 | 56 |
+| 2.00 | 2542 | 62 |
+| 4.00 | 87147 | 67 |
+| 24.00 | 142440 | 82 |
 pass Burners, hour 0.25 43.0 35–50
-pass Burners, hour 1 55.0 50–70
-FAIL Longest wait in hour 1 (min) 5.8 at most 5
-fixture: 1 burner, 3610 bubbles
+pass Burners, hour 1 56.0 50–70
+FAIL Longest wait in hour 1 (min) 6.5 at most 5
+fixture: 1 burner, 7210 bubbles
+a minute on one burner: 120 bubbles
 ```
 
 The first five lines are the firsts, in hours and minutes (`fmtClock`). The table is the timeline, printed with
-`markdownTable`. Both printers come from `watchpot/sim`. Read them together and Simmer's story is plain: twenty-five burners in three minutes, then fifty by
-half an hour, then seventy-five takes nine and a half more hours. Each burner costs 15% more than the last, and
-nothing else in the game grows, so the waits stretch until the player is watching a pot that never gets anywhere.
+`markdownTable`. Both printers come from `watchpot/sim`. Read them together and Simmer's story is plain: twenty-five
+burners in two minutes, then fifty by half an hour, then seventy-five takes more than nine hours after that. Each
+burner costs 15% more than the last, and nothing else in the game grows, so the waits stretch until the player is
+watching a pot that never gets anywhere. (The bubbles column rises and falls because it is the balance: the player
+spends it the moment a burner is affordable.)
+
+The sim never puts the lid on, either. The lid has no moves, so to the auto-player it does not exist; a real Simmer
+sim would give it a free move that puts it on and refuses once it is on.
 
 That is what a sim is for. You did not have to sit through hour two to learn that hour two is empty.
 
@@ -232,19 +242,23 @@ playStraight({
   ms: 2 * HOUR_MS, // the longest it may take
   lookEveryMs: 10_000, // a look every ten seconds
   look: () => player.look(world.store),
-  until: hasLid, // checked before each look: the sitting ends the moment it holds
+  until: has, // checked before each look: the sitting ends the moment it holds
 });
 
-return hasLid() ? world.now() - start : null;
+return has() ? world.now() - start : null;
 ```
 
 `docs/examples/guide-pacing-tree.ts`
 
-`hasLid` reads the tree's ranks from `world.store`. When `until` never holds, the sitting runs the full `ms`, which
-is why the function says `null` rather than a time. Run the file and it prints `lid at 0:02`: two minutes in.
+`has` reads the tree's ranks from `world.store`. When `until` never holds, the sitting runs the full `ms`, which is
+why the function says `null` rather than a time. Run the file and it prints `copper base at 0:01`: one minute in.
 
 `playStraight` takes a look cadence, not a schedule, so it plays a player who never leaves. That is the right player
 for "how soon can this happen", and the wrong one for "how does a week feel", which is `playDays`'s job.
+
+`playDays` can stop early too. It takes the same `until`, and `hours`, a limit on the time played since `start`.
+Both are checked after each look and the play that follows it, so the run ends after the look that crossed the line,
+and a day cut short gets no `dayEnd`. `hours: 4` on Simmer's run would stop at the four-hour row.
 
 ## Played hours
 
@@ -262,11 +276,6 @@ the tab open from a waking hour to a sleeping hour, and a `SessionSchedule` draw
 sessions a day, of varying length, with the tab closed between them and the odd day skipped. Use those to ask how a
 casual checker's week goes, once the played hours are right. Their hours include the night, so never read played
 pacing off them.
-
-Be aware that the engine is not consistent about this yet. The pacing contract page on the reference shelf says to
-judge on `activeSchedule`, but its own example uses `fixedSchedule`, the persona page says to put pacing on a
-`fixedSchedule` or a `SessionSchedule`, and the game template's `sim/run.ts` judges calendar days on a session
-schedule. Follow the rule, not the examples.
 
 ## A pacing contract
 
@@ -317,7 +326,7 @@ something unrelated. If it is too tight, every harmless change fails it. When yo
 drop), the run changes with the seed too, and the bands are written as the 10th to 90th percentile over a few seeds
 (`p10p90` computes that). Simmer draws nothing at random, so every seed plays the same run.
 
-And Simmer fails its own contract: the longest wait in the first hour is almost six minutes. That is the right
+And Simmer fails its own contract: the longest wait in the first hour is six and a half minutes. That is the right
 answer. The fix is not a cheaper burner. A cheaper burner would hide the problem for another ten minutes and leave
 hour two just as empty. The fix is content: something else to buy, something that grows the burners' output, a
 reset that starts the pot again stronger. That is what chapters [5](05-a-real-game.md) to
@@ -337,7 +346,7 @@ test("Simmer keeps its pacing", () => {
 });
 ```
 
-Keep a test like this fast. Simmer's day takes a third of a second, so it can sit with the ordinary tests. A larger
+Keep a test like this fast. Simmer's day takes a fraction of a second, so it can sit with the ordinary tests. A larger
 game's run takes longer, and anything over a second belongs in a slow tier (in watchpot's own repository, a file
 named `*.slow.test.ts`) that runs at a checkpoint rather than on every commit. Never make the whole plan of a big game
 a test: a gate that takes minutes stops being run.
@@ -353,12 +362,29 @@ Most tests in a game are not about pacing. They check that a rule does what it s
 a reset keeps what it should, an old save still loads. For those, `watchpot/test` has a small kit.
 
 **A fresh store.** `freshStore(game, options?)` builds an isolated store on a memory backend that writes every
-change straight through, already loaded, with no `await`. It returns `{ store, backend, clock }`: the store, what it
-saved to, and a test clock (a `testClock`). Unless you pass `at`, the clock starts frozen at `T0`, local noon on a
-fixed day, so a rule about "today" sees the middle of a day. `clock.advance(ms)` moves it and returns the new time, which is what you pass to
-`tick`.
+change straight through, already loaded, with no `await`. It returns `{ store, backend, clock, play }`: the store,
+what it saved to, a test clock (a `testClock`), and `play(ms)`, which moves the clock `ms` forward and ticks the store
+over that time in one call. Unless you pass `at`, the clock starts frozen at `T0`, local noon on a fixed day, so a
+rule about "today" sees the middle of a day. Here is the burner rule checked that way:
 
-**A save made by play.** `fixtureSave(game, persona)` runs a fresh store through a function you write, then exports
+```ts
+/** A rule checked the short way: one burner and a minute of play, in one call. */
+export function aMinuteOnOneBurner(): number {
+  const { store, play } = freshStore(game);
+  store.setState((s) => {
+    s.stove.burners = 1;
+  });
+  play(MINUTE_MS);
+  return store.getState().wallet.bubbles.toNumber(); // the pot's 60 and the burner's 60
+}
+```
+
+`docs/examples/guide-pacing.ts`
+
+It returns 120, the last line of the output above. In a test you would write `expect(aMinuteOnOneBurner()).toBe(120)`,
+or better, assert that a burner adds sixty a minute, so the test survives a change to the pot.
+
+**A save made by play.** `fixtureSave(game, play)` runs a fresh store through a function you write, then exports
 the save. It is seeded, so the same function makes the same save every time:
 
 ```ts
@@ -366,26 +392,29 @@ the save. It is seeded, so the same function makes the same save every time:
 export const simmerFixture = (): string =>
   fixtureSave(game, (store, clock) => {
     for (let i = 0; i < 20; i++) store.getState().pot.tap();
-    store.getState().pot.buyBurner();
+    store.getState().stove.buyBurner();
     store.getState().tick(HOUR_MS, clock.advance(HOUR_MS));
   });
 
 /** Loads a save into a fresh store, as a test does, without the catch-up a boot would make. */
 export function loadSave(text: string) {
-  return freshStore(game, { save: text, catchUp: false }).store.getState().pot;
+  return freshStore(game, { save: text, catchUp: false }).store.getState();
 }
 ```
 
 `docs/examples/guide-pacing.ts`
 
-The function `fixtureSave` takes is typed `Persona` in `watchpot/test`. The reference shelf's persona page uses the
-same word for two different players: the sim's auto-player, and this plain function of calls on a store. Only the
-second is a `Persona`.
+The function `fixtureSave` takes is typed `FixturePlay` in `watchpot/test`: `(store, clock) => void`, plain calls on
+a store. It is a different thing from the sim's auto-player, which buys by itself; the reference shelf's
+[persona](../persona.md) page calls both of them players.
+
+The run prints `fixture: 1 burner, 7210 bubbles`: twenty from the taps, ten spent on the burner, and an hour of the
+pot's simmer and the burner's flame, 3,600 each.
 
 `tick(HOUR_MS, clock.advance(HOUR_MS))` passes the hour twice: once as the time to play, once as the moment it ends.
 The test clock does not move by itself, so you move it first. The second argument is optional (it defaults to the
 store's own clock, which is the one you just moved), but `tick` never works the first one out from the clock: the
-length of the tick is always yours to say.
+length of the tick is always yours to say. Outside `fixtureSave`, `freshStore`'s `play(ms)` does both in one.
 
 **An old save still loads.** When you change what a save holds (chapter [9](09-saving-and-time-away.md) covers the
 migration), keep a save from every version you have shipped as a file in the repository, and test that this build
@@ -396,7 +425,7 @@ change it again:
 const SAVE_V1 = await Bun.file(new URL("./fixtures/save-v1.txt", import.meta.url)).text();
 
 test("a version 1 save still loads", () => {
-  expect(loadSave(SAVE_V1).burners).toBe(1);
+  expect(loadSave(SAVE_V1).stove.burners).toBe(1);
 });
 ```
 
@@ -467,22 +496,23 @@ solves, and it costs a plan file, a pilot, a fit script and minutes per fit to s
   thousand per look. A `tap` move whose `apply` always returns `true` gets taken a thousand times every look, and
   your sim reports a pot that fills by itself. The engine's `clicker` avoids this by refusing a second press at the
   same moment. For a hand-written tap, spend the presses in your `look` yourself, as Simmer does.
-- **`playDays` has no stop.** It plays whole days, and `activeSchedule` makes every one of them twenty-four played
-  hours. There is no option to stop after two. For a sitting of a set length, or one that ends when something first
-  happens, use `playStraight` ([Stopping at a moment](#stopping-at-a-moment)), which takes a look cadence instead of a
-  schedule.
 - **A feature with no moves is invisible to the sim.** A `generators` list and a `clicker` carry their moves; an
   `upgradeTree`, a `prestige` and every feature you write by hand do not. The auto-player never buys from them, and
-  nothing warns you, so a sim can quietly under-play your game. Attach moves with `withMoves` (see [Teaching Simmer to be played](#teaching-simmer-to-be-played)).
+  nothing warns you at run time, so a sim can quietly under-play your game, as it leaves Simmer's lid off. Attach
+  moves with `withMoves` (see [Teaching Simmer to be played](#teaching-simmer-to-be-played)).
+- **A feature with moves is a new object.** `withMoves` returns a copy, and `reach` is checked by identity, so a
+  game cannot list the copy of a feature another feature reaches. Put the moves on a feature nothing reaches, or build
+  the reaching feature over the copy.
 - **The world's tick is a minute.** `createSimWorld` plays time in ticks of at most `SIM_TICK_MS`, which is 60,000 ms,
   while `playStraight` and `runFit` default to one second. With a look every ten seconds you never notice. Call
   `world.play(HOUR_MS)` yourself and every tick is a minute long, which matters for anything that happens inside a
   tick (a timer, a gauge). Pass `{ tickMs }` to `createSimWorld` when it does.
 - **`world.now()` and `world.gameNow()` differ.** The first is the sim's wall clock, the second the store's game
   time (the wall plus any offset the profile carries). Measure the run with `now()`, as the examples do.
-- **The `balance` reader is yours to write.** The auto-player cannot find your currencies by itself, so in a game
-  with several the reader usually needs a cast (`s.wallet[currency as "gold" | "gems"]`). A balance that reads the
-  wrong number makes a player that buys nothing, or everything.
+- **Two wallets need a `balance` reader.** With one `currencies` feature the auto-player reads it by itself; with
+  two, or none, `autoPlayer` throws until you pass `balance`, and the reader usually needs a cast
+  (`s.wallet[currency as "gold" | "gems"]`). A balance that reads the wrong number makes a player that buys nothing,
+  or everything.
 - **The sim's player never gets bored.** It buys the instant it can, never misses a look and never wonders what a
   button does. A contract that passes proves the waits, not the fun. Play your own first hour too.
 - **Game numbers get huge, and loops do not.** A pacing script that loops once per unit held, or builds an array or a
@@ -497,7 +527,7 @@ contract and its first tests already wired.
 
 ## Reference
 
-- [A persona](../persona.md): the auto-player, moves and fixture saves.
+- [The auto-player and fixture plays](../persona.md): the auto-player, moves and fixture saves.
 - [A pacing contract](../pacing-contract.md): tables, bands, `judge`, and several seeds.
 - [Plan and fit](../plan-and-fit.md): the plan, the fit, holdings, nice prices and the replay.
 - [A save migration](../migration.md): versions, steps and pinning old saves.

@@ -96,87 +96,92 @@ function look(b: Bakery, price: (key: GateKey) => string) {
 
 const finished = (b: Bakery) => b.tools.size === TOOLS.length && b.sold === SALES.length;
 
-// ------------------------------------------------------------------------------------------------ the fit
+/** Fits the plan, prints the table a game would write, then replays it. Returns whether the replay landed in band. */
+export function fitAndReplay(): boolean {
+  // ------------------------------------------------------------------------------------------------ the fit
 
-const bakery = freshBakery();
-const prices = {} as Record<GateKey, string>;
-const have = holdings(["gold"], () => bakery.gold);
+  const bakery = freshBakery();
+  const prices = {} as Record<GateKey, string>;
+  const have = holdings(["gold"], () => bakery.gold);
 
-/** A tool is priced at nine tenths of the most gold held lately, so the pilot pays it within moments. */
-const toolGate = (key: GateKey): FitGate => ({
-  key,
-  atMs: PLAN[key] * MIN,
-  block: () => {
-    prices[key] = BLOCKED;
-  },
-  price: () => {
-    const value = nicePrice(have.held("gold").mul(0.9));
-    if (value) prices[key] = value;
-    return value;
-  },
-});
-
-/** A sale waits until the gold passes every earlier peak (a sale resets it), then asks what is held. */
-const saleGate = (key: GateKey): FitGate => {
-  const clear = have.ratchet("gold");
-  return {
+  /** A tool is priced at nine tenths of the most gold held lately, so the pilot pays it within moments. */
+  const toolGate = (key: GateKey): FitGate => ({
     key,
     atMs: PLAN[key] * MIN,
     block: () => {
       prices[key] = BLOCKED;
     },
     price: () => {
-      if (!clear()) return null;
-      const value = nicePrice(have.held("gold"));
+      const value = nicePrice(have.held("gold").mul(0.9));
       if (value) prices[key] = value;
-      return value && `${value} (with ${bakery.bakers} bakers)`;
+      return value;
     },
+  });
+
+  /** A sale waits until the gold passes every earlier peak (a sale resets it), then asks what is held. */
+  const saleGate = (key: GateKey): FitGate => {
+    const clear = have.ratchet("gold");
+    return {
+      key,
+      atMs: PLAN[key] * MIN,
+      block: () => {
+        prices[key] = BLOCKED;
+      },
+      price: () => {
+        if (!clear()) return null;
+        const value = nicePrice(have.held("gold"));
+        if (value) prices[key] = value;
+        return value && `${value} (with ${bakery.bakers} bakers)`;
+      },
+    };
   };
-};
 
-const lastPlanned = Math.max(...Object.values(PLAN)) * MIN;
-const result = runFit({
-  gates: [...TOOLS.map(toolGate), ...SALES.map(saleGate)],
-  step: (dt) => step(bakery, dt),
-  look: () => look(bakery, (k) => prices[k]),
-  afterStep: () => have.sample(),
-  playedMs: () => bakery.playedMs,
-  done: () => finished(bakery),
-  limitMs: lastPlanned + 30 * MIN,
-});
+  const lastPlanned = Math.max(...Object.values(PLAN)) * MIN;
+  const result = runFit({
+    gates: [...TOOLS.map(toolGate), ...SALES.map(saleGate)],
+    step: (dt) => step(bakery, dt),
+    look: () => look(bakery, (k) => prices[k]),
+    afterStep: () => have.sample(),
+    playedMs: () => bakery.playedMs,
+    done: () => finished(bakery),
+    limitMs: lastPlanned + 30 * MIN,
+  });
 
-console.log(formatFit(result));
-if (!result.finished) {
-  const stuck = result.gates.filter((g) => g.openedMs === undefined).map((g) => g.key);
-  console.error(
-    `fit: the run did not finish (never opened: ${stuck.join(", ") || "none"}). Nothing written.`,
+  console.log(formatFit(result));
+  if (!result.finished) {
+    const stuck = result.gates.filter((g) => g.openedMs === undefined).map((g) => g.key);
+    console.error(
+      `fit: the run did not finish (never opened: ${stuck.join(", ") || "none"}). Nothing written.`,
+    );
+    return false;
+  }
+  console.log(`fit: finished at ${fmtClock(result.playedMs)} played, ${result.gates.length} gates priced\n`);
+  console.log(
+    fitTableSource(result, {
+      header: "Written by the fit from the plan. Never edit by hand: change the plan and fit again.",
+      planImport: "./plan",
+      keyType: "GateKey",
+    }),
   );
-  process.exit(1);
-}
-console.log(`fit: finished at ${fmtClock(result.playedMs)} played, ${result.gates.length} gates priced\n`);
-console.log(
-  fitTableSource(result, {
-    header: "Written by the fit from the plan. Never edit by hand: change the plan and fit again.",
-    planImport: "./plan",
-    keyType: "GateKey",
-  }),
-);
 
-// ------------------------------------------------------------------------------------------------ the replay
+  // ------------------------------------------------------------------------------------------------ the replay
 
-// The table a game would import from the generated module, read back through `fitReader`.
-const table: Partial<Record<GateKey, string>> = Object.fromEntries(
-  result.gates.flatMap((g) => (g.value ? [[g.key, g.value.split(" ")[0]]] : [])),
-);
-const fitted = fitReader(table);
-const replay = freshBakery();
-for (let s = 0; replay.playedMs < lastPlanned * 1.5 && !finished(replay); s++) {
-  if (s % 3 === 0) look(replay, fitted);
-  step(replay, 1000);
+  // The table a game would import from the generated module, read back through `fitReader`.
+  const table: Partial<Record<GateKey, string>> = Object.fromEntries(
+    result.gates.flatMap((g) => (g.value ? [[g.key, g.value.split(" ")[0]]] : [])),
+  );
+  const fitted = fitReader(table);
+  const replay = freshBakery();
+  for (let s = 0; replay.playedMs < lastPlanned * 1.5 && !finished(replay); s++) {
+    if (s % 3 === 0) look(replay, fitted);
+    step(replay, 1000);
+  }
+  const ratio = replay.playedMs / lastPlanned;
+  const inBand = finished(replay) && ratio >= 0.7 && ratio <= 1.25;
+  console.log(
+    `replay: ${finished(replay) ? "finished" : "did not finish"} at ${fmtClock(replay.playedMs)}, ${ratio.toFixed(2)} of the plan's ${fmtClock(lastPlanned)} (band 0.7 to 1.25)`,
+  );
+  return inBand;
 }
-const ratio = replay.playedMs / lastPlanned;
-const inBand = finished(replay) && ratio >= 0.7 && ratio <= 1.25;
-console.log(
-  `replay: ${finished(replay) ? "finished" : "did not finish"} at ${fmtClock(replay.playedMs)}, ${ratio.toFixed(2)} of the plan's ${fmtClock(lastPlanned)} (band 0.7 to 1.25)`,
-);
-if (!inBand) process.exit(1);
+
+if (import.meta.main && !fitAndReplay()) process.exit(1);

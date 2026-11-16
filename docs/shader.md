@@ -9,8 +9,9 @@ Example: [`examples/shader.tsx`](examples/shader.tsx) (four complete fragments a
 
 - **A backdrop that reacts.** One `ShaderCanvas` behind a screen, its uniforms the screen's state: `u_heat` from the
   run's momentum, `u_pulse` rising to 1 on a big moment and falling back. The game sets numbers; the shader turns them
-  into weather. Uniforms reach the GPU only when they change by value, and a `ref` handle's `setUniforms` pushes them
-  without a React render at all (for a value that changes every frame).
+  into weather. Every uniform is set on every frame drawn, a new value draws a frame at once while the canvas holds
+  still, and a `ref` handle's `setUniforms` pushes values without a React render at all (for a value that changes
+  every frame).
 - **A foil on a card.** A `ShaderTile` per card inside one `ShaderPool`: every card shimmers, one WebGL context draws
   them all, and only the newest `maxLive` animate (the rest hold a true frame).
 - **A button that glows** while the buy is affordable: `paused={!ready}` holds it still the rest of the time.
@@ -63,7 +64,7 @@ void main() {
   float band = dot(uv - 0.5, vec2(cos(u_angle), sin(u_angle))) * 3.0 + u_time * 0.15;
   vec3 foil = cosinePalette(band, vec3(0.5), vec3(0.5), vec3(1.0), vec3(0.0, 0.33, 0.67));
   vec3 cells = voronoi(uv * 12.0);
-  float sparkle = smoothstep(0.08, 0.0, cells.x) * step(0.85, fract(cells.z + u_time * 0.5));
+  float sparkle = (1.0 - smoothstep(0.0, 0.08, cells.x)) * step(0.85, fract(cells.z + u_time * 0.5));
   float alpha = u_tint.a;
   fragColor = vec4((mix(u_tint.rgb, foil, 0.35) + sparkle) * alpha, alpha);
 }`);
@@ -88,14 +89,16 @@ float on = dotScreen(int(tone * 5.0 + 0.5), dot) * (1.0 - deadDot(dot.x, u_seed,
 
 `useShaderTokens(ref, ["--ground", "--glow"])` reads those custom properties at the element as `#rrggbbaa` (any CSS
 colour, `oklch()` included), null until all are colours, and again when `data-theme`, `data-scheme`, a class or a style
-changes on it or an ancestor. Pass them straight in: a hex string uniform is a `vec4`.
+changes on it or an ancestor. Pass them straight in: a hex string uniform is a `vec4`. In a development build it names,
+once, any of the properties that have no value at its element, which is usually a token the theme forgot.
 
 ## When it cannot run
 
 Without WebGL2, or when the fragment fails to compile or link, the canvas renders `still` (a CSS gradient of the same
-idea) and `onError` hears why: the driver's log with line numbers moved to your fragment's own lines. Under `reduced`
-(the game's reduced-motion setting) it draws one frame at `reducedTime` and holds. A lost GPU context is rebuilt on
-restore.
+idea) and `onError` hears why: the driver's log with line numbers moved to your fragment's own lines. When the fragment
+is built with `compose`, a line of your own code reads `main:N`, counted from the `// ---- main` line `compose` puts
+between the chunks and your code. Under `reduced` (the game's reduced-motion setting) it draws one frame at
+`reducedTime` and holds. A lost GPU context is rebuilt on restore.
 
 ## Budget
 

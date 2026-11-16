@@ -1,5 +1,5 @@
 import type { Draft } from "immer";
-import { catchUp } from "./clock";
+import { offlineCredit } from "./clock";
 import { type CostCurve, costAt, costOfMany, maxAffordable, stepsOf, untilStep } from "./cost";
 import type { CurrenciesFeature, CurrencyDraft } from "./currencies";
 import { D, type Decimal, type DecimalSource, ONE, ZERO } from "./decimal";
@@ -362,7 +362,7 @@ export function dimensions<
         chain: (d: Draft<Own>, ctx) => {
           if (ctx.pass === "tick") return produce(d, ctx.dtMs / 1000);
           const away = def.away?.(d as unknown as G) ?? { rate: 1 };
-          const span = catchUp(ctx.dtMs, away.rate, away.capMs ?? Number.POSITIVE_INFINITY);
+          const span = offlineCredit(ctx.dtMs, away.rate, away.capMs ?? Number.POSITIVE_INFINITY);
           produce(d, span.creditedMs / 1000);
         },
       },

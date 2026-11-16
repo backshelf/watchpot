@@ -47,4 +47,17 @@ Example: [`examples/achievements.ts`](examples/achievements.ts).
   achievements whose `on` names it, earning one with no `when` outright; returns the ids earned) and
   `acknowledge(ids?)` (clears `fresh`, the toast queue, capped at `keepFresh`, default 20). `.earn(draft, id, now)`
   does the same as `award` inside a recipe, and `onEarn(draft, achievement, now)` runs in the recipe that earns one.
-- `reset` defaults to `"never"`: a prestige reset keeps the wall.
+- `reset` defaults to `"never"`: a run reset keeps the wall.
+- **Type arguments** are rarely needed: annotate the state on one `when` (or type the list, as above) and inference
+  does the rest. When you do write them, the order is key, state, effect, the same as `Achievement<G, E>`:
+  `achievements<"wall", State, Effect>`, or `achievements<"wall", State>` for a wall with no effects.
+
+## Latches: achievements as one-way unlocks
+
+An achievement is earned once and never un-earned, and the wall's default `reset` is `"never"`. That makes it the
+right tool for anything that must open once and stay open after a reset wipes what opened it: a tab, a door, a page,
+a glossary term the player has now met. Give the wall `columns` and a list as usual, leave it off the screen, and have
+the screens ask the earned record (`s.doors.earned[id] !== undefined`), never the condition, which may no longer hold.
+The `fresh` queue doubles as the list of things to announce.
+[Showcase 6](showcases.md#6-a-door-that-stays-open-and-a-glossary-that-knows-it) and
+[`examples/showcase-latch.ts`](examples/showcase-latch.ts) build one.

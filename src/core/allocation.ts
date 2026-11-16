@@ -1,5 +1,5 @@
 import type { Draft } from "immer";
-import { catchUp } from "./clock";
+import { offlineCredit } from "./clock";
 import { type CostCurve, costAt, costOfMany, maxAffordable } from "./cost";
 import { D, type Decimal, type DecimalSource, ZERO } from "./decimal";
 import type { DimensionAway } from "./dimensions";
@@ -293,7 +293,10 @@ export function allocation<const K extends string, E = never, G extends object =
         fill: (d: Draft<Own>, ctx) => {
           if (ctx.pass === "tick") return fill(d, ctx.dtMs / 1000);
           const away = def.away?.(d as unknown as G) ?? { rate: 1 };
-          fill(d, catchUp(ctx.dtMs, away.rate, away.capMs ?? Number.POSITIVE_INFINITY).creditedMs / 1000);
+          fill(
+            d,
+            offlineCredit(ctx.dtMs, away.rate, away.capMs ?? Number.POSITIVE_INFINITY).creditedMs / 1000,
+          );
         },
       },
     },

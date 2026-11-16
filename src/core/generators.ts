@@ -1,5 +1,5 @@
 import type { Draft } from "immer";
-import { catchUp } from "./clock";
+import { offlineCredit } from "./clock";
 import {
   type CostCurve,
   costAt,
@@ -164,7 +164,7 @@ export interface GeneratorRules<G, T extends GeneratorDef> {
   perSecond(state: G, now?: number): Record<string, Decimal>;
   /**
    * How an absence counts now: the definition's `away`, or all of it (`{ rate: 1 }`). A game's own produce step runs
-   * its catch-up through `catchUp(dtMs, away.rate, away.capMs)` to credit what the list is credited.
+   * its catch-up through `offlineCredit(dtMs, away.rate, away.capMs)` to credit what the list is credited.
    */
   away(state: G, now?: number): GeneratorAway;
   /**
@@ -481,7 +481,7 @@ export function generators<
           const c = { now: ctx.now };
           if (ctx.pass === "tick") return make(d, ctx.dtMs, c);
           const a = away(d as unknown as G, c);
-          make(d, catchUp(ctx.dtMs, a.rate, a.capMs ?? Number.POSITIVE_INFINITY).creditedMs, c);
+          make(d, offlineCredit(ctx.dtMs, a.rate, a.capMs ?? Number.POSITIVE_INFINITY).creditedMs, c);
         },
       },
     },

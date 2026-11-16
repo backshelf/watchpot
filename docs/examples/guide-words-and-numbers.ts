@@ -1,28 +1,12 @@
 /**
- * Chapter 4 of the guide, "Words and numbers": Decimals, formatting, a vocabulary, and Simmer's bubbles moved out of
- * the pot and into a wallet. The "before" features are a cut-down Simmer (no simmer, lid or transient rate),
- * rebuilt here so the file stands on its own.
+ * Chapter 4 of the guide, "Words and numbers": Decimals, the printers, and what a wallet's `earned` total does
+ * across a reset. Simmer with its bubbles in a wallet is `./simmer/game-wallet.ts`; this file plays it.
  *
- * Run it with `bun docs/examples/guide-words-and-numbers.ts`: it prints a few Decimals, the printers, and what a
- * wallet's `earned` total does across a reset.
+ * Run it with `bun docs/examples/guide-words-and-numbers.ts`: it prints a few Decimals, the printers, and the
+ * wallet before and after a reset.
  */
-import {
-  type CurrencyOf,
-  costAt,
-  createGameStorage,
-  createIdleStore,
-  createMemoryBackend,
-  currencies,
-  D,
-  type Decimal,
-  defineGame,
-  feature,
-  fmt,
-  formatter,
-  take,
-  vocab,
-  ZERO,
-} from "watchpot/core";
+import { currencies, D, fmt, fmtFull, formatter, take } from "watchpot/core";
+import { game, scriptStore, WORDS } from "./simmer/game-wallet";
 
 // ---------------------------------------------------------------------------------------------------------------
 // Decimals
@@ -52,126 +36,15 @@ export function printing(): void {
   console.log(fmt(12_480).text); // "12,480": plain digits below 100,000
   console.log(fmt(D("1e500")).text); // "1.00e500": scientific past the last suffix
   console.log(fmt(2.5, { decimals: 1 }).text); // "2.5"
+  console.log(fmtFull(1_520_000)); // "1,520,000": every digit, no suffix
 
   const say = formatter({ notation: "scientific" });
   console.log(say.num(1_520_000)); // "1.52e6"
+  console.log(say.full(1_520_000)); // "1,520,000"
   console.log(say.rate(2.5)); // "2.5/s"
   console.log(say.times(3.2)); // "×3.20"
   console.log(say.counted(1, ["bubble", "bubbles"])); // "1 bubble"
 }
-
-// ---------------------------------------------------------------------------------------------------------------
-// Before: the bubbles live in the pot (Simmer's pot and stove from chapters 2 and 3, cut down)
-
-/** The price of the next burner, as chapter 2 set it: 10 bubbles, 15% more each, rounded up. */
-const burnerPrice = (owned: number): Decimal => costAt({ base: 10, growth: 1.15, round: "ceil" }, owned);
-
-const potBefore = feature({
-  key: "pot",
-  initial: () => ({ bubbles: ZERO }),
-  actions: (api) => ({
-    tap: () =>
-      api.set((s) => {
-        s.pot.bubbles = s.pot.bubbles.add(1);
-      }),
-  }),
-});
-
-const stoveBefore = feature({
-  key: "stove",
-  reach: [potBefore],
-  initial: () => ({ burners: 0 }),
-  actions: (api) => ({
-    buyBurner: (): boolean => {
-      let bought = false;
-      api.set((s) => {
-        const cost = burnerPrice(s.stove.burners);
-        if (s.pot.bubbles.lt(cost)) return;
-        s.pot.bubbles = s.pot.bubbles.sub(cost);
-        s.stove.burners += 1;
-        bought = true;
-      });
-      return bought;
-    },
-  }),
-  steps: {
-    produce: {
-      heat: (s, ctx) => {
-        s.pot.bubbles = s.pot.bubbles.add(D(s.stove.burners).mul(ctx.dtMs / 1000));
-      },
-    },
-  },
-});
-
-export const before = defineGame({
-  id: "simmer",
-  save: { key: "simmer.save", version: 1 },
-  features: [potBefore, stoveBefore],
-});
-
-// ---------------------------------------------------------------------------------------------------------------
-// The words
-
-export const WORDS = vocab({
-  currencies: ["bubbles"],
-  stats: [],
-  rarities: ["common"],
-} as const);
-
-export type Currency = CurrencyOf<typeof WORDS>; // "bubbles"
-
-// ---------------------------------------------------------------------------------------------------------------
-// After: the bubbles live in a wallet
-
-export const wallet = currencies({
-  key: "wallet",
-  vocab: WORDS,
-  earned: { bubbles: "earned" },
-});
-
-const pot = feature({
-  key: "pot",
-  reach: [wallet],
-  initial: () => ({ taps: 0 }),
-  actions: (api) => ({
-    tap: () =>
-      api.set((s) => {
-        wallet.credit(s, "bubbles", 1);
-        s.pot.taps += 1;
-      }),
-  }),
-});
-
-const stove = feature({
-  key: "stove",
-  reach: [wallet],
-  initial: () => ({ burners: 0 }),
-  actions: (api) => ({
-    buyBurner: (): boolean => {
-      let bought = false;
-      api.set((s) => {
-        if (!wallet.debit(s, "bubbles", burnerPrice(s.stove.burners))) return;
-        s.stove.burners += 1;
-        bought = true;
-      });
-      return bought;
-    },
-  }),
-  steps: {
-    produce: {
-      heat: (s, ctx) => {
-        wallet.credit(s, "bubbles", D(s.stove.burners).mul(ctx.dtMs / 1000));
-      },
-    },
-  },
-});
-
-export const game = defineGame({
-  id: "simmer",
-  save: { key: "simmer.save", version: 1 },
-  vocab: WORDS,
-  features: [wallet, pot, stove],
-});
 
 // ---------------------------------------------------------------------------------------------------------------
 // A total that outlives the reset
@@ -184,15 +57,15 @@ export const keepingWallet = currencies({
 });
 
 // ---------------------------------------------------------------------------------------------------------------
-// The demo
+// The wallet in use
 
 function walletDemo(): void {
-  const store = createIdleStore(game, { now: () => 0, storage: createGameStorage(createMemoryBackend()) });
+  const store = scriptStore(game, () => 0);
   const state = store.getState();
 
   for (let i = 0; i < 30; i++) state.pot.tap();
   state.wallet.credit("bubbles", 70); // from outside a recipe: the store action
-  store.getState().stove.buyBurner(); // pays 10 bubbles
+  console.log("bought:", store.getState().stove.buyBurner()); // true: pays 10 bubbles
 
   const w = store.getState().wallet;
   console.log(w.bubbles.toString(), w.earned.toString()); // 90 100: spending does not lower `earned`

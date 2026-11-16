@@ -18,7 +18,7 @@ Example: [`examples/sweep.ts`](examples/sweep.ts).
   stream. `strike()` grades the cursor at the game time of the call: a hit removes its target and extends the streak,
   a miss ends it, and `onStrike(draft, { hit, streak, pos }, now)` runs in the same recipe (what a hit pays is the
   game's). `.strike(draft, now)` is the same strike inside a recipe; `.cursor(state, now)` is where to draw the
-  cursor. A prestige reset keeps the tallies and clears the streak and the track.
+  cursor. A run reset keeps the tallies and clears the streak and the track.
 - **Played by a person.** A strike is a reflex, so the sim cannot play it: pay an automated or simulated striker from
   `passesIn` at a share landed, and keep the hand-played rate a few times better than that so playing it is worth it.
   Give the player a key for it (`useHotkeys`) and keep the period over a second: a faster cursor is a coin flip.

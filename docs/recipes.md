@@ -50,7 +50,7 @@ export const game = defineGame({
   with nothing touched. `payRecipe` and `giveRecipe` are its two halves. Amounts are Decimals; a recipe is
   `{ inputs, outputs }`, each an amount per currency.
 - **`crafting({ key, wallet, list, reset?, onCraft? })`** saves `{ made, queue }` under `key`; `made` counts crafts
-  given per recipe (Decimals). A prestige reset clears it unless `reset` says otherwise.
+  given per recipe (Decimals). A run reset clears it unless `reset` says otherwise.
 - **`RecipeDef<C, G>`**: `id`, `inputs`, `outputs`, `unlocked?(state)`, `yield?(state)` (read when the outputs are
   given) and `takesMs?` (a number, or `(state) => number`).
 - **Timed recipes.** The inputs are paid at once and the crafts join the recipe's one job (another craft extends

@@ -58,7 +58,7 @@ started. The options:
 | `velocity` | 0..1: picks among takes with a `velocity` range, and scales the level. |
 | `degree` | A scale degree for a `pitched` cue. |
 | `at` | Where on the screen it happened: a viewport point `{ x, y }` or an element. A `placed` cue only. |
-| `mine` | The player's own hand did it: never skipped, never rolled, dry and forward. `false` is the machine's. |
+| `mine` | The player's own hand: never skipped or rolled, no cooldown, 3 dB of repetition cut at most. `false`: the machine's. |
 | `bus` | The bus this play goes to, in place of the cue's own: one cue heard from several places in the mix. |
 | `rate`, `db` | A ratio and dB on top of everything else. |
 | `delayMs` | Starts this many milliseconds from now, on the audio clock. |
@@ -86,11 +86,14 @@ decides what sounds, with no clock of its own.
   1.5 seconds more. A play more than 40 dB under the loudest held is skipped: a whisper is not played under a blast.
 - **A full pool**: with every voice sounding (`SoundOptions.voices`, default 64) a play quieter than all of them is
   skipped; otherwise the quietest voice of the lowest `priority` (default 0) is released over 5 ms and the play takes its place.
-- **`mine`**: the player's own plays are never skipped and never rolled, and repetition turns them down 3 dB at most.
+- **`mine`**: the governor leaves the player's own plays almost alone. It never skips one (not for the loudness
+  window, not for a full pool), never rolls one, ignores the cue's `cooldownMs` for it, and lets repetition turn it
+  down 3 dB at most. How it sits in the mix is not the governor's doing: that is `SoundOptions.presence`.
 
 With no `roll` and no `cooldownMs` a flood is turned down by repetition and the pool steals the quietest, but the
-governor never skips a cue among its equals: a cue that can flood should say `roll` or `cooldownMs`. A `mine` play never rolls, so the cue
-behind the main button is not marked `mine` when it should become a roll.
+governor never skips a cue among its equals: a cue that can flood should say `roll` or `cooldownMs`. A `mine` play
+never rolls and has no cooldown, so the cue behind the main button is not marked `mine` when it should become a roll
+or be held back.
 
 ## Packs and the gate
 

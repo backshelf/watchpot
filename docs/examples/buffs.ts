@@ -1,4 +1,4 @@
-import { buffs, busOf, defineGame, type Effect, feature, overlapMs } from "watchpot/core";
+import { buffActive, buffs, busOf, defineGame, type Effect, feature, overlapMs } from "watchpot/core";
 
 export const boosts = buffs<"boosts", Effect>({
   key: "boosts",
@@ -11,6 +11,8 @@ export const boosts = buffs<"boosts", Effect>({
       maxStacks: 5,
       effects: (stacks) => [{ stat: "speed", add: stacks }],
     },
+    // A timer: no `effects`, so it adds nothing to the bus. The game asks `buffActive` and decides what it means.
+    { id: "cooldown", durationMs: 10_000, stack: "ignore" },
   ],
 });
 
@@ -38,3 +40,7 @@ export const game = defineGame({
 /** What the running buffs do now, on the stat bus. */
 export const boostBus = (s: { boosts: Parameters<typeof boosts.contributions>[0] }, now: number) =>
   busOf(boosts.contributions(s.boosts, now));
+
+/** The timer buff read directly: the game's own button checks this before it lets the player press again. */
+export const coolingDown = (s: { boosts: Parameters<typeof boosts.contributions>[0] }, now: number) =>
+  buffActive(s.boosts, "cooldown", now);

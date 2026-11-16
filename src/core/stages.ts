@@ -1,5 +1,5 @@
 import type { Draft } from "immer";
-import { catchUp } from "./clock";
+import { offlineCredit } from "./clock";
 import { D, Decimal, type DecimalSource, ZERO } from "./decimal";
 import type { DimensionAway } from "./dimensions";
 import { type Feature, type FeatureApi, feature, type ResetRule } from "./feature";
@@ -223,7 +223,7 @@ export function stages<const K extends string, G extends object = object>(def: {
           let dtMs = ctx.dtMs;
           if (ctx.pass === "catchUp") {
             const away = def.away?.(state) ?? { rate: 1 };
-            dtMs = catchUp(ctx.dtMs, away.rate, away.capMs ?? Number.POSITIVE_INFINITY).creditedMs;
+            dtMs = offlineCredit(ctx.dtMs, away.rate, away.capMs ?? Number.POSITIVE_INFINITY).creditedMs;
           }
           if (dtMs <= 0) return;
           const all = slice(d).tracks;

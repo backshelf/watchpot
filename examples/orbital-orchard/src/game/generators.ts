@@ -1,4 +1,4 @@
-import { catchUp, D, type Decimal, feature, type Move, ZERO } from "watchpot/core";
+import { D, type Decimal, feature, type Move, offlineCredit, ZERO } from "watchpot/core";
 import { COST_GROWTH, GENERATORS, type GeneratorDef, OFFLINE_CAP_MS } from "../content/generators";
 import { MAIN } from "../content/words";
 import { collection } from "./gacha";
@@ -57,7 +57,7 @@ export const generators = feature({
       away: {
         pass: "catchUp",
         run: (s, ctx) => {
-          const span = catchUp(ctx.dtMs, s.generators.offline, OFFLINE_CAP_MS);
+          const span = offlineCredit(ctx.dtMs, s.generators.offline, OFFLINE_CAP_MS);
           wallet.credit(s, MAIN, s.generators.perSecond.mul(span.creditedMs / 1000));
         },
       },

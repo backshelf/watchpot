@@ -1,47 +1,59 @@
 import { DAY_MS, HOUR_MS, type StateOf } from "watchpot/core";
-import { autoPlayer, createSimWorld, fixedSchedule, playDays, rngFor, simStore } from "watchpot/sim";
-import { fixtureSave } from "watchpot/test";
+import {
+  activeSchedule,
+  autoPlayer,
+  createSimWorld,
+  nominalWakeHour,
+  playDays,
+  rngFor,
+  simStore,
+} from "watchpot/sim";
+import { type FixturePlay, fixtureSave } from "watchpot/test";
 import { game } from "./add-a-generator";
 
 type GameState = StateOf<typeof game.features>;
 
+/** A player at the game the whole time: a look every 10 seconds, so every hour of the run is a played hour. */
+const ACTIVE = activeSchedule(10);
+
 /**
- * A persona is a player. The sim's `autoPlayer` needs no code of its own: it reads every feature's `moves` and
- * buys the best-value affordable one, again until none is. A schedule says when the tab is open.
+ * The sim's player is the auto-player, and it needs no code of its own: it reads every feature's `moves` and buys
+ * the best-value affordable one, again until none is. A schedule says when the tab is open.
  */
-export function playThreeDays(seed = "persona") {
-  const start = Date.UTC(2026, 0, 1, 8);
+export function playAnHour(seed = "auto") {
+  const start = Date.UTC(2026, 0, 1, nominalWakeHour(ACTIVE));
   const world = createSimWorld((now) => simStore(game, now, seed), start); // one catch-up at the start
-  const player = autoPlayer(game, {
-    balance: (s: GameState, currency) => s.wallet[currency as "gold" | "gems"],
-  });
+  // No `balance`: the game has one `currencies` feature, so the auto-player reads what it holds there.
+  const player = autoPlayer(game);
   let looks = 0;
+  let bought = 0;
   playDays({
     world,
-    schedule: fixedSchedule(8, 23, 15, 0), // open 08:00 to 23:00, a look every 15 minutes
-    days: 3,
+    schedule: ACTIVE,
+    days: 1,
+    hours: 1, // stop after the look that crosses the first played hour
     start,
     rng: rngFor(seed, "auto"),
     look: () => {
-      player.look(world.store);
+      bought += player.look(world.store).bought;
       looks += 1;
     },
   });
   const s = world.store.getState();
-  return {
-    looks,
-    owned: s.generator.owned,
-    gold: s.wallet.gold.toNumber(),
-    hours: (world.now() - start) / HOUR_MS,
-  };
+  return { looks, bought, owned: s.generator.owned, hours: (world.now() - start) / HOUR_MS };
 }
 
-/** The same idea as a test fixture: a persona that plays a store by hand, saved as a permanent file. */
-export const fixture = () =>
-  fixtureSave(game, (store, clock) => {
-    store.getState().wallet.credit("gold", 500);
-    store.getState().generator.buy();
-    store.getState().tick(DAY_MS / 24, clock.advance(DAY_MS / 24));
-  });
+/** A fixture play: plain calls on a store, which `fixtureSave` turns into the same save string every time. */
+const play: FixturePlay<GameState> = (store, clock) => {
+  store.getState().wallet.credit("gold", 500);
+  store.getState().generator.buy();
+  store.getState().tick(DAY_MS / 24, clock.advance(DAY_MS / 24));
+};
 
-if (import.meta.main) console.log(playThreeDays());
+export const fixture = () => fixtureSave(game, play);
+
+if (import.meta.main) {
+  console.log(playAnHour());
+  const save = fixture();
+  console.log("fixture is stable:", save === fixture());
+}

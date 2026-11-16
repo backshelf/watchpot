@@ -10,7 +10,7 @@ export function perSecond(burners: number): number {
 }
 
 /** The pot: the bubbles you have, the tap that makes one, and the simmer that makes them over time. */
-const pot = feature({
+export const pot = feature({
   key: "pot",
   initial: () => ({ bubbles: ZERO }),
   actions: (api) => ({
@@ -37,23 +37,25 @@ export function burnerPrice(owned: number) {
   return costAt(BURNER_COST, owned);
 }
 
-/** The stove: how many burners are lit, buying one, and the heat they add. */
-const stove = feature({
+/** The stove: how many burners are lit, buying one, and the bubbles they make. */
+export const stove = feature({
   key: "stove",
   reach: [pot],
   initial: () => ({ burners: 0 }),
   actions: (api) => ({
+    // `api.set` hands back what the recipe returns, so the action says whether it bought.
     buyBurner: () =>
       api.set((s) => {
         const price = burnerPrice(s.stove.burners);
-        if (s.pot.bubbles.lt(price)) return;
+        if (s.pot.bubbles.lt(price)) return false;
         s.pot.bubbles = s.pot.bubbles.sub(price);
         s.stove.burners += 1;
+        return true;
       }),
   }),
   steps: {
     produce: {
-      heat: (s, ctx) => {
+      burn: (s, ctx) => {
         const made = D(s.stove.burners * BURNER_PER_SECOND).mul(ctx.dtMs / 1000);
         s.pot.bubbles = s.pot.bubbles.add(made);
       },

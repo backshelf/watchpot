@@ -41,26 +41,33 @@ default, `"run"`.
 
 ### Simmer's pot keeps one number
 
-This chapter's Simmer lives in its own file and reshapes the pot a little. Chapter 2 kept the burners in a separate
-`stove` feature and let the pot simmer on its own; here the burners move into the pot's slice, so one feature holds the
-whole run, and the only bubbles are the ones taps and burners make. The pot also gains three fields: `made`, which
-counts every bubble this run, `taps`, which counts every tap the player has ever made, and `startedAt`.
+This chapter's Simmer starts from chapter 4's game, `docs/examples/simmer/game-wallet.ts`, and adds a reset to it.
+Look first at what that game says about resets: nothing. Every feature in it takes the default, so a reset would send
+the wallet, the pot's taps, the stove's burners and the lid back to their `initial`. For the wallet, the burners and
+the lid that is right; they are the run. The count of taps is different: it is a record of the player, and it should
+stay.
+
+To change one feature of the core, you define a feature under the same key and list it in place of the old one.
+Chapter 4's pot was:
 
 ```ts
-/** The pot's saved state. `made` counts every bubble this run; `taps` counts every tap ever. */
-interface PotState {
-  bubbles: Decimal;
-  made: Decimal;
-  burners: number;
-  taps: number;
-  startedAt: number;
-}
-
-// ...
-
 export const pot = feature({
   key: "pot",
-  initial: (ctx): PotState => ({ bubbles: ZERO, made: ZERO, burners: 0, taps: 0, startedAt: ctx.now }),
+  reach: [wallet],
+  initial: () => ({ taps: 0 }),
+  // ...
+});
+```
+
+`docs/examples/simmer/game-wallet.ts`
+
+This chapter's pot is the same feature with two changes:
+
+```ts
+export const pot = feature({
+  key: "pot",
+  reach: [wallet],
+  initial: (ctx) => ({ taps: 0, startedAt: ctx.now }),
   // A boil-over starts the run again, but the count of taps is the player's for good.
   reset: { keep: ["taps"] },
   // ...
@@ -69,14 +76,17 @@ export const pot = feature({
 
 `docs/examples/guide-first-reset.ts`
 
-Line by line:
+The trimmed lines are chapter 4's `tap` action and `simmer` step, unchanged. The two changes:
 
-- `made` is the number the prestige will pay on. It belongs to the run, so it goes back to zero with the run. Keep it
-  apart from `bubbles`, which the player spends: paying on the balance would punish the player for buying burners.
-- `startedAt: ctx.now` records when the run began. `initial` is called again on every reset, and on a run reset
-  `ctx.now` is the game time of the reset, so this field always holds the start of the current run. Section "Is it
-  worth pressing" below uses it.
 - `reset: { keep: ["taps"] }` says: start over, but copy `taps` back. Everything else in the slice gets its fresh value.
+- `startedAt: ctx.now` records when the run began. `initial` is called again on every reset, and on a run reset
+  `ctx.now` is the game time of the reset, so this field always holds the start of the current run. (For a brand-new
+  profile `ctx.now` is the wall clock, which is the same thing while the game's clock offset is 0, as Simmer's always
+  is.) Section "Is it worth pressing" below uses it.
+
+The number the reset will pay on is already in the core: the wallet's `earned` total, every bubble credited this run.
+It belongs to the run, so it goes back to zero with the run. Keep it apart from `bubbles`, the balance the player
+spends: paying on the balance would punish the player for buying burners.
 
 ### The real game keeps tallies with a function
 
@@ -212,7 +222,7 @@ export const SPINDLE: Shop = {
 VOID IF REMOVED, `src/content/roll.ts`
 
 This is the shape of a first prestige in almost every idle game: a run currency spent in a run shop, both wiped, and a
-prestige currency spent in a shop that stays. If Simmer grows a steam shop, it is an `upgradeTree` with
+prestige currency spent in a shop that stays. In your own game, that shop is an `upgradeTree` with
 `reset: "never"` (or `{ depth: 2 }` if you already suspect a second layer). The shelf page
 [An upgrade tree](../upgrade-tree.md) covers `upgradeTree` itself.
 
@@ -241,25 +251,34 @@ its `depth`, counts the run, then calls `afterReset`. All of that is one update.
 Simmer's prestige is the pot boiling over. It pays steam:
 
 ```ts
+/** What steam reads: the wallet's `earned` (this run's bubbles) and when the run began. */
+type Run = StateOf<readonly [typeof wallet, typeof pot]>;
+
 /** Steam a boil-over pays: none under 1,000 bubbles this run, then the square root of how many thousands. */
-export const steamGain = (s: Kitchen): Decimal => powerGain(s.pot.made, { k: 1, exp: 0.5, per: 1000 });
+export const steamGain = (s: Run): Decimal => powerGain(s.wallet.earned, { k: 1, exp: 0.5, per: 1000 });
 
 // ...
 
-export const boil = prestige({
-  key: "boil",
+export const steam = prestige({
+  key: "steam",
   action: "boilOver",
-  reach: [pot],
+  reach: [wallet, pot, stove],
   initial: () => ({ peak: 0 }),
   gain: (s) => steamGain(s),
   afterReset: (s) => {
-    s.boil.peak = 0; // a new run, a new best pace
+    s.steam.peak = 0; // a new run, a new best pace
   },
   steps: {
+    rates: {
+      // Every steam ever made adds a tenth to the stove: 1 + 0.1 x lifetime steam.
+      drive: (s) => {
+        s.stove.perSecond = s.stove.perSecond.mul(lifetimeMultiplier(s.steam.lifetime, { k: 0.1, exp: 1 }));
+      },
+    },
     settle: {
       peak: (s, ctx) => {
         const pace = boilPace(s, ctx.now);
-        if (pace > s.boil.peak) s.boil.peak = pace;
+        if (pace > s.steam.peak) s.steam.peak = pace;
       },
     },
   },
@@ -268,12 +287,16 @@ export const boil = prestige({
 
 `docs/examples/guide-first-reset.ts`
 
-- `action: "boilOver"` names the button's action: `store.getState().boil.boilOver()`.
-- `reach: [pot]` lets the callbacks read `s.pot`. Chapter 3 covered `reach`.
+- `key: "steam"` is where the layer saves, so steam held is `s.steam.currency` and every steam ever paid is
+  `s.steam.lifetime`. Steam is not one of the wallet's currencies: it lives in the prestige feature.
+- `action: "boilOver"` names the button's action: `store.getState().steam.boilOver()`.
+- `reach: [wallet, pot, stove]` lets the callbacks read those slices. Chapter 3 covered `reach`.
 - `initial` adds the feature's own fields beside `runs`, `currency` and `lifetime`. Here, the best pace seen this run.
 - `gain` must be pure: the button's preview and the reset both call it, and they have to agree.
 - There is no `canReset`. The default is "the gain is above zero", which is right for Simmer.
 - `afterReset` runs after the run is reset, so anything it writes lands in the new run.
+- `Run` is the state `steamGain` reads, worked out from the two features it needs with `StateOf`, the same helper that
+  types the whole game.
 
 ### `powerGain`: the usual curve
 
@@ -299,46 +322,43 @@ export function rollGain(s: Pick<Reads, "wallet" | "stats">): Decimal {
 VOID IF REMOVED, `src/game/roll.ts`
 
 `ROLL_GAIN.exp` is `1 / 3`. The bar comes from the game's fitted pacing table rather than a constant (chapter 12 is
-about that), and `mult` lets upgrades raise the payout without touching the curve.
+about that), and `mult` lets upgrades raise the payout without touching the curve. It pays on the wallet's `earned`,
+as Simmer does.
 
 ### What the prestige currency does
 
 A currency the player cannot use is not a reason to reset. Simmer spends nothing yet: each steam ever made adds a tenth
-to every bubble, through the engine's `lifetimeMultiplier(lifetime, { k, exp })`, which is `1 + k × lifetime ^ exp`
-and exactly 1 before the first reset:
+to the stove, through the engine's `lifetimeMultiplier(lifetime, { k, exp })`, which is `1 + k × lifetime ^ exp` and
+exactly 1 before the first reset. That is the `rates.drive` step above. It works the way chapter 3's lid does: the
+stove sets `perSecond` in its `rates.flame` step, the lid doubles it in `rates.trap`, and the steam multiplies it
+after both. The game pins that order:
 
 ```ts
-/** Every steam ever made adds a tenth to every bubble: 1 + 0.1 x lifetime steam. */
-const boost = (s: Kitchen): number => lifetimeMultiplier(s.boil.lifetime, { k: 0.1, exp: 1 });
+export const game = defineGame({
+  id: "simmer",
+  save: { key: "simmer.save", version: 1 },
+  vocab: WORDS,
+  features: [...BELOW, medals, pages],
+  // The steam's push lands after the stove sets its rate and the lid doubles it.
+  order: { rates: [...SIMMER_RATES, "steam.rates.drive"] },
+});
 ```
 
 `docs/examples/guide-first-reset.ts`
 
-It reads `lifetime`, not `currency`, so a future steam shop can spend steam without taking the boost away.
+`BELOW` is the wallet, this chapter's pot, chapter 4's stove and lid, and the steam (it is defined in the medals
+section below). The list cannot spread chapter 4's `SIMMER`, because that holds the old pot; listing two features
+under one key is an error.
+
+Because the steam reaches into the stove, and not the other way round, nothing in the core needs to know steam exists.
+That is the usual way to add a layer: the new feature reaches down and changes what it needs in a step, and every
+feature below it stays as it was.
+
+The boost reads `lifetime`, not `currency`, so a future shop that spends steam would not take the boost away.
 
 VOID IF REMOVED does both: every core paid raises print by `(1 + cores) ^ 0.6`, and the spindle sells upgrades for them. Its
 prestige credits the cores into the wallet in `afterReset`, so they sit beside labels and every shop pays from one
 place. Its `prestige` feature still adds the gain to its own `currency` and `lifetime`, which the game never reads.
-
-### A note on the pot reading the boil
-
-The pot's tap and burners need `boost`, which reads `s.boil`. But `boil` reaches `pot`, so `pot` cannot reach `boil`
-back: the constant does not exist yet when `pot` is declared. Simmer names the shape it needs by hand and annotates the
-action's `api` with it:
-
-```ts
-/** The slices the pot reads. The boil is declared below the pot, so the pot names its shape by hand. */
-interface Kitchen {
-  pot: PotState;
-  boil: PrestigeCore & { peak: number };
-}
-```
-
-`docs/examples/guide-first-reset.ts`
-
-`PrestigeCore` is the engine's type for `runs`, `currency` and `lifetime`. The pot's actions take
-`api: FeatureApi<Kitchen>` and its step takes `s: Kitchen`, and from then on `s.boil.lifetime` is typed. VOID IF REMOVED
-does the same at scale: one hand-written `Reads` type that every feature's callbacks use.
 
 ## Is it worth pressing?
 
@@ -354,25 +374,27 @@ that best. Simmer's version:
 
 ```ts
 /** Seconds since this run began. */
-const runSeconds = (s: Kitchen, now: number): number => Math.max(0, (now - s.pot.startedAt) / 1000);
+const runSeconds = (s: Run, now: number): number => Math.max(0, (now - s.pot.startedAt) / 1000);
 
 /** How fast boiling over now would grow the steam held, in orders of magnitude a second. */
-export const boilPace = (s: Kitchen, now: number): number =>
-  resetPace(steamGain(s), s.boil.currency, runSeconds(s, now), 10);
+export const boilPace = (s: Run & { steam: { currency: Decimal } }, now: number): number =>
+  resetPace(steamGain(s), s.steam.currency, runSeconds(s, now), 10);
 
 /** Past its peak: the pot pays, and its pace has fallen under 85% of this run's best. */
-export const pastPeak = (s: Kitchen, now: number): boolean =>
-  steamGain(s).gte(1) && boilPace(s, now) < s.boil.peak * 0.85;
+export const pastPeak = (s: Run & { steam: { currency: Decimal; peak: number } }, now: number): boolean =>
+  steamGain(s).gte(1) && boilPace(s, now) < s.steam.peak * 0.85;
 ```
 
 `docs/examples/guide-first-reset.ts`
 
 - `runSeconds` reads the `startedAt` the pot's `initial` wrote. That is why the pot records it.
-- `kept` is the steam the player already holds. The first reset has nothing kept; `resetPace` treats anything under 1 as
-  1, so the first pace is still a finite number.
+- `kept` is the steam the player already holds, `s.steam.currency`. The first reset has nothing kept; `resetPace`
+  treats anything under 1 as 1, so the first pace is still a finite number.
 - The last argument, `floorS`, is the fewest seconds the pace divides by. In a run's first moments the pace only rises,
   so nothing can look past its peak before ten seconds.
-- The `settle.peak` step in `boil` (above) keeps `s.boil.peak` up to date every pass, and `afterReset` zeroes it.
+- The `settle.peak` step in `steam` (above) keeps `s.steam.peak` up to date every pass, and `afterReset` zeroes it.
+- The two readers name only the slices of steam they read (`Run & { steam: ... }`), because the steam feature itself
+  uses them and cannot name its own finished type.
 
 VOID IF REMOVED shows this on the roll page as its pace meter, and its own check reads:
 
@@ -421,14 +443,14 @@ A medal wall gives the player small goals between resets and a reason to look ba
 ```ts
 const MEDALS: Achievement<Kitchen>[] = [
   { id: "first-bubble", name: "First bubble", line: "Tap the pot.", when: (s) => s.pot.taps >= 1 },
-  { id: "lit", name: "Lit", line: "Buy a burner.", when: (s) => s.pot.burners >= 1 },
-  { id: "boiled", name: "Boiled over", line: "Boil the pot over once.", when: (s) => s.boil.runs >= 1 },
+  { id: "lit", name: "Lit", line: "Light a burner.", when: (s) => s.stove.burners >= 1 },
+  { id: "boiled", name: "Boiled over", line: "Boil the pot over once.", when: (s) => s.steam.runs >= 1 },
   {
     id: "cold-start",
     name: "Cold start",
-    line: "Reach 1,000 bubbles in a run without a burner.",
+    line: "Make 1,000 bubbles in a run without a burner.",
     secret: true,
-    when: (s) => s.pot.made.gte(1000) && s.pot.burners === 0,
+    when: (s) => s.wallet.earned.gte(1000) && s.stove.burners === 0,
   },
 ];
 
@@ -438,8 +460,17 @@ export const medals = achievements({ key: "medals", columns: 4, list: MEDALS });
 
 `docs/examples/guide-first-reset.ts`
 
-- `Achievement<Kitchen>` types each `when` against the game's state. Annotating the list is the easy way to give
-  `achievements` that type; its own type parameters are covered under "Things that bite".
+- `Kitchen` is the state every medal reads: the run and the steam above it. The file works it out from the features
+  rather than writing it down:
+
+  ```ts
+  /** Everything the medals and pages read: the run and the steam above it. */
+  const BELOW = [wallet, pot, stove, lid, steam] as const;
+  type Kitchen = StateOf<typeof BELOW>;
+  ```
+
+  Annotating the list as `Achievement<Kitchen>[]` types each `when`, and `achievements` takes its state type from the
+  list, so the call needs no type arguments.
 - `when(state, now)` is checked by the feature at the end of every pass, in a step called `medals.settle.check`. The
   first pass it returns `true`, the medal is earned at that game time and never checked again.
 - `secret: true` hides the name and line until it is earned. The board's tiles carry `hidden`, so a page can draw a
@@ -479,6 +510,11 @@ export const stamps = achievements<"stamps", Reads, never>({
 ```
 
 VOID IF REMOVED, `src/game/stamps.ts`
+
+The game is still on engine 0.17, whose type arguments ran key, effect, state; on the current engine they run key,
+state, effect, so the same intent is spelled `achievements<"stamps", Reads>`. You rarely need them at all:
+`achievements` works out the state type from `when` and the effect type from `effects`, so
+`achievements({ key: "stamps", ... })` with an annotated list, as Simmer writes it, is the usual form.
 
 ## The same factory opens pages
 
@@ -536,7 +572,7 @@ Simmer does the same in a few lines:
 const PAGES: Achievement<Kitchen>[] = [
   { id: "pot", name: "Pot", line: "", when: () => true },
   { id: "medals", name: "Medals", line: "", when: (s) => s.pot.taps >= 1 },
-  { id: "boil", name: "Boil", line: "", when: (s) => s.boil.runs > 0 || s.pot.made.gte(1000) },
+  { id: "steam", name: "Steam", line: "", when: (s) => s.steam.runs > 0 || s.wallet.earned.gte(1000) },
 ];
 
 /** The pages, on the same factory: a page opens the first pass its condition holds and never shuts. */
@@ -545,20 +581,21 @@ export const pages = achievements({ key: "pages", columns: PAGES.length, list: P
 
 `docs/examples/guide-first-reset.ts`
 
-Then the game lists all four features:
+The game's `features` list, quoted above under the prestige, ends with `medals` and `pages`.
 
-```ts
-export const game = defineGame({
-  id: "simmer",
-  save: { key: "simmer.save", version: 1 },
-  features: [pot, boil, medals, pages],
-});
+The file ends with a short script that taps, buys burners for ten minutes of ticks, boils over and prints what
+survived. Run it with `bun docs/examples/guide-first-reset.ts`:
+
+```
+made this run: 18481 steam on offer: 4
+burners: 40 pages open: pot, medals, steam
+boiled over: true
+bubbles: 0 burners: 0 taps kept: 12 steam: 4
+after a profile reset, runs: 0 taps: 0
 ```
 
-`docs/examples/guide-first-reset.ts`
-
-The file ends with a short script that taps, buys burners, runs ten minutes of ticks, boils over and prints what
-survived. Run it with `bun docs/examples/guide-first-reset.ts`.
+The wallet, the burners and the run's `earned` went back to zero; the twelve taps stayed, by the pot's rule; the steam
+stayed, because a prestige feature is above the run. The profile reset at the end takes everything.
 
 ## Beyond the first reset
 
@@ -583,10 +620,6 @@ something permanent on completion. Both are taught there on the engine's example
   those two fields still count it. Read one ledger and ignore the other on purpose.
 - **`initial` runs again on every reset.** Anything it computes from `ctx.now` gets the reset's game time. That is what
   makes `startedAt` work; it also means an `initial` with side effects runs them again.
-- **`achievements` takes its type parameters as key, effect, state** (`achievements<K, E, G>`), while `Achievement` takes
-  state, effect (`Achievement<G, E>`). Written out by hand they are easy to swap: the game's
-  `achievements<"stamps", Reads, never>` sets the effect type to `Reads` and the state type to `never`, which turns off
-  the type check on every `when`. Annotate the list as `Achievement<YourState>[]` instead and let the factory infer.
 - **`resetProfile` ignores every rule.** It is not a bigger run reset; it is a new player.
 
 ## Next

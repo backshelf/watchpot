@@ -5,9 +5,12 @@ them for a player, and where a game writes down the names of its currencies. Sim
 the pot and into a wallet, the engine's ready-made home for money, and you will see the same two pieces in VOID IF
 REMOVED.
 
-Everything here comes from `watchpot/core`. The runnable file for the chapter is
-[`docs/examples/guide-words-and-numbers.ts`](../examples/guide-words-and-numbers.ts); run it with
-`bun docs/examples/guide-words-and-numbers.ts` and it prints every value this chapter quotes.
+Everything here comes from `watchpot/core`. Two files go with the chapter:
+
+- [`docs/examples/simmer/game-wallet.ts`](../examples/simmer/game-wallet.ts) is Simmer at the end of this chapter:
+  your `game.ts` once the bubbles are in a wallet. It is also the Simmer every later chapter builds on.
+- [`docs/examples/guide-words-and-numbers.ts`](../examples/guide-words-and-numbers.ts) plays it and prints every
+  value this chapter quotes. Run it with `bun docs/examples/guide-words-and-numbers.ts`.
 
 ## Why the numbers get big
 
@@ -71,13 +74,19 @@ multiplier and a lifetime total all can, so they are Decimals. A count of things
 duration in milliseconds, a chance between 0 and 1: these grow by adding, stay small, and are plain `number`s.
 
 Simmer's stove shows both. Its `burners` count is a `number`, because you buy burners one at a time. A burner's
-price is a Decimal, because it multiplies by 1.15 per burner:
+price is a Decimal, because `costAt` multiplies it by 1.15 per burner:
 
 ```ts
-const burnerPrice = (owned: number): Decimal => costAt({ base: 10, growth: 1.15, round: "ceil" }, owned);
+/** The first burner costs 10 bubbles; each one after costs 15% more than the last, rounded up to whole bubbles. */
+export const BURNER_COST = { base: 10, growth: 1.15, round: "ceil" } as const;
+
+/** The price of the next burner when `owned` are lit. */
+export function burnerPrice(owned: number) {
+  return costAt(BURNER_COST, owned);
+}
 ```
 
-From `docs/examples/guide-words-and-numbers.ts`.
+From `docs/examples/simmer/game-wallet.ts`, the same lines as in your chapter 2 `game.ts`.
 
 You do not have to do anything special to save a Decimal. The save writes each one in a tagged form and reads it
 back as a Decimal, and a saved plain number becomes a Decimal on load wherever the fresh state has one. Chapter 9
@@ -98,6 +107,7 @@ console.log(shown.text, shown.mantissa, shown.suffix); // "1.52M" 1.52 "M"
 console.log(fmt(12_480).text); // "12,480": plain digits below 100,000
 console.log(fmt(D("1e500")).text); // "1.00e500": scientific past the last suffix
 console.log(fmt(2.5, { decimals: 1 }).text); // "2.5"
+console.log(fmtFull(1_520_000)); // "1,520,000": every digit, no suffix
 ```
 
 From `docs/examples/guide-words-and-numbers.ts`.
@@ -111,13 +121,15 @@ render), and in plain JavaScript React throws at runtime; add `.text`.
 By default `fmt` prints plain digits with separators below 100,000, then two decimals and a suffix (`K`, `M`, `B`,
 `T`, `Qa` and on to `Dc`), then scientific notation from 10^36, where the suffixes run out. The option `decimals`
 sets how many decimals to show in the plain range, which suits small rates: 2.5 bubbles a second reads better than 2.
+`fmtFull` is for the one figure you want in every digit, such as a headline balance: it never uses a suffix and
+takes no options.
 
 ### The small printers
 
 Most numbers on an idle game's page are one of a few kinds: a plain amount, a rate, a multiplier, a bonus, a count
 of something with its name. Each has a printer: `fmtRate` (`"2.5/s"`), `fmtTimes` (`"×3.20"`), `fmtPlus`
-(`"+0.50"`), `fmtCounted` (`"1 bubble"`, `"2 bubbles"`), and `fmtFull` for a figure in full digits with no suffix.
-There are also printers for time (`fmtPlayed`, `fmtTimer`, `fmtWait`) and odds (`fmtPercent`).
+(`"+0.50"`) and `fmtCounted` (`"1 bubble"`, `"2 bubbles"`). There are also printers for time (`fmtPlayed`,
+`fmtTimer`, `fmtWait`) and odds (`fmtPercent`).
 
 ### One formatter for the whole game
 
@@ -132,6 +144,7 @@ hands back the printers, and these return strings:
 ```ts
 const say = formatter({ notation: "scientific" });
 console.log(say.num(1_520_000)); // "1.52e6"
+console.log(say.full(1_520_000)); // "1,520,000"
 console.log(say.rate(2.5)); // "2.5/s"
 console.log(say.times(3.2)); // "×3.20"
 console.log(say.counted(1, ["bubble", "bubbles"])); // "1 bubble"
@@ -142,8 +155,9 @@ From `docs/examples/guide-words-and-numbers.ts`.
 A game builds its [formatter](../glossary.md#formatter) from the player's saved choice and passes it down to the
 page. Simmer has no notation setting yet, so a `const say = formatter({})` at the top of a module is all it needs.
 For a game with the setting, [Notations](../notations.md) builds one formatter per notation up front, and the page
-picks the one the player chose. `say.num` is `fmt(...).text` with the bound options; `times`, `plus`, `rate` and
-`counted` are the small printers. `fmtFull` and the time printers have no place on a `Formatter`, so you call them directly.
+picks the one the player chose. `say.num` is `fmt(...).text` with the bound options, `say.full` is `fmtFull`, and
+`times`, `plus`, `rate` and `counted` are the small printers. The time printers are not on a formatter, so you call
+them directly.
 
 ## The game's words
 
@@ -155,29 +169,23 @@ The engine itself names none. Instead a game declares its words once, in a
 [vocabulary](../glossary.md#vocabulary), and every engine type that names a currency reads it from there:
 
 ```ts
-export const WORDS = vocab({
-  currencies: ["bubbles"],
-  stats: [],
-  rarities: ["common"],
-} as const);
+/** The game's words: one currency. */
+export const WORDS = vocab({ currencies: ["bubbles"] });
 
 export type Currency = CurrencyOf<typeof WORDS>; // "bubbles"
 ```
 
-From `docs/examples/guide-words-and-numbers.ts`.
+From `docs/examples/simmer/game-wallet.ts`.
 
 Line by line:
 
-- `vocab({ ... })` takes three lists. `currencies` is the one this chapter uses. `stats` names the ids of the
-  numbers a stat system adds up (chapter 8), and `rarities` is a ladder of rarities, lowest first, for systems that
-  draw things at random.
-- Simmer has no stats and no rarities yet, but `vocab` asks for all three lists, and a rarity ladder must have at
-  least one rung. So the empty game writes `stats: []` and a single `rarities: ["common"]`. VOID IF REMOVED does the
-  same.
-- `as const` is a habit worth keeping. Written inline like this, `vocab` keeps the exact names even without it, so
-  the type of `WORDS` remembers that the only currency is `"bubbles"`. It starts to matter when a list is declared on
-  its own line first: `const names = ["bubbles"]` is a `string[]`, and a vocabulary built from it has forgotten the
-  names.
+- `vocab({ ... })` takes up to three lists. `currencies` is the one Simmer needs. The other two are optional:
+  `stats` names the ids of the numbers a stat system adds up, and `rarities` is a ladder of rarities, lowest first,
+  for systems that draw things at random. A game that leaves `rarities` out has an empty ladder, and a system that
+  draws rarities refuses it, with a message, when you define that system.
+- Written inline like this, `vocab` keeps the exact names, so the type of `WORDS` remembers that the only currency is
+  `"bubbles"`. A list declared on its own line first is different: `const names = ["bubbles"]` is a `string[]`, and
+  a vocabulary built from it has forgotten the names. Write `as const` on such a list.
 - `CurrencyOf<typeof WORDS>` reads the union of currency names back out. `RarityOf` and `StatOf` do the same for the
   other two lists.
 
@@ -188,13 +196,14 @@ you at each table that now needs an entry for it. `vocab` also throws at start-u
 ## The wallet
 
 So far Simmer's bubbles have lived in the pot, as `s.pot.bubbles`, and the stove reached into the pot to pay for
-each burner and to heat. That works for one currency. With more, you would write the same three things for each: add to
-a balance, refuse a payment that cannot be covered, and keep a running total for later.
+each burner and to burn. That works for one currency. With more, you would write the same three things for each: add
+to a balance, refuse a payment that cannot be covered, and keep a running total for later.
 
 A [wallet](../glossary.md#wallet) is a feature that does that for every currency in a vocabulary. You make one with
 `currencies`:
 
 ```ts
+/** The wallet: a balance per currency, and `earned`, every bubble credited since the last reset. */
 export const wallet = currencies({
   key: "wallet",
   vocab: WORDS,
@@ -202,7 +211,7 @@ export const wallet = currencies({
 });
 ```
 
-From `docs/examples/guide-words-and-numbers.ts`.
+From `docs/examples/simmer/game-wallet.ts`.
 
 - `key` is the slice's name in the store, like any feature's. The state reads `s.wallet.bubbles`: a Decimal balance
   per currency, at the top of the slice.
@@ -218,10 +227,10 @@ The wallet has two ways in, and which one you use depends on where you are.
 when the balance is short. These are ordinary [actions](../glossary.md#action), like the pot's `tap`.
 
 **From inside a recipe or a step, the draft helpers.** Recall from chapter 3 that an action changes state inside
-`api.set((s) => { ... })`, and that `s` is a draft you edit in place. You cannot call another action from in there.
-So the wallet also offers [draft helpers](../glossary.md#draft-helper): functions on the wallet feature itself that
-take the draft as their first argument. `wallet.credit(s, "bubbles", 1)` adds one bubble to the draft you are
-already editing. The helpers are `credit`, `debit`, `balance`, `canAfford` and `purse`. The last one wraps the
+`api.set((s) => { ... })`, that `s` is a draft you edit in place, and that calling another action from in there
+throws. So the wallet also offers [draft helpers](../glossary.md#draft-helper): functions on the wallet feature
+itself that take the draft as their first argument. `wallet.credit(s, "bubbles", 1)` adds one bubble to the draft you
+are already editing. The helpers are `credit`, `debit`, `balance`, `canAfford` and `purse`. The last one wraps the
 draft's balances as a `Purse`, the shape the engine's upgrade trees pay from (a tree's `buy` takes one).
 
 The two kinds share the names `credit` and `debit`, so read which object you are calling on. On
@@ -231,15 +240,17 @@ Both kinds follow the same rules. A credit of zero or less does nothing. A debit
 a negative one, is refused and changes nothing. A credit adds to the `earned` total, a debit adds to the `spent`
 total, and only a reset ever lowers them (more on that below).
 
-### Simmer, before and after
+### Moving Simmer's bubbles into the wallet
 
-Here are the pot and the stove, cut down to the tap, the burner purchase and the heat, with the bubbles inside the
-pot. This is a smaller Simmer than either chapter 2's or chapter 3's: it has no simmer of its own, no lid, no lifted
-pot and no transient rate, so that the only thing changing between "before" and "after" is where the bubbles live.
-To apply the move to your own game, make the same changes to your own pot and stove and leave the rest as it is.
+Open your `game.ts`. Five changes move the bubbles; the lid does not change at all.
+
+**1. Import `currencies`, `vocab` and `type CurrencyOf`** from `watchpot/core`, and add `WORDS`, `Currency` and
+`wallet` (the two blocks above) after `flameOf`.
+
+**2. The pot.** Before, from chapter 2, it held the bubbles:
 
 ```ts
-const potBefore = feature({
+export const pot = feature({
   key: "pot",
   initial: () => ({ bubbles: ZERO }),
   actions: (api) => ({
@@ -248,35 +259,24 @@ const potBefore = feature({
         s.pot.bubbles = s.pot.bubbles.add(1);
       }),
   }),
-});
-
-const stoveBefore = feature({
-  key: "stove",
-  reach: [potBefore],
-  initial: () => ({ burners: 0 }),
-  actions: (api) => ({
-    buyBurner: (): boolean => {
-      let bought = false;
-      api.set((s) => {
-        const cost = burnerPrice(s.stove.burners);
-        if (s.pot.bubbles.lt(cost)) return;
-        s.pot.bubbles = s.pot.bubbles.sub(cost);
-        s.stove.burners += 1;
-        bought = true;
-      });
-      return bought;
+  steps: {
+    produce: {
+      // Runs on every live tick and on the catch-up after time away.
+      simmer: (s, ctx) => {
+        s.pot.bubbles = s.pot.bubbles.add((SIMMER_PER_SECOND * ctx.dtMs) / 1000);
+      },
     },
-  }),
-  // ...
+  },
 });
 ```
 
-From `docs/examples/guide-words-and-numbers.ts`.
+From `docs/examples/simmer/game.ts`.
 
-And here they are with the bubbles in the wallet:
+After, it reaches the wallet, keeps a count of taps, and credits every bubble it makes:
 
 ```ts
-const pot = feature({
+/** The pot: the tap that makes a bubble, how many taps, and the simmer that makes them over time. */
+export const pot = feature({
   key: "pot",
   reach: [wallet],
   initial: () => ({ taps: 0 }),
@@ -287,64 +287,118 @@ const pot = feature({
         s.pot.taps += 1;
       }),
   }),
-});
-
-const stove = feature({
-  key: "stove",
-  reach: [wallet],
-  initial: () => ({ burners: 0 }),
-  actions: (api) => ({
-    buyBurner: (): boolean => {
-      let bought = false;
-      api.set((s) => {
-        if (!wallet.debit(s, "bubbles", burnerPrice(s.stove.burners))) return;
-        s.stove.burners += 1;
-        bought = true;
-      });
-      return bought;
-    },
-  }),
   steps: {
     produce: {
-      heat: (s, ctx) => {
-        wallet.credit(s, "bubbles", D(s.stove.burners).mul(ctx.dtMs / 1000));
+      // Runs on every live tick and on the catch-up after time away.
+      simmer: (s, ctx) => {
+        wallet.credit(s, "bubbles", (SIMMER_PER_SECOND * ctx.dtMs) / 1000);
       },
     },
   },
 });
+```
 
+From `docs/examples/simmer/game-wallet.ts`.
+
+Because the pot now reaches the wallet, move the pot below `wallet` in the file: a feature can only reach one
+declared before it.
+
+**3. The stove.** Its `reach` becomes `[wallet]`. Before, from chapter 3, `buyBurner` compared, subtracted and
+reassigned:
+
+```ts
+buyBurner: () =>
+  api.set((s) => {
+    const price = burnerPrice(s.stove.burners);
+    if (s.pot.bubbles.lt(price)) return false;
+    s.pot.bubbles = s.pot.bubbles.sub(price);
+    s.stove.burners += 1;
+    return true;
+  }),
+```
+
+From `docs/examples/guide-mental-model.ts`.
+
+After, one `wallet.debit` checks and pays together, and answers whether it did:
+
+```ts
+buyBurner: () =>
+  api.set((s) => {
+    if (!wallet.debit(s, "bubbles", burnerPrice(s.stove.burners))) return false;
+    s.stove.burners += 1;
+    return true;
+  }),
+```
+
+From `docs/examples/simmer/game-wallet.ts`.
+
+And the two payments credit the wallet instead of adding to the pot:
+
+```ts
+produce: {
+  // Live play pays in full.
+  burn: {
+    pass: "tick",
+    run: (s, ctx) => {
+      wallet.credit(s, "bubbles", s.stove.perSecond.mul(ctx.dtMs / 1000));
+    },
+  },
+  // Time away pays half, for two hours at most.
+  away: {
+    pass: "catchUp",
+    run: (s, ctx) => {
+      const credited = Math.min(ctx.dtMs, AWAY_CAP_MS) * OFFLINE_RATE;
+      wallet.credit(s, "bubbles", s.stove.perSecond.mul(credited / 1000));
+    },
+  },
+},
+```
+
+From `docs/examples/simmer/game-wallet.ts`.
+
+Everything else in the stove (`off`, `perSecond`, `derive`, `toggle`, the guard and `flame`) stays as chapter 3 left
+it.
+
+**4. The game** takes the vocabulary and lists the wallet first:
+
+```ts
+/** The game: the wallet first, then the pot, the stove and the lid. */
 export const game = defineGame({
   id: "simmer",
   save: { key: "simmer.save", version: 1 },
   vocab: WORDS,
-  features: [wallet, pot, stove],
+  features: [wallet, pot, stove, lid],
+  // The lid's doubling must land after the stove sets the rate.
+  order: { rates: ["stove.rates.flame", "lid.rates.trap"] },
 });
 ```
 
-From `docs/examples/guide-words-and-numbers.ts`.
+From `docs/examples/simmer/game-wallet.ts`.
 
-What changed:
+`vocab: WORDS` is required: `defineGame` throws if a feature built over a vocabulary (the wallet) is in a game that
+does not declare the same one. It must be the same object, not an equal copy, so declare `WORDS` in one module and
+import it everywhere. Listing money first reads well; a feature that reaches another needs that one somewhere in the
+list.
 
-- The pot no longer owns the bubbles. It keeps a tap count (a plain `number`, since it only adds), and `tap` credits
-  the wallet through the draft helper.
-- The stove reaches the wallet instead of the pot. `buyBurner` shrinks from a compare, a subtract and a reassign to
-  one `wallet.debit`, which checks and pays together and returns whether it did.
-- The stove's heat step credits the wallet, so bubbles made over time count toward `earned` just like tapped ones.
-- `defineGame` now takes `vocab: WORDS`. This is required: `defineGame` throws if a feature built over a vocabulary
-  (the wallet) is in a game that does not declare the same one. It must be the same object, not an equal copy, so
-  import `WORDS` from one module everywhere.
-- The wallet is listed first. A feature that reaches another needs that one in the game's list too, and listing
-  money first reads well, though the order here only matters for which steps run first.
+**5. The page.** In `main.tsx`, read `s.wallet.bubbles` wherever you read `s.pot.bubbles`: in `Pot`, in `Stove`'s
+`canAfford`, and in `summarize`.
 
-Chapter 2's page changes too: it reads `s.wallet.bubbles` wherever it read `s.pot.bubbles`.
+Your `game.ts` now matches [`docs/examples/simmer/game-wallet.ts`](../examples/simmer/game-wallet.ts) down to
+`game`, and still ends with chapter 2's `store` line. (The example file leaves the store out, and adds a few helpers
+for the guide's later chapters at the end.)
 
-If players already had saves from the old shape, their bubbles would sit under `pot` and the new game would ignore
-them. A real game moving state like this bumps its save version and adds a migration; chapter 9 shows how.
+### What happens to your save
 
-While you are building, that can bite you. If you bump the version and write no migration, the engine cannot bring
-your old save forward, so it sets it aside under a second key and starts you on a fresh game. Nothing is printed and
-nothing on the page says so: your bubbles and burners are simply gone. That is fine for a game nobody plays yet. Use
-the Start over button from chapter 2's "Things that bite", or clear the site's storage, and carry on.
+Your save still has the old shape, with the bubbles under `pot`. The new pot has no `bubbles` field, so the engine
+drops that value when it loads: you keep your burners and the lid, and your bubbles start again from zero. Nobody
+plays Simmer yet, so that is fine.
+
+A real game moving state like this bumps its save version and writes a migration that carries the old value across;
+chapter 9 shows how. While you are building, know what a bump without a migration does: the engine cannot bring the
+old save forward, so it sets it aside under a second key (`simmer.save.kept`), warns on the console, and starts a
+fresh game. `saveSetAside(store)` from `watchpot/core` answers why (`"old-version"`, or `"migration-failed"` when a
+migration threw), so a page can tell the player their old save is kept. To start over by hand, use the `clearSave`
+button from chapter 2's "Things that bite".
 
 ### What "earned" means across a reset
 
@@ -352,12 +406,12 @@ The `earned` total sounds like a lifetime figure. It is not, unless you make it 
 a [reset](../glossary.md#reset):
 
 ```ts
-const store = createIdleStore(game, { now: () => 0, storage: createGameStorage(createMemoryBackend()) });
+const store = scriptStore(game, () => 0);
 const state = store.getState();
 
 for (let i = 0; i < 30; i++) state.pot.tap();
 state.wallet.credit("bubbles", 70); // from outside a recipe: the store action
-store.getState().stove.buyBurner(); // pays 10 bubbles
+console.log("bought:", store.getState().stove.buyBurner()); // true: pays 10 bubbles
 
 const w = store.getState().wallet;
 console.log(w.bubbles.toString(), w.earned.toString()); // 90 100: spending does not lower `earned`
@@ -367,8 +421,8 @@ const after = store.getState().wallet;
 console.log(after.bubbles.toString(), after.earned.toString()); // 0 0: the default reset wipes the total too
 ```
 
-From `docs/examples/guide-words-and-numbers.ts`. The store here runs on a fixed clock and keeps its save in memory,
-so the script touches nothing on disk.
+From `docs/examples/guide-words-and-numbers.ts`. `scriptStore`, from `game-wallet.ts`, makes a store on a clock you
+pass (here, always 0) with its save kept in memory, so the script touches nothing on disk.
 
 A reset (chapter 7) starts a new run: it puts features back to their fresh state, each following its `reset` rule.
 The default rule is `"run"`, which means "back to `initial`". The wallet's totals are fields of the wallet like any
@@ -436,6 +490,9 @@ rename touches one line. The vocabulary holds only ids; the words the page print
 table beside it, `CURRENCY`, typed `Record<Currency, CurrencyWords>`, so adding a currency to `WORDS` without its
 words is a compile error. And that table carries a game fact the vocabulary has no room for: how deep a reset has to
 be to wipe each balance ([depth](../glossary.md#depth) is chapter 7's subject).
+
+The game writes out `stats: []` and `rarities: ["common"]` because the engine version it is built on, 0.17, asked
+for both lists. On the current engine both are optional, and you leave them out as Simmer does.
 
 The game's wallet (`src/game/wallet.ts`) is a `currencies` feature over `WORDS`, and its reset rule reads that
 table: a new roll wipes labels and keeps cores, which is the point of earning them. [Chapter 7](07-the-first-reset.md#depth-what-survives-which-reset)
@@ -509,19 +566,17 @@ form always shows two.
 - **`plainBelow` with the default notation.** It is ignored under `suffix`, which always switches at 100,000. It
   works for the other four notations.
 - **`decimals` only reaches the plain range.** Past 100,000 the suffix form shows two decimals whatever you pass.
-- **`stats` and `rarities` are required.** A game without them still writes `stats: []` and `rarities: ["common"]`;
-  an empty rarity list throws.
 - **A currency list declared on its own without `as const`.** `const names = ["bubbles"]` widens to `string[]`, so a
-  vocabulary built from it checks nothing. Inline lists are safe either way; `as const` everywhere keeps both safe.
+  vocabulary built from it checks nothing. Inline lists keep their names either way.
 - **Two copies of the vocabulary.** `defineGame` compares the object itself, so a vocabulary declared twice, even
   identically, is refused. Declare it in one module and import it.
 - **A wallet total named "lifetime" that is not.** The default reset wipes `earned` and `spent` totals with the
   balances. Add `reset: { keep: [...] }` for a total that should survive.
-- **Calling an action inside a recipe.** Inside `api.set`, use the wallet's draft helpers (`wallet.credit(s, ...)`),
-  not `store.getState().wallet.credit(...)`.
+- **Calling an action inside a recipe.** It throws. Inside `api.set` or a step, use the wallet's draft helpers
+  (`wallet.credit(s, ...)`), not `store.getState().wallet.credit(...)`.
 - **The names `credit` and `debit` are taken.** The wallet's actions sit beside its balances in the slice, so no
-  currency, total or extra field can be called `credit`, `debit` or `__proto__`. `currencies` throws on a currency or
-  total with one of those names, and `defineGame` on an extra field.
+  currency, total or extra field can be called `credit`, `debit` or `__proto__`. `currencies` throws on any of them
+  when you define the wallet.
 
 ## Next
 
@@ -533,7 +588,9 @@ be played for hours.
 - [Add a currency](../add-a-currency.md): every `currencies` option, the reserved names, `extra` fields.
 - [Notations](../notations.md): the five notations side by side, and a settings-screen formatter table.
 - `api/core/decimal.d.ts`: `D`, `ZERO`, `ONE`, `take`, `sum`, `wholeNonNegative`, `toSafeNumber`, `isDecimal`.
-- `api/core/fmt.d.ts`: `fmt`, `Formatted`, `FmtOptions`, `formatter`, `Formatter`, `NOTATIONS` and the small printers.
+- `api/core/fmt.d.ts`: `fmt`, `fmtFull`, `Formatted`, `FmtOptions`, `formatter`, `Formatter`, `NOTATIONS` and the
+  small printers.
 - `api/core/vocab.d.ts`: `vocab`, `Vocab`, `CurrencyOf`, `StatOf`, `RarityOf`, `ladder`.
 - `api/core/currencies.d.ts`: `currencies`, `CurrenciesDef`, `CurrencyHelpers`, `CurrencyActions`, `Purse`.
+- `api/core/persist.d.ts`: `saveSetAside`, `clearSave`.
 - `api/core/feature.d.ts`: `ResetRule`, for the reset rules a wallet takes.

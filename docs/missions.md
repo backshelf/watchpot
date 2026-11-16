@@ -58,7 +58,7 @@ export const game = defineGame({
 
 - **`missions({ key, slots, list, pay?, onClaim?, reset? })`** saves `{ active, done, rng, serial }` under `key` and
   adds no step: an entry is back once game time passes its `endsAt`, tab open or not. `slots(state)` is read at each
-  start, so a slot the game takes away never cancels what is under way. A prestige reset clears the entries unless
+  start, so a slot the game takes away never cancels what is under way. A run reset clears the entries unless
   `reset` says otherwise.
 - **`MissionDef<G, R, X>`**: `id`, `durationMs(state)` (read at the start), `available?(state)`, `cost?: X` (the
   game's own shape, which `pay(draft, mission)` takes; `pay` is not called for a mission without one and must write

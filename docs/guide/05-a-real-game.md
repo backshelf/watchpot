@@ -232,9 +232,10 @@ Line by line:
 
 - `key: "stations"` is where this feature's state lives in the store and in the save: `state.stations.owned`, and so on.
 - `wallet` is the game's [currencies](../glossary.md#wallet) feature. The stations buy from it and pay into it.
+- `Station` is the engine's generator shape joined with the game's own. `GeneratorDef` is either kind of generator, one that pays a steady rate or one that runs a timed cycle; on the current engine a list of rate generators like this one can say so directly with `RateGeneratorDef<Currency>`.
 - `list` maps each content station into what the engine needs. `...st` carries the name, line, cost and rate along. `pays` and `makes` name the currency it is bought with and the one it makes, both labels here. `milestones` turns the content's list of counts into the engine's milestone shape: at each count, the output doubles. `n` is the game's own field, the station's number, which the stats use.
 - `global` is the full shifts: milestones that apply to every station once the lowest owned count reaches them.
-- `mult` is the hook this chapter is following. Every pass, the engine asks it for one station's multiplier from the rest of the game. The game answers with `stationMult`, which reads the stats (stop 3).
+- `mult` is the hook this chapter is following. Every pass, the engine asks it for one station's multiplier from the rest of the game. The game answers with `stationMult`, which reads the stats (stop 3). The engine also hands `mult` a third argument, `{ now }`, the game time of the pass, for a multiplier that depends on time; this game does not need it, because its stats already account for time.
 - `away` says what time away is worth: half the rate, for at most eight hours. [Chapter 9](09-saving-and-time-away.md) covers it.
 
 The engine does everything else: the price of the next one from the cost curve, buying one or ten or as many as you can afford, the milestone and global multipliers, the labels a second, and paying them every tick. That is the point of the factory. The game wrote a description and one multiplier.
@@ -290,7 +291,7 @@ export function shop<const K extends string>(key: K, def: Shop) {
 
 So `supplies = shop("supplies", SUPPLIES)` is an `upgradeTree` feature saved under `supplies`, holding a rank per item, with a `buy(id)` action. `effects: it.fx` carries Darkness +1's `print(1.25)` onto the node. `reset: { depth: def.depth }` clears the ranks at the first reset. `open` keeps an item off the shelf until the game says it is on offer: here, until its tier has opened, the items it needs are held and the station it is for is owned. `withMoves` adds the moves the simulated player uses to shop, which [chapter 12](12-proving-the-pacing.md) returns to.
 
-Two things in `nodeOf` deserve a note. The price is a getter, read each time the engine asks, so the pacing script can price an item while a run is under way. That works because the engine reads `amount` fresh every time it prices a rank, which nothing in the engine's docs promises. And the two `?? 1` defaults work together: most supplies are bought once (`maxLevel: 1`), so a `costGrowth` of 1 never comes into play for them.
+Two things in `nodeOf` deserve a note. The price is a getter, read each time the engine asks, so the pacing script can price an item while a run is under way. That works because the engine reads `amount` fresh every time it prices a rank, and its docs promise to keep doing so. And the two `?? 1` defaults work together: most supplies are bought once (`maxLevel: 1`), so a `costGrowth` of 1 never comes into play for them.
 
 ### 3. The stats: where effects become numbers
 
@@ -455,7 +456,7 @@ Three kinds of thing meet here, and each comes from a different layer.
 
 **State, from the store.** `useGameView()` returns the whole game state, redrawn promptly after the player's input and a few times a second otherwise. `useGameStore()` returns the store itself, for calling actions. Both come from `src/app/hooks.ts`, where the game makes them once with `createRuntimeHooks<GameStore>()` from `watchpot/react`. For a figure that must move every tick, a screen uses the third hook, `useGameState(selector)`, with a narrow selector instead.
 
-**Rules, from the feature.** The screen never works out a price or a rate itself. It asks `stations.rules`: `open`, `affordable`, `untilMilestone`, `price`, `rate`. These are the same functions the engine uses inside the feature, so the number on the button is the number the purchase will charge. `rate` already includes `stationMult`, so Darkness +1 shows up here without the screen knowing it exists.
+**Rules, from the feature.** The screen never works out a price or a rate itself. It asks `stations.rules`: `open`, `affordable`, `untilMilestone`, `price`, `rate`. These are the same functions the engine uses inside the feature, so the number on the button is the number the purchase will charge. `rate` already includes `stationMult`, so Darkness +1 shows up here without the screen knowing it exists. (On the current engine, the five lines from `affordable` to `can` are one call, `stations.rules.row(st, def.id, mode)`, which returns the count, its price and whether it can be bought. [Chapter 6](06-the-first-page.md#the-generators-generators) uses it.)
 
 **An action, through the store.** `store.getState().stations.buy(def.id, count)` is the feature's action. The screen reads the store at the moment of the click, not the `st` it rendered with, so the purchase always sees the current balance.
 
@@ -536,7 +537,7 @@ You have now been through every layer once. When you open a game you have not se
 - **The order of `features` is the order steps run in.** Nothing warns you when a feature reads a slice that is updated later in the same pass; you get numbers one pass stale, which looks like lag or a flicker. When a rule reads another feature's result, check that feature sits above it.
 - **An effect does nothing until something reads its stat.** Adding `mul("press", 2)` to an item is half the job if no rule calls `mulOf(s, "press")`. The type checker will not catch it, because the stat name is valid either way.
 - **`at` on an item is an hour, not a price.** It is easy to read `min(9.5)` as "costs 9.5". In this game prices come from the fitted table; change `at` and the item moves in the plan, but not until the table is fitted again.
-- **A selector that builds a new object re-renders forever.** `useGameState((g) => ({ ... }))` returns a fresh object every time, so React never sees it settle and stops with a "maximum update depth" error. Select one value, wrap an object-building selector in zustand's `useShallow`, or use `useGameView()` for a screen that reads a lot.
+- **A selector that builds a new object re-renders forever.** `useGameState((g) => ({ ... }))` returns a fresh object every time, so React never sees it settle and stops with a "maximum update depth" error. In development the engine warns you first and names the fix. Select one value, wrap an object-building selector in `useShallow` (from `watchpot/react`), or use `useGameView()` for a screen that reads a lot.
 - **Read the store at the click, not at the render.** An action handler calls `store.getState()` when it runs. The state you rendered with may be a few passes old by the time the player clicks.
 
 ## Next

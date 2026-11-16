@@ -1,18 +1,31 @@
-import { crossedMark, fmt, fmtCounted, fmtRate, watchChanges } from "watchpot/core";
-import { createRuntimeHooks, DevPanel, mountGame, type StoreState, useGameRuntime } from "watchpot/react";
+import { createIdleStore, crossedMark, fmt, fmtCounted, fmtRate, watchChanges, ZERO } from "watchpot/core";
+import {
+  createRuntimeHooks,
+  DevPanel,
+  mountGame,
+  type StoreState,
+  useGameRuntime,
+  useHashRoute,
+  useShallow,
+} from "watchpot/react";
 import { FloatingNumbers, Pressable, useFloatingNumbers } from "watchpot/ui";
-import { useShallow } from "zustand/react/shallow";
-import { burnerPrice, perSecond, store } from "./simmer/game";
+import { BURNER_PER_SECOND, burnerPrice, game, SIMMER_PER_SECOND } from "./simmer/game-wallet";
 
 // Simmer's page, grown from chapter 2's: the same game and store, read and drawn the way a bigger page is.
+
+/** Chapter 2's store line, over Simmer as chapter 4 left it. */
+export const store = createIdleStore(game, { now: Date.now });
 
 // The hooks: made once, typed over the game's store. Every screen reads through these three.
 export const { useGameStore, useGameState, useGameView } = createRuntimeHooks<typeof store>();
 type State = StoreState<typeof store>;
 
+/** Bubbles a second, all told: the pot's simmer, plus the stove's own rate (lid included) while it is lit. */
+const rateOf = (s: State) => (s.stove.off ? ZERO : s.stove.perSecond).add(SIMMER_PER_SECOND);
+
 /** The balance: a narrow selector that returns a string, so it re-renders only when the text changes. */
 export function Balance() {
-  const text = useGameState((s) => fmt(s.pot.bubbles).text);
+  const text = useGameState((s) => fmt(s.wallet.bubbles).text);
   return <h1>{text} bubbles</h1>;
 }
 
@@ -21,7 +34,7 @@ export function Summary() {
   const { burners, rate } = useGameState(
     useShallow((s: State) => ({
       burners: s.stove.burners,
-      rate: fmtRate(perSecond(s.stove.burners)),
+      rate: fmtRate(rateOf(s)),
     })),
   );
   return (
@@ -50,10 +63,6 @@ export const POT_CSS = `
 @keyframes pot-rise { to { opacity: 0; transform: translateY(-40px); } }
 :root[data-motion="reduced"] .pot-press { transition: none; }
 :root[data-motion="reduced"] .pot-floats > [data-float] { animation-duration: 1ms; }
-@media (prefers-reduced-motion: reduce) {
-  .pot-press { transition: none; }
-  .pot-floats > [data-float] { animation-duration: 1ms; }
-}
 `;
 
 /** The pot: the engine's `Pressable` (one press per finger, key or click) wearing Simmer's own look. */
@@ -81,11 +90,11 @@ export function Stove() {
   const game = useGameStore();
   const s = useGameView();
   const price = burnerPrice(s.stove.burners);
-  const canAfford = s.pot.bubbles.gte(price);
+  const canAfford = s.wallet.bubbles.gte(price);
   return (
     <section aria-labelledby="stove-title">
       <h2 id="stove-title">The stove</h2>
-      <p>Each burner adds {fmtRate(1)}.</p>
+      <p>Each burner adds {fmtRate(BURNER_PER_SECOND)}.</p>
       <button type="button" disabled={!canAfford} onClick={() => game.getState().stove.buyBurner()}>
         Light a burner for {fmt(price).text} bubbles
       </button>
@@ -111,9 +120,10 @@ export function watchSimmer(on: (event: SimmerEvent) => void): () => void {
 }
 
 /** The page: the runtime once at the top, then the screens, then the dev panel behind its route. */
-export function App({ route, closeDev }: { route: string; closeDev: () => void }) {
+export function App() {
   const game = useGameStore();
-  const { taken } = useGameRuntime(game, { motion: "system", scheme: "system" });
+  const { taken } = useGameRuntime(game);
+  const [route, go] = useHashRoute();
   return (
     <main>
       <style>{POT_CSS}</style>
@@ -124,12 +134,12 @@ export function App({ route, closeDev }: { route: string; closeDev: () => void }
       <Pot />
       <Summary />
       <Stove />
-      {process.env.NODE_ENV !== "production" && route === "#dev" && <DevPanel onClose={closeDev} />}
+      {process.env.NODE_ENV !== "production" && route === "dev" && <DevPanel onClose={() => go("")} />}
     </main>
   );
 }
 
 /** The browser entry: the store goes into context, the page renders under it. */
 export function main() {
-  mountGame(store, <App route={location.hash} closeDev={() => (location.hash = "")} />);
+  mountGame(store, <App />);
 }

@@ -9,4 +9,7 @@ Example: [`examples/theme.ts`](examples/theme.ts) (`bun docs/examples/theme.ts` 
 - Name a rarity colour `rarity-<id>` for every rung of the game's ladder: the kit reads a tier as `--rarity-<id>` (`tierToken`, `tierInk`).
 - Fonts are `tokens.type.fonts`; `fontBase` is the folder the stylesheet reads them from, as the css file sees it.
 - `data-theme` on `<html>` (the template sets it in `index.html`) or on any scope picks a theme; `data-scheme` (the runtime's `applyColorScheme`) picks a scheme.
-- A game's components read the compiled tokens through its own contract: the template's `src/ui/theme.css` maps them onto `--ui-*`.
+- A game's components read the compiled tokens through its own contract: the template's `src/ui/theme.css` maps
+  them onto `--ui-*`, the variables every copy-in component reads. The table of them, and what each one paints, is
+  [the registry's token contract](../templates/game/src/ui/README.md#the-token-contract). `TokensFile` (from
+  `watchpot/kit/theme`) types the `tokens.json` shape.

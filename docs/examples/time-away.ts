@@ -1,6 +1,5 @@
 import {
   AWAY_REPORT_MIN_MS,
-  catchUpSteps,
   createGameStorage,
   createIdleStore,
   createMemoryBackend,
@@ -13,6 +12,7 @@ import {
   HOUR_MS,
   type JournalLine,
   linesSince,
+  offlineSteps,
   pushLine,
 } from "watchpot/core";
 
@@ -53,7 +53,7 @@ export const pond = feature({
       away: {
         pass: "catchUp",
         run: (s, ctx) => {
-          const span = catchUpSteps(ctx.dtMs, { capMs: AWAY_CAP_MS });
+          const span = offlineSteps(ctx.dtMs, { capMs: AWAY_CAP_MS });
           const before = s.pond.lilies;
           for (let i = 0; i < span.steps; i++) grow(s.pond, span.stepMs);
           if (ctx.dtMs < AWAY_REPORT_MIN_MS) return;

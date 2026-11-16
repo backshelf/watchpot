@@ -1,87 +1,90 @@
 /**
  * Chapter 12 of the guide, "Proving the pacing": two small things the main sim (guide-pacing.ts) does not need. An
  * upgrade tree has no moves of its own, so the auto-player never buys from it until you attach some; and a sitting
- * can stop the moment something first happens, which answers "when does the player first get X?".
+ * can stop the moment something first happens, which answers "when does the player first get X?". The game is the
+ * main sim's playable Simmer, plus a kitchen shop with one upgrade in it.
  *
- * Run it with `bun docs/examples/guide-pacing-tree.ts`: it prints when the sim first bought the lid.
+ * Run it with `bun docs/examples/guide-pacing-tree.ts`: it prints when the sim first bought the copper base.
  */
 import {
-  currencies,
-  type Decimal,
   defineGame,
   type Effect,
+  feature,
   type GraphNode,
-  generators,
   HOUR_MS,
   type TreeState,
   treeMoves,
   upgradeTree,
-  vocab,
   withMoves,
 } from "watchpot/core";
 import { autoPlayer, createSimWorld, fmtClock, playStraight, simStore } from "watchpot/sim";
+import { playablePot } from "./guide-pacing";
+import { lid, SIMMER_RATES, stove, WORDS, wallet } from "./simmer/game-wallet";
 
-const WORDS = vocab({ currencies: ["bubbles"], stats: ["burner"], rarities: ["common"] });
-const wallet = currencies({ key: "wallet", vocab: WORDS, start: { bubbles: 10 } });
-
-const LID: GraphNode<Effect, "bubbles"> = {
-  id: "lid",
-  name: "A lid",
-  line: "The burners keep their heat: twice the bubbles.",
+/** The kitchen's one upgrade. It names no stat (Simmer has none); the `copper` feature below reads its rank. */
+const COPPER: GraphNode<Effect, "bubbles"> = {
+  id: "copper",
+  name: "A copper base",
+  line: "Spreads the flame: the stove makes twice the bubbles.",
   cost: [{ currency: "bubbles", amount: 200 }],
   maxLevel: 1,
   requires: [],
-  effects: [{ stat: "burner", mult: 2 }],
+  effects: [],
 };
 
 // The tree the store runs, plus the moves the sim buys from. `worth` is in the unit the burners' moves use, bubbles
-// a second; it gets no state, so it is a fair guess: the lid is worth about five burners.
+// a second; it gets no state, so it is a fair guess: the copper base is worth about five burners.
 const kitchen = withMoves(
-  upgradeTree({ key: "kitchen", nodes: [LID], wallet }),
-  treeMoves("kitchen", [LID], () => 5),
+  upgradeTree({ key: "kitchen", nodes: [COPPER], wallet }),
+  treeMoves("kitchen", [COPPER], () => 5),
 );
 
-const burners = generators({
-  key: "burners",
-  wallet,
-  list: [
-    {
-      id: "burner",
-      cost: { base: 10, growth: 1.15, round: "ceil" },
-      pays: "bubbles",
-      makes: "bubbles",
-      rate: 1,
+const hasCopper = (s: { kitchen: TreeState }) => (s.kitchen.ranks.copper ?? 0) > 0;
+
+/** The copper base at work: once bought, it doubles the stove's rate, after the lid has had its say. */
+const copper = feature({
+  key: "copper",
+  reach: [stove, kitchen],
+  initial: () => ({}),
+  derive: (s) => {
+    if (hasCopper(s)) s.stove.perSecond = s.stove.perSecond.mul(2);
+  },
+  steps: {
+    rates: {
+      spread: (s) => {
+        if (hasCopper(s)) s.stove.perSecond = s.stove.perSecond.mul(2);
+      },
     },
-  ],
-  mult: (s: { kitchen: TreeState }) => ((s.kitchen.ranks.lid ?? 0) > 0 ? 2 : 1),
+  },
 });
 
 export const game = defineGame({
   id: "simmer",
   save: { key: "simmer.save", version: 1 },
-  features: [wallet, kitchen, burners],
   vocab: WORDS,
+  features: [wallet, playablePot, stove, lid, kitchen, copper],
+  order: { rates: [...SIMMER_RATES, "copper.rates.spread"] },
 });
 
-/** How long the sim took to buy the lid, in ms, or null if two hours were not enough. */
-export function lidBoughtAt(seed = "simmer"): number | null {
+/** How long the sim took to buy the copper base, in ms, or null if two hours were not enough. */
+export function copperBoughtAt(seed = "simmer"): number | null {
   const start = Date.UTC(2026, 0, 1);
   const world = createSimWorld((now) => simStore(game, now, seed), start);
-  const player = autoPlayer(game, { balance: (s: { wallet: { bubbles: Decimal } }) => s.wallet.bubbles });
-  const hasLid = () => (world.store.getState().kitchen.ranks.lid ?? 0) > 0;
+  const player = autoPlayer(game);
+  const has = () => hasCopper(world.store.getState());
 
   playStraight({
     world,
     ms: 2 * HOUR_MS, // the longest it may take
     lookEveryMs: 10_000, // a look every ten seconds
     look: () => player.look(world.store),
-    until: hasLid, // checked before each look: the sitting ends the moment it holds
+    until: has, // checked before each look: the sitting ends the moment it holds
   });
 
-  return hasLid() ? world.now() - start : null;
+  return has() ? world.now() - start : null;
 }
 
 if (import.meta.main) {
-  const at = lidBoughtAt();
-  console.log(at === null ? "no lid in two hours" : `lid at ${fmtClock(at)}`);
+  const at = copperBoughtAt();
+  console.log(at === null ? "no copper base in two hours" : `copper base at ${fmtClock(at)}`);
 }

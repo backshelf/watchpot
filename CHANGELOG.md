@@ -2,6 +2,54 @@
 
 Each release is a tag `vX.Y.Z`. A breaking change names its codemod in `codemods/` (policy in `codemods/README.md`).
 
+## 0.18.0
+
+The developer-experience pass that came out of rebuilding the docs. The docs themselves are new: a guide to read front
+to back (`docs/guide/`, thirteen chapters that build one small game, Simmer, and then show each idea on a real one),
+`docs/showcases.md`, `docs/glossary.md`, and seven new reference pages (gauge, loadouts, prefs, settings, events, the
+React runtime, the test kit).
+
+**Breaking: `achievements` type parameters are `<K, G, E = never>`** (state before effect, as its types already
+were), so the state infers and most calls write none. Codemod: `codemods/0.18.0-achievements-generics.ts` rewrites
+explicit call sites.
+
+**Stricter, no codemod.** `defineGame` throws when an action shares a name with a key of its feature's `initial`
+(the slice used to be overwritten silently), and an action called inside a recipe or a step throws (its change used
+to be lost). A feature's migration step is skipped when the save has no slice for it. A gacha over an empty ladder
+throws at definition. `Formatter` gains a required `full`. `data-motion` on `<html>` is always written, from the
+resolved value (`"reduced"` or `"full"`), and follows the OS under `"system"`. A composed shader gains one comment
+line before the game's code, and `fixLog` reports lines past the chunks as `main:N`.
+
+**Renamed, old names kept as deprecated aliases.** The pure helpers `catchUp` and `catchUpSteps` are `offlineCredit`
+and `offlineSteps` (`catchUp` now names only the store's action); codemod `codemods/0.18.0-offline-credit.ts`. The
+test kit's `Persona` is `FixturePlay`. The allocation kernel and its action share a name.
+
+- **Clock and saves.** A hidden spell up to `awayAfterMs` is paid as live ticks, not as time away. The store flushes
+  the save on page hide by itself. A save that is set aside warns and says why (`saveSetAside`), a blocked save says
+  why (`saveBlockedBy`: newer, taken, unreadable), and `clearSave(store)` removes a save for good. Storage over the
+  memory backend no longer calls itself durable. A saved `undefined` under a Decimal default falls back to the
+  default.
+- **Kernel.** `api.set` returns the recipe's value. `vocab` takes `stats` and `rarities` as optional. `type Draft`
+  is exported from `watchpot/core`, with a helper for reading a saved shape loosely in a migration.
+- **Systems.** Clicker, gauge, spawns and generators callbacks receive `{ now }`, so a buff can be read where it
+  applies. The gauge has a draft helper (`nudge`). A buff's `effects` are optional. An upgrade tree has open-aware
+  `open`, `check` and `affordable`, a pure `buyCheapest` and a `buyAll` action. Generators have a buy-row helper,
+  `rules.away`, a `milestones` gate, and export `RateGeneratorDef` and `CycleGeneratorDef`. `BuyAmount`'s
+  `optionProps` accept `data-*`.
+- **Page.** `useShallow` is re-exported and a selector that returns a new identity warns in development.
+  `useAwayReport` works in either hook order. `useGameRuntime`'s `motion` and `scheme` default to `"system"`.
+  `useHashRoute`, `ShaderSurface` and `formatter().full` are new. `useShaderTokens` warns, naming the missing
+  custom properties.
+- **Sim and tests.** `playDays` stops on `until` or `hours`; `autoPlayer` reads its balance from the game's one
+  wallet; `freshStore().play(ms)` moves the clock and ticks.
+- **Scaffold.** `templates/game/.scaffold/new.ts <answers> <out>` runs the whole scaffold; the generator copies the
+  template, defaults to this engine's own tag, builds the tokens and lints what it wrote; the answers reference is
+  `templates/game/.scaffold/answers.md`; a look has defaults and a clicker-only game is a valid shape. The template
+  mounts the dev panel on `#dev`, and its sim judges a played-hours contract.
+- **Package.** `engines.bun` is `>=1.4.3`; `zzfx` is an optional peer; `watchpot/env` carries the CSS-module and
+  custom-property declarations a game's typecheck needs; `api/` covers `watchpot/kit/theme` and
+  `watchpot/sound/pack`; a `files` list.
+
 ## 0.17.0
 
 **Breaking: the package is renamed.** `idleslop` was a codename; the engine is `watchpot`, at

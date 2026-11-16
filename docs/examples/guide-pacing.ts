@@ -1,13 +1,13 @@
 /**
- * Chapter 12 of the guide, "Proving the pacing": Simmer played by the sim lab instead of by you. The pot and its
- * burners are rebuilt here so the file stands on its own, with one addition the sim needs: the pot's `moves`, the
- * menu the auto-player buys from. Then a run on `activeSchedule`, the firsts it saw, a pacing contract judged on
- * it, and the test kit's fresh store and fixture save.
+ * Chapter 12 of the guide, "Proving the pacing": Simmer played by the sim lab instead of by you. Simmer is imported
+ * from `simmer/game-wallet.ts` with one change the sim needs: the pot carries `moves`, the menu the auto-player
+ * buys from. Then a run on `activeSchedule`, the firsts it saw, a pacing contract judged on it, and the test kit's
+ * fresh store and fixture save.
  *
  * Run it with `bun docs/examples/guide-pacing.ts`: it plays one played day of Simmer (well under a second) and
  * prints the firsts, the timeline and the verdicts.
  */
-import { D, type Decimal, defineGame, feature, HOUR_MS, MINUTE_MS, ZERO } from "watchpot/core";
+import { defineGame, HOUR_MS, MINUTE_MS, withMoves } from "watchpot/core";
 import {
   activeSchedule,
   atMost,
@@ -26,51 +26,43 @@ import {
   type Verdict,
 } from "watchpot/sim";
 import { fixtureSave, freshStore } from "watchpot/test";
+import {
+  BURNER_PER_SECOND,
+  burnerPrice,
+  lid,
+  pot,
+  SIMMER_RATES,
+  type Simmer,
+  stove,
+  WORDS,
+  wallet,
+} from "./simmer/game-wallet";
 
-// --- Simmer ----------------------------------------------------------------------------------------------------
+// --- Simmer, playable ------------------------------------------------------------------------------------------
 
-const burnerCost = (owned: number): Decimal => D(10).mul(D(1.15).pow(owned));
-
-export const pot = feature({
-  key: "pot",
-  initial: () => ({ bubbles: ZERO, burners: 0 }),
-  actions: (api) => ({
-    tap: () =>
-      api.set((s) => {
-        s.pot.bubbles = s.pot.bubbles.add(1);
-      }),
-    buyBurner: (): boolean => {
-      let bought = false;
-      api.set((s) => {
-        const cost = burnerCost(s.pot.burners);
-        if (s.pot.bubbles.lt(cost)) return;
-        s.pot.bubbles = s.pot.bubbles.sub(cost);
-        s.pot.burners += 1;
-        bought = true;
-      });
-      return bought;
-    },
-  }),
-  steps: {
-    produce: {
-      // One bubble a second per burner.
-      burn: (s, ctx) => {
-        s.pot.bubbles = s.pot.bubbles.add(D(s.pot.burners).mul(ctx.dtMs / 1000));
-      },
-    },
+/**
+ * Simmer's pot, carrying what a player could do now, for the sim's auto-player: light a burner. The store never reads
+ * this. Moves read the whole state, so any feature can carry them. The stove would be the natural home, but the lid
+ * reaches the stove itself, and a stove with moves is a new object, so the lid would have to be rebuilt too. Nothing
+ * reaches the pot.
+ */
+export const playablePot = withMoves(pot, (s: Simmer) => [
+  {
+    id: "buy-burner",
+    cost: { currency: "bubbles", amount: burnerPrice(s.stove.burners) },
+    value: () => BURNER_PER_SECOND, // bubbles a second: the only thing a burner does
+    apply: (store) => store.getState().stove.buyBurner(),
   },
-  // What a player could do now, for the sim's auto-player. The store never reads this.
-  moves: (s) => [
-    {
-      id: "buy-burner",
-      cost: { currency: "bubbles", amount: burnerCost(s.pot.burners) },
-      value: () => 1, // a bubble a second: the only thing a burner does
-      apply: (store) => store.getState().pot.buyBurner(),
-    },
-  ],
-});
+]);
 
-export const game = defineGame({ id: "simmer", save: { key: "simmer.save", version: 1 }, features: [pot] });
+/** Simmer with the playable pot in the pot's place: the same key, the same save. */
+export const game = defineGame({
+  id: "simmer",
+  save: { key: "simmer.save", version: 1 },
+  vocab: WORDS,
+  features: [wallet, playablePot, stove, lid],
+  order: { rates: [...SIMMER_RATES] },
+});
 
 // --- A run -----------------------------------------------------------------------------------------------------
 
@@ -92,12 +84,12 @@ export interface Run {
 export function playSimmer(seed = "simmer"): Run {
   const start = Date.UTC(2026, 0, 1);
   const world = createSimWorld((now) => simStore(game, now, seed), start);
-  const player = autoPlayer(game, { balance: (s: { pot: { bubbles: Decimal } }) => s.pot.bubbles });
+  const player = autoPlayer(game);
 
   const hoursIn = () => (world.now() - start) / HOUR_MS;
   const read = (): Row => {
     const s = world.store.getState();
-    return { hours: hoursIn(), bubbles: s.pot.bubbles.toNumber(), burners: s.pot.burners };
+    return { hours: hoursIn(), bubbles: s.wallet.bubbles.toNumber(), burners: s.stove.burners };
   };
   const timeline = sampler({
     marks: [5, 15, 30, 60, 120, 240].map((min) => min * MINUTE_MS),
@@ -119,12 +111,12 @@ export function playSimmer(seed = "simmer"): Run {
     rng: rngFor(seed, "auto"),
     look: (at) => {
       for (let i = 0; i < at.presses; i++) world.store.getState().pot.tap();
-      const before = world.store.getState().pot.burners;
+      const before = world.store.getState().stove.burners;
       if (player.look(world.store).bought === 0) return;
       const now = world.now();
       if (hoursIn() <= 1) longestWait = Math.max(longestWait, now - lastBuy);
       lastBuy = now;
-      const after = world.store.getState().pot.burners;
+      const after = world.store.getState().stove.burners;
       for (const n of counts)
         if (before < n && after >= n) firsts.push(`${fmtClock(now - start)}  burner ${n}`);
     },
@@ -166,13 +158,23 @@ export function judgeSimmer(run: Run): Verdict[] {
 export const simmerFixture = (): string =>
   fixtureSave(game, (store, clock) => {
     for (let i = 0; i < 20; i++) store.getState().pot.tap();
-    store.getState().pot.buyBurner();
+    store.getState().stove.buyBurner();
     store.getState().tick(HOUR_MS, clock.advance(HOUR_MS));
   });
 
 /** Loads a save into a fresh store, as a test does, without the catch-up a boot would make. */
 export function loadSave(text: string) {
-  return freshStore(game, { save: text, catchUp: false }).store.getState().pot;
+  return freshStore(game, { save: text, catchUp: false }).store.getState();
+}
+
+/** A rule checked the short way: one burner and a minute of play, in one call. */
+export function aMinuteOnOneBurner(): number {
+  const { store, play } = freshStore(game);
+  store.setState((s) => {
+    s.stove.burners = 1;
+  });
+  play(MINUTE_MS);
+  return store.getState().wallet.bubbles.toNumber(); // the pot's 60 and the burner's 60
 }
 
 if (import.meta.main) {
@@ -185,6 +187,7 @@ if (import.meta.main) {
     ),
   );
   for (const v of judgeSimmer(run)) console.log(v.ok ? "pass" : "FAIL", v.name, v.value.toFixed(1), v.target);
-  const pot = loadSave(simmerFixture());
-  console.log("fixture:", pot.burners, "burner,", pot.bubbles.toFixed(0), "bubbles");
+  const s = loadSave(simmerFixture());
+  console.log("fixture:", s.stove.burners, "burner,", s.wallet.bubbles.toFixed(0), "bubbles");
+  console.log("a minute on one burner:", aMinuteOnOneBurner(), "bubbles");
 }

@@ -54,7 +54,7 @@ export interface LayerModel<L extends string, S extends string, B extends string
      * each passive share of a normal layer's raw gain), then all of it lands, `playedMs` moves and the state settles.
      */
     advance(state: LayersState<L>, dtMs: number): void;
-    /** Time away: `catchUpSteps` over the model's `away` options, then `advance` once per step. Returns the credited ms. */
+    /** Time away: `offlineSteps` over the model's `away` options, then `advance` once per step. Returns the credited ms. */
     advanceAway(state: LayersState<L>, awayMs: number): number;
 }
 /** Checks the definitions (throwing on the first problem) and returns the rules over them. */

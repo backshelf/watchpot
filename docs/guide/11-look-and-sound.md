@@ -1,12 +1,13 @@
 # Look and sound
 
 CSS gets a page most of the way to looking like a game. The rest is light that moves and sounds that answer you, and
-this chapter is your first one of each. By the end Simmer's pot will glow behind the page, hotter as the burners
+this chapter is your first one of each. By the end Simmer's pot will glow behind the page, warmer as the burners
 add up, and every tap and every burner will make a sound. You will also know which of the deeper pages to open next,
 and which you can leave shut for now.
 
-Everything here is in one file: `docs/examples/guide-look-and-sound.tsx`. It imports Simmer's game from chapter 2 and
-adds a backdrop, a sound table and a page that uses both.
+Everything here is in one file: `docs/examples/guide-look-and-sound.tsx`. It imports Simmer as chapter 4 left it
+(`docs/examples/simmer/game-wallet.ts`), makes chapter 2's store over it, and adds a backdrop, a sound table and a
+page that uses both.
 
 ## Why a shader, and what one is
 
@@ -16,47 +17,49 @@ all it does is answer one question, "what colour is this pixel?". It is written 
 browser hands to the graphics driver to compile.
 
 That sounds like a lot of machinery for a background. The reason to bother is that a shader can be driven by your
-game's numbers. A CSS gradient is fixed; a shader that reads "how hot is the pot" turns a number the player earned
+game's numbers. A CSS gradient is fixed; a shader that reads "how warm is the pot" turns a number the player earned
 into something they see out of the corner of their eye. The game sets numbers, the shader turns them into weather.
 
 The numbers a shader reads are called [uniforms](../glossary.md#uniform): values that are the same for every pixel of
-one frame (so "uniform" across the canvas), set from your JavaScript. The pot's heat will be one.
+one frame (so "uniform" across the canvas), set from your JavaScript. The pot's warmth will be one.
 
 `watchpot/shader` is the container for your GLSL. It owns the canvas, the WebGL2 context, the frame loop, the
 fallback when there is no WebGL, reduced motion and the pixel budget. What it draws is your fragment, and nothing
 else: the engine ships no look.
 
-## The pot's heat, a number from 0 to 1
+## The pot's warmth, a number from 0 to 1
 
-A shader wants small, tidy numbers. "1,240 bubbles a second" is not one; "0.6 of the way to as hot as it gets" is.
-So the first job is a function that turns Simmer's income into a heat between 0 and 1:
+A shader wants small, tidy numbers. "1,240 bubbles a second" is not one; "0.6 of the way to as warm as it gets" is.
+So the first job is a function that turns the stove's income into a warmth between 0 and 1:
 
 ```tsx
-/** The income at which the pot is as hot as it gets: a thousand bubbles a second. */
+/** The income at which the pot is as warm as it gets: a thousand bubbles a second. */
 const HOT_RATE = 1000;
 
-export function heatOf(bubblesPerSecond: number): number {
+export function warmthOf(bubblesPerSecond: number): number {
   const t = Math.log10(bubblesPerSecond + 1) / Math.log10(HOT_RATE);
   return Math.round(Math.min(1, Math.max(0, t)) * 100) / 100;
 }
 
-/** The selector the page hands `useGameState`: the stove's income, as heat. */
-export const potHeat = (s: State): number => heatOf(perSecond(s.stove.burners));
+/** The selector the page hands `useGameState`: the stove's own rate (lid included) as warmth, cold while it is off. */
+export const potWarmth = (s: State): number => warmthOf(s.stove.off ? 0 : s.stove.perSecond.toNumber());
 ```
 <sub>`docs/examples/guide-look-and-sound.tsx`</sub>
 
 Line by line:
 
-- **A log scale.** Idle numbers grow by powers of ten, so the heat follows the number of digits, not the number. The
-  pot warms as quickly from 10 to 100 bubbles a second as from 100 to 1,000.
-- **Clamped.** Past `HOT_RATE` the heat stays at 1. A shader fed 3.7 where it expects at most 1 draws nonsense.
-- **Rounded to a hundredth.** This one matters for React, not for the picture. `useGameState(potHeat)` re-renders
-  the component whenever the selector's answer changes. Simmer's income moves only when a burner is lit, but most
-  games' incomes move every tick, and a raw float would then be a new answer every tick. A heat in steps of 0.01 can
-  change at most a hundred times over a whole run. The selector also returns a plain number, never a fresh
-  object or Decimal: the store compares answers by identity, so a new object every tick is a new answer every tick.
+- **A log scale.** Idle numbers grow by powers of ten, so the warmth follows the number of digits, not the number.
+  The pot warms as quickly from 10 to 100 bubbles a second as from 100 to 1,000.
+- **Clamped.** Past `HOT_RATE` the warmth stays at 1. A shader fed 3.7 where it expects at most 1 draws nonsense.
+- **Rounded to a hundredth.** This one matters for React, not for the picture. `useGameState(potWarmth)` re-renders
+  the component whenever the selector's answer changes. Simmer's stove rate moves only when a burner is lit or the lid
+  or the switch is touched, but most games' incomes move every tick, and a raw float would then be a new answer every
+  tick. A warmth in steps of 0.01 can change at most a hundred times over a whole run. The selector also returns a
+  plain number, never a fresh object or Decimal: the store compares answers by identity, so a new object every tick is
+  a new answer every tick.
 
-`perSecond` and `State` are Simmer's, from `docs/examples/simmer/game.ts` and the store's type.
+The selector reads `s.stove.perSecond`, the stove's own rate with the lid's doubling already in it, and reads zero
+while the switch is off: a stove that is off is a cold pot. `State` is the store's type.
 
 ## The fragment
 
@@ -68,16 +71,16 @@ export const POT = compose(
   VORONOI,
   OKLAB,
   IGN,
-  uniformDecls({ u_water: "vec4", u_flame: "vec4", u_foam: "vec4", u_heat: "float" }),
+  uniformDecls({ u_water: "vec4", u_flame: "vec4", u_foam: "vec4", u_warmth: "float" }),
   `
 void main() {
   vec2 uv = screenUv();
-  float glow = 1.0 - smoothstep(0.0, 0.3 + 0.5 * u_heat, uv.y);
+  float glow = 1.0 - smoothstep(0.0, 0.3 + 0.5 * u_warmth, uv.y);
   vec2 p = vec2(uv.x * u_resolution.x / u_resolution.y, uv.y) * 8.0;
-  p.y -= u_time * (0.2 + 1.3 * u_heat);
+  p.y -= u_time * (0.2 + 1.3 * u_warmth);
   vec3 cells = voronoi(p);
-  float bubble = (1.0 - smoothstep(0.08, 0.12, cells.x)) * step(1.0 - u_heat, cells.z);
-  vec3 colour = oklabMix(u_water.rgb, u_flame.rgb, glow * (0.25 + 0.75 * u_heat));
+  float bubble = (1.0 - smoothstep(0.08, 0.12, cells.x)) * step(1.0 - u_warmth, cells.z);
+  vec3 colour = oklabMix(u_water.rgb, u_flame.rgb, glow * (0.25 + 0.75 * u_warmth));
   colour = mix(colour, u_foam.rgb, 0.6 * bubble);
   colour += (interleavedGradientNoise(gl_FragCoord.xy) - 0.5) / 255.0;
   fragColor = vec4(colour, 1.0);
@@ -97,17 +100,17 @@ The TypeScript around the GLSL first:
   (0 to 1 across the canvas), `VORONOI` gives cellular noise, `OKLAB` gives `oklabMix` (a colour mix without the
   muddy middle), `IGN` gives a dither. `compose` puts each chunk in once, after the chunks it needs.
 - **`uniformDecls`** writes the `uniform vec4 u_water;` lines for you, from the same names you will pass in React.
-  Three colours as `vec4` and the heat as a `float`.
+  Three colours as `vec4` and the warmth as a `float`.
 
 Then the GLSL, which runs per pixel:
 
-- `glow` is 1 at the bottom edge, fading out upward. The fade reaches higher as `u_heat` rises: the burner's light
+- `glow` is 1 at the bottom edge, fading out upward. The fade reaches higher as `u_warmth` rises: the burner's light
   climbing the pot.
 - `p` is the pixel's position in a grid eight cells high, corrected for the canvas's shape, and slid down over time.
-  Sliding the grid down makes what is drawn on it rise, faster as the pot heats.
+  Sliding the grid down makes what is drawn on it rise, faster as the pot warms.
 - `voronoi(p)` returns the distance to the nearest of a scatter of points, and an id for that point. Close to a
-  point is a bubble. `step(1.0 - u_heat, cells.z)` keeps only the points whose id is above `1 - heat`: a cold pot
-  shows almost none, a hot one shows nearly all.
+  point is a bubble. `step(1.0 - u_warmth, cells.z)` keeps only the points whose id is above `1 - warmth`: a cold pot
+  shows almost none, a warm one shows nearly all.
 - The colour mixes water toward flame by the glow, then lays foam over the bubbles.
 - The last line before the output adds a speck of dither, less than one step of colour, so a smooth gradient does not
   break into visible bands.
@@ -123,7 +126,7 @@ const TOKENS = ["--pot-water", "--pot-flame", "--pot-foam"] as const;
 
 const STILL = "linear-gradient(to top, var(--pot-flame), var(--pot-water) 45%)";
 
-export function PotBackdrop({ heat }: { heat: number }) {
+export function PotBackdrop({ warmth }: { warmth: number }) {
   const scope = useRef<HTMLDivElement>(null);
   const reduced = useReducedMotion();
   const palette = useShaderTokens(scope, TOKENS);
@@ -137,7 +140,7 @@ export function PotBackdrop({ heat }: { heat: number }) {
             u_water: palette["--pot-water"],
             u_flame: palette["--pot-flame"],
             u_foam: palette["--pot-foam"],
-            u_heat: heat,
+            u_warmth: warmth,
           }}
           reduced={reduced}
           reducedTime={4}
@@ -172,7 +175,8 @@ the page's other [tokens](../glossary.md#token) ([chapter 10](10-the-page.md)):
 
 Because the colours live in CSS, a theme or a colour-scheme switch recolours the shader with no code: the hook reads
 again when `data-theme`, `data-scheme`, a class or a style changes on the element or above it. Until every name reads
-as a colour the hook returns `null`, and the component shows the still instead.
+as a colour the hook returns `null`, and the component shows the still instead. In a development build it also
+names, on the console, each token that has no value at that element, once per mount.
 
 **A still.** The `still` prop is what renders in the canvas's place when there is no WebGL2, or when your fragment
 fails to compile. Make it [a CSS version of the same idea](../glossary.md#still), so a player on an old machine sees
@@ -189,9 +193,10 @@ A backdrop is soft and slow-moving, so half a million pixels at 30 frames a seco
 The canvas also stops drawing, and its clock stops, while it is off screen or the tab is hidden.
 
 **Errors.** `onError` hears why there is no shader: "WebGL2 is unavailable", or the driver's compile log with its
-line numbers moved to your fragment's own lines (the head's lines are taken off). Those lines count through the
-whole string `compose` returned, chunks included, so line 40 is not the 40th line of your `main`. Log it. Without this, a typo in the
-GLSL looks exactly like a machine without WebGL: you see the still and nothing else.
+line numbers moved to your own code. A line in what you passed `compose` after the chunks reads `main:N`, counted from
+the first of those lines (here the uniform declarations, then a blank line, then `main`); a line inside a chunk keeps
+its number in the whole string, and one in the engine's head reads `head:N`. Log it. Without this, a typo in the GLSL
+looks exactly like a machine without WebGL: you see the still and nothing else.
 
 **`aria-hidden`.** The canvas is decoration, and the engine marks it so. The wrapper here says the same for the still.
 
@@ -199,15 +204,15 @@ GLSL looks exactly like a machine without WebGL: you see the still and nothing e
 
 Simmer's page from chapter 2 started its clock with `useGameClock(store)`. Swap that for `useGameRuntime`, which
 starts the same clock and also writes the motion and colour-scheme settings and unlocks the sound (you will need that
-in a moment). Then read the heat and draw the backdrop first, so it sits behind everything else:
+in a moment). Then read the warmth and draw the backdrop first, so it sits behind everything else:
 
 ```tsx
 export function App() {
-  const heat = useGameState(potHeat);
-  useGameRuntime(store, { motion: "system", scheme: "system", sound: { engine: sound, on: true } });
+  const warmth = useGameState(potWarmth);
+  useGameRuntime(store, { sound: { engine: sound, on: true } });
   return (
     <main>
-      <PotBackdrop heat={heat} />
+      <PotBackdrop warmth={warmth} />
       <Pot />
       <Stove />
     </main>
@@ -216,16 +221,16 @@ export function App() {
 ```
 <sub>`docs/examples/guide-look-and-sound.tsx`</sub>
 
-`"system"` follows the player's operating system for both. A real game reads them from settings the player can
-change, as [chapter 10](10-the-page.md) shows.
+Left out, `motion` and `scheme` follow the player's operating system. A real game reads them from settings the
+player can change, as [chapter 10](10-the-page.md) shows.
 
-When a burner is lit, `perSecond` goes up, `potHeat` returns a new number, `App` re-renders, and `ShaderCanvas`
-draws its next frame with the new `u_heat`. It compares a render's uniforms by value, so a render that passes the
+When a burner is lit, the stove's `perSecond` goes up, `potWarmth` returns a new number, `App` re-renders, and
+`ShaderCanvas` draws its next frame with the new `u_warmth`. It compares a render's uniforms by value, so a render that passes the
 same numbers in a fresh object draws nothing extra.
 
 ### Values that change every frame
 
-`u_heat` changes a few times a minute, so passing it as a prop is right. A value that changes every frame (a flash
+`u_warmth` changes a few times a minute, so passing it as a prop is right. A value that changes every frame (a flash
 fading out, a position following the pointer) should not go through React at all. A `ref` on the canvas gives you a
 `ShaderHandle`, and its `setUniforms({ u_pulse: 0.4 })` pushes values straight to the card with no render. A value
 pushed that way stays until it is pushed again; a later render's `uniforms` replaces only the names it passes.
@@ -249,7 +254,7 @@ So a shader is checked in a browser, by looking:
 1. Run the game's dev server and open the page. The backdrop should be moving, not the still.
 2. Open the console. A clean console means the fragment compiled; a `[pot]` warning carries the driver's error at
    your fragment's line number.
-3. Change the heat (light a few burners, or warp the clock) and watch it respond.
+3. Change the warmth (light a few burners, put the lid on, switch the stove off) and watch it respond.
 4. Turn on reduced motion in the operating system and reload: one held frame.
 5. Flip the colour scheme: the colours should follow.
 
@@ -284,7 +289,9 @@ export interface Surface {
 <sub>VOID IF REMOVED, `src/shaders/surface.ts`</sub>
 
 That is the same checklist you just worked through for the pot, written as a type, so no surface can be added without
-a still and a frozen frame.
+a still and a frozen frame. The game wrote its own because it is on engine 0.17; the current engine ships the shape as
+`ShaderSurface` from `watchpot/shader` (`fragment`, `still`, `reducedTime` and `kinds`), and since `ShaderCanvas`
+takes every field of it, a surface spreads straight onto the canvas: `<ShaderCanvas {...HEAD} uniforms={…} />`.
 
 ### The press surface
 
@@ -306,7 +313,7 @@ export function Pad({ chute }: { chute: ReactNode }) {
 ```
 <sub>VOID IF REMOVED, `src/screens/FeedPad.tsx`</sub>
 
-The heat is a gauge in the game's state, turned into 0 to 1 the same way you turned Simmer's income into heat. The
+The heat is a gauge in the game's state, turned into 0 to 1 the same way you turned Simmer's stove into warmth. The
 pulse is the flash of a press. When the player presses, the sound and the light go out in the same call:
 
 ```tsx
@@ -440,9 +447,10 @@ export const playBurner = () => sound.play("burner");
 <sub>`docs/examples/guide-look-and-sound.tsx`</sub>
 
 - **`voices`** are [zzfx voices](../glossary.md#zzfx-voice): a synthesised sound described by numbers (a wave, a
-  pitch in Hz, an envelope in seconds). Nothing is downloaded, so these work from the first line of code. `tap` is a
-  short sine blip whose pitch slides up, a bubble breaking the surface. `burner` layers two voices: a puff of
-  filtered noise, and a low note 30 milliseconds later.
+  pitch in Hz, an envelope in seconds). Nothing is downloaded, so these work from the first line of code, once your
+  game has the `zzfx` package installed (an optional peer: only a game that imports `watchpot/sound` needs it).
+  `tap` is a short sine blip whose pitch slides up, a bubble breaking the surface. `burner` layers two voices: a puff
+  of filtered noise, and a low note 30 milliseconds later.
 - **`bus: "ui"`** says which channel of the mix the cue plays on. Five exist already (`sfx`, `ui`, `music`,
   `ambience`, `voice`); you can leave this out and get `sfx`.
 - **`vary`** makes each play a little different: up to 60 cents of pitch and 1 dB of level either way. A tap you hear
@@ -466,9 +474,15 @@ Then play them where the action happens:
 ```
 <sub>`docs/examples/guide-look-and-sound.tsx`</sub>
 
-For the burner, play the whoosh only when one was actually lit. Simmer's `buyBurner` does not say whether it bought,
-so the example compares the count before and after; the engine's own `generators` feature returns `true` from `buy`
-and saves you that.
+For the burner, play the whoosh only when one was actually lit. `buyBurner` returns whether it bought, so the
+stove's button plays on that:
+
+```tsx
+  const light = () => {
+    if (game.getState().stove.buyBurner()) playBurner();
+  };
+```
+<sub>`docs/examples/guide-look-and-sound.tsx`</sub>
 
 **The gate.** Browsers start audio suspended until the player does something: a click, a key. Nothing plays before
 that. Passing `sound: { engine: sound, on }` to `useGameRuntime`, as Simmer's `App` does, arms the unlock on the first
@@ -566,12 +580,12 @@ the depth for far less.
 
 ## Things that bite
 
-- **Missing tokens mean the still, forever, with no message.** If one of the names you pass `useShaderTokens` is not
-  defined as a colour in your CSS, the hook returns `null` and you get the still. Nothing logs. When a backdrop
-  "never starts", check the custom properties first.
+- **Missing tokens mean the still, forever.** If one of the names you pass `useShaderTokens` is not defined as a
+  colour in your CSS, the hook returns `null` and you get the still. A development build names the missing ones on the
+  console; a production build says nothing. When a backdrop "never starts", read the console first.
 - **A compile error looks like no WebGL.** Both show the still. Only `onError` tells them apart, which is why every
   canvas should log it.
-- **A heat that is not rounded re-renders every tick.** Round or step a uniform's value in the selector. The canvas
+- **A uniform's value that is not rounded re-renders every tick.** Round or step a uniform's value in the selector. The canvas
   ignores a render whose uniforms are equal by value, but React still re-renders the component for every new number.
 - **Every `ShaderCanvas` is its own WebGL context, and browsers keep about sixteen.** Past that the browser starts
   losing them. One canvas for a backdrop and one for a hero surface is fine; for a shine on every card, use a
@@ -599,7 +613,8 @@ arrive when you meant them to without playing it for a week.
   [sound-music](../sound-music.md) and [sound-dsp](../sound-dsp.md), by the table above.
 - [feel](../feel.md) for answering a press where it happened and rationing the machine's celebrations.
 - [reveal](../reveal.md), [gacha](../gacha.md), [three](../three.md).
-- `api/shader/canvas.d.ts`: `ShaderCanvas`, `ShaderCanvasProps`, `ShaderHandle`, `pinShaderClock`, `shaderClockPin`.
+- `api/shader/canvas.d.ts`: `ShaderCanvas`, `ShaderCanvasProps`, `ShaderSurface`, `ShaderHandle`, `pinShaderClock`,
+  `shaderClockPin`.
 - `api/shader/glsl.d.ts`: `compose`, `chunk` and every chunk. `api/shader/head.d.ts`: `SHADER_HEAD`, `fixLog`.
 - `api/shader/uniforms.d.ts`: `uniformDecls`, `Uniforms`, `UniformKind`. `api/shader/tokens.d.ts`: `useShaderTokens`.
 - `api/shader/pulse.d.ts`: `createPulse`, `usePulseUniform`. `api/shader/stepped.d.ts`: `useSteppedFrame`.

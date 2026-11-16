@@ -1,14 +1,18 @@
 # Time away
 
 A game whose growth compounds cannot credit an absence with one multiplication: it has to run its own tick rule over
-the gap. `catchUpSteps` turns the gap into steps, a journal keeps what happened so the page can tell the player, and
+the gap. `offlineSteps` turns the gap into steps, a journal keeps what happened so the page can tell the player, and
 `fillDeep` keeps an old save loading as the shape grows.
 
 Example: [`examples/time-away.ts`](examples/time-away.ts) (`bun docs/examples/time-away.ts`).
 
-- `catchUpSteps(elapsedMs, { capMs, rate?, maxSteps?, minStepMs? })` is `catchUp` plus `steps` and `stepMs`: `steps` is
-  0 when nothing is credited, else `max(1, min(maxSteps, ceil(creditedMs / minStepMs)))` (defaults 240 and 1,000 ms),
-  and `stepMs` is the credited time over `steps`. Run the tick rule `steps` times with `stepMs`.
+- What counts as away: the clock pays a hidden spell of up to `awayAfterMs` (`AWAY_AFTER_MS`, 5 s by default) as
+  live ticks in `maxStepMs` slices, the same way it pays a long frame, so a quick tab switch earns at the full rate
+  and a spawn in that gap is not missed. Only a longer absence, or the time since the save on load, goes to the
+  catch-up and the steps below.
+- `offlineSteps(elapsedMs, { capMs, rate?, maxSteps?, minStepMs? })` is `offlineCredit` plus `steps` and `stepMs`:
+  `steps` is 0 when nothing is credited, else `max(1, min(maxSteps, ceil(creditedMs / minStepMs)))` (defaults 240 and
+  1,000 ms), and `stepMs` is the credited time over `steps`. Run the tick rule `steps` times with `stepMs`.
 - Keep an away report in a `transient` field, and write it only when the absence passes `AWAY_REPORT_MIN_MS`: a
   shorter one is credited without a sheet.
 - `pushLine(log, line, keep?)` appends to a capped log (40 lines by default) and works on an immer draft;
@@ -30,14 +34,16 @@ Example: [`examples/time-away.ts`](examples/time-away.ts) (`bun docs/examples/ti
 The catch-up runs in one pass, so the page sees the absence as one change in which the clock's `lastSeen` jumped.
 `watchAway(store, onReturn, { minMs?, settlePasses?, lens? })` (`watchpot/react`, `watchpot/hooks`) hears exactly
 that change and hands the game `{ before, after, ms }`: the state before the catch-up, the state after it, and the
-time it credited. A gap under `minMs` (`AWAY_REPORT_MIN_MS` by default) is not reported, and neither is a profile's
-first catch-up or an import, whose `lastSeen` starts from nothing or lands on now. `settlePasses` waits that many
+time away (the whole jump in `lastSeen`: the offline cap may have credited less, and the states say what
+was paid). A gap under `minMs` (`AWAY_REPORT_MIN_MS` by default) is not reported, and neither is a profile's first
+catch-up or an import, whose `lastSeen` starts from nothing or lands on now. `settlePasses` waits that many
 more changes and reports the state after them, for a game whose tallies settle on the pass after the catch-up.
 
 `useAwayReport(summarize, options?)` is the same as React state: `summarize(away)` turns a return into the game's
-own report (null for one not worth telling), and it is held until `dismiss()`. It listens from a layout effect, so it
-hears the first catch-up the runtime makes on load. `awayGains(before, after, reads)` lists the figures that went up,
-in order, each `{ id, gain }`: a figure that fell (a reset ran while away) is left out.
+own report (null for one not worth telling), and it is held until `dismiss()`. It hears the opening catch-up the
+clock makes on load in either place you put it: in a child of the component that starts the clock, or after
+`useGameClock` or `useGameRuntime` in that same component. `awayGains(before, after, reads)` lists the figures
+that went up, in order, each `{ id, gain }`: a figure that fell (a reset ran while away) is left out.
 
 ```tsx
 function Away() {

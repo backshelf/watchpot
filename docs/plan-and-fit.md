@@ -1,5 +1,9 @@
 # Plan and fit
 
+A small game needs none of this. A handful of prices you tune by playing, checked by a [pacing
+contract](pacing-contract.md), is enough until there are more gates than you can price by hand. Come back here when
+there are dozens, or when every tweak to one price moves all the ones after it.
+
 A pacing contract judges a game after the run. A plan prices it the other way round: write down the minute each gate
 should open, let a pilot play with every gate unpayable, and as each minute comes price the gate at what the pilot
 holds, rounded to a figure a player can read. The run carries on with that price fixed, so one pass in time order

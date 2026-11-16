@@ -47,9 +47,13 @@ Example: [`examples/spawns.ts`](examples/spawns.ts).
   most one live. It walks `SPAWN_WALK_LIMIT` (10,000) arrivals in one pass at most, then starts the wait over.
 - **`spawns({ key, kinds, onCatch?, reset? })`** saves `{ kinds: { [id]: { nextAt, live, caught, missed, born, last,
   rng } } }`. Its step `<key>.sync.arrive` brings every kind up to the pass's end on game time; over a catch-up the
-  arrivals in the gap are counted missed, never paid. A kind's `active(state)` false holds it (nothing arrives; the
-  wait starts over once it holds). `catch(kind)` returns the outcome id or null and runs `onCatch(draft, outcome, now,
+  arrivals in the gap are counted missed, never paid. A quick tab switch (up to `awayAfterMs`, 5 s by default) is not a
+  catch-up: the clock pays it as live ticks, so an arrival in it can still be caught. A kind's `active(state)` false
+  holds it (nothing arrives; the wait starts over once it holds). `catch(kind)` returns the outcome id or null and runs `onCatch(draft, outcome, now,
   kind)` in the same recipe. A run reset clears what is live and starts the waits over, and keeps the counts and
   streams, unless `reset` says otherwise.
+- **Every state callback gets the moment.** `wait`, `lifeMs`, `active`, `worth` and an outcome's `when` are each
+  handed a last argument `{ now }` in game time (`CallbackContext`), so a running buff can bring arrivals sooner or
+  open an outcome: `active: (s, { now }) => buffActive(s.boosts, "lure", now)`.
 - **Sim:** a free move per live arrival, worth the kind's `worth(state)` (default 1): the auto-player catches whatever
   is live at a look, so a look cadence under `lifeMs` misses none.

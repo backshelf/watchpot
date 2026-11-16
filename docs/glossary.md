@@ -20,8 +20,8 @@ state (`store.getState().pot.tap()`) and changes it through `api.set`. Taught in
 ## Answers file
 
 The JSON file that describes a new game to the template's generator: its name, currency, generators, systems, look
-and session length. Taught in [chapter 13](guide/13-from-the-template.md#3-write-the-answers-file). Reference: the
-`Answers` interface in `templates/game/.scaffold/generate.ts`.
+and session length. Taught in [chapter 13](guide/13-from-the-template.md#2-write-the-answers-file). Reference:
+`templates/game/.scaffold/answers.md`.
 
 ## API report
 
@@ -32,8 +32,9 @@ truth for every name and type the guide uses. Introduced in
 ## Auto-player
 
 The sim lab's stand-in for a person: at each look it buys the best-value move it can afford, again and again, then
-takes every free move. It is greedy and never bored. Taught in
-[chapter 12](guide/12-proving-the-pacing.md#teaching-simmer-to-be-played). Reference: [a persona](persona.md).
+takes every free move. It is greedy and never bored. In a game with one wallet it reads the balance by itself;
+otherwise you pass it a `balance` reader. Taught in
+[chapter 12](guide/12-proving-the-pacing.md#teaching-simmer-to-be-played). Reference: [the auto-player](persona.md).
 
 ## Autobuyer
 
@@ -44,7 +45,8 @@ Reference: [autobuyers](autobuyers.md).
 ## Backend
 
 Where a save's text is kept: anything with `getItem`, `setItem` and `removeItem`. The engine ships
-`localStorageBackend` and `createMemoryBackend`. Taught in [chapter 9](guide/09-saving-and-time-away.md#where-it-writes).
+`localStorageBackend` and `createMemoryBackend`; storage over the memory one is not durable, so `saveStatus` reads
+"unsaved". Taught in [chapter 9](guide/09-saving-and-time-away.md#where-it-writes).
 Reference: `api/core/storage.d.ts`.
 
 ## Band
@@ -68,8 +70,9 @@ Reference: [sound-mix](sound-mix.md).
 
 ## Catch-up
 
-The pass that pays for time the game was not running: when a page opens or a hidden tab comes back, the engine runs
-every phase once over the whole gap, with `ctx.dtMs` set to its length. Taught in
+The pass that pays for time the game was not running: when a page opens, or a hidden tab comes back after more than
+five seconds (`AWAY_AFTER_MS`), the engine runs every phase once over the whole gap, with `ctx.dtMs` set to its
+length. A shorter gap is paid as live ticks. The store's root action `catchUp()` runs it. Taught in
 [chapter 2](guide/02-your-first-game.md#step-5-time-away), [chapter 3](guide/03-the-mental-model.md#two-passes-the-tick-and-the-catch-up)
 and [chapter 9](guide/09-saving-and-time-away.md#time-away). Reference: [time away](time-away.md).
 
@@ -138,9 +141,8 @@ out any shallower reset. It is how a prestige currency survives the reset it pay
 
 A feature's function that works its transient fields out again whenever the state is made fresh: a new store, a load,
 an import, a reset. It must be pure. Taught in
-[chapter 3](guide/03-the-mental-model.md#state-that-does-not-save-transient-and-derive) and
-[chapter 9](guide/09-saving-and-time-away.md#what-is-not-saved). Reference: [the stat graph](stat-graph.md), "The first
-pass after a load".
+[chapter 3](guide/03-the-mental-model.md#state-that-does-not-save-transient-and-derive). Reference:
+[the stat graph](stat-graph.md), "The first pass after a load".
 
 ## Dev panel
 
@@ -169,7 +171,7 @@ action is not allowed: `wallet.credit(s, "bubbles", 1)`. Taught in
 
 ## Effect
 
-One change to a stat, as data: an amount to add or a factor to multiply by, such as `{ stat: "boil", mult: 1.25 }`.
+One change to a stat, as data: an amount to add or a factor to multiply by, such as `{ stat: "heat", mult: 1.25 }`.
 Upgrades, buffs and achievements carry effects; the stat bus folds them. Taught in
 [chapter 8](guide/08-effects.md#stats-and-effects). Reference: [the stat graph](stat-graph.md).
 
@@ -187,6 +189,12 @@ the steps it runs as time passes. A game is a list of features. Taught in
 [chapter 2](guide/02-your-first-game.md#step-1-a-pot-you-can-tap) and
 [chapter 3](guide/03-the-mental-model.md#features-and-slices). Reference: [start a game](start-a-game.md).
 
+## Fixture play
+
+The function `fixtureSave` runs to make a save: `(store, clock) => void`, plain calls on a store, typed `FixturePlay`
+in `watchpot/test`. Unlike the auto-player it decides nothing; it does exactly what you wrote. Taught in
+[chapter 12](guide/12-proving-the-pacing.md#the-test-kit). Reference: [the test kit](test-kit.md).
+
 ## Fixture save
 
 A save made by playing a game for a moment in a test (`fixtureSave`), kept as a file so a later build can prove it
@@ -196,7 +204,8 @@ still loads. Taught in [chapter 9](guide/09-saving-and-time-away.md#a-worked-mig
 ## Formatter
 
 A set of number printers bound to one set of options, such as the player's chosen notation: `formatter({ notation })`
-returns `num`, `rate`, `times`, `plus` and `counted`, each returning a string. Taught in
+returns `num`, `full`, `rate`, `times`, `plus` and `counted`, each returning a string. `full` prints every digit,
+never a suffix, for a headline figure. Taught in
 [chapter 4](guide/04-words-and-numbers.md#one-formatter-for-the-whole-game). Reference: [notations](notations.md).
 
 ## Fragment shader
@@ -227,8 +236,7 @@ at the played hour the plan gives it. Taught in
 ## Gauge
 
 A bounded level that a rate moves every second, clamped between 0 and a maximum, with an optional trip that locks it at
-the top. Taught in [chapter 6](guide/06-the-first-page.md#the-heat-gauge). Reference: the README's
-[Gauges](../README.md#gauges) section.
+the top. Taught in [chapter 6](guide/06-the-first-page.md#the-meter-gauge). Reference: [gauge](gauge.md).
 
 ## Generator
 
@@ -257,6 +265,14 @@ The pure functions under a system that do its arithmetic and touch nothing else,
 factory's feature, a screen and the sim all call the same kernel. Taught in
 [chapter 6](guide/06-the-first-page.md#one-pattern-five-times).
 
+## Kept save
+
+The copy of a save the store could not bring forward (too old, a migration that threw, a newer build's, or text that
+is not a save), kept untouched under `<save key>.kept` while the player starts fresh. `saveSetAside` says why, for
+all but text that is not a save. Taught in
+[chapter 9](guide/09-saving-and-time-away.md#a-save-that-cannot-be-brought-forward). Reference:
+[a save migration](migration.md).
+
 ## Levels
 
 Experience tracks with curves that read both ways (level from experience and back). Shown in
@@ -284,13 +300,20 @@ milestones apply to every generator once the lowest count reaches them. Taught i
 
 Something the sim's auto-player could do right now, as a feature describes it: an `id`, a `cost`, a `value` and an
 `apply` that plays it through the store. Taught in
-[chapter 12](guide/12-proving-the-pacing.md#teaching-simmer-to-be-played). Reference: [a persona](persona.md).
+[chapter 12](guide/12-proving-the-pacing.md#teaching-simmer-to-be-played). Reference: [the auto-player](persona.md).
 
 ## Notation
 
 The way numbers read past the plain range: `suffix` (the default), `scientific`, `engineering`, `letters` or
 `logarithm`. Taught in [chapter 4](guide/04-words-and-numbers.md#one-formatter-for-the-whole-game). Reference:
 [notations](notations.md).
+
+## Offline credit
+
+How much of an absence a game pays for: the time away, cut at a cap and multiplied by a rate. Simmer's stove pays
+half, for two hours at most. `offlineCredit(elapsedMs, rate, capMs)` does the arithmetic, and `offlineSteps` adds how
+to replay it in slices for growth that compounds. Taught in
+[chapter 9](guide/09-saving-and-time-away.md#a-rate-and-a-cap). Reference: [time away](time-away.md).
 
 ## Pacing contract
 
@@ -313,13 +336,15 @@ away. A step can be limited to one with `pass: "tick"` or `pass: "catchUp"`. Tau
 ## Peer
 
 A package the engine imports but leaves for your game to install, so that the game and the engine share one copy:
-React, immer, zustand, break_eternity.js and zzfx. Taught in [chapter 2](guide/02-your-first-game.md#packagejson).
+React, immer, zustand and break_eternity.js. Some are optional, needed only by the entry that uses them: zzfx for
+`watchpot/sound`, three and @react-three/fiber for `watchpot/three`. Taught in
+[chapter 2](guide/02-your-first-game.md#packagejson).
 
 ## Persona
 
-In `watchpot/test`, a plain function of calls on a store that `fixtureSave` plays to make a save. The persona reference
-page also uses the word for the sim's auto-player. Taught in [chapter 12](guide/12-proving-the-pacing.md#the-test-kit).
-Reference: [a persona](persona.md).
+A player, as the reference shelf's [persona](persona.md) page uses the word: either the sim's auto-player or a fixture
+play. The code names each kind on its own (`autoPlayer`, `FixturePlay`). See [auto-player](#auto-player) and
+[fixture play](#fixture-play).
 
 ## Phase
 
@@ -371,8 +396,9 @@ is something else: the crafting system.) Taught in [chapter 3](guide/03-the-ment
 
 ## Reduced motion
 
-The player's wish for less movement, from the operating system or the game's own setting. The runtime writes
-`data-motion="reduced"` for the setting; a shader holds one still frame. Taught in
+The player's wish for less movement, from the operating system or the game's own setting. The runtime hook writes
+the motion to use on `<html>` as `data-motion` ("reduced" or "full", the OS deciding when the setting is "system"), so
+CSS reads that one attribute; a shader holds one still frame. Taught in
 [chapter 10](guide/10-the-page.md#one-primitive-start-to-finish) and
 [chapter 11](guide/11-look-and-sound.md#the-backdrop). Reference: [feel](feel.md), [shader](shader.md).
 
@@ -418,13 +444,13 @@ state is derived again. Taught in [chapter 3](guide/03-the-mental-model.md#two-k
 ## Runtime hook
 
 `useGameRuntime`, called once at the top of a page: it starts the clock, watches for other tabs, writes the motion and
-colour-scheme settings onto `<html>`, and unlocks sound. Taught in
+colour scheme onto `<html>` (following the OS unless told otherwise), and unlocks sound. Taught in
 [chapter 10](guide/10-the-page.md#starting-the-page-the-runtime-hook).
 
 ## Save
 
-The store's slices written out as text with a version number, kept in a backend and written about a second after a
-change. Functions and transient keys are left out. Taught in [chapter 2](guide/02-your-first-game.md#step-4-the-save)
+The store's slices written out as text with a version number, kept in a backend and written at most a second after a
+change, and at once when the page hides. Functions and transient keys are left out. Taught in [chapter 2](guide/02-your-first-game.md#step-4-the-save)
 and [chapter 9](guide/09-saving-and-time-away.md#what-is-saved-and-when). Reference: [a save migration](migration.md).
 
 ## Schedule
@@ -435,8 +461,9 @@ day) or a `SessionSchedule` (a lifelike week). Taught in
 
 ## Selector
 
-A small function that picks one value out of the whole state for a component: `(s) => s.pot.bubbles`. A selector that
-builds a new object every time loops forever. Taught in
+A small function that picks one value out of the whole state for a component: `(s) => s.wallet.bubbles`. A selector
+that builds a new object or Decimal every time loops forever (a development build warns first); wrap it in
+`useShallow`. Taught in
 [chapter 10](guide/10-the-page.md#reading-one-figure-usegamestate).
 
 ## Shader
@@ -448,11 +475,11 @@ A program that runs on the graphics card. In this guide it means a fragment shad
 
 `watchpot/sim`: the part of the engine that plays a game headless, on a clock it owns, as fast as the machine allows,
 so you can measure pacing. Taught in [chapter 12](guide/12-proving-the-pacing.md#why-you-cannot-just-play-it).
-Reference: [a persona](persona.md), [a pacing contract](pacing-contract.md).
+Reference: [the auto-player](persona.md), [a pacing contract](pacing-contract.md).
 
 ## Slice
 
-The state one feature holds, under its key: the pot's slice is `{ bubbles, ... }` at `s.pot`. Taught in
+The state one feature holds, under its key: the stove's slice is `{ burners, off, perSecond }` at `s.stove`. Taught in
 [chapter 3](guide/03-the-mental-model.md#features-and-slices).
 
 ## Softcap
@@ -468,8 +495,8 @@ Taught in [chapter 6](guide/06-the-first-page.md#surprises-and-timed-boosts-spaw
 
 ## Stat
 
-A named number that many things can change, such as Simmer's `boil` (the multiplier on each burner) or a game's
-`print`. Effects name the stat they change. Taught in [chapter 8](guide/08-effects.md#stats-and-effects); met first in
+A named number that many things can change, such as Simmer's `heat` (the stove's rate) or a game's `print`.
+Effects name the stat they change. Taught in [chapter 8](guide/08-effects.md#stats-and-effects); met first in
 [chapter 5](guide/05-a-real-game.md#1-content-the-stations-and-the-supplies). Reference: [the stat graph](stat-graph.md).
 
 ## Stat bus
@@ -481,7 +508,7 @@ first in [chapter 5](guide/05-a-real-game.md#3-the-stats-where-effects-become-nu
 
 ## Step
 
-A function a feature runs on every pass, placed under a phase and given a name: `steps.produce.heat`. It gets the draft
+A function a feature runs on every pass, placed under a phase and given a name: `steps.produce.simmer`. It gets the draft
 and a context with `dtMs`, `now` and `pass`. Taught in [chapter 2](guide/02-your-first-game.md#step-3-the-clock) and
 [chapter 3](guide/03-the-mental-model.md#the-tick).
 
@@ -506,8 +533,9 @@ Taught in [chapter 1](guide/01-what-watchpot-is.md#what-you-need) and
 
 ## Template
 
-`templates/game/` in the engine's repository: a complete running game holding every option, which a generator script
-cuts down to the systems you chose. Taught in [chapter 13](guide/13-from-the-template.md#how-the-template-works).
+`templates/game/` in the engine's repository: a complete running game holding every option. One command,
+`templates/game/.scaffold/new.ts`, copies it and cuts it down to the systems you chose. Taught in
+[chapter 13](guide/13-from-the-template.md#how-the-template-works).
 
 ## Tick
 
@@ -526,11 +554,11 @@ CSS, and every styled component and shader reads tokens rather than hard-coded c
 A key of a feature's state that is never saved, because it can be worked out from what is. It comes back from
 `initial` after a load until `derive` or a step fills it in. Taught in
 [chapter 3](guide/03-the-mental-model.md#state-that-does-not-save-transient-and-derive) and
-[chapter 9](guide/09-saving-and-time-away.md#what-is-not-saved).
+[chapter 9](guide/09-saving-and-time-away.md#what-is-saved-and-when).
 
 ## Uniform
 
-A value a shader reads that is the same for every pixel of one frame, set from JavaScript, such as the pot's heat.
+A value a shader reads that is the same for every pixel of one frame, set from JavaScript, such as the pot's warmth.
 Taught in [chapter 11](guide/11-look-and-sound.md#why-a-shader-and-what-one-is). Reference: [shader](shader.md).
 
 ## Upgrade tree

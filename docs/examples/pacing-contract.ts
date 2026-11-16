@@ -1,12 +1,13 @@
-import { HOUR_MS, type StateOf } from "watchpot/core";
+import { HOUR_MS } from "watchpot/core";
 import {
+  activeSchedule,
   autoPlayer,
-  byDay,
+  byHour,
   createSimWorld,
-  fixedSchedule,
   grid,
   judge,
   markdownTable,
+  nominalWakeHour,
   playDays,
   rngFor,
   sampler,
@@ -16,46 +17,56 @@ import {
 } from "watchpot/sim";
 import { game } from "./add-a-generator";
 
-/** One timeline row: what the contract reads. `hours` is the time since the run's start. */
+/** One timeline row: what the contract reads. `hours` is the played time since the run's start. */
 interface Row {
   hours: number;
   gold: number;
   owned: number;
 }
 
-/** The contract as data: gold by the end of day 1 and day 3 must land in a band (p10 to p90 over seeds). */
+/** The hours the contract judges: one played sitting, the way a person starts a game. */
+const HOURS = [1, 2, 4];
+
+/**
+ * The contract as data: gold and generators owned at each played hour must land in a band (p10 to p90 over seeds).
+ * The bands are drawn around one real run of this file (hour 1: 21,889 gold and 55 owned; hour 4: 66,192 and 67),
+ * with room on either side.
+ */
 const CONTRACT = table(
-  byDay((r: Row) => r.hours),
+  byHour((r: Row) => r.hours),
   {
     gold: { name: "Gold", read: (r: Row) => r.gold },
     owned: { name: "Generators", read: (r: Row) => r.owned },
   },
-  grid(
-    [1, 3],
+  grid(HOURS, [
     [
+      "gold",
       [
-        "gold",
-        [
-          [0, 1e9],
-          [0, 1e9],
-        ],
-      ],
-      [
-        "owned",
-        [
-          [5, 200],
-          [20, 400],
-        ],
+        [10_000, 40_000],
+        [20_000, 80_000],
+        [30_000, 130_000],
       ],
     ],
-  ),
+    [
+      "owned",
+      [
+        [45, 65],
+        [50, 72],
+        [55, 80],
+      ],
+    ],
+  ]),
 );
 
-/** Plays the auto-player for `days` and judges the timeline against the contract. */
-export function check(seed = "contract", days = 3): { verdicts: Verdict[]; table: string } {
-  const start = Date.UTC(2026, 0, 1, 8);
+/** A player at the game the whole time: a look every 10 seconds, so every hour of the run is a played hour. */
+const ACTIVE = activeSchedule(10);
+
+/** Plays the auto-player for `hours` played hours and judges the timeline against the contract. */
+export function check(seed = "contract", hours = 4): { verdicts: Verdict[]; table: string } {
+  const start = Date.UTC(2026, 0, 1, nominalWakeHour(ACTIVE));
   const world = createSimWorld((now) => simStore(game, now, seed), start);
-  const player = autoPlayer(game, { balance: (s: StateOf<typeof game.features>) => s.wallet.gold });
+  // No `balance`: the game has one `currencies` feature, so the auto-player reads what it holds there.
+  const player = autoPlayer(game);
   const read = (): Row => {
     const s = world.store.getState();
     return {
@@ -64,16 +75,16 @@ export function check(seed = "contract", days = 3): { verdicts: Verdict[]; table
       owned: s.generator.owned,
     };
   };
-  const timeline = sampler({ marks: [1, 4].map((h) => h * HOUR_MS), start, take: read, at: (r) => r.hours });
+  const timeline = sampler({ marks: HOURS.map((h) => h * HOUR_MS), start, take: read, at: (r) => r.hours });
   playDays({
     world,
-    schedule: fixedSchedule(8, 23, 15, 0),
-    days,
+    schedule: ACTIVE,
+    days: 1,
+    hours, // stop after the look that crosses the last played hour
     start,
     rng: rngFor(seed, "auto"),
     look: () => player.look(world.store),
     afterLook: () => timeline.look(world.now()),
-    dayEnd: () => timeline.close(read()),
   });
   return {
     verdicts: judge(timeline.rows, CONTRACT),

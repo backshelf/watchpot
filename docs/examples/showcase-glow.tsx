@@ -2,16 +2,16 @@ import { type GaugeState, gauge, gaugeFill, type SpawnsState, spawns } from "wat
 import { compose, GLOW, ShaderCanvas, UV, uniformDecls } from "watchpot/shader";
 
 /** The state the gauge reads: its own level and a dial the player turns, 0 to 100. */
-type Stove = { steam: GaugeState; dial: { setting: number } };
+type Stove = { warmth: GaugeState; dial: { setting: number } };
 
 /**
  * A gauge with no trip, used as a thermostat: each second it closes half the gap to the dial's setting, so it eases
  * up or down to wherever the player set it and holds there.
  */
-export const steam = gauge({
-  key: "steam",
+export const warmth = gauge({
+  key: "warmth",
   max: 100,
-  rate: (s: Stove) => (s.dial.setting - s.steam.level) * 0.5,
+  rate: (s: Stove) => (s.dial.setting - s.warmth.level) * 0.5,
 });
 
 /** Something that turns up every few minutes and lingers eight seconds. */
@@ -28,8 +28,8 @@ export const drips = spawns({
 });
 
 /** The shader's inputs, worked out from the game state alone: no event, no animation of the page's own. */
-export const glowUniforms = (s: { steam: GaugeState; drips: SpawnsState }) => ({
-  u_heat: gaugeFill(s.steam, steam.rules.max), // 0 to 1
+export const glowUniforms = (s: { warmth: GaugeState; drips: SpawnsState }) => ({
+  u_heat: gaugeFill(s.warmth, warmth.rules.max), // 0 to 1
   u_wobble: s.drips.kinds.drip?.live ? 1 : 0, // 1 while there is something to catch
 });
 

@@ -16,8 +16,10 @@ on to see what it is made of.
    never write it by hand. A feature that touches another names it in `reach: [other]`.
 2. `defineGame({ id, save: { key, version }, features })`. Add `vocab` once you have currencies (see
    [add a currency](add-a-currency.md)).
-3. `createIdleStore(game, { storage, now })`. `now` is the one wall read the game makes (`Date.now`); the engine never
-   reads the wall itself. Use `localStorageBackend() ?? createMemoryBackend()` for the backend.
+3. `createIdleStore(game, { now })`. `now` is the one wall read the game makes (`Date.now`); the engine never reads
+   the wall for game time itself. Leave `storage` out: the store saves to localStorage, or to memory where there is
+   none, and then reports `saveStatus` "unsaved" so the page can tell the player nothing is being kept. Pass
+   `storage` only to change the backend or the write window.
 4. Boot with `startGameClock(store)` (or `useGameRuntime` in React): one catch-up for the time away, then ticks.
 
 Things that bite: a step runs in a phase (`guard, sync, rates, produce, automate, settle, commit, after`), so put

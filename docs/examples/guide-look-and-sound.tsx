@@ -1,11 +1,11 @@
 // The guide, chapter 11 (docs/guide/11-look-and-sound.md): Simmer's first shader and first sound.
 //
 // The backdrop is the pot seen from above: water lit from below by the burners, bubbles rising through
-// it. The pot's heat (how many bubbles a second the stove makes, on a log scale) is its one game number.
+// it. The pot's warmth (how many bubbles a second the stove makes, on a log scale) is its one game number.
 // The sound is a blip on every tap of the pot and a whoosh when a burner is lit.
 
 import { type CSSProperties, useRef } from "react";
-import { fmt } from "watchpot/core";
+import { createIdleStore, fmt } from "watchpot/core";
 import { useReducedMotion } from "watchpot/kit";
 import { createRuntimeHooks, type StoreState, useGameRuntime } from "watchpot/react";
 import {
@@ -19,35 +19,38 @@ import {
   VORONOI,
 } from "watchpot/shader";
 import { createSound } from "watchpot/sound";
-import { burnerPrice, perSecond, store } from "./simmer/game";
+import { burnerPrice, game } from "./simmer/game-wallet";
+
+/** Chapter 2's store line, over Simmer as chapter 4 left it. */
+export const store = createIdleStore(game, { now: Date.now });
 
 const { useGameStore, useGameState } = createRuntimeHooks<typeof store>();
 type State = StoreState<typeof store>;
 
 // -------------------------------------------------------------------------------------------------------------
-// The heat: a game number turned into 0..1
+// The warmth: a game number turned into 0..1
 
-/** The income at which the pot is as hot as it gets: a thousand bubbles a second. */
+/** The income at which the pot is as warm as it gets: a thousand bubbles a second. */
 const HOT_RATE = 1000;
 
 /**
- * How hot the pot is, 0..1: bubbles a second on a log scale up to `HOT_RATE`, in steps of a hundredth. The steps
+ * How warm the pot is, 0..1: bubbles a second on a log scale up to `HOT_RATE`, in steps of a hundredth. The steps
  * matter: a selector that returns this re-renders the backdrop at most a hundred times over a whole run.
  */
-export function heatOf(bubblesPerSecond: number): number {
+export function warmthOf(bubblesPerSecond: number): number {
   const t = Math.log10(bubblesPerSecond + 1) / Math.log10(HOT_RATE);
   return Math.round(Math.min(1, Math.max(0, t)) * 100) / 100;
 }
 
-/** The selector the page hands `useGameState`: the stove's income, as heat. */
-export const potHeat = (s: State): number => heatOf(perSecond(s.stove.burners));
+/** The selector the page hands `useGameState`: the stove's own rate (lid included) as warmth, cold while it is off. */
+export const potWarmth = (s: State): number => warmthOf(s.stove.off ? 0 : s.stove.perSecond.toNumber());
 
 // -------------------------------------------------------------------------------------------------------------
 // The fragment
 
 /**
  * The pot from above. Water mixed toward the flame colour from the bottom edge, the glow reaching higher as the pot
- * heats; bubbles (Voronoi cells) rising through it, faster and more of them the hotter it is. Opaque, so there is
+ * warms; bubbles (Voronoi cells) rising through it, faster and more of them the warmer it is. Opaque, so there is
  * no alpha to premultiply. Every colour is a uniform read from a CSS token: there is no colour in the GLSL.
  */
 export const POT = compose(
@@ -55,16 +58,16 @@ export const POT = compose(
   VORONOI,
   OKLAB,
   IGN,
-  uniformDecls({ u_water: "vec4", u_flame: "vec4", u_foam: "vec4", u_heat: "float" }),
+  uniformDecls({ u_water: "vec4", u_flame: "vec4", u_foam: "vec4", u_warmth: "float" }),
   `
 void main() {
   vec2 uv = screenUv();
-  float glow = 1.0 - smoothstep(0.0, 0.3 + 0.5 * u_heat, uv.y);
+  float glow = 1.0 - smoothstep(0.0, 0.3 + 0.5 * u_warmth, uv.y);
   vec2 p = vec2(uv.x * u_resolution.x / u_resolution.y, uv.y) * 8.0;
-  p.y -= u_time * (0.2 + 1.3 * u_heat);
+  p.y -= u_time * (0.2 + 1.3 * u_warmth);
   vec3 cells = voronoi(p);
-  float bubble = (1.0 - smoothstep(0.08, 0.12, cells.x)) * step(1.0 - u_heat, cells.z);
-  vec3 colour = oklabMix(u_water.rgb, u_flame.rgb, glow * (0.25 + 0.75 * u_heat));
+  float bubble = (1.0 - smoothstep(0.08, 0.12, cells.x)) * step(1.0 - u_warmth, cells.z);
+  vec3 colour = oklabMix(u_water.rgb, u_flame.rgb, glow * (0.25 + 0.75 * u_warmth));
   colour = mix(colour, u_foam.rgb, 0.6 * bubble);
   colour += (interleavedGradientNoise(gl_FragCoord.xy) - 0.5) / 255.0;
   fragColor = vec4(colour, 1.0);
@@ -84,8 +87,8 @@ const STILL = "linear-gradient(to top, var(--pot-flame), var(--pot-water) 45%)";
 const BEHIND: CSSProperties = { position: "fixed", inset: 0, zIndex: -1 };
 const FILL: CSSProperties = { display: "block", width: "100%", height: "100%" };
 
-/** The pot behind Simmer's page, as hot as `heat` (0..1) says. */
-export function PotBackdrop({ heat }: { heat: number }) {
+/** The pot behind Simmer's page, as warm as `warmth` (0..1) says. */
+export function PotBackdrop({ warmth }: { warmth: number }) {
   const scope = useRef<HTMLDivElement>(null);
   const reduced = useReducedMotion();
   const palette = useShaderTokens(scope, TOKENS);
@@ -99,7 +102,7 @@ export function PotBackdrop({ heat }: { heat: number }) {
             u_water: palette["--pot-water"],
             u_flame: palette["--pot-flame"],
             u_foam: palette["--pot-foam"],
-            u_heat: heat,
+            u_warmth: warmth,
           }}
           reduced={reduced}
           reducedTime={4}
@@ -153,7 +156,7 @@ export const playBurner = () => sound.play("burner");
 /** The pot's button: the tap, then its blip. */
 function Pot() {
   const game = useGameStore();
-  const bubbles = useGameState((s) => s.pot.bubbles);
+  const bubbles = useGameState((s) => s.wallet.bubbles);
   return (
     <section>
       <h1>{fmt(bubbles).text} bubbles</h1>
@@ -175,11 +178,9 @@ function Stove() {
   const game = useGameStore();
   const burners = useGameState((s) => s.stove.burners);
   const price = burnerPrice(burners);
-  const canAfford = useGameState((s) => s.pot.bubbles.gte(price));
+  const canAfford = useGameState((s) => s.wallet.bubbles.gte(price));
   const light = () => {
-    const before = game.getState().stove.burners;
-    game.getState().stove.buyBurner();
-    if (game.getState().stove.burners > before) playBurner();
+    if (game.getState().stove.buyBurner()) playBurner();
   };
   return (
     <button type="button" disabled={!canAfford} onClick={light}>
@@ -190,14 +191,14 @@ function Stove() {
 
 /**
  * The page. `useGameRuntime` replaces chapter 2's `useGameClock`: the same clock, plus the motion and scheme
- * settings and the sound's unlock on the first gesture.
+ * settings (the operating system's, left out here) and the sound's unlock on the first gesture.
  */
 export function App() {
-  const heat = useGameState(potHeat);
-  useGameRuntime(store, { motion: "system", scheme: "system", sound: { engine: sound, on: true } });
+  const warmth = useGameState(potWarmth);
+  useGameRuntime(store, { sound: { engine: sound, on: true } });
   return (
     <main>
-      <PotBackdrop heat={heat} />
+      <PotBackdrop warmth={warmth} />
       <Pot />
       <Stove />
     </main>

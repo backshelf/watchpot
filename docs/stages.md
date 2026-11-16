@@ -20,7 +20,7 @@ Example: [`examples/stages.ts`](examples/stages.ts).
   stat, a share of a pool); `open(state, track)` holds a track still until it is unlocked; `onClear(draft, track,
   from, to, now)` runs in the recipe of a step that cleared stages `from` up to (not including) `to`. Over an absence
   it wears for what `away(state)` credits (default: all of it). One action, `enter(track, stage)`, stands in front of
-  an earlier stage again (never past `best`). A prestige reset starts every track over and keeps `best`.
+  an earlier stage again (never past `best`). A run reset starts every track over and keeps `best`.
 - **Tuning.** A growth near 1.5 with a force that climbs in steps gives a rush of stages after every upgrade and then
   a wall; that rhythm is the mechanic. Pay per stage on a curve that grows slower than the resistance, or the track
   feeds its own force.

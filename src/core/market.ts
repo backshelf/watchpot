@@ -1,5 +1,5 @@
 import type { Draft } from "immer";
-import { catchUp } from "./clock";
+import { offlineCredit } from "./clock";
 import type { CurrenciesFeature, CurrencyDraft } from "./currencies";
 import { D, type Decimal, type DecimalSource, ZERO } from "./decimal";
 import { type Feature, type FeatureApi, feature, type Move, type ResetRule } from "./feature";
@@ -426,7 +426,10 @@ export function market<
         yield: (d: Draft<Own>, ctx) => {
           if (ctx.pass === "tick") return pay(d, ctx.dtMs / 1000);
           const away = def.away?.(d as unknown as G) ?? { rate: 1 };
-          pay(d, catchUp(ctx.dtMs, away.rate, away.capMs ?? Number.POSITIVE_INFINITY).creditedMs / 1000);
+          pay(
+            d,
+            offlineCredit(ctx.dtMs, away.rate, away.capMs ?? Number.POSITIVE_INFINITY).creditedMs / 1000,
+          );
         },
       },
       automate: {

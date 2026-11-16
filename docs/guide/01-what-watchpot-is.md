@@ -16,12 +16,16 @@ watchpot is that machinery, written in TypeScript for [Bun](https://bun.sh) and 
 list of [features](../glossary.md#feature) (a piece of state plus the rules that change it), and watchpot builds the
 [store](../glossary.md#store) that holds them, runs them on a clock, saves them and brings them back.
 
-Here is a taste. This is a whole game, if not yet a fun one: a pot you can tap for bubbles.
+Here is a taste: the heart of Simmer, the game the guide builds, a pot you tap for bubbles that also simmers them up
+on its own.
 
 ```ts
-import { defineGame, feature, ZERO } from "watchpot/core";
+import { costAt, createIdleStore, D, defineGame, feature, ZERO } from "watchpot/core";
 
-const pot = feature({
+// ...
+
+/** The pot: the bubbles you have, the tap that makes one, and the simmer that makes them over time. */
+export const pot = feature({
   key: "pot",
   initial: () => ({ bubbles: ZERO }),
   actions: (api) => ({
@@ -30,12 +34,30 @@ const pot = feature({
         s.pot.bubbles = s.pot.bubbles.add(1);
       }),
   }),
+  steps: {
+    produce: {
+      // Runs on every live tick and on the catch-up after time away.
+      simmer: (s, ctx) => {
+        s.pot.bubbles = s.pot.bubbles.add((SIMMER_PER_SECOND * ctx.dtMs) / 1000);
+      },
+    },
+  },
 });
 
-export const game = defineGame({ id: "simmer", save: { key: "simmer.save", version: 1 }, features: [pot] });
+// ...
+
+/** The game: its features, and where and at which version it saves. */
+export const game = defineGame({
+  id: "simmer",
+  save: { key: "simmer.save", version: 1 },
+  features: [pot, stove],
+});
 ```
 
-You do not need to follow every line yet. [Chapter 2](02-your-first-game.md) builds this game properly, puts it on
+*watchpot, `docs/examples/simmer/game.ts`*
+
+The parts left out are a constant, `SIMMER_PER_SECOND` (one bubble a second), and a second feature, the `stove`,
+whose burners you buy with bubbles. You do not need to follow every line yet. [Chapter 2](02-your-first-game.md) builds this game properly, puts it on
 a page and makes it save, and [chapter 3](03-the-mental-model.md) explains what each part is doing.
 
 ## The one split
@@ -59,7 +81,8 @@ restyle, rewrite or delete. [Chapter 10](10-the-page.md) and [chapter 11](11-loo
 
 ## What is in the box
 
-watchpot is one package with ten entries, each imported on its own path. A game takes the ones it needs.
+watchpot is one package with twelve entries, each imported on its own path: ten a game imports, and two for build
+scripts. A game takes the ones it needs.
 
 | Entry | What it gives you |
 | --- | --- |
@@ -71,12 +94,12 @@ watchpot is one package with ten entries, each imported on its own path. A game 
 | `watchpot/kit` | Effects with no look: number tickers, confetti bursts, gesture tracking, a director that paces celebrations, and the mechanism for a reveal. |
 | `watchpot/ui` | Headless components: dialogs, tabs, tooltips, toasts, grids, focus helpers. Behaviour and accessibility, no style. |
 | `watchpot/shader` | A canvas that runs your own 2D fragment shaders, with a library of GLSL pieces to build them from. |
-| `watchpot/sound` | A sound engine: cues, buses, mixing and music, on zzfx and Web Audio. |
+| `watchpot/sound` | A sound engine: cues, buses, mixing and music, on its own WebAssembly audio core, playing recordings and zzfx voices. |
 | `watchpot/three` | A 3D stage on three.js and React Three Fiber. |
 
-Two more paths exist for build scripts rather than games: `watchpot/kit/theme` (the compiler that turns a design
-token file into CSS) and `watchpot/sound/pack` (a tool that turns downloaded samples into a sound pack). They come
-up in [chapter 11](11-look-and-sound.md).
+The other two are for build scripts rather than games: `watchpot/kit/theme` (the compiler that turns a design token
+file into CSS) and `watchpot/sound/pack` (a tool that turns downloaded samples into a sound pack). They come up in
+[chapter 11](11-look-and-sound.md).
 
 The overlap between `watchpot/react` and `watchpot/hooks` is real and slightly confusing. Use `watchpot/react`
 unless you know your build has no CSS-module loader.
@@ -98,7 +121,8 @@ without a browser. And the engine never names a game: nothing in it knows what y
 ## What you need
 
 - **Bun 1.4.3 or newer.** watchpot runs, bundles and tests on Bun, and its typecheck command is `bun check`, which
-  arrived in Bun 1.4.3. The repository is developed on 1.4.4. Node is not needed.
+  arrived in Bun 1.4.3. Its `package.json` states the minimum under `engines`, and so does the template's. The
+  repository is developed on 1.4.4. Node is not needed.
 - **git, with read access to the watchpot repository on GitHub.** watchpot is a private package. It is not
   published to any registry; a game installs a released version by its git tag:
 
@@ -110,11 +134,11 @@ without a browser. And the engine never names a game: nothing in it knows what y
   can read the repository: today, its owner and anyone they add to it. If you cannot clone
   `github.com/backshelf/watchpot`, you cannot install it either. The [README](../../README.md#install) has the
   one-time `gh auth` setup and the URL forms that do not work.
-- **The peer packages.** React 19 (`react` and `react-dom`), immer, zustand, break_eternity.js and zzfx are peers:
-  your game installs them itself. three.js, React Three Fiber, canvas-confetti, `@number-flow/react` and
-  `@testing-library/react` are optional and needed only by the entries that use them. watchpot's own `package.json`
-  lists the version ranges under `peerDependencies`, and the template's `package.json.tmpl` pins the ones a new game
-  installs.
+- **The peer packages.** React 19 (`react` and `react-dom`), immer, zustand and break_eternity.js are peers: your
+  game installs them itself. The rest are optional, each needed only by the entry that uses it: zzfx by
+  `watchpot/sound`, three.js and React Three Fiber by `watchpot/three`, canvas-confetti and `@number-flow/react` by
+  `watchpot/kit`, and `@testing-library/react` by `watchpot/test`. watchpot's own `package.json` lists the version
+  ranges under `peerDependencies`, and the template's `package.json.tmpl` pins the ones a new game installs.
 
 ## How this was made
 
@@ -129,7 +153,8 @@ with the things that tend to go wrong, a link to the next chapter, and links to 
 covered.
 
 Two games run through it. **Simmer** is a tiny game about a pot on a stove, written for this guide. You build it in
-chapters 2 to 4, and later chapters return to it whenever a small example will do. **VOID IF REMOVED** is a real
+chapters 2 to 4, and it keeps growing: each later chapter that needs a small example adds its piece to the same
+game rather than starting a new one. **VOID IF REMOVED** is a real
 game built on watchpot. From chapter 5 on, each idea is shown on its real code, as short excerpts captioned with the
 game's name and the file. Its repository is not public, so the guide names files rather than linking them. Its
 owner is still playing it for the first time, so the guide only ever shows what a player meets in the first hour.
@@ -145,8 +170,8 @@ owner is still playing it for the first time, so the guide only ever shows what 
 9. [**Saving and time away**](09-saving-and-time-away.md): saves, migrations and the catch-up when a player returns.
 10. [**The page**](10-the-page.md): reading the store from React, the runtime, headless UI.
 11. [**Look and sound**](11-look-and-sound.md): themes, feel, shaders and sound.
-12. [**Proving the pacing**](12-proving-the-pacing.md): the sim lab, personas and pacing contracts.
-13. [**From the template**](13-from-the-template.md): starting a real game from the template.
+12. [**Proving the pacing**](12-proving-the-pacing.md): the sim lab, pacing contracts and the test kit.
+13. [**From the template**](13-from-the-template.md): starting a real game from the template in one command.
 
 After the chapters:
 
@@ -154,8 +179,8 @@ After the chapters:
 - [**Glossary**](../glossary.md): every term the guide uses, in one place.
 - **The reference shelf**: the per-system pages in [`docs/`](../README.md), one per system or task. They assume you
   know the vocabulary from chapters 2 to 4, and they are where to look things up once you do.
-- **`api/`**: the generated type declarations for the ten entries, with a doc line on each export. When the guide and
-  `api/` disagree, `api/` is right.
+- **`api/`**: the generated type declarations for the twelve entries, with a doc line on each export. When the guide
+  and `api/` disagree, `api/` is right.
 
 If you are in a hurry, read chapters 2 and 3, then jump to the chapter for whatever you are building.
 
@@ -180,5 +205,4 @@ If you are in a hurry, read chapters 2 and 3, then jump to the chapter for whate
 - [`templates/game/src/ui/README.md`](../../templates/game/src/ui/README.md): the copy-in components and their token
   contract.
 - `api/core/index.d.ts`, `api/react/index.d.ts`, `api/ui/index.d.ts` and the other `api/<entry>/index.d.ts` files:
-  what each entry exports. The two build-tool paths, `watchpot/kit/theme` and `watchpot/sound/pack`, have no file
-  there; read their source under `src/kit/theme/` and `src/sound/pack/`.
+  what each entry exports. The two build-tool paths are under `api/kit/theme/` and `api/sound/pack/`.

@@ -119,7 +119,7 @@ export const climb = layers({ key: "climb", base: { id: "points", rate: "speed" 
   `open`, then `established`. The lowest row starts sighted.
 - **`settle`** runs after every action and every step: sightings and milestones, `tags` whose `when` holds, a
   challenge completed, then automation from the highest row down, skipping a layer the player switched to
-  `manual`. **`advance`** reads every rate before any income lands. Time away is `catchUpSteps` over `away`
+  `manual`. **`advance`** reads every rate before any income lands. Time away is `offlineSteps` over `away`
   (8 hours, 240 steps of at least a second by default); a growing economy comes in at or a little under what
   one-second steps would give, within 10% for a smooth toy.
 - **The feature** saves `{ base, baseTotal, layers, challenge, tags, playedMs }` with `reset: "never"`, loads an

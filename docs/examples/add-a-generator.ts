@@ -1,5 +1,4 @@
 import {
-  catchUp,
   createGameStorage,
   createIdleStore,
   createMemoryBackend,
@@ -7,6 +6,7 @@ import {
   defineGame,
   feature,
   HOUR_MS,
+  offlineCredit,
 } from "watchpot/core";
 import { wallet } from "./add-a-currency";
 import { TOY } from "./vocab";
@@ -22,16 +22,13 @@ export const generator = feature({
   reach: [wallet], // it touches the wallet's slice, so it names it
   initial: () => ({ owned: 1, perSecond: D(1) }),
   actions: (api) => ({
-    buy: (): boolean => {
-      let ok = false;
+    // `api.set` returns what the recipe returns, so the action reports whether the purchase went through.
+    buy: (): boolean =>
       api.set((s) => {
-        const cost = generatorCost(s.generator.owned);
-        if (!wallet.debit(s, "gold", cost)) return;
+        if (!wallet.debit(s, "gold", generatorCost(s.generator.owned))) return false;
         s.generator.owned += 1;
-        ok = true;
-      });
-      return ok;
-    },
+        return true;
+      }),
   }),
   steps: {
     rates: {
@@ -46,17 +43,17 @@ export const generator = feature({
       },
       offline: {
         pass: "catchUp",
-        // Half rate, at most an hour: `catchUp` turns the gap into credited time.
+        // Half rate, at most an hour: `offlineCredit` turns the gap into credited time.
         run: (s, ctx) =>
           wallet.credit(
             s,
             "gold",
-            s.generator.perSecond.mul(catchUp(ctx.dtMs, 0.5, HOUR_MS).creditedMs / 1000),
+            s.generator.perSecond.mul(offlineCredit(ctx.dtMs, 0.5, HOUR_MS).creditedMs / 1000),
           ),
       },
     },
   },
-  // `moves` tells the sim's auto-player what a player could do now (see the persona recipe).
+  // `moves` tells the sim's auto-player what a player could do now (see docs/persona.md).
   moves: (s) => [
     {
       id: "buy-generator",

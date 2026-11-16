@@ -1,12 +1,13 @@
 # Effects
 
-By the end of this chapter Simmer's burners will make bubbles at a rate that four separate things change: an upgrade,
-a timed buff, an achievement and a milestone. None of them will know about the others, and a tooltip will say where
-every part of the rate comes from. You will also know why the real game built on this engine folds its numbers its own
-way, and which of the two approaches to reach for in a game of your own.
+By the end of this chapter Simmer's stove will make bubbles at a rate that four separate things change: an upgrade,
+a timed buff, a medal and a milestone. None of them will know about the others, and a tooltip will say where every
+part of the rate comes from. You will also know why the real game built on this engine folds its numbers its own way,
+and which of the two approaches to reach for in a game of your own.
 
-Everything here is in one file you can run: `docs/examples/guide-effects.ts`. It builds Simmer on the engine's own
-`currencies`, `generators` and `upgradeTree` (chapters 4 and 6), then adds the effects.
+Everything here is in one file you can run: `docs/examples/guide-effects.ts`. It starts from chapter 4's Simmer
+(`docs/examples/simmer/game-wallet.ts`: the wallet, the pot, the stove and the lid), adds an `upgradeTree`, `buffs`
+and `achievements` beside it (chapters 6 and 7), then adds the effects.
 
 ```sh
 bun docs/examples/guide-effects.ts
@@ -17,15 +18,15 @@ bun docs/examples/guide-effects.ts
 Start with the problem, because the engine's answer only makes sense once you have felt it.
 
 Say Simmer's burner makes one bubble a second. Then you add an upgrade that makes it 25% faster. The obvious code
-goes in the burner:
+goes in the stove:
 
 ```ts
 let rate = 1;
 if (copperBought) rate *= 1.25;
 ```
 
-A week later there is a buff, a rolling boil that triples the rate for thirty seconds. Then an achievement for lighting
-ten burners that adds 10%. Then a milestone at 25 burners. Each one is another line in the burner:
+A week later there is a buff, a rolling boil that triples the rate for thirty seconds. Then a medal for lighting ten
+burners that adds 10%. Then a milestone at 25 burners. Each one is another line in the stove:
 
 ```ts
 let rate = 1;
@@ -37,7 +38,7 @@ rate += 0.5 * Math.floor(burners / 25);
 
 This works, and every idle game starts this way. It goes wrong in three places.
 
-- **The burner knows everything.** To add a source you edit the thing it affects. A second stat (how long the buff
+- **The stove knows everything.** To add a source you edit the thing it affects. A second stat (how long the buff
   lasts, say) grows its own chain, and the two drift apart.
 - **Order is an accident.** The milestone above adds after the multipliers, so it is worth less than if it came first.
   Nobody chose that; it is just the line it landed on.
@@ -45,35 +46,35 @@ This works, and every idle game starts this way. It goes wrong in three places.
   writes sentences instead of numbers, and that copy will be wrong by next week.
 
 The fix is to turn it around. Each source says what it does to a named number, as data. One function collects every
-source's claims and folds them in a fixed order. The burner reads the result and nothing else.
+source's claims and folds them in a fixed order. The stove reads the result and nothing else.
 
 ## Stats and effects
 
-A [stat](../glossary.md#stat) is a named number that many things can change: Simmer's is `boil`, the multiplier on what
-each burner makes. An [effect](../glossary.md#effect) is one change to a stat: an amount to add, or a factor to
-multiply by. In the engine an effect is a plain object, the `Effect` type from `watchpot/core`:
+A [stat](../glossary.md#stat) is a named number that many things can change: Simmer's is `heat`, the multiplier on what
+the stove makes. An [effect](../glossary.md#effect) is one change to a stat: an amount to add, or a factor to multiply
+by. In the engine an effect is a plain object, the `Effect` type from `watchpot/core`:
 
 ```ts
-{ stat: "boil", mult: 1.25 }
-{ stat: "boil", add: 0.5 }
+{ stat: "heat", mult: 1.25 }
+{ stat: "heat", add: 0.5 }
 ```
 
 An effect with where it came from is a [contribution](../glossary.md#contribution):
 
 ```ts
-{ source: "kitchen:copper", effect: { stat: "boil", mult: 1.25 } }
+{ source: "kitchen:copper", effect: { stat: "heat", mult: 1.25 } }
 ```
 
 The source is a string. It is what the tooltip later turns back into a name the player reads.
 
 The engine's systems already speak this language. An `upgradeTree` node carries `effects`, and the tree hands back one
-contribution per rank held. A `buffs` entry carries `effects`, and the feature hands back the running ones. An
+contribution per rank held. A `buffs` entry may carry `effects`, and the feature hands back the running ones. An
 `achievements` entry carries `effects` for while it is earned. So does anything you write yourself, because a
 contribution is only an object.
 
 ## Four sources for one number
 
-Here are Simmer's four, each declared where it lives. First the upgrade, a copper base for the pot:
+Here are Simmer's four, each declared where it lives. First the upgrade, a copper base for the stove:
 
 ```ts
 const COPPER: GraphNode<Effect, "bubbles"> = {
@@ -84,9 +85,9 @@ const COPPER: GraphNode<Effect, "bubbles"> = {
   costGrowth: 3,
   maxLevel: 5,
   requires: [],
-  effects: [{ stat: "boil", mult: 1.25 }],
+  effects: [{ stat: "heat", mult: 1.25 }],
 };
-export const kitchen = upgradeTree({ key: "kitchen", nodes: [COPPER], wallet: pot });
+export const kitchen = upgradeTree({ key: "kitchen", nodes: [COPPER], wallet });
 ```
 
 `docs/examples/guide-effects.ts`
@@ -99,18 +100,21 @@ The buff, a rolling boil:
 ```ts
 export const boosts = buffs<"boosts", Effect>({
   key: "boosts",
-  list: [{ id: "rolling", durationMs: 30_000, stack: "refresh", effects: () => [{ stat: "boil", mult: 3 }] }],
+  list: [
+    { id: "rolling-boil", durationMs: 30_000, stack: "refresh", effects: () => [{ stat: "heat", mult: 3 }] },
+  ],
 });
 ```
 
 `docs/examples/guide-effects.ts`
 
 A [buff](../glossary.md#buff) runs from the [game time](../glossary.md#game-time) it started for `durationMs`. Its
-`effects` is a function of its stacks and strength, because a stacking buff can be worth more the more it stacks. The
-second type argument, `Effect`, says what kind of effect the list holds; the engine's types are generic over it so a
-game can bring its own effect shape (more on that at the end).
+`effects` is a function of its stacks and strength, because a stacking buff can be worth more the more it stacks. In
+chapter 6 the rolling boil had no `effects` and was read by name where it applied; here it says what it does, so the
+bus can count it with everything else. The second type argument, `Effect`, says what kind of effect the list holds;
+the engine's types are generic over it so a game can bring its own effect shape (more on that at the end).
 
-The achievement:
+The medal:
 
 ```ts
 export const medals = achievements({
@@ -121,8 +125,8 @@ export const medals = achievements({
       id: "ten-burners",
       name: "Full stove",
       line: "Light ten burners.",
-      effects: [{ stat: "boil", mult: 1.1 }],
-      when: (s: Simmer) => (s.burners.owned.burner ?? 0) >= 10,
+      effects: [{ stat: "heat", mult: 1.1 }],
+      when: (s: Simmer) => s.stove.burners >= 10,
     },
   ],
 });
@@ -133,16 +137,16 @@ export const medals = achievements({
 And the milestone, which no engine system makes for you here, so you write the contribution yourself:
 
 ```ts
-function milestones(s: Simmer): Contribution[] {
-  const reached = Math.floor((s.burners.owned.burner ?? 0) / 25);
-  return reached > 0 ? [{ source: "milestone", effect: { stat: "boil", add: 0.5 * reached } }] : [];
+function milestones(s: Pick<Simmer, "stove">): Contribution[] {
+  const reached = Math.floor(s.stove.burners / 25);
+  return reached > 0 ? [{ source: "milestone", effect: { stat: "heat", add: 0.5 * reached } }] : [];
 }
 ```
 
 `docs/examples/guide-effects.ts`
 
-Notice what none of these mention: the burner. The copper base does not know a burner exists. It says "boil, times
-1.25", and that is the whole of its job.
+Notice what none of these mention: the stove's rate. The copper base does not know a stove exists. It says "heat,
+times 1.25", and that is the whole of its job.
 
 ## The stat bus
 
@@ -150,9 +154,9 @@ The [stat bus](../glossary.md#stat-bus) is where the claims meet. `busOf` takes 
 sums them per stat: the adds into one total, the multipliers into one product. `statValue` then reads one stat off it.
 
 ```ts
-export const BOIL: StatDef = { softcap: { start: 20, power: 0.5, label: "The pot spits over the rim" } };
+export const HEAT: StatDef = { softcap: { start: 20, power: 0.5, label: "The pot spits over the rim" } };
 
-export function busFor(s: Simmer, now: number): StatBus {
+export function busFor(s: Cooking, now: number): StatBus {
   return busOf([
     ...kitchen.tree.contributions(s.kitchen.ranks),
     ...boosts.contributions(s.boosts, now),
@@ -166,14 +170,15 @@ export function busFor(s: Simmer, now: number): StatBus {
 
 Line by line:
 
-- `BOIL` is the stat's definition, a `StatDef`. It holds the caps, and nothing else. A
+- `HEAT` is the stat's definition, a `StatDef`. It holds the caps, and nothing else. A
   [softcap](../glossary.md#softcap) slows a stat down past `start`: above it the value is `value^power × start^(1 -
   power)`, so with `power` 0.5 it grows like a square root. The `label` is the line a player reads while the softcap is
-  biting. A `hardcap` would be a ceiling it never passes. Boil has no hardcap.
+  biting. A `hardcap` would be a ceiling it never passes. Heat has no hardcap.
+- `Cooking` is the state the bus reads: chapter 4's features and the three above, worked out with `StateOf`.
 - `kitchen.tree.contributions(ranks)` is every rank held, sourced `kitchen:<node>`.
 - `boosts.contributions(state, now)` is every buff running at `now`, sourced `boosts:<id>`. It needs the time because
   a buff's running is a question about time.
-- `medals.board.contributions(earned)` is every earned achievement's effects, sourced `medals:<id>`.
+- `medals.board.contributions(earned)` is every earned medal's effects, sourced `medals:<id>`.
 - `busOf` folds the lot. It does not care who said what.
 
 Then the one order, the same everywhere in the engine:
@@ -182,38 +187,48 @@ Then the one order, the same everywhere in the engine:
 (base + every add) × every mult, then the softcap, then the hardcap
 ```
 
-`statValue(bus, "boil", 1, BOIL)` reads boil with a base of 1. With three copper ranks, the rolling boil, the
-achievement and 25 burners, that is (1 + 0.5) × 1.25³ × 3 × 1.1 = ×9.66, under the softcap's start, so the softcap does
-nothing yet.
+`statValue(bus, "heat", 1, HEAT)` reads heat with a base of 1. With three copper ranks, the rolling boil, the medal
+and 25 burners, that is (1 + 0.5) × 1.25³ × 3 × 1.1 = ×9.66, under the softcap's start, so the softcap does nothing
+yet.
 
 The order is the answer to the second problem from the if-chain. An add is always worth the same no matter which file
 it came from, because every add lands before every multiplier.
 
-## Folding once a pass
+## Reading the stat where it applies
 
-The bus is cheap, but the burner's `mult` runs often and has no `now` to hand to the buffs. So Simmer folds boil once a
-[pass](../glossary.md#pass) into a small `stats` feature, and the burner reads the number from the state:
+The stove sets its rate in its own `rates.flame` step, and chapter 3's lid doubles it in `rates.trap`. Heat applies the
+same way: a small feature folds the bus at the pass's `now` and multiplies the stove's rate by the result, right after
+the lid.
 
 ```ts
-import type { Draft } from "immer";
-// ...
-const fold = (d: Draft<Simmer>, ctx: { now: number }) => {
-  d.stats.boil = statValue(busFor(d, ctx.now), "boil", 1, BOIL);
-};
-export const stats = feature({
-  key: "stats",
-  initial: () => ({ boil: 1 }),
-  transient: ["boil"],
-  reset: "never",
-  derive: fold,
-  steps: { rates: { fold } },
+/** Heat as the stove reads it: the bus folded at `now`, with a base of 1 and the softcap. */
+export const heatAt = (s: Cooking, now: number): number => statValue(busFor(s, now), "heat", 1, HEAT);
+
+/** The fire: works heat out where it applies, and multiplies the stove's rate by it. It knows no copper, buff or medal. */
+export const fire = feature({
+  key: "fire",
+  reach: SOURCES,
+  initial: () => ({}),
+  // A fresh state (a new store, a load, a reset) gets the stove's full rate before the first pass.
+  derive: (s, ctx) => {
+    s.stove.perSecond = s.stove.perSecond.mul(heatAt(s, ctx.now));
+  },
+  steps: {
+    rates: {
+      stoke: (s, ctx) => {
+        s.stove.perSecond = s.stove.perSecond.mul(heatAt(s, ctx.now));
+      },
+    },
+  },
 });
 
-export const burners = generators({
-  key: "burners",
-  wallet: pot,
-  list: [{ id: "burner", cost: { base: 10, growth: 1.15 }, pays: "bubbles", makes: "bubbles", rate: 1 }],
-  mult: (s: Simmer) => s.stats.boil,
+export const game = defineGame({
+  id: "simmer",
+  save: { key: "simmer.save", version: 1 },
+  vocab: WORDS,
+  features: [...SOURCES, fire],
+  // The stove sets its rate, the lid doubles it, then the fire multiplies it by heat.
+  order: { rates: [...SIMMER_RATES, "fire.rates.stoke"] },
 });
 ```
 
@@ -221,23 +236,28 @@ export const burners = generators({
 
 You have seen every part of this in chapter 3; here is what each does for the stat.
 
-- `transient: ["boil"]` keeps boil out of the save. It is worked out from things that are saved, so saving it too
-  would only give a load something to disagree with.
-- `steps: { rates: { fold } }` refreshes it every pass, in the `rates` [phase](../glossary.md#phase), before anything is
-  paid in `produce`.
-- `derive: fold` runs the same function whenever the state is made fresh: a new store, a load, an import, a reset.
-  Without it the first pass after a load would see the `initial` value of 1 until `rates` came round.
-- `generators({ mult })` is the generator list's hook for "the game's multiplier on this generator". The burner reads
-  `s.stats.boil` and knows nothing else.
+- `SOURCES` is chapter 4's features followed by the kitchen, the boosts and the medals. `reach: SOURCES` lets the fire
+  read all of them, and the game spreads the same list, so the two never disagree.
+- `initial: () => ({})`: the fire saves nothing. Heat is worked out from things that are saved, so saving it too would
+  only give a load something to disagree with.
+- `steps: { rates: { stoke } }` multiplies the stove's rate every [pass](../glossary.md#pass), in the `rates`
+  [phase](../glossary.md#phase), before anything is paid in `produce`. The step has `ctx.now`, the pass's game time,
+  which is what `boosts.contributions` needs to know whether the rolling boil is running.
+- `derive` does the same whenever the state is made fresh: a new store, a load, an import, a reset. The stove and the
+  lid have a `derive` of their own for the same reason, and the three run in list order.
+- `order` pins the fire's step after the lid's, so heat multiplies the doubled rate.
 
-The game lists the features in an order that matters:
+The stove itself reads nothing new: its rate is set, doubled and multiplied by three steps that each know only their
+own part.
 
-```ts
-features: [pot, kitchen, boosts, medals, stats, burners],
-```
+A factory with a callback works the same way. A `generators` list's `mult(state, def, { now })` is handed game time
+too, so `(s, def, { now }) => statValue(busFor(s, now), "heat", 1, HEAT)` reads the bus where the generators apply it,
+with no step of your own.
 
-`stats` comes before `burners`, so its `rates` step runs before the burners work out their rate in theirs. Swap them and
-every pass pays on the boil from the pass before.
+Folding the bus where it applies is right while one or two rules read a stat. A game where many rules read many stats,
+many times a pass, folds them once in its own `rates` step into fields marked `transient`, with the same function as
+its `derive`, and every rule reads the fields. That is what VOID IF REMOVED does
+([chapter 5, stop 3](05-a-real-game.md#3-the-stats-where-effects-become-numbers), and below).
 
 ## The tooltip
 
@@ -248,13 +268,13 @@ caps, which cap is biting, and `sources`, every contribution to that stat in the
 ```ts
 const NAMES: Record<string, string> = {
   "kitchen:copper": "Copper base",
-  "boosts:rolling": "Rolling boil",
+  "boosts:rolling-boil": "Rolling boil",
   "medals:ten-burners": "Full stove",
   milestone: "Burner milestones",
 };
 
-export function whyBoil(s: Simmer, now: number): string[] {
-  const b = explainStat(busFor(s, now), "boil", 1, BOIL);
+export function whyHeat(s: Cooking, now: number): string[] {
+  const b = explainStat(busFor(s, now), "heat", 1, HEAT);
   const bySource = new Map<string, { add: number; mult: number }>();
   for (const { source, effect } of b.sources) {
     const row = bySource.get(source) ?? { add: 0, mult: 1 };
@@ -291,13 +311,13 @@ Run the file and the tooltip prints:
    = ×9.66
 ```
 
-On a page, these lines go inside the `Tooltip` from `watchpot/ui` over the burner's rate (chapter 10 builds the page).
+On a page, these lines go inside the `Tooltip` from `watchpot/ui` over the stove's rate (chapter 10 builds the page).
 The function itself is plain TypeScript, which is why it can live beside the game and be checked in a test.
 
 ## The live graph
 
 The bus has one limit you will hit: an effect is a constant. "×1.25" is a number written in content. Some effects are
-not like that. "Boil times the log of the bubbles held" changes every tick, and "one stat feeds another" needs the
+not like that. "Heat times the log of the bubbles held" changes every tick, and "one stat feeds another" needs the
 first stat worked out before the second.
 
 For those the engine has a second tool, the [live graph](../glossary.md#live-graph) (`liveIndex`, on the shelf as
@@ -305,19 +325,19 @@ For those the engine has a second tool, the [live graph](../glossary.md#live-gra
 of the state:
 
 ```ts
-const LIVE = liveIndex<"boil", never, Simmer>({ caps: { boil: BOIL } });
+const LIVE = liveIndex<"heat", never, Cooking>({ caps: { heat: HEAT } });
 LIVE.add(
-  { effects: [{ stat: "boil", op: "mul", value: (s) => 1.25 ** (s.kitchen.ranks.copper ?? 0) }] },
+  { effects: [{ stat: "heat", op: "mul", value: (s) => 1.25 ** (s.kitchen.ranks.copper ?? 0) }] },
   { label: "Copper base", owner: "kitchen", active: (s) => (s.kitchen.ranks.copper ?? 0) > 0 },
 );
 LIVE.add(
   // Multiplied by the log of the bubbles held: it changes every tick, so no fixed effect could carry it.
-  { effects: [{ stat: "boil", op: "mul", value: (s) => s.pot.bubbles.add(1).log10() }] },
-  { label: "A full pot", owner: "pot", active: (s) => s.pot.bubbles.gte(1000) },
+  { effects: [{ stat: "heat", op: "mul", value: (s) => s.wallet.bubbles.add(1).log10() }] },
+  { label: "A full pot", owner: "wallet", active: (s) => s.wallet.bubbles.gte(1000) },
 );
 
-export function liveBoil(s: Simmer): { value: Decimal; lines: string[] } {
-  const b = LIVE.over(s).explain("boil");
+export function liveHeat(s: Cooking): { value: Decimal; lines: string[] } {
+  const b = LIVE.over(s).explain("heat");
   return { value: b.value, lines: b.parts.map((p) => `${fmtTimes(p.value)}  ${p.label}`) };
 }
 ```
@@ -334,6 +354,9 @@ What is different from the bus:
   games pass that, and the live graph does not care.
 - **`LIVE.over(s)` makes a graph for one state.** It works each stat out the first time you read it and keeps it, so
   make a new graph whenever the state changes.
+
+The script ends by asking the live graph about the same pot holding a million bubbles, and prints
+`live heat ×11.71 [ "×1.95  Copper base", "×6.00  A full pot" ]`.
 
 The live graph also has flags (a source can switch a mechanic on while it is active), mute groups (silence a set of
 sources, say during a challenge) and stats that read other stats. The reference page covers those.
@@ -412,13 +435,15 @@ contribution. `onPart` is how its breakdown gets the same walk `explainStat` giv
 
 The buffs are the clearest sign of the split. The game uses the engine's `buffs` for the timing and gives every buff
 no effects at all (`effects: () => []`, quoted in
-[chapter 6](06-the-first-page.md#surprises-and-timed-boosts-spawns-and-buffs)). The fold then asks
-`buffActive(s.boosts, "hot-run", now)` by id, as you saw above. The buff is a timer; the fold decides what it is worth.
+[chapter 6](06-the-first-page.md#surprises-and-timed-boosts-spawns-and-buffs); on the current engine a timer buff
+leaves `effects` out). The fold then asks `buffActive(s.boosts, "hot-run", now)` by id, as you saw above. The buff is
+a timer; the fold decides what it is worth.
 
-The rest of the shape is the one you built for Simmer, and [chapter 5](05-a-real-game.md#3-the-stats-where-effects-become-numbers)
-quoted it: a `stats` feature in `src/game/stats.ts` folds once a pass in `rates`, with the same function as its
-`derive`, and every rule reads a stat through four small readers in `src/game/reads.ts` (`logOf`, `mulOf`, `addOf`
-and `has`).
+The rest of the shape is the one [chapter 5](05-a-real-game.md#3-the-stats-where-effects-become-numbers) quoted: a
+`stats` feature in `src/game/stats.ts` folds once a pass in `rates` into transient fields, with the same function as
+its `derive`, and every rule reads a stat through four small readers in `src/game/reads.ts` (`logOf`, `mulOf`, `addOf`
+and `has`). Simmer folds where its one stat applies; the game has dozens of rules reading dozens of stats, so it folds
+once and lets them all read the result.
 
 So the idea is the engine's: sources declare effects, one fold, a fixed order, a breakdown from the same walk. The
 implementation is the game's.
@@ -451,22 +476,19 @@ If you are going to copy a game, copy the shape, not the file.
 
 ## Things that bite
 
-- **A new achievement counts from the next pass.** Achievements are checked in the `settle` phase, after `rates` has
-  folded the stats and `produce` has paid. The example prints the rate before and after: 219 a second on the pass the
-  achievement is earned, 241 on the next. A tooltip that calls `explainStat` fresh shows the new number one pass early.
+- **A new medal counts from the next pass.** Medals are checked in the `settle` phase, after `rates` has read the bus
+  and `produce` has paid. The example prints the rate before and after: 219 a second on the pass the medal is earned,
+  241 on the next. A tooltip that calls `explainStat` fresh shows the new number one pass early.
 - **Feature order is step order.** Within a phase, steps run in feature-list order unless `defineGame({ order })` pins
-  some first (chapter 3). `stats` must come before anything that reads it in the same phase. Nothing warns you when it
-  does not; the rate just lags a pass.
+  some first (chapter 3). A step that multiplies a rate must run after the step that sets it, and a fold kept in the
+  state must run before anything that reads it. Nothing warns you when it does not; the rate is just wrong, or a pass
+  behind.
 - **Generator milestones are not on the bus.** `generators({ list: [{ milestones }] })` multiplies inside the generator,
   so `explainStat` never sees it. Simmer writes its milestone as a contribution for exactly that reason. If you use the
-  built-in milestones, show them in the tooltip yourself (`burners.rules.boost(state, id)` gives their product).
+  built-in milestones, show them in the tooltip yourself (the list's `rules.boost(state, id)` gives their product).
 - **A typo in a stat id is silent.** `Effect.stat` is a `string`, and the bus folds whatever it is given. `{ stat:
-  "biol" }` makes a stat nobody reads. The ids in `vocab({ stats })` do not type it.
+  "haet" }` makes a stat nobody reads. The ids in `vocab({ stats })` do not type it.
 - **The bus overflows past 1e308.** It is `number` throughout. A stat that grows without bound wants the live graph.
-- **A buff needs `effects` even when it has none.** A buff used only as a timer, as the game's are, still writes
-  `effects: () => []`.
-- **`vocab` needs at least one rarity.** A game without rarities still passes one (Simmer's is `"common"`, as in chapter 4); an empty list
-  throws.
 
 ## Next
 

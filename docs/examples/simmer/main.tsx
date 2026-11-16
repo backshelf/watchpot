@@ -51,7 +51,7 @@ function summarize({ before, after, ms }: AwayReturn<State>) {
   return { made: after.pot.bubbles.sub(before.pot.bubbles), ms };
 }
 
-/** The welcome back. A child of `App`, so it is listening before the clock's first catch-up. */
+/** The welcome back, shown after an absence of 30 seconds or more until the player dismisses it. */
 function AwayNote() {
   const { report, dismiss } = useAwayReport(summarize);
   if (!report) return null;

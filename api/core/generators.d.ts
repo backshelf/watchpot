@@ -135,7 +135,7 @@ export interface GeneratorRules<G, T extends GeneratorDef> {
     perSecond(state: G, now?: number): Record<string, Decimal>;
     /**
      * How an absence counts now: the definition's `away`, or all of it (`{ rate: 1 }`). A game's own produce step runs
-     * its catch-up through `catchUp(dtMs, away.rate, away.capMs)` to credit what the list is credited.
+     * its catch-up through `offlineCredit(dtMs, away.rate, away.capMs)` to credit what the list is credited.
      */
     away(state: G, now?: number): GeneratorAway;
     /**

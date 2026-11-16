@@ -41,12 +41,18 @@ New here? Read the guide in [`docs/`](docs/README.md) front to back: thirteen ch
 [what watchpot is](docs/guide/01-what-watchpot-is.md), build [a first game](docs/guide/02-your-first-game.md) from an
 empty folder, then show each concept on a real game. After it come the [showcases](docs/showcases.md), the
 [glossary](docs/glossary.md) and the reference pages: one per task and one per system (a currency, a generator, an
-upgrade tree, a gacha, a timed event with a board, a prestige layer, a migration, a pacing contract, a persona, a
+upgrade tree, a gacha, a timed event with a board, a prestige layer, a migration, a pacing contract, the auto-player, a
 theme, a sound table, a reveal, the dev-panel workflow, a live stat graph, time away, plan-and-fit), each with a
 complete example in `docs/examples/` that `bun run verify` type-checks. The sections below are the reference. A new
-game starts from the template, [`templates/game/`](templates/game/.scaffold/README.md), which
-`/watchpot` fills from an interview: a `generators` or `dimensions` core and any of a clicker, an upgrade tree, a
-gacha, a prestige layer, an achievement wall and a visitor (spawns paying a buff), every one on its engine system.
+game starts from the template, [`templates/game/`](templates/game/.scaffold/README.md), in one command:
+`bun templates/game/.scaffold/new.ts <answers.json> <out> [--engine <tag>] [--no-install]` copies it, writes the game
+from an answers file ([`answers.md`](templates/game/.scaffold/answers.md) is the reference,
+`fixtures/smallest-clicker.json` the least one says), compiles its tokens, installs the engine (by default at this
+engine's own version) and formats it, then prints the next steps; no agent or skill is needed (`/watchpot` is an
+interview that writes the answers and runs it). A game has a `generators` or `dimensions` core, or a clicker alone,
+and any of a clicker, an upgrade tree, a gacha, a prestige layer, an achievement wall and a visitor (spawns paying a
+buff), every one on its engine system; the look is optional (system fonts, a default palette, no backdrop). The
+template mounts the dev panel on `#dev`, and its sim judges the pacing contract on played hours.
 Its about sheet holds the settings (sound, and "still the motion", saved by a
 `settings` feature with no migration) and moves the save as text: "Copy save" puts it on the clipboard and in a box,
 "Read save" loads a pasted one and refuses a bad one without changing anything. [`examples/orbital-orchard/`](examples/orbital-orchard/README.md) is the reference game:
@@ -110,7 +116,6 @@ is read off the tuple, and a feature that touches another names it in `reach`, s
 
 ```ts
 import {
-  catchUp,
   createGameStorage,
   createIdleStore,
   createMemoryBackend,
@@ -118,6 +123,7 @@ import {
   defineGame,
   feature,
   localStorageBackend,
+  offlineCredit,
   ZERO,
 } from "watchpot/core";
 
@@ -147,7 +153,7 @@ const generator = feature({
       offline: {
         pass: "catchUp",
         run: (s, ctx) =>
-          void (s.wallet.gold = s.wallet.gold.add(catchUp(ctx.dtMs, 0.5, 3_600_000).creditedMs / 1000)),
+          void (s.wallet.gold = s.wallet.gold.add(offlineCredit(ctx.dtMs, 0.5, 3_600_000).creditedMs / 1000)),
       },
     },
   },
@@ -186,13 +192,26 @@ export const store = createIdleStore(toy, {
   pass)` is the list, with ids `<featureKey>.<phase>.<name>`. A step returning `"stop"` ends its phase and skips
   every later phase before `commit`; `commit` (the clock's `lastSeen`) and `after` always run. A step is for both
   passes unless written `{ pass: "tick", run }` or `{ pass: "catchUp", run }`; in a catch-up `ctx.dtMs` is the gap
-  since `lastSeen`, and the engine's `catchUp(elapsed, rate, cap)` turns it into credited time.
+  since `lastSeen`, and the engine's `offlineCredit(elapsed, rate, cap)` turns it into credited time (`catchUp`, its
+  old name, is a deprecated alias; `codemods/0.18.0-offline-credit.ts` renames it; the store's `catchUp` action keeps
+  its name).
+- **Actions.** `actions(api)` returns the feature's actions; `api.set(recipe)` runs one immer recipe over the whole
+  state and returns what the recipe returns (`buy: () => api.set((s) => wallet.debit(s, "gold", 10))` reports whether
+  it paid), and a recipe that returns a value still changes the state through the draft only. An action called
+  inside a recipe (one `api.set` inside another, or an action from a step during `tick`, `catchUp` or a reset)
+  throws, saying to call the feature's draft helper instead or to call the action after the recipe: its change would
+  otherwise be lost. `defineGame` builds each `actions` once against a probe api, so a builder reads no state or store
+  while it is built, and refuses an action named like a key of its feature's `initial` and a game action named like
+  a feature's key. An `order` error names the feature and why: no such feature, a step of another phase, or no step
+  by that name. `type Draft` is exported from `watchpot/core`.
 - **The clock** (`createdAt`, `lastSeen`, the offset behind `gameNow()`) is a built-in feature under `clock`, or,
   for a game that already saves the fields, `clock: { feature, lastSeen, createdAt, offset }` names them. Its
   steps: `clock.guard.dt` (a tick with no time skips every phase after `guard` and commits; it runs last in `guard`,
   so the features' own `guard` steps still run on it), `clock.guard.createdAt` (set once, on catch-up),
   `clock.produce.gap` (a catch-up always syncs; with no gap it stops `produce` after the features' `produce` steps,
-  which run with `dtMs` 0, so they guard a zero gap themselves), `clock.commit.lastSeen`.
+  which run with `dtMs` 0, so they guard a zero gap themselves), `clock.commit.lastSeen`. The interval clock pays a
+  return to the tab after no more than `awayAfterMs` (5 s by default) as live ticks in `maxStepMs` slices, like a
+  long frame: an alt-tab is not time away. Only a longer gap goes to `onAway` and the catch-up, at the offline rate.
 - **Resets.** `resetRun` follows each feature's `reset`: `"run"` (the default, back to `initial`), `"never"`,
   `{ keep }`, `(before, fresh, ctx) => after`, or `{ depth, rule }`: untouched by a reset shallower than `depth`
   (`resetRun({ depth })`, 1 by default; `prestige({ depth: 2 })` is a layer above another, and the lower layer says
@@ -211,8 +230,15 @@ export const store = createIdleStore(toy, {
   folded from the rest, a rate) and the store runs it, in feature order, wherever the transient state is made fresh:
   a new store, a load, an import, a profile reset and a run reset. So the first pass's `guard` and `sync` steps never
   read an empty value before `rates` refolds it. It must be pure; `docs/stat-graph.md` › The first pass after a load.
-- **Helpers over any store:** `flushSave`, `saveBlocked`, `saveStatus`, `watchSave`, `watchOtherTabs` (the
-  two-tab guard) and `startGameClock(store, options)`, which binds the interval clock to `tick` and `catchUp`.
+- **Helpers over any store:** `flushSave`, `saveBlocked`, `saveBlockedBy` (why: `newer`, `taken`, `unreadable` or
+  `cleared`, the first cause winning; null while saving), `saveSetAside` (why the save found at load was kept aside
+  for a fresh profile: `old-version` or `migration-failed`; null when none was), `saveStatus`, `watchSave`,
+  `clearSave` (blocks writes, then removes the save and its kept copy, so neither a pending write nor the hide flush
+  puts it back; a promise on an async backend), `watchOtherTabs` (the two-tab guard; it warns on the console when
+  another tab takes the save, and the caller stops its own clock) and `startGameClock(store, options)`, which binds
+  the interval clock to `tick` and `catchUp`. The store flushes its own save when the page hides (`pagehide`, and
+  `visibilitychange` to hidden), clock or no clock, and adds no listener without a `window` and a `document`;
+  `holdHideFlush(store)` turns that off for a caller that flushes on hide itself and returns the release.
 - **Moves.** A feature may declare `moves(state)`: what a player can do with it now, as `Move`s (`id`, an optional
   `cost: { currency, amount }`, `value(state)`, `apply(store)`, true when it went through). The store never calls it;
   the sim's auto-player does. The state a move sees carries the feature's own actions. A feature a factory made
@@ -231,9 +257,9 @@ export const store = createIdleStore(toy, {
   (`softcapDecimal` is its softcap past 1e308). A muted group loses its effects, never its flags, and an effect that
   reads its own stat throws. Use the bus for constant rank effects, and the live graph when a value reads the state
   or another stat (`docs/stat-graph.md`).
-- **Time away, in steps.** `catchUpSteps(elapsedMs, { capMs, rate, maxSteps, minStepMs })` is `catchUp` plus `steps`
-  and `stepMs`, for a game whose growth compounds and must replay its own tick rule over an absence
-  (`docs/time-away.md`).
+- **Time away, in steps.** `offlineSteps(elapsedMs, { capMs, rate, maxSteps, minStepMs })` (formerly `catchUpSteps`, a
+  deprecated alias) is `offlineCredit` plus `steps` and `stepMs`, for a game whose growth compounds and must replay its
+  own tick rule over an absence (`docs/time-away.md`).
 - **The journal.** Rules that run on plain state tell the page what happened by writing lines: `pushLine(log, line,
   keep = 40)` appends to a capped log (it works on an immer draft), and `linesSince(log, last)` is the lines after a
   cursor: all of them for `undefined`, none when the cursor is not in the log (a swapped profile is not news).
@@ -292,7 +318,9 @@ export const toy = defineGame({ id: "toy", save: { key: "toy.save", version: 1 }
 
 - **`vocab({ currencies, stats, rarities })`** returns a `Vocab<C, S, R>`: `currencies` and `stats` as lists,
   `rarities` as a `Ladder<R>`. A repeated word throws, naming it. `CurrencyOf<V>`, `StatOf<V>` and `RarityOf<V>`
-  are the unions.
+  are the unions. `stats` and `rarities` are optional: left out, they are empty and `rarities` is a ladder of `size`
+  0 (`ladder([])` called directly still throws, and `gacha` refuses an empty ladder when it is defined). Lists
+  written inline keep their words without `as const`; a list declared on its own line needs it.
 - **`Ladder<R>`** (also `ladder(ids)` on its own): `ids` lowest first, `size`, `indexOf`, `at`, `next` (undefined
   at the top), `atLeast(r)` (the rung and every rung above), `isAtLeast(a, b)`, `compare` (a sort comparator,
   lowest first) and `has(string)`, a guard for parsed or saved values.
@@ -427,22 +455,31 @@ Ranks bought one at a time over `GraphNode`s (`rankCost`, `checkRank`), each ran
 - **`tree({ id, nodes, milestone? })`** is the rules over a ranks record the game keeps wherever it saves it:
   `node(id)`, `price(node, owned)` (null at the last rank), `check(id, ranks, balance)`, `buy(ranks, id, purse)` (checks,
   debits every currency of the price, raises the rank), `affordable(id, ranks, balance, limit?)` and
-  `buyMax(ranks, id, purse, limit?)` (as many ranks as the balances cover, in closed form; `docs/upgrade-tree.md`)
-  and `contributions(ranks)`, sourced `<id>:<node>`. A
+  `buyMax(ranks, id, purse, limit?)` (as many ranks as the balances cover, in closed form; `docs/upgrade-tree.md`),
+  `buyCheapest(ranks, purse, { open?, limit? })` (one rank at a time across the tree, always the cheapest by the first
+  line of its price, ties in node order, until nothing more can be bought; a free node with no last rank is skipped
+  unless a `limit` is given) and `contributions(ranks)`, sourced `<id>:<node>`. A
   `milestone: { every, effect }` adds `effect(e)` of each of a node's effects at every `every`th rank. A repeated node
   or a requirement outside the tree throws. `rankContributions(source, nodes, ranks, milestone?)` is the bus part alone.
 - **`BuyResult<C>`** is `{ ok: true, id, level }` or `{ ok: false, code }` with `code` `unknown`, `closed` (the
   tree feature's `open` refuses the node), `maxed`, `requires`
   (and `node`) or `cannot-afford` (and `currency`, `balance`, `price`).
-- **`treeMoves(key, nodes, worth)`** is the auto-player's moves over an `upgradeTree` (for `withMoves`).
-- **`upgradeTree({ key, nodes, wallet, milestone?, reset? })`** is a tree as a feature: it saves `{ ranks }` under
-  `key`, buys with `buy(id)` and `buyMax(id, limit?)` from a currencies feature, and carries its rules as `.tree` for the game's stat bus
-  (`busOf(mine.tree.contributions(s.mine.ranks))`). A run reset clears the ranks unless `reset` says otherwise.
+- **`treeMoves(key, nodes, worth)`** is the auto-player's moves over an `upgradeTree`. A tree has no moves of its
+  own, so the sim never buys from it until the game wraps it: `withMoves(tree, treeMoves(...))`.
+- **`upgradeTree({ key, nodes, wallet, milestone?, open?, reset? })`** is a tree as a feature: it saves `{ ranks }`
+  under `key`, buys with `buy(id)`, `buyMax(id, limit?)` and `buyAll(limit?)` (`buyCheapest` through the feature's
+  `open`) from a currencies feature, and carries its rules as `.tree` for the game's stat bus
+  (`busOf(mine.tree.contributions(s.mine.ranks))`). `open(state, node)` holds a node back until the game offers it
+  (a closed one refuses as `closed`); the feature's own readers `open(state, id)`, `check(state, id)` and
+  `affordable(state, id, limit?)` read it the way its actions do, so a screen never offers a node `buy` refuses.
+  `.tree`'s readers know nothing of `open`. A run reset clears the ranks unless `reset` says otherwise.
 
 ## Loadouts
 
 A few slots, the items a player holds, and what the slotted items do together. The rules are pure over a slots record
 the game keeps; the effect type is the game's own (the stat bus's `Effect` makes `contributions` feed `busOf`).
+
+Shelf page: [docs/loadouts.md](docs/loadouts.md).
 
 ```ts
 import { busOf, type Effect, loadoutFeature } from "watchpot/core";
@@ -501,15 +538,21 @@ export const boiler = gauge({
 - **`stepGauge(state, perSecond, dtMs, now, { max, trip? })`** is the kernel, pure: the part of the step inside a
   lock moves at the trip's `lockedRate` (default 0), the rest at `perSecond`; a level that reaches `max` trips once,
   the lock starting at the moment it got there, and the level drops to `dropTo × max`. Without a `trip` the level
-  parks at `max`. It returns `{ state, tripped }`; `GaugeState` is `{ level, lockedUntil, trips }`.
+  parks at `max`, a supported bounded meter. It returns `{ state, tripped }`; `GaugeState` is `{ level, lockedUntil,
+  trips }`. `nudgeGauge(state, amount, now, rules)` is the press kernel, with the same clamp, trip and lock.
 - **Readers:** `gaugeLocked(state, now)`, `gaugeFill(state, max)` (0 to 1) and `secondsToTrip(state, perSecond, max)`
   (null when it is not rising).
 - **`gauge({ key, max, trip?, rate, awayRate?, onTrip?, reset? })`** is the feature. Its step is `<key>.rates.level`,
-  ahead of `produce`, so an income step already sees a lock. `rate(state)` applies on a tick; `awayRate(state)` over
-  a catch-up (default: drains at `max` per hour, so a player comes back to a cool gauge and an absence never trips
-  it). `onTrip(draft, now)` runs in the same recipe as the trip. One action, `nudge(amount)`, moves the level at
-  once (a click that costs heat) and returns whether it tripped. A prestige reset starts it over unless `reset` says
-  otherwise.
+  ahead of `produce`, so an income step already sees a lock. `rate(state, { now })` applies on a tick;
+  `awayRate(state, { now })` over a catch-up (default: drains at `max` per hour, so a player comes back to a cool
+  gauge and an absence never trips it). `now` is game time (`CallbackContext`), so a buff or a lock can be read
+  where the rate applies. A rate is read once per step and held across it: a live tick steps at most `MAX_STEP_MS`,
+  and an absence is one step. `onTrip(draft, now)` runs in the same recipe as the trip. One action, `nudge(amount)`,
+  moves the level at once (a click that costs heat) and returns whether it tripped; inside another recipe (a press
+  that also warms the gauge) the draft helper `boiler.nudge(draft, amount, now)` does the same, trip and `onTrip`
+  included. A prestige reset starts it over unless `reset` says otherwise.
+
+The shelf page, with a worked example and the numbers to tune by: [docs/gauge.md](docs/gauge.md).
 
 ## Systems
 
@@ -541,6 +584,20 @@ behave over an absence) and offer the auto-player their moves where a player wou
 | `streak` | A once-a-day claim and a run of consecutive local days | [`docs/streak.md`](docs/streak.md) |
 | `prefs` | Choices that belong to the device, outside the save (a quality tier, a volume) | below |
 
+- **Callbacks see game time.** A state callback gets a trailing context, `{ now }` in game time, so a buff or a lock
+  can be read where it applies: the clicker's `power` and `crit`, the gauge's `rate` and `awayRate`, spawns' `wait`,
+  `lifeMs`, `active`, `worth` and an outcome's `when` (`CallbackContext`), and every generators callback (`mult`,
+  `open`, `automated`, `away`, `milestones`; `GeneratorsCallbackContext`). Steps pass the pass's `now`, actions
+  `api.now()`; where the auto-player values a move it is the store's `gameNow()`. `drawOutcome` takes it as an
+  optional last argument (default `{ now: 0 }`).
+- **Generators' readers.** Beside the building list's rules, `row(state, id, mode, now?)` is one buy row,
+  `{ count, price, canBuy }` (`GeneratorRow`, `mode` a count, `"max"` or `"next"`, `GeneratorBuyMode`): `count` is at
+  least 1 so the row always shows a price, and `canBuy` is false while the generator is closed or `"next"` is past its
+  last milestone. `away(state, now?)` is the absence rate the catch-up credits (the definition's `away`, or
+  `{ rate: 1 }`). A `milestones(state, def, ctx)` gate turns a generator's own and the global milestones off by the
+  game's rule. `RateGeneratorDef` and `CycleGeneratorDef` are the two kinds (`GeneratorDef` their union).
+- **A buff without effects** is a timer: `effects` is optional, it adds nothing to `contributions`, and `buffActive`
+  and `buffLeftMs` read it.
 - **Cost curves** (`costAt`, `costOfMany`, `maxAffordable`): what the next one costs, what the next N cost and how many
   the balance covers, in closed form for a geometric curve (`{ base, growth, every?, round? }`; `every` holds one
   price for a set, `round` makes every price a whole number) and by walking the game's own function. `stepsOf`, `untilStep`, `reached` and `nextThreshold` read sets and
@@ -564,6 +621,8 @@ behave over an absence) and offer the auto-player their moves where a player wou
 Timed events: windows, a runtime per event, the trickle and its caps, a cycle tree and a mastery tree, milestones, a
 shop, a pass, the autopilot's share and the band a finished cycle earned. All of it is pure functions over data;
 the game's events feature keeps the runtimes and calls them.
+
+Shelf page: [docs/events.md](docs/events.md).
 
 ```ts
 import { type EventDefinition, eventNodeRow, freshRuntime, regenEventCurrencies } from "watchpot/core";
@@ -628,11 +687,20 @@ const runtime = regenEventCurrencies(FAIR, freshRuntime(FAIR, 0), 10 * 3_600_000
 sheet outlet; it draws no page of its own (the page is `watchpot/ui`'s `PageShell` under the game's own look). Its
 tests are in `test/react/`.
 
-- **The store.** One context, `IdleStoreContext`, holds the store the composition root built: `mountGame(store, <App />)`
-  renders into `#root` under `IdleStoreProvider`. `createRuntimeHooks<GameStore>()`, once in the game, gives the typed
-  `useGameStore()`, `useGameState(selector)` and `useGameView()` (the whole state at a slow pace, below); the
-  engine's own hooks read it untyped (`useIdleStore`). Without a provider `useGameStore` throws. `RuntimeStore` is the shape they need: `getState` (the root actions), `setState`
-  (an immer recipe) and `subscribe`.
+Shelf page: [docs/react-runtime.md](docs/react-runtime.md).
+
+- **The store.** One context, `IdleStoreContext`, holds the store the composition root built:
+  `mountGame(store, <App />)` renders into `#root` under `IdleStoreProvider`. `createRuntimeHooks<GameStore>()`, once in the game, gives the
+  typed `useGameStore()`, `useGameState(selector)` and `useGameView()` (the whole state at a slow pace, below); the
+  engine's own hooks read it untyped (`useIdleStore`). Without a provider a hook that reads the store throws, naming the
+  hook and pointing to `mountGame` or an `IdleStoreProvider`. `RuntimeStore` is the shape they need: `getState` (the
+  root actions), `setState` (an immer recipe) and `subscribe`. A selector must hand back the same value for the same
+  state: a new object, or Decimal arithmetic, renders without end. Wrap it in `useShallow` (re-exported here and from
+  `watchpot/hooks`, so no game imports zustand; it compares a Decimal by its fields:
+  `useGameState(useShallow((s) => ({ a: s.a })))`), or select stored values and compute in the render. In development such a selector gets one warning,
+  with the fix, before React's own loop error.
+- **The route.** `useHashRoute()` is `[route, go]`: the hash without its `#`, following every `hashchange`, so a
+  `#dev` panel opens and closes with the address bar (`route === "dev" && <DevPanel onClose={() => go("")} />`).
 - **The clocks.** `useTickNow()` follows the clock's `lastSeen` (a test drives it with `store.tick`); `useClockNow(ms,
   override)` reads `gameNow()` on one timer per store and interval, and at once when the clock's offset moves. Both
   find the clock's fields through the game's `ClockLens` (`clockLens(store)`), wherever the game saves them.
@@ -640,11 +708,14 @@ tests are in `test/react/`.
   up over the gap on its next step, as on a return.
 - **The runtime.** `useGameRuntime(store, { motion, scheme, sound })` is everything a page starts once: the clock
   (`startGameClock`, in a layout effect so the first catch-up lands before any child reads the store), the watch on
-  other tabs (`taken`), `setReducedMotion` and `data-motion` on `<html>`, `applyColorScheme`, and the sound
-  engine's unlock and mute. It returns `{ reduced, taken }`; a clock that gives up is thrown from the render, for the
-  game's error boundary. It is two hooks composed, for a shell that shows something before the game runs (a title,
-  a splash): `usePageRuntime({ motion, scheme, sound })` is everything but the clock (it needs no store, and
-  returns `{ reduced }`), and `useGameClock(store)` is the clock and the watch, mounted when the game starts. `useBoot({ initial, next })` is a boot sequence's phase as state, the machine the game's;
+  other tabs (`taken`), `setReducedMotion` and `data-motion` on `<html>`, `applyColorScheme`, and the sound engine's
+  unlock and mute. `data-motion` is the resolved motion, `"reduced"` or `"full"` (the OS deciding while the setting is
+  `"system"`), so a stylesheet reads that attribute alone and a player who chose `"full"` keeps it. `motion` and
+  `scheme` default to `"system"`, and the options may be left out. It returns `{ reduced, taken }`; a clock that gives
+  up is thrown from the render, for the game's error boundary. It is two hooks composed, for a shell that shows
+  something before the game runs (a title, a splash): `usePageRuntime({ motion, scheme, sound })` is everything but the
+  clock (it needs no store, and returns `{ reduced }`), and `useGameClock(store)` is the clock and the watch, mounted
+  when the game starts. `useBoot({ initial, next })` is a boot sequence's phase as state, the machine the game's;
   `useLayerSwap({ layers, layer, setLayer, canSwap, cue })` is a switch between a window's layers that commits the
   store's layer only when the transition ends (`select`, `finish`, `swap`). `usePrefs` reads and writes a device
   preference (`prefs()` in `/core`).
@@ -655,8 +726,11 @@ tests are in `test/react/`.
   by id, the latest shown); `useAwayTitle(titles, { everyMs? })` shows the game's own words in the tab, in turn, while
   it is hidden, and gives the page's title back on the return.
 - **Time away, told.** `watchAway(store, onReturn, { minMs?, settlePasses?, lens? })` hears the catch-up that
-  credited an absence and hands `{ before, after, ms }`; `useAwayReport(summarize)` holds the game's own report of it
-  until `dismiss()`; `awayGains(before, after, reads)` lists what went up (`docs/time-away.md`).
+  credited an absence and hands `{ before, after, ms }` (`ms` the whole jump in `lastSeen`; the offline cap may have
+  credited less); `useAwayReport(summarize)` holds the game's own report of it until `dismiss()`, and hears the
+  clock's opening catch-up in either hook order (a child of the component that starts the clock, or after
+  `useGameClock`/`useGameRuntime` in the same one), once, StrictMode included; `awayGains(before, after, reads)`
+  lists what went up (`docs/time-away.md`).
 - **Sampled reads.** `useSampled(store, { sample, initial, everyMs?, fps?, same? })` reads the store every `everyMs`
   (250 by default) into `sample(state, { prev, fps })`'s snapshot and re-renders only when it changes (`sameShallow`:
   entries one level down, arrays entry by entry), for decorative read-outs that must not render on every tick.
@@ -690,12 +764,13 @@ It is a developer's tool, not game UI, and the one stylesheet in the engine: `De
 (its colours and faces are its own `--dp-*` properties, light and dark), so it reads no game token and needs no global
 the game defines (`test/rules/headless.test.ts`).
 
-A game mounts it behind its own route and a build-time check, written inline so the bundler folds it:
+A game mounts it behind its own route (`useHashRoute`, React above) and a build-time check, written inline so the
+bundler folds it; the template mounts it this way on `#dev`:
 
 ```tsx
-{
-  process.env.NODE_ENV !== "production" && route === "#dev" && <DevPanel onClose={closeDev} />;
-}
+const [route, go] = useHashRoute();
+// ...
+{process.env.NODE_ENV !== "production" && route === "dev" && <DevPanel onClose={() => go("")} />}
 ```
 
 The entry exports it through `dev/gate.tsx`, which reaches the panel's module only through `import()` behind the same
@@ -988,7 +1063,7 @@ Nothing in it has a look: no CSS, no class names, no material or mesh of any gam
 
 ## API report
 
-`api/` holds the declarations of the seven entries (`tsc --declaration --emitDeclarationOnly`,
+`api/` holds the declarations of the twelve entries (`tsc --declaration --emitDeclarationOnly`,
 sorted, no source maps), so an export that appears, vanishes or changes signature shows in review. `bun run
 api:check` regenerates to a temp folder and fails naming each changed file; it runs inside `gates`. After a
 deliberate API change run `bun run api` and commit the folder with the change.
@@ -1057,7 +1132,10 @@ judge(rows.rows, CONTRACT); // a verdict per band the run reached
 - **Schedules.** `planDay(rng, schedule, day, weekday, dayStart)` turns a `Schedule` into sessions: `fixedSchedule`
   (one session, a look every N minutes) or a `SessionSchedule` (sessions a day, their lengths, cadence, keypress bursts,
   skipped days, decay). `rngFor(seed, id)` is the seeded behaviour stream; `drawRange` and `drawLogNormal` its draws.
-  `playDays` plays the sessions, a closed tab or background play between them.
+  `playDays` plays the sessions, a closed tab or background play between them. Its `until()` and `hours` stop a run
+  early: checked after each look, so the run ends after the look that crosses it, and a day cut short gets no
+  `dayEnd`. (The sim world ticks a minute at most, `SIM_TICK_MS`; `playStraight`'s `tickMs` and `runFit`'s `stepMs`
+  default to a second.)
 - **The timeline.** `sampler({ marks, start, take, at })`: a row as the time since the run's start passes each mark
   (marks passed together are one row), `push` for a milestone, `close` at a day's end (replacing a row taken at the
   same moment), `restart(at)` for a new run. `markdownTable(heads, rows)` prints it.
@@ -1071,7 +1149,10 @@ judge(rows.rows, CONTRACT); // a verdict per band the run reached
   is written from seeds; `formatVerdicts` prints them.
 - **The gate.** `runGate(checks, { key, run })` runs every job the checks name once, all at once, and tallies each
   check; `spawnJob(script, args)` runs one in its own Bun process and parses its JSON; `formatGate` prints the result.
-- **The auto-player.** `autoPlayer(game, { balance, maxMoves })` reads every feature's `moves` (`movesOf`). A look
+- **The auto-player.** `autoPlayer(game, { balance?, maxMoves? })` reads every feature's `moves` (`movesOf`).
+  Without `balance` it reads the game's one `currencies` feature (`state[key][currency]`, zero for a currency it
+  lacks), and throws asking for `balance` when the game has none or more than one. A free move that keeps going
+  through is taken again up to `maxMoves`, so a free move should refuse once taken. A look
   buys the affordable move of the best `value` per share of its currency held (`amount / balance`), again until none
   is affordable, then takes every free move (no cost) best first, and goes round again while either did anything. A
   move that refuses is not tried again in the look; one worth 0 or less is never taken; nothing is bought that the
@@ -1106,17 +1187,29 @@ The store saves every feature's data under the game's `save.key` with `save.vers
   saved version up, one version at a time: at each, the game's step, then the features' in feature order. The
   migrated save is written back at once at the current version. `defineGame` refuses steps that skip a version
   between the oldest declared and `save.version`, or a key past it; `oldestReadable(game)` is the oldest version
-  they reach (`save.version` when there are none), and `migrate(state, from, to, game)` is the runner itself.
+  they reach (`save.version` when there are none), and `migrate(state, from, to, game)` is the runner itself. A
+  feature's step is not called when the save has no slice for it (the merge gives that slice its defaults), and
+  Decimals are revived before any step runs. `savedRecord(saved)` reads a saved shape loosely, without a cast:
+  `const old = savedRecord(saved); return { ...old, count: old.owned ?? 0 }`.
 - **A save this build will not use.** Older than any step reaches, one a step throws on, or one that cannot be
-  read: copied to `<key>.kept` (over an earlier copy), then a fresh profile. Newer: copied to `<key>.kept` only
-  when no copy is there (the save stays safe under its key), and the store writes nothing this session
-  (`saveBlocked`). An older export no step reaches is refused as `old-version`.
+  read: copied to `<key>.kept` (over an earlier copy), then a fresh profile. A migration that sets a save aside warns
+  on the console naming the kept key, and `saveSetAside(store)` says why (`old-version` or `migration-failed`) for a
+  page that tells the player; a save that cannot be parsed at all is still set aside with no such note, only
+  `onError`. Newer: copied to `<key>.kept` only when no copy is there (the save stays safe under its key), and the
+  store writes nothing this session (`saveBlocked`; `saveBlockedBy` is `newer`). An older export no step reaches is
+  refused as `old-version`.
+- **Loading a slice.** A saved `undefined` counts as missing. Under a Decimal default the loader reads a saved
+  Decimal, number or string, and keeps the default for anything else or for NaN.
 - **Backends.** A `StorageBackend` answers at once (`localStorageBackend()`, `createMemoryBackend()`): the store
   loads inside `createIdleStore`. An `AsyncStorageBackend` may answer with promises (IndexedDB, a native bridge):
   the store returns holding a new profile and loads after; `await store.hydrated` before play (it settles whatever
   the load found, once any kept copy has landed). Until then the store writes nothing, so play before the load can
   never land over the save. Writes go one at a time: one sent while another is answering waits, and the latest
-  state wins.
+  state wins. A storage over `createMemoryBackend()` is not durable unless `durable: true` says so, so
+  `createGameStorage(localStorageBackend() ?? createMemoryBackend())` reports `saveStatus` "unsaved", not
+  "saving", where nothing is kept; the same holds for `freshStore`. `debounceMs` (`SAVE_DEBOUNCE_MS`) is a
+  fixed-window throttle, not a trailing debounce: the first change opens the window and its end writes the latest
+  state.
 - **A deeper fill.** The loader fills a plain-object default one level down. A feature whose state nests deeper calls
   `fillDeep(saved, fresh)` from its own `merge`: it fills a key a newer build added at any depth, keeps a saved key
   `fresh` lacks (an id-keyed record), coerces a saved number or string where `fresh` holds a Decimal, and treats an
@@ -1124,17 +1217,21 @@ The store saves every feature's data under the game's `save.key` with `save.vers
 
 ## Testing
 
-`watchpot/test` is the test kit; the core's own tests use it (`test/test/kit.test.ts`).
+`watchpot/test` is the test kit; the core's own tests use it (`test/test/kit.test.ts`). The shelf page, with an
+example and the traps, is [docs/test-kit.md](docs/test-kit.md).
 
-- `freshStore(game, { at, now, backend, save, name, seed, catchUp })` returns `{ store, backend, clock }`: an
+- `freshStore(game, { at, now, backend, save, name, seed, catchUp })` returns `{ store, backend, clock, play }`: an
   isolated store on a memory backend (or the one given, which must answer at once) that writes straight through,
   its wall a test clock frozen at `at` (default `T0`, local noon on a fixed day) or following `now`, caught up
-  unless `catchUp: false`. `save` puts a save (an export or a raw backend string) under the key first.
+  unless `catchUp: false`. `save` puts a save (an export or a raw backend string) under the key first. `play(ms)`
+  moves the clock and ticks the store over `ms` at the new now, in one call. Over its default memory backend
+  `saveStatus` reads "unsaved" (a memory backend is not durable).
 - `testClock(start)`: `now()`, `set(at)`, `advance(ms)`, frozen at a number or following a function.
-- `fixtureSave(game, persona, options)`: the export a persona's play makes on a store seeded `fixture`, the same
-  string every time. Commit it as a fixture (one per save version, permanent) and load it with
-  `freshStore(game, { save })`; `test/core/toy-save-v1.json` is the toy's, which the migration
-  tests bring forward to version 3.
+- `fixtureSave(game, play, options)`: the export a `FixturePlay` (`(store, clock) => void`, a fixture's author playing
+  by hand; `Persona` is its deprecated old name) makes on a store seeded `fixture`, the same string every time. Its
+  envelope is compatible with what a backend holds, not identical to it. Commit it as a fixture (one per save version,
+  permanent) and load it with `freshStore(game, { save })`; `test/core/toy-save-v1.json` is the toy's, which the
+  migration tests bring forward to version 3.
 - `createAsyncMemoryBackend(entries)`: every call answers a turn later; `peek(name)` reads at once and `idle()`
   settles once every call, and any write it led to, has answered. For the async load and write paths.
 - `renderWith(store, ui)`: Testing Library's `render` under `watchpot/react`'s provider, kept across `rerender` (needs

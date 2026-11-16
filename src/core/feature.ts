@@ -15,7 +15,7 @@ export type { Draft } from "immer";
  *
  * A feature's callbacks (steps, actions) see the game as a draft typed `G`: its own slice under its key plus the
  * features it names in `reach`, so a feature that credits a wallet writes `reach: [wallet]` and `s.wallet.gold`
- * is typed, with no annotation anywhere. A game whose features reach each other in a cycle (WHALE) annotates
+ * is typed, with no annotation anywhere. A game whose features reach each other in a cycle annotates
  * one draft or api parameter with its own state type instead (`(s: GameDraft, ctx) => …`); `G` is then read off
  * the annotation. `Feature` itself erases `G`, so a game's state type may be derived from the tuple of its
  * features without a cycle.

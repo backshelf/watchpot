@@ -13,6 +13,7 @@ export const boosts = buffs<"boosts", Effect>({
   list: [
     { id: "rush", durationMs: 77_000, stack: "refresh", effects: () => [{ stat: "speed", mult: 7 }] },
     { id: "focus", durationMs: 30_000, stack: "stack", maxStacks: 5, effects: (stacks) => [{ stat: "speed", add: stacks }] },
+    { id: "cooldown", durationMs: 10_000, stack: "ignore" }, // a timer: no effects
   ],
 });
 
@@ -44,10 +45,19 @@ Example: [`examples/buffs.ts`](examples/buffs.ts).
   replaces the old.
 - **Readers:** `buffActive`, `buffLeftMs`, `buffStacks` (each at `now`) and `overlapMs(state, id, from, to)`, the part
   of the stretch the buff's window (running or ended) covered.
-- **`buffs({ key, list, onEnd?, reset? })`** saves `BuffsState`; `BuffDef<E>` adds `effects(stacks, strength)` to the
-  rule. Its step `<key>.sync.expire` runs before `rates` and `produce`; `onEnd(draft, id, now)` runs for each buff it
-  ends. Actions `start(id, { durationMs?, strength? })` (false for an unknown id or an ignored start) and `end(id)`;
+- **`buffs({ key, list, onEnd?, reset? })`** saves `BuffsState`; `BuffDef<E>` adds an optional
+  `effects(stacks, strength)` to the rule. Its step `<key>.sync.expire` runs before `rates` and `produce`;
+  `onEnd(draft, id, now)` runs for each buff it ends. Actions `start(id, { durationMs?, strength? })` (false for an unknown id or an ignored start) and `end(id)`;
   on the feature itself, `start(draft, id, now, start?)` and `end(draft, id, now)` do the same inside a recipe (a
   spawn's `onCatch`, an event's handler).
   `.contributions(state, now)` gives every running buff's effects sourced `<key>:<id>`, for `busOf`. A run reset ends
   every buff unless `reset` says otherwise.
+
+## A buff as a timer
+
+`effects` is optional. A buff without it is a named clock and nothing more: it starts by its stacking rule, runs out
+on game time (during an absence too), keeps the window it covered, and adds nothing to `contributions`. Read it with
+`buffActive(state, id, now)` and `buffLeftMs(state, id, now)` and decide in your own code what it means: a cooldown on
+a button, a "hot run" your own stat fold multiplies by, a window in which a spawn pays double. The `cooldown` above is
+one. Reach for this when the strength depends on something `effects(stacks, strength)` cannot see, such as another
+stat. [Showcase 3](showcases.md#3-a-buff-with-no-effect) shows a real game doing it.

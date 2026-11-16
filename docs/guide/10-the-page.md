@@ -5,8 +5,10 @@ enjoys looking at. By the end you will know the three ways to read the store and
 calls an action, what starts the clock, how the engine's headless controls get your game's look, and where theme,
 feel and the dev panel fit in.
 
-The code for this chapter is one file, `docs/examples/guide-the-page.tsx`. It grows Simmer's page from chapter 2:
-the same game and the same [store](../glossary.md#store), read and drawn the way a bigger page is.
+The code for this chapter is one file, `docs/examples/guide-the-page.tsx`. It grows Simmer's page from chapter 2: it
+imports Simmer as chapter 4 left it (`docs/examples/simmer/game-wallet.ts`), makes chapter 2's
+[store](../glossary.md#store) over it with the same line, `createIdleStore(game, { now: Date.now })`, and reads and
+draws it the way a bigger page does.
 
 ## What the page is allowed to do
 
@@ -69,7 +71,7 @@ Here is Simmer's balance:
 
 ```tsx
 export function Balance() {
-  const text = useGameState((s) => fmt(s.pot.bubbles).text);
+  const text = useGameState((s) => fmt(s.wallet.bubbles).text);
   return <h1>{text} bubbles</h1>;
 }
 ```
@@ -79,9 +81,9 @@ export function Balance() {
 Line by line:
 
 - `useGameState((s) => ...)` subscribes this component to the store.
-- The selector returns `fmt(s.pot.bubbles).text`, the formatted string, not the number. That choice matters.
-  The pot gains a fraction of a bubble on every tick, so the number changes many times a second. The text, "1.23K",
-  changes far less often. `useGameState` compares the new result with the last one, and a string that reads the
+- The selector returns `fmt(s.wallet.bubbles).text`, the formatted string, not the number. That choice matters.
+  The wallet gains a fraction of a bubble on every tick, so the number changes many times a second. The text,
+  "1,234" (fractions floored away), changes far less often. `useGameState` compares the new result with the last one, and a string that reads the
   same is the same, so the component only re-renders when what the player sees would change.
 
 Select what you show. A narrow selector that returns a string, a number or a boolean is the cheapest read there is,
@@ -97,16 +99,18 @@ So this looks harmless and is not:
 
 ```tsx
 // Wrong: a new object on every call.
-const { bubbles, burners } = useGameState((s) => ({ bubbles: s.pot.bubbles, burners: s.stove.burners }));
+const { bubbles, burners } = useGameState((s) => ({ bubbles: s.wallet.bubbles, burners: s.stove.burners }));
 ```
 
 Under the hood, `useGameState` is zustand's `useStore`, which sits on React's `useSyncExternalStore`. React calls the
 selector, gets an object, calls it again to check, gets a different object, decides the store has changed, and
-renders again. It never settles. You get React's "Maximum update depth exceeded" error, and the page goes blank.
+renders again. It never settles. You get React's "Maximum update depth exceeded" error, and the page goes blank. In a
+development build the engine warns first, once per selector, with the selector's source and the fix, so the console
+tells you which line to change.
 
 The same trap hides in arithmetic. A [Decimal](../glossary.md#decimal) is an object, and every Decimal operation
-returns a new one, so `useGameState((s) => s.pot.bubbles.add(1))` loops just the same. Do the arithmetic outside the
-selector, or turn the result into a string, number or boolean inside it.
+returns a new one, so `useGameState((s) => s.wallet.bubbles.add(1))` loops just the same. Do the arithmetic outside
+the selector, or turn the result into a string, number or boolean inside it.
 
 When you do want several values from one read, wrap the selector in `useShallow`:
 
@@ -115,7 +119,7 @@ export function Summary() {
   const { burners, rate } = useGameState(
     useShallow((s: State) => ({
       burners: s.stove.burners,
-      rate: fmtRate(perSecond(s.stove.burners)),
+      rate: fmtRate(rateOf(s)),
     })),
   );
   return (
@@ -128,12 +132,20 @@ export function Summary() {
 
 <sub>`docs/examples/guide-the-page.tsx`</sub>
 
-`useShallow` compares the object one level down, key by key, and hands back the previous object when every key is
-the same. The component re-renders only when `burners` or `rate` really changes.
+`useShallow`, from `watchpot/react`, compares the object one level down, key by key, and hands back the previous
+object when every key is the same. The component re-renders only when `burners` or `rate` really changes. It
+compares a Decimal by its value too, so `useShallow((s) => s.wallet.bubbles.mul(2))` is steady as well.
 
-`useShallow` is not part of watchpot. It comes from zustand, which your game already has installed as one of
-watchpot's peers: `import { useShallow } from "zustand/react/shallow"`. The engine mentions it in one line of a
-comment and nowhere else, which is why this section exists.
+`rateOf` is a helper in the same file: the pot's simmer plus the stove's own `perSecond` (which already has the lid's
+doubling in it) while the stove is lit. It does Decimal arithmetic inside the selector, which is fine here because
+`fmtRate` turns the result into a string before anything compares it.
+
+```tsx
+/** Bubbles a second, all told: the pot's simmer, plus the stove's own rate (lid included) while it is lit. */
+const rateOf = (s: State) => (s.stove.off ? ZERO : s.stove.perSecond).add(SIMMER_PER_SECOND);
+```
+
+<sub>`docs/examples/guide-the-page.tsx`</sub>
 
 ## Reading a whole screen: `useGameView`
 
@@ -153,11 +165,11 @@ export function Stove() {
   const game = useGameStore();
   const s = useGameView();
   const price = burnerPrice(s.stove.burners);
-  const canAfford = s.pot.bubbles.gte(price);
+  const canAfford = s.wallet.bubbles.gte(price);
   return (
     <section aria-labelledby="stove-title">
       <h2 id="stove-title">The stove</h2>
-      <p>Each burner adds {fmtRate(1)}.</p>
+      <p>Each burner adds {fmtRate(BURNER_PER_SECOND)}.</p>
       <button type="button" disabled={!canAfford} onClick={() => game.getState().stove.buyBurner()}>
         Light a burner for {fmt(price).text} bubbles
       </button>
@@ -193,8 +205,8 @@ onClick={() => game.getState().stove.buyBurner()}
 
 `getState()` reads the store as it is at the moment of the click, not as it was at the last render. That is why the
 call goes through `useGameStore()` and not through a selector. The action itself checks whether it is allowed (the
-stove's `buyBurner` returns without buying when you cannot pay), so a button that is enabled a moment too long does
-no harm.
+stove's `buyBurner` returns `false` without buying when you cannot pay), so a button that is enabled a moment too
+long does no harm.
 
 ## A worked example: the roll page
 
@@ -290,9 +302,10 @@ Something has to start the clock, and only once. That is the job of a [runtime h
 called at the top of your app:
 
 ```tsx
-export function App({ route, closeDev }: { route: string; closeDev: () => void }) {
+export function App() {
   const game = useGameStore();
-  const { taken } = useGameRuntime(game, { motion: "system", scheme: "system" });
+  const { taken } = useGameRuntime(game);
+  const [route, go] = useHashRoute();
   return (
     <main>
       <style>{POT_CSS}</style>
@@ -303,7 +316,7 @@ export function App({ route, closeDev }: { route: string; closeDev: () => void }
       <Pot />
       <Summary />
       <Stove />
-      {process.env.NODE_ENV !== "production" && route === "#dev" && <DevPanel onClose={closeDev} />}
+      {process.env.NODE_ENV !== "production" && route === "dev" && <DevPanel onClose={() => go("")} />}
     </main>
   );
 }
@@ -311,27 +324,32 @@ export function App({ route, closeDev }: { route: string; closeDev: () => void }
 
 <sub>`docs/examples/guide-the-page.tsx`</sub>
 
-`useGameRuntime(store, { motion, scheme, sound? })` does five things a page needs once:
+`useGameRuntime(store, { motion, scheme, sound })` does five things a page needs once:
 
 - starts the game clock: live ticks, the [catch-up](../glossary.md#catch-up) after time away, and a save when the
   tab is hidden;
 - watches for another tab of the same game writing the save, and stops this tab's clock when one does (`taken`
   comes back `true`; tell the player, as above);
-- writes `data-motion="reduced"` onto `<html>` when the motion setting is "reduced", so your CSS can follow it (the
-  pot's CSS below shows the catch);
+- writes the motion the page should use onto `<html>` as `data-motion`, `"reduced"` or `"full"`, so your CSS can
+  follow it with one attribute (the pot's CSS below);
 - writes the colour scheme onto `<html>` as `data-scheme`;
 - with `sound`, unlocks your sound engine on the first gesture and mutes it while sound is off.
 
-It returns `{ reduced, taken }`. `motion` is `"system" | "reduced" | "full"` and `scheme` is
-`"system" | "light" | "dark"`. Simmer passes `"system"` for both. A real game keeps the player's choice in a
-settings feature and reads it with a selector, as the template does.
+It returns `{ reduced, taken }`. Every option may be left out. `motion` is `"system" | "reduced" | "full"` and
+`scheme` is `"system" | "light" | "dark"`, both `"system"` by default, which follows the operating system. Simmer has
+no settings, so it passes nothing. A real game keeps the player's choice in a settings feature and reads it with a
+selector, as the template does.
+
+`useHashRoute()` is the other new line. It returns the part of the address after the `#` (without the `#`) and a
+function to change it, and it re-renders when the player edits the address or presses back. The dev panel below
+uses it.
 
 ### The two halves
 
 `useGameRuntime` is two hooks put together, and you can call them apart:
 
 - `useGameClock(store)` is the clock and the watch on other tabs. It returns `{ taken }`.
-- `usePageRuntime({ motion, scheme, sound? })` is everything else. It needs no store and returns `{ reduced }`.
+- `usePageRuntime({ motion, scheme, sound })` is everything else. It needs no store and returns `{ reduced }`.
 
 Chapter 2's Simmer calls `useGameClock` alone, because it has no settings and no sound. A game with a title screen
 calls them apart for a different reason: the motion, scheme and sound should be right while the title is up, but the
@@ -438,10 +456,6 @@ And the whole look, which the engine leaves entirely to you:
 @keyframes pot-rise { to { opacity: 0; transform: translateY(-40px); } }
 :root[data-motion="reduced"] .pot-press { transition: none; }
 :root[data-motion="reduced"] .pot-floats > [data-float] { animation-duration: 1ms; }
-@media (prefers-reduced-motion: reduce) {
-  .pot-press { transition: none; }
-  .pot-floats > [data-float] { animation-duration: 1ms; }
-}
 ```
 
 <sub>`docs/examples/guide-the-page.tsx` (`POT_CSS`)</sub>
@@ -449,10 +463,12 @@ And the whole look, which the engine leaves entirely to you:
 Three things to notice. The pressed state is styled from `[data-pressed]`, which the primitive sets. The float
 animation is what removes the float, so it has to end: under reduced motion it is cut to a millisecond, not removed.
 
-And reduced motion is written twice, which needs explaining. The runtime hook sets `data-motion="reduced"` on
-`<html>` only when the in-game setting says "reduced". When the setting is "system" and the operating system asks
-for less motion, the hook's `reduced` comes back `true` but no attribute is written, so the CSS has to ask the OS
-itself with the media query. The template's `theme.css` carries the same pair of rules.
+And reduced motion is read from one attribute. The runtime hook works out the motion the page should use (the
+in-game setting, or the operating system's when the setting is "system") and writes it as `data-motion` before the
+first paint, so `:root[data-motion="reduced"]` is all the CSS needs. The template's `theme.css` also carries a
+`@media (prefers-reduced-motion: reduce)` block, as a fallback for a page that starts the clock with `useGameClock`
+alone and so never writes the attribute. On a page that runs `useGameRuntime` and offers a "full" setting, that
+block overrides the player's choice whenever the operating system asks for less motion; delete it there.
 
 Every primitive keeps the same rules: each element takes `className`, `style`, `ref` and its native attributes;
 compound parts (`Dialog.Root`, `Dialog.Panel`) where there is structure; an `asChild` prop to hand the behaviour to
@@ -513,7 +529,7 @@ mapping changes. `data-theme` on `<html>` (or any element) picks a theme; `data-
 from its `scheme` option, picks light or dark. Chapter 11 goes further, and [theme.md](../theme.md) is the reference.
 
 `buildTokens` lives on its own subpath because it is a design-time tool that runs under Bun, not code the page
-loads. It is also missing from the generated `api/` report, so for its options you read `src/kit/theme/build.ts`.
+loads. Its options and the shape of `tokens.json` (`TokensFile`) are in `api/kit/theme/build.d.ts`.
 
 ## Feel, in brief
 
@@ -566,10 +582,11 @@ day, a jump to day N, each feature's saved state as JSON, and the save as text y
 Simmer mounts it at the end of `App`, above:
 
 ```tsx
-{process.env.NODE_ENV !== "production" && route === "#dev" && <DevPanel onClose={closeDev} />}
+{process.env.NODE_ENV !== "production" && route === "dev" && <DevPanel onClose={() => go("")} />}
 ```
 
-Open the page with `#dev` on the URL to see it. Its one prop, `onClose`, is called by its close button.
+Open the page with `#dev` on the URL to see it. Its one prop, `onClose`, is called by its close button, which here
+clears the hash. Because `useHashRoute` follows the address, typing `#dev` or pressing back opens and closes it too.
 
 Two guards keep it out of the game you ship, and it helps to know which does what. `DevPanel` itself is a gate: in
 a production build (Bun's `--production` sets `process.env.NODE_ENV` to "production" at build time) it renders
@@ -585,22 +602,18 @@ never goes back. [dev-panel-workflow.md](../dev-panel-workflow.md) has the loop 
 ## Things that bite
 
 - **A selector that builds an object or a Decimal loops forever.** `useGameState` re-renders when the result is not
-  the same value as last time, and a new object never is. React stops with "Maximum update depth exceeded." Return a
-  string, number or boolean, or wrap the selector in `useShallow` from `zustand/react/shallow`.
+  the same value as last time, and a new object never is. React stops with "Maximum update depth exceeded" (a
+  development build warns first and names the selector). Return a string, number or boolean, or wrap the selector in
+  `useShallow` from `watchpot/react`.
 - **`useGameView` is up to 200 ms behind while the game runs alone.** That is the point of it, but a figure that
   must move with every tick (the balance) belongs in a narrow `useGameState` selector instead.
 - **The paced view keeps the options of its first call.** Every reader of a store shares one paced view, made by the
   first `useGameView` or `usePacedState` to run. Options passed later (to `createRuntimeHooks({ view })` or another
-  `usePacedState`) are ignored without a word. Set them in one place.
-- **Rendering outside the provider throws "useGameStore outside an IdleStoreProvider".** You see it even when the
-  hook that threw was one of the engine's own. The fix is to render under `mountGame` (or `IdleStoreProvider` in a
-  test).
-- **The template's hooks module leaves out `useGameView`.** A game made from the template exports only
-  `useGameStore` and `useGameState` from `src/app/hooks.ts`. Add `useGameView` to the destructuring when your first
-  big screen needs it.
-- **`data-motion` follows the setting, not the player's OS.** With the setting on "system", an OS that asks for less
-  motion makes `reduced` true but writes no attribute. Style reduced motion from both `:root[data-motion="reduced"]`
-  and `@media (prefers-reduced-motion: reduce)`.
+  `usePacedState`) are ignored; a development build warns once when they differ. Set them in one place.
+- **A hook rendered outside the provider throws.** The error names the hook that was called and points to
+  `mountGame`. Render under `mountGame` (or `IdleStoreProvider` in a test).
+- **`data-motion` is written only by the runtime hook.** A page that starts the clock with `useGameClock` alone gets
+  no attribute, and has to ask the OS itself with `@media (prefers-reduced-motion: reduce)`.
 - **A float that never finishes its animation stays until its lifetime runs out.** `FloatingNumbers` removes a float
   when its CSS animation ends (or after `lifetime`, 1500 ms by default). Give `[data-float]` an animation, and shorten
   it under reduced motion rather than removing it.
@@ -619,6 +632,6 @@ never goes back. [dev-panel-workflow.md](../dev-panel-workflow.md) has the loop 
 - `templates/game/src/ui/README.md`: the copy-in registry and its token contract.
 - The README's React and Dev panel sections: `useSampled`, `useClockNow`, the paced view in full.
 - `api/react/store.d.ts` (`createRuntimeHooks`, `mountGame`), `api/react/paced.d.ts`, `api/react/runtime.d.ts`,
-  `api/react/gameClock.d.ts`, `api/react/sample.d.ts`, `api/react/clock.d.ts`, `api/react/dev/gate.d.ts`,
+  `api/react/gameClock.d.ts`, `api/react/hashRoute.d.ts`, `api/react/sample.d.ts`, `api/react/clock.d.ts`, `api/react/dev/gate.d.ts`,
   `api/hooks/index.d.ts`, `api/ui/press.d.ts`, `api/ui/feedback.d.ts`, `api/core/watch.d.ts`,
   `api/kit/fx/gesture.d.ts`, `api/kit/fx/marks.d.ts`, `api/kit/fx/director.d.ts`.

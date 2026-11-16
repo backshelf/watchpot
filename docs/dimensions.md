@@ -43,12 +43,12 @@ export const chain = dimensions({
   the tier below was bought.
 - **The layers above are the game's.** A reset that starts the chain over and multiplies it (a boost, a galaxy) is a
   `prestige` feature whose count `mult` or `speed` reads; a sacrifice is an action that zeroes the lower amounts and
-  raises a multiplier. A prestige reset starts the chain over unless `reset` says otherwise.
+  raises a multiplier. A run reset starts the chain over unless `reset` says otherwise.
 - **Draft helpers** for a recipe or a step (an autobuyer's `run`): `chain.buy(draft, id, count?)`,
   `chain.buyMax(draft, id, limit?)` and `chain.maxAll(draft)`, each returning how many it bought, and
   `chain.produce(draft, seconds)`, which advances the chain at the rates the draft holds. A game whose autobuyers
   should keep working while the tab is closed gives the chain `away: () => ({ rate: 0 })` and replays the absence in
-  its own catch-up step (`catchUpSteps`): produce a stretch, buy, produce the next.
+  its own catch-up step (`offlineSteps`): produce a stretch, buy, produce the next.
 - **The auto-player** buys through the chain's `moves`, one per open tier, each worth what one more of that tier adds
   to the currency's rate after `horizonS` seconds (default 60).
 

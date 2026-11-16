@@ -52,7 +52,7 @@ export const game = defineGame({
 - **`autobuyers({ key, list, reset? })`** saves `{ on, lastAt, bought }` under `key` and fires in one step,
   `<key>.automate.fire`, after production. An autobuyer fires when `unlocked(state)`, switched on (every one starts
   on) and due; `priority` orders a tick (higher first, ties in list order), so a scarce balance goes where the game
-  says. A prestige reset keeps the switches (`{ keep: ["on"] }`) unless `reset` says otherwise.
+  says. A run reset keeps the switches (`{ keep: ["on"] }`) unless `reset` says otherwise.
 - **`AutobuyerDef<G>`**: `id`, `unlocked(state)`, `intervalMs(state)` (0 fires every tick), `run(draft, ctx) → number`
   and `priority?`.
 - **The schedule never drifts.** `everyMs(lastAt, intervalMs, now)` is the pure rule: the first fire is at once, then

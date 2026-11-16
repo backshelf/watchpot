@@ -150,8 +150,8 @@ without them. It starts a buff by its stacking rule, ends it on game time (durin
 it covered. `buffActive(state, id, now)` and `buffLeftMs(state, id, now)` read that clock directly.
 
 On VOID IF REMOVED's opening page, catching a misfeed (a label that gets loose and drifts by for a few seconds) can start
-a hot run or a double feed. Both are buffs that declare no effect (`effects: () => []`), and the game's own stat fold in
-`bus.ts` asks `buffActive(s.boosts, "hot-run", now)` and applies the multiplier itself.
+a hot run or a double feed. Both are buffs that declare no effect, and the game's own stat fold in `bus.ts` asks
+`buffActive(s.boosts, "hot-run", now)` and applies the multiplier itself.
 [Chapter 6](guide/06-the-first-page.md#surprises-and-timed-boosts-spawns-and-buffs) quotes both halves, and
 [chapter 8](guide/08-effects.md#the-honest-part-the-real-game-folds-its-own) the fold around them.
 
@@ -164,8 +164,8 @@ The chain into the buff is one string long. The misfeed is a `spawns` kind whose
 `boosts.start(d, outcome, now, { durationMs })`: the spawn's outcome id is the buff's id, so it passes straight through.
 The FEED pad reads `buffLeftMs(g.boosts, "hot-run", g.gameNow()) > 0` to light up while a hot run is going.
 
-One awkward thing shows here: `effects: () => []` has to be written out, because `BuffDef` requires `effects` even when
-nothing reads them.
+The game is still on engine 0.17 and writes `effects: () => []` on both. On the current engine leave `effects` out: a
+buff without it is a timer, and it adds nothing to `contributions`.
 
 ## 4. A gauge that never trips
 
@@ -173,29 +173,30 @@ nothing reads them.
 that rises and falls and never locks.
 
 **Why it works.** A gauge is two ideas in one factory: a level that a rate moves every second, and a trip that locks it
-at the top. The trip is optional. Leave it out and the level holds at `max`. And `rate(state)` is read off the
-whole state every [tick](glossary.md#tick), so the level can follow anything.
+at the top. The trip is optional. Leave it out and the level holds at `max`. And `rate(state, { now })` is read off the
+whole state and the game time every [tick](glossary.md#tick), so the level can follow anything, a running buff included.
 
-VOID IF REMOVED's printhead heat is one ([chapter 6](guide/06-the-first-page.md#the-heat-gauge) quotes it). Holding
+VOID IF REMOVED's printhead heat is one ([chapter 6](guide/06-the-first-page.md#the-meter-gauge) quotes it). Holding
 FEED warms it, every second cools it, and the stat fold reads the level as a multiplier on print, up to double at full
-heat. Single taps warm it too: the tap is a `clicker`, and its `onClick` adds a little heat to the level in the same recipe as
-the tap. `reset: "never"` keeps the heat through the first reset, so a player who starts a new roll keeps their
-momentum.
+heat. Single taps warm it too: the tap is a `clicker`, and its `onClick` adds a little heat to the level in the same
+recipe as the tap. To do that in your own game, call the gauge feature's draft helper, `heat.nudge(draft, amount,
+now)`, from the recipe: it clamps and trips exactly as the `nudge` action does. `reset: "never"` keeps the heat
+through the first reset, so a player who starts a new roll keeps their momentum.
 
 Because `rate` can read anything, a gauge also makes a thermostat. This one eases toward a dial the player sets:
 
 ```ts
 /** The state the gauge reads: its own level and a dial the player turns, 0 to 100. */
-type Stove = { steam: GaugeState; dial: { setting: number } };
+type Stove = { warmth: GaugeState; dial: { setting: number } };
 
 /**
  * A gauge with no trip, used as a thermostat: each second it closes half the gap to the dial's setting, so it eases
  * up or down to wherever the player set it and holds there.
  */
-export const steam = gauge({
-  key: "steam",
+export const warmth = gauge({
+  key: "warmth",
   max: 100,
-  rate: (s: Stove) => (s.dial.setting - s.steam.level) * 0.5,
+  rate: (s: Stove) => (s.dial.setting - s.warmth.level) * 0.5,
 });
 ```
 
@@ -206,15 +207,15 @@ export const steam = gauge({
 **The use:** a shader whose inputs are worked out from the game state alone, so a meter or a timed arrival shows up as
 light on the page instead of a popup.
 
-**Why it works.** `ShaderCanvas` takes `uniforms` as a plain object and pushes them to the GPU when a value changes, with
+**Why it works.** `ShaderCanvas` takes `uniforms` as a plain object and sets every one on each frame it draws, with
 no React render of its own. A uniform is a plain value: a number, a boolean, a colour string or a short array of
 numbers. So the bridge from the game to the picture is a pure function from state to numbers, and you can test it like
 any other function.
 
 ```ts
 /** The shader's inputs, worked out from the game state alone: no event, no animation of the page's own. */
-export const glowUniforms = (s: { steam: GaugeState; drips: SpawnsState }) => ({
-  u_heat: gaugeFill(s.steam, steam.rules.max), // 0 to 1
+export const glowUniforms = (s: { warmth: GaugeState; drips: SpawnsState }) => ({
+  u_heat: gaugeFill(s.warmth, warmth.rules.max), // 0 to 1
   u_wobble: s.drips.kinds.drip?.live ? 1 : 0, // 1 while there is something to catch
 });
 ```
@@ -448,8 +449,7 @@ Every showcase above came from asking a factory the same few questions. Ask them
 - **A getter price runs on every read, and reads are frequent.** Screens and the sim's auto-player ask for prices
   constantly. Keep the getter to a map lookup. VOID IF REMOVED goes further and caches each shelf's prices, keyed on a
   version counter that its table bumps on every change.
-- **A bare-timer buff still needs `effects: () => []`.** The definition requires the field even when nothing reads it,
-  and a run reset ends every buff unless the `buffs` feature's own `reset` says otherwise.
+- **A run reset ends every buff**, timers included, unless the `buffs` feature's own `reset` says otherwise.
 - **A gauge's rate holds still for a whole step.** The rate is read once per step and applied across all of it. A live
   tick is at most a second long (`MAX_STEP_MS`), so the thermostat above, which closes half the gap a second, at worst
   closes half of it in one step. A steeper rate that depends on the level itself (more than the whole gap a second)
@@ -457,12 +457,6 @@ Every showcase above came from asking a factory the same few questions. Ask them
   but `awayRate`, which by default drains at `max` an hour, so give a thermostat an `awayRate` that suits it.
 - **An annotator's scope must cover everything `allow` reads.** The memory hands back the same segments for the same
   text and scope. If `allow` depends on something the scope string leaves out, the marks go stale.
-- **`achievements` takes its type arguments as key, effect, state.** The interfaces it is built from, `Achievement<G, E>`
-  and `AchievementsDef<K, G, E>`, put the state before the effect, so writing the arguments out by hand is easy to get
-  backwards. VOID IF REMOVED's `achievements<"pages", Reads, never>` (quoted in chapter 7) sets the effect type to
-  `Reads` and the state type to `never`, and it still compiles, because a function of any state is accepted where a
-  function of `never` is expected. The cost is that `when` is no longer checked against the game's state. Let inference
-  do it: annotate the state on one `when`, as `showcase-latch.ts` does.
 - **A mute silences effects, never flags.** A muted source in the live stat graph still raises its flags. If a
   restriction should also take away what a source unlocks, the rule has to say so where the flag is read.
 
@@ -478,7 +472,7 @@ That is the end of the guide. The [glossary](glossary.md) defines every term it 
 - Upgrade trees and prices: [upgrade-tree.md](upgrade-tree.md), `api/core/tree.d.ts`, `api/core/graph/nodes.d.ts`
   (`NodeCost`, `rankCost`)
 - Buffs and spawns: [buffs.md](buffs.md), [spawns.md](spawns.md), `api/core/buffs.d.ts`, `api/core/spawns.d.ts`
-- Gauges: the Gauges section of the [README](../README.md#gauges), `api/core/gauge.d.ts`
+- Gauges: [gauge.md](gauge.md), `api/core/gauge.d.ts`
 - Shaders: [shader.md](shader.md), `api/shader/canvas.d.ts`
 - Achievements and marked text: [achievements.md](achievements.md), `api/core/achievements.d.ts`,
   `api/core/annotate.d.ts`

@@ -3,37 +3,15 @@
 In chapter 2 you built Simmer and watched the pot fill. This chapter names every part of what you built, so the rest
 of the guide can use those names without stopping to explain them. By the end you will know what a feature is, how
 the store is made from features, what happens in one tick and in what order, how the engine tells time, and where a
-reset and a save fit in. Along the way you will add a lid to Simmer that reaches into the stove.
+reset and a save fit in.
 
-Everything here is in one file you can run: `docs/examples/guide-mental-model.ts`. It rebuilds Simmer's pot and
-stove so it stands on its own, then adds the lid. Two things differ from chapter 2's
-[`game.ts`](../examples/simmer/game.ts): the pot makes nothing by itself, so every bubble after your taps comes from
-a burner, and the pot can be lifted off the stove, which a later section needs.
+Along the way your Simmer grows. The stove learns to work out its rate before it pays, to pay less for time away,
+and to be switched off; and a new feature, a lid, makes the stove work twice as hard. The last section lists every
+change to your `game.ts` in one place, so you can read first and type after, or type as you go.
 
-So this chapter is something to read and run, not a change to type into your chapter 2 files. Keep your `game.ts` as
-it is; the ideas here carry over to it unchanged, and chapter 4 picks Simmer up again. If you do want the lid in your
-own game, the stove has to change shape first: its rate becomes a [transient](../glossary.md#transient) number worked
-out in a `rates` step, and two steps in `produce` pay it out, one for play and one for time away. The sections below
-build exactly that, one piece at a time.
-
-The example declares four small helpers at the top, and the snippets below use them:
-
-```ts
-/** The price of the next burner, as chapter 2 set it: 10 bubbles, 15% more each, rounded up. */
-const burnerPrice = (owned: number): Decimal => costAt({ base: 10, growth: 1.15, round: "ceil" }, owned);
-const heatOf = (owned: number): Decimal => D(owned);
-
-/** How much of an absence the stove pays for, and for how long at most. */
-const OFFLINE_RATE = 0.5;
-const AWAY_CAP_MS = 2 * 60 * 60 * 1000;
-```
-
-<sub>`docs/examples/guide-mental-model.ts`</sub>
-
-`burnerPrice` is chapter 2's `burnerPrice`. `heatOf` is the stove's rate for a number of burners, one bubble a
-second each. If you fold the lid into your own game, add chapter 2's simmer of one a second inside `heatOf`, so the
-rate includes it. `OFFLINE_RATE` and `AWAY_CAP_MS` say how time away is paid:
-half the live rate, for two hours at most.
+The runnable copy of this chapter's Simmer is [`docs/examples/guide-mental-model.ts`](../examples/guide-mental-model.ts).
+It imports chapter 2's pot and burner price from [`docs/examples/simmer/game.ts`](../examples/simmer/game.ts), adds
+the new stove and the lid, and plays a few seconds on a fake clock:
 
 ```sh
 bun docs/examples/guide-mental-model.ts
@@ -45,49 +23,48 @@ A game in watchpot is a list of [features](../glossary.md#feature). A feature is
 place: the state it saves, the things a player can do to it, and what it does as time passes. Simmer's pot is a
 feature. So is its stove.
 
-Here is the pot:
+Here is the pot, exactly as you wrote it in chapter 2:
 
 ```ts
-const pot = feature({
+export const pot = feature({
   key: "pot",
-  initial: () => ({ bubbles: ZERO, lifted: false }),
+  initial: () => ({ bubbles: ZERO }),
   actions: (api) => ({
     tap: () =>
       api.set((s) => {
         s.pot.bubbles = s.pot.bubbles.add(1);
       }),
-    lift: () =>
-      api.set((s) => {
-        s.pot.lifted = !s.pot.lifted;
-      }),
   }),
   steps: {
-    // A pot off the stove does not boil: stop the pass before any work phase runs.
-    guard: { lifted: (s) => (s.pot.lifted ? "stop" : undefined) },
+    produce: {
+      // Runs on every live tick and on the catch-up after time away.
+      simmer: (s, ctx) => {
+        s.pot.bubbles = s.pot.bubbles.add((SIMMER_PER_SECOND * ctx.dtMs) / 1000);
+      },
+    },
   },
 });
 ```
 
-<sub>`docs/examples/guide-mental-model.ts`</sub>
+<sub>`docs/examples/simmer/game.ts`</sub>
 
 Line by line:
 
 - `key: "pot"` is the name the feature's state is stored and saved under. It is written out by hand, never worked out
   from the feature's position in a list, so that reordering your features never breaks a save. A key cannot contain a
   dot, and `clock` is taken (more on that below).
-- `initial` returns the state a brand-new player starts with: no bubbles, pot on the stove. The engine calls it more
-  often than you might think (once when the game is defined, again on every reset), so keep it cheap and keep it free
-  of side effects.
-- `actions` returns the things a player can do: `tap` and `lift`. You will see what `api.set` does in a moment.
-- `steps` says what the feature does as time passes. This one has a single step, in the phase called `guard`. Phases
-  get their own section below.
+- `initial` returns the state a brand-new player starts with. The engine calls it more often than you might think
+  (once when the game is defined, again on every reset), so keep it cheap and keep it free of side effects.
+- `actions` returns the things a player can do: here, `tap`. You will see what `api.set` does in a moment.
+- `steps` says what the feature does as time passes. The pot has one step, `simmer`, in the phase called `produce`.
+  Phases get their own section below.
 
-The state a feature holds is its [slice](../glossary.md#slice). The pot's slice is `{ bubbles, lifted }`. Every
-feature has exactly one slice, under its key.
+The state a feature holds is its [slice](../glossary.md#slice). The pot's slice is `{ bubbles }`. Every feature has
+exactly one slice, under its key.
 
 ## The game and the store
 
-`defineGame` collects the features into a [game](../glossary.md#game):
+`defineGame` collects the features into a [game](../glossary.md#game). With the lid added, Simmer's reads:
 
 ```ts
 export const game = defineGame({
@@ -95,7 +72,7 @@ export const game = defineGame({
   save: { key: "simmer.save", version: 1 },
   features: [pot, stove, lid],
   // The lid's doubling must land after the stove sets the rate. Pinned here, it holds whatever the list order.
-  order: { rates: ["stove.rates.heat", "lid.rates.trap"] },
+  order: { rates: ["stove.rates.flame", "lid.rates.trap"] },
 });
 ```
 
@@ -103,14 +80,16 @@ export const game = defineGame({
 
 The game is only a description. Nothing runs yet. `defineGame` checks the description and throws, naming the
 feature, if something is wrong: two features with one key, a feature that reaches one the game does not list, an
-`order` entry that names a step nobody declares. It also adds one feature you did not write, the clock, under the key
-`clock`. You will meet it later in this chapter.
+action named like a piece of state, or an `order` entry that names a step nobody declares. It also adds one feature
+you did not write, the clock, under the key `clock`. You will meet it later in this chapter.
 
-To play the game you make a [store](../glossary.md#store) from it:
+To play the game you make a [store](../glossary.md#store) from it, as chapter 2's `game.ts` does on its last line:
 
 ```ts
-const store = createIdleStore(game, { now: () => Date.now() });
+export const store = createIdleStore(game, { now: Date.now });
 ```
+
+<sub>`docs/examples/simmer/game.ts`</sub>
 
 The store holds the whole game's state as one object, with each slice under its feature's key:
 `store.getState().pot.bubbles`, `store.getState().stove.burners`. It is a [zustand](https://zustand.docs.pmnd.rs/)
@@ -137,9 +116,9 @@ The store adds a few actions of its own at the top level, beside the features: `
 `resetRun`, `resetProfile`, `exportProfile` and `importProfile`. These are the root actions, and this chapter
 explains most of them. A game can add its own top-level actions with `defineGame({ actions })`.
 
-One thing the engine does not check: if an action has the same name as a field in `initial`, the action silently
-replaces the field. Give actions verb names (`tap`, `buyBurner`) and state noun names (`bubbles`, `burners`) and you will not
-meet this.
+Because actions and state share one object, an action may not share a name with a field of its feature's `initial`,
+and `defineGame` throws if one does. Give actions verb names (`tap`, `buyBurner`) and state noun names (`bubbles`,
+`burners`) and you will not meet it.
 
 ## Drafts and recipes
 
@@ -179,36 +158,32 @@ changed:
 s.pot.bubbles = s.pot.bubbles.add(1);
 ```
 
-Plain numbers and booleans in the draft (`s.stove.burners += 1`, `s.pot.lifted = !s.pot.lifted`) are assignments
-already, so they need no special care.
+Plain numbers and booleans in the draft (`s.stove.burners += 1`, `s.lid.on = !s.lid.on`) are assignments already, so
+they need no special care.
 
 ### An action that returns a value
 
-`api.set` returns nothing, so an action that wants to say whether it worked has to carry the answer out of the recipe
-in a variable. The stove's `buyBurner` does this:
+`api.set` returns whatever the recipe returns. The stove's `buyBurner` uses that to say whether it bought:
 
 ```ts
-buyBurner: (): boolean => {
-  let bought = false;
+buyBurner: () =>
   api.set((s) => {
-    const cost = burnerPrice(s.stove.burners);
-    if (s.pot.bubbles.lt(cost)) return;
-    s.pot.bubbles = s.pot.bubbles.sub(cost);
+    const price = burnerPrice(s.stove.burners);
+    if (s.pot.bubbles.lt(price)) return false;
+    s.pot.bubbles = s.pot.bubbles.sub(price);
     s.stove.burners += 1;
-    bought = true;
-  });
-  return bought;
-},
+    return true;
+  }),
 ```
 
 <sub>`docs/examples/guide-mental-model.ts`</sub>
 
-The recipe runs straight away, inside `api.set`, so `bought` is set by the time the action returns. Returning early
-from a recipe (`if (...) return;`) leaves the draft as it was, which is how a refused purchase changes nothing.
+The recipe runs straight away, inside `api.set`, so the answer is there when the action returns. Returning early from
+a recipe (`return false`) leaves the draft as it was, which is how a refused purchase changes nothing.
 
-One more limit: a recipe cannot call another action. Actions call `api.set`, and a `set` inside a `set` does not
-work. When two actions need the same change, write it once as a plain function that takes the draft, and call that
-function from both recipes.
+A recipe cannot call another action: the engine throws if you try, because the inner change would be lost. When two
+actions need the same change, write it once as a plain function that takes the draft, and call that function from
+both recipes. Chapter 4's wallet is built that way.
 
 ## Reach: one feature touching another
 
@@ -216,10 +191,10 @@ The stove spends the pot's bubbles and pays bubbles back. For that its recipes n
 other features it touches with [`reach`](../glossary.md#reach):
 
 ```ts
-const stove = feature({
+export const stove = feature({
   key: "stove",
   reach: [pot],
-  initial: () => ({ burners: 0, perSecond: ZERO }),
+  initial: () => ({ burners: 0, off: false, perSecond: ZERO }),
   // ...
 });
 ```
@@ -232,13 +207,16 @@ const stove = feature({
    no annotation from you. Without the `reach`, `s.pot` is a type error.
 2. It is checked. If the game lists the stove but not the pot, `defineGame` throws.
 
+The stove's slice has grown two fields since chapter 2: `off`, a switch you will meet under "What stop does", and
+`perSecond`, its rate, which the next sections work out.
+
 `reach` is not transitive. The lid below reaches the stove, and the stove reaches the pot, but the lid's draft has
 no `s.pot`. Each feature lists what it touches itself.
 
 Here is the lid, the new feature this chapter adds. With the lid on, the stove works twice as hard:
 
 ```ts
-const lid = feature({
+export const lid = feature({
   key: "lid",
   reach: [stove],
   initial: () => ({ on: false }),
@@ -290,8 +268,8 @@ context:
 running (the next section). Every step of one tick runs inside a single recipe, so the page sees the whole tick land
 at once, never half of it.
 
-You place a step by writing it under its phase in `steps`, with a name: `steps.rates.heat`. Its id is
-`<feature>.<phase>.<name>`, here `stove.rates.heat`. Ids are how you refer to a step from `order`, and how the engine
+You place a step by writing it under its phase in `steps`, with a name: `steps.rates.flame`. Its id is
+`<feature>.<phase>.<name>`, here `stove.rates.flame`. Ids are how you refer to a step from `order`, and how the engine
 names it in errors.
 
 ### The eight phases
@@ -316,30 +294,41 @@ The order is the point. Rates are worked out before anything is paid, so a purch
 very next payout. Payment happens before automation, so an autobuyer spends this tick's income. Achievements are
 checked last, against the state after everything else has moved.
 
-Simmer's stove follows this:
+In chapter 2 the stove worked out its rate and paid it in one `produce` step. Now it follows the phases: `flame` sets
+the rate in `rates`, and `burn` pays it in `produce`:
 
 ```ts
-steps: {
-  // Both passes: the rate is worked out before anything is paid.
-  rates: {
-    heat: (s) => {
-      s.stove.perSecond = heatOf(s.stove.burners);
+// Both passes: the rate is worked out before anything is paid.
+rates: {
+  flame: (s) => {
+    s.stove.perSecond = flameOf(s.stove.burners);
+  },
+},
+produce: {
+  // Live play pays in full.
+  burn: {
+    pass: "tick",
+    run: (s, ctx) => {
+      s.pot.bubbles = s.pot.bubbles.add(s.stove.perSecond.mul(ctx.dtMs / 1000));
     },
   },
-  produce: {
-    // Live play pays in full.
-    boil: {
-      pass: "tick",
-      run: (s, ctx) => {
-        s.pot.bubbles = s.pot.bubbles.add(s.stove.perSecond.mul(ctx.dtMs / 1000));
-      },
-    },
-    // ...
-  },
+  // ...
 },
 ```
 
 <sub>`docs/examples/guide-mental-model.ts`</sub>
+
+`flameOf` is a small helper beside the stove: the stove's own rate, before anything multiplies it.
+
+```ts
+/** The stove's own rate, in bubbles a second, before anything multiplies it. */
+export const flameOf = (burners: number) => D(burners * BURNER_PER_SECOND);
+```
+
+<sub>`docs/examples/guide-mental-model.ts`</sub>
+
+Splitting the rate from the payment is what lets the lid in: a step that runs between `flame` and `burn` can change
+the rate, and the payment picks the change up.
 
 ### Order inside a phase
 
@@ -349,41 +338,48 @@ Several features can have steps in the same phase. Inside one phase the steps ru
 2. every other step, in the order the features are listed in `features`;
 3. the clock's own steps, last.
 
-That is why the lid needs `order`. Both `stove.rates.heat` and `lid.rates.trap` are in `rates`. `heat` sets the
-rate; `trap` doubles it. If `trap` ran first, `heat` would overwrite the doubled rate and the lid would do nothing.
+That is why the lid needs `order`. Both `stove.rates.flame` and `lid.rates.trap` are in `rates`. `flame` sets the
+rate; `trap` doubles it. If `trap` ran first, `flame` would overwrite the doubled rate and the lid would do nothing.
 With the features listed as `[pot, stove, lid]` the list order happens to be right, but nothing would stop someone
 from tidying the list later. The game pins it:
 
 ```ts
-order: { rates: ["stove.rates.heat", "lid.rates.trap"] },
+order: { rates: ["stove.rates.flame", "lid.rates.trap"] },
 ```
 
+An `order` entry that names a missing feature, a step in another phase, or a step nobody declares makes `defineGame`
+throw, and the message names the feature.
+
 When you want to see the real order, `resolvedSteps(game, pass)` returns every step id a pass runs, in order. The
-example prints it. For a live tick it should read:
+example prints it. For a live tick it reads:
 
 ```text
-pot.guard.lifted, clock.guard.dt, stove.rates.heat, lid.rates.trap, stove.produce.boil, clock.commit.lastSeen
+stove.guard.cold, clock.guard.dt, stove.rates.flame, lid.rates.trap, pot.produce.simmer, stove.produce.burn, clock.commit.lastSeen
 ```
 
 A test that asserts this list is a cheap way to make sure a later change does not reorder your steps by accident.
 
 ### What "stop" does
 
-A step may return the string `"stop"`. The pot's guard does, when the pot has been lifted off the stove:
+A step may return the string `"stop"`. The stove's guard does, when the stove is switched off:
 
 ```ts
-guard: { lifted: (s) => (s.pot.lifted ? "stop" : undefined) },
+// A stove that is off heats nothing: stop the pass before any work phase runs.
+guard: { cold: (s) => (s.stove.off ? "stop" : undefined) },
 ```
 
+<sub>`docs/examples/guide-mental-model.ts`</sub>
+
+The switch is an ordinary action, `toggle`, that flips `s.stove.off`.
+
 `"stop"` from a step in any phase from `guard` to `settle` skips the rest of that phase and every later phase up to
-`settle`. Then `commit` and `after` run anyway. So a lifted pot boils nothing, buys nothing and checks nothing, but
-the clock still records that the time passed. That last part matters: the time the pot spent off the stove is spent.
-It is not owed to the player later.
+`settle`. Then `commit` and `after` run anyway. So with the stove off, nothing is paid (not even the pot's own
+simmer, which is in `produce` too), nothing is bought and nothing is checked, but the clock still records that the
+time passed. That last part matters: the time the stove spent off is spent. It is not owed to the player later.
 
 `"stop"` from a `commit` or `after` step is ignored. A step that returns nothing just carries on.
 
-The clock uses `"stop"` itself. A tick with `dtMs` of 0 (the engine sends one when the tab is hidden, to flush the
-save) is stopped by `clock.guard.dt` and only commits.
+The clock uses `"stop"` itself. A tick with `dtMs` of 0 is stopped by `clock.guard.dt` and only commits.
 
 ## Two passes: the tick and the catch-up
 
@@ -394,8 +390,9 @@ phases once, with `ctx.dtMs` set to the whole gap since the clock last committed
 
 A step can say which pass it belongs to:
 
-- A bare function runs in **both** passes. That suits `rates.heat`: the rate has to be right before anything is paid,
-  whichever pass is paying.
+- A bare function runs in **both** passes. That suits `rates.flame`: the rate has to be right before anything is
+  paid, whichever pass is paying. The pot's `simmer` is bare too, so the pot simmers at its full rate while you are
+  away.
 - `{ pass: "tick", run }` runs only in live ticks.
 - `{ pass: "catchUp", run }` runs only in catch-ups.
 
@@ -414,7 +411,17 @@ away: {
 
 <sub>`docs/examples/guide-mental-model.ts`</sub>
 
-Why not let `boil` run in both passes? Because then a player away for a week is paid for a full week at the live
+with the two numbers it uses declared beside the stove:
+
+```ts
+/** How much of an absence the stove pays for, and for how long at most. */
+export const OFFLINE_RATE = 0.5;
+export const AWAY_CAP_MS = 2 * 60 * 60 * 1000;
+```
+
+<sub>`docs/examples/guide-mental-model.ts`</sub>
+
+Why not let `burn` run in both passes? Because then a player away for a week is paid for a full week at the live
 rate, with no cap. That may be what your game wants, but it should be a choice. Most idle games pay time away at a
 lower rate and up to a limit, which is what `away` does. [Chapter 9](09-saving-and-time-away.md) goes further,
 including games whose growth compounds and cannot be paid with one multiplication.
@@ -443,7 +450,7 @@ all. The sim lab plays a game for days in seconds the same way. The example does
 let wall = 1_000_000;
 const store = createIdleStore(game, {
   now: () => wall,
-  storage: createGameStorage(createMemoryBackend(), { durable: false }),
+  storage: createGameStorage(createMemoryBackend()),
 });
 const play = store.getState;
 
@@ -453,18 +460,24 @@ console.log("bought a burner:", play().stove.buyBurner()); // true: 10 bubbles s
 play().lid.toggle();
 
 wall += 1000;
-play().tick(1000); // one second live: 1 burner, doubled by the lid
+play().tick(1000); // one second live: the pot's 1, plus 1 burner doubled by the lid
 console.log("after a second:", fmt(play().pot.bubbles).text);
 
 wall += 60_000;
-play().catchUp(); // a minute away, paid at half rate
+play().catchUp(); // a minute away: the pot's simmer in full, the stove at half rate
 console.log("after a minute away:", fmt(play().pot.bubbles).text);
+
+play().stove.toggle(); // the stove off: the guard stops every pass
+wall += 1000;
+play().tick(1000);
+console.log("a second with the stove off:", fmt(play().pot.bubbles).text);
 ```
 
 <sub>`docs/examples/guide-mental-model.ts`</sub>
 
-Run it and you should see 2 bubbles after the live second (one burner, doubled) and 62 after the minute away (30
-seconds' worth at the doubled rate, since time away pays half).
+`createMemoryBackend()` keeps the save in memory, so the script touches nothing on disk. Run it and you should see 3
+bubbles after the live second (the pot's 1, plus one burner doubled to 2), 123 after the minute away (the pot's 60 in
+full, plus the stove's 120 paid at half), and still 123 after a second with the stove off.
 
 The store does not use your wall time directly either. It keeps a [game time](../glossary.md#game-time):
 
@@ -502,10 +515,10 @@ It does this, in order:
 1. Runs one `catchUp`, for whatever time passed since the save was last written, and flushes the save.
 2. Starts an interval that fires every 100 ms (`TICK_INTERVAL_MS`) and sends the elapsed time to `tick`. A frame
    longer than a second (`MAX_STEP_MS`) is split into several ticks of at most a second each.
-3. Treats a gap longer than 5 seconds (`AWAY_AFTER_MS`), such as a laptop waking from sleep, as time away and sends
-   it to `catchUp` instead.
-4. When the tab is hidden, stops the interval, sends `tick(0)` and flushes the save. When the tab comes back, sends the
-   hidden time to `catchUp`.
+3. Treats a gap longer than 5 seconds (`AWAY_AFTER_MS`), such as a laptop waking from sleep, as time away: it sends
+   that to `catchUp` instead, and flushes the save.
+4. When the tab is hidden, stops the interval and flushes the save. When the tab comes back, it pays the hidden time
+   the same way: as ticks if it was 5 seconds or less, as a catch-up if it was longer.
 
 It returns a `Clock`; `clock.stop()` stops it. If a tick throws ten times in a row, the clock stops itself and calls
 the `onFail` option, so a broken step does not spin forever.
@@ -536,10 +549,10 @@ saving it would only store a number that could go stale. So the stove lists it a
 [transient](../glossary.md#transient):
 
 ```ts
-initial: () => ({ burners: 0, perSecond: ZERO }),
+initial: () => ({ burners: 0, off: false, perSecond: ZERO }),
 transient: ["perSecond"],
 derive: (s) => {
-  s.stove.perSecond = heatOf(s.stove.burners);
+  s.stove.perSecond = flameOf(s.stove.burners);
 },
 ```
 
@@ -554,16 +567,87 @@ is right before any pass begins. It must be pure: read the state, write the tran
 You can see why the lid has a `derive` too: its doubling is part of `perSecond`, so it has to be applied wherever the
 stove's is. [Chapter 9](09-saving-and-time-away.md) goes into saving in depth.
 
+## Your `game.ts` after this chapter
+
+Open the `game.ts` you wrote in chapter 2 and make four changes. The pot does not change.
+
+1. **Add the stove's numbers and its rate helper** below `burnerPrice`: `OFFLINE_RATE` and `AWAY_CAP_MS` (from "Two
+   passes") and `flameOf` (from "The tick").
+2. **Replace the stove** with this one. Compared with chapter 2's, it has two new fields, `off` and the transient
+   `perSecond`; a second action, `toggle`; and its one `produce` step, `burn`, has become the guard `cold`, the rate
+   step `flame`, and two pass-limited payments, `burn` and `away`. `buyBurner` is unchanged.
+
+   ```ts
+   export const stove = feature({
+     key: "stove",
+     reach: [pot],
+     initial: () => ({ burners: 0, off: false, perSecond: ZERO }),
+     transient: ["perSecond"],
+     derive: (s) => {
+       s.stove.perSecond = flameOf(s.stove.burners);
+     },
+     actions: (api) => ({
+       buyBurner: () =>
+         api.set((s) => {
+           const price = burnerPrice(s.stove.burners);
+           if (s.pot.bubbles.lt(price)) return false;
+           s.pot.bubbles = s.pot.bubbles.sub(price);
+           s.stove.burners += 1;
+           return true;
+         }),
+       toggle: () =>
+         api.set((s) => {
+           s.stove.off = !s.stove.off;
+         }),
+     }),
+     steps: {
+       // A stove that is off heats nothing: stop the pass before any work phase runs.
+       guard: { cold: (s) => (s.stove.off ? "stop" : undefined) },
+       // Both passes: the rate is worked out before anything is paid.
+       rates: {
+         flame: (s) => {
+           s.stove.perSecond = flameOf(s.stove.burners);
+         },
+       },
+       produce: {
+         // Live play pays in full.
+         burn: {
+           pass: "tick",
+           run: (s, ctx) => {
+             s.pot.bubbles = s.pot.bubbles.add(s.stove.perSecond.mul(ctx.dtMs / 1000));
+           },
+         },
+         // Time away pays half, for two hours at most.
+         away: {
+           pass: "catchUp",
+           run: (s, ctx) => {
+             const credited = Math.min(ctx.dtMs, AWAY_CAP_MS) * OFFLINE_RATE;
+             s.pot.bubbles = s.pot.bubbles.add(s.stove.perSecond.mul(credited / 1000));
+           },
+         },
+       },
+     },
+   });
+   ```
+
+   <sub>`docs/examples/guide-mental-model.ts`</sub>
+
+3. **Add the lid** (from "Reach") after the stove.
+4. **Change `defineGame`** to list `[pot, stove, lid]` and pin the order, as in "The game and the store".
+
+`D` was already imported for chapter 2's stove; nothing new is needed from `watchpot/core`. Your save keeps working:
+the new fields are not in it yet, so they start at their `initial` values.
+
+Your page needs no change, and it still runs. Two things on it are not aware of this chapter yet: it has no buttons
+for the lid or the stove's switch, and its rate line, `perSecond(burners)`, does not count the lid. That is fine for
+now; to try them, run the example. [Chapter 6](06-the-first-page.md) builds the page properly.
+
 ## Things that bite
 
 - **Forgetting to reassign a Decimal.** `s.x.add(1)` alone does nothing and raises nothing, because Decimals never
   change. Always `s.x = s.x.add(1)`.
 - **A bare step runs in both passes.** A `produce` step without `pass: "tick"` pays time away at the full live rate
   with no cap. Decide on purpose.
-- **A short hide counts as time away.** When the tab comes back, `startGameClock` sends the whole hidden time to
-  `catchUp`, even if it was two seconds of switching windows. So a catch-up rate below the live rate also applies to a
-  quick switch between tabs, not only to a closed game. Keep that in mind when you set an offline rate; chapter 9
-  returns to it.
 - **The clock's steps run last in their phase.** So your `guard` steps run before the clock refuses a zero-length
   tick, and on a catch-up with no gap your `produce` steps run with `dtMs` 0 before the clock stops the pass. Write
   steps that do nothing when `dtMs` is 0 (multiplying by it does that for you) and do not count on a guard of your own
@@ -576,7 +660,7 @@ stove's is. [Chapter 9](09-saving-and-time-away.md) goes into saving in depth.
 ## Next
 
 [Chapter 4, Words and numbers](04-words-and-numbers.md): Decimals properly, formatting numbers for a player, and
-naming your currencies once so the whole game agrees on them.
+naming your currencies once so the whole game agrees on them. Simmer's bubbles move into a wallet.
 
 ## Reference
 
