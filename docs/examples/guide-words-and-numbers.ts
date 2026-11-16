@@ -5,7 +5,17 @@
  * Run it with `bun docs/examples/guide-words-and-numbers.ts`: it prints a few Decimals, the printers, and the
  * wallet before and after a reset.
  */
-import { D, defineCurrencies, fmt, fmtFull, formatter, take } from "watchpot/core";
+import {
+  D,
+  type Decimal,
+  defineCurrencies,
+  fmt,
+  fmtFull,
+  formatter,
+  NOTATIONS,
+  type Notation,
+  take,
+} from "watchpot/core";
 import { game, scriptStore, WORDS } from "./simmer/game-wallet";
 
 // ---------------------------------------------------------------------------------------------------------------
@@ -44,6 +54,42 @@ export function printing(): void {
   console.log(say.rate(2.5)); // "2.5/s"
   console.log(say.times(3.2)); // "×3.20"
   console.log(say.counted(1, ["bubble", "bubbles"])); // "1 bubble"
+}
+
+// ---------------------------------------------------------------------------------------------------------------
+// The getting-started pages: a number too big for JavaScript, and a number printed for a player
+
+/** How many zeros: the two numbers below are ten to this power. */
+export const ZEROS = 300;
+
+/** Ten to the power of ZEROS, made twice: as a JavaScript number, and as a Decimal. */
+export function tenToThe() {
+  const plain = 10 ** ZEROS; // a JavaScript number: Infinity past about 1.8e308
+  const decimal = D(10).pow(ZEROS); // a Decimal: carries on far past that
+  return { plain, decimal };
+}
+
+/** Whether a balance covers a price. */
+export function covers(balance: Decimal, price: Decimal): boolean {
+  return balance.gte(price);
+}
+
+/** Bubbles in the pot, to print for the player: 1.52 million. */
+export const BUBBLES = D("1.52e6");
+
+/** The notation the player picked in the game's settings. */
+export const NOTATION: Notation = "suffix";
+
+/** The bubbles as the player reads them, and every digit of them. */
+export function onScreen() {
+  const shown = fmt(BUBBLES, { notation: NOTATION }); // the text, and its parts
+  const exact = fmtFull(BUBBLES); // every digit, never a suffix
+  return { shown, exact };
+}
+
+/** The same bubbles in each notation a game can offer its player. */
+export function everyNotation() {
+  return NOTATIONS.map((notation) => ({ notation, text: fmt(BUBBLES, { notation }).text }));
 }
 
 // ---------------------------------------------------------------------------------------------------------------

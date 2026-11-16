@@ -60,8 +60,9 @@ function docAbove(lines: string[], at: number): number {
 }
 
 /**
- * Where a named piece of `text` is. `path` is a top-level symbol (`pot`, `BURNER_COST`, `perSecond`) or `*` for the
- * whole file, then optionally ` > key > key` for an entry nested in it (`pot > actions`). A top-level symbol brings its
+ * Where a named piece of `text` is. `path` is a top-level symbol (`pot`, `BURNER_COST`, `perSecond`, a name a
+ * top-level destructuring binds, or a function a top-level statement calls: `mountGame`) or `*` for the whole file,
+ * then optionally ` > key > key` for an entry nested in it (`pot > actions`). A top-level symbol brings its
  * doc comment with it; a nested key does not unless `doc` is true.
  */
 export function findPiece(text: string, path: string, options: { doc?: boolean } = {}): Range {
@@ -70,10 +71,16 @@ export function findPiece(text: string, path: string, options: { doc?: boolean }
   if (!symbol) throw new SourceError(`an empty piece name`);
   const lines = text.split("\n");
   const starts = lineStarts(text);
+  const name = escapeRe(symbol);
   const declare = new RegExp(
-    `^(?:export\\s+)?(?:default\\s+)?(?:declare\\s+)?(?:async\\s+)?(?:const|let|var|function\\*?|class|type|interface|enum)\\s+${escapeRe(symbol)}\\b`,
+    `^(?:export\\s+)?(?:default\\s+)?(?:declare\\s+)?(?:async\\s+)?(?:const|let|var|function\\*?|class|type|interface|enum)\\s+${name}\\b`,
   );
+  // A name bound by destructuring (`const { useGameState } = …`), or a top-level call (`mountGame(store, …)`).
+  const destructured = new RegExp(`^(?:export\\s+)?(?:const|let|var)\\s+\\{[^}]*\\b${name}\\b[^}]*\\}\\s*=`);
+  const called = new RegExp(`^(?:await\\s+)?${name}\\(`);
   let first = lines.findIndex((line) => declare.test(line));
+  if (first < 0) first = lines.findIndex((line) => destructured.test(line));
+  if (first < 0) first = lines.findIndex((line) => called.test(line));
   if (first < 0) throw new SourceError(`no top-level \`${symbol}\` in the file`);
   let last = blockEnd(lines, first, 0);
   let docFirst = docAbove(lines, first);

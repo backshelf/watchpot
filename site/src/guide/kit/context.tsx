@@ -32,12 +32,13 @@ export function useSnapshot(): Snapshot {
 
 /**
  * The example's exports, for a panel that reads its helpers: `useExample<typeof import("…/simmer/game")>()` types
- * them without importing the example (a type-only import runs nothing). Fresh after every rebuild.
+ * them without importing the example (a type-only import runs nothing). Fresh after every rebuild. `file` reads
+ * another example module the game loaded (`"simmer/game.ts"` from a page that runs `simmer/main.tsx`).
  */
-export function useExample<T = Record<string, unknown>>(): T {
+export function useExample<T = Record<string, unknown>>(file?: string): T {
   const { host } = useGuide();
   useSnapshot();
-  return host.exports() as T;
+  return host.exports(file) as T;
 }
 
 /**

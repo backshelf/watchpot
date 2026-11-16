@@ -9,15 +9,19 @@ import { useGuide, useSnapshot, useView } from "./context";
  */
 export function Panel({ title, children }: { title: ReactNode; children: ReactNode }) {
   const { clock } = useSnapshot();
-  const { data } = useGuide();
+  const { data, page } = useGuide();
+  // An example that is no game has no clock to show.
+  const game = page.game.store !== false;
   return (
-    <section className="panel" aria-label="The game on this page">
+    <section className="panel" aria-label={game ? "The game on this page" : "The example on this page"}>
       <header className="panel__bar">
         <span className="panel__title">{title}</span>
-        <span className="panel__state" data-running={clock ? "" : undefined}>
-          <span className="panel__lamp" aria-hidden="true" />
-          {clock ? "Running" : "Stopped"}
-        </span>
+        {game ? (
+          <span className="panel__state" data-running={clock ? "" : undefined}>
+            <span className="panel__lamp" aria-hidden="true" />
+            {clock ? "Running" : "Stopped"}
+          </span>
+        ) : null}
       </header>
       <div className="panel__body">{children}</div>
       <footer className="panel__foot">
@@ -126,19 +130,37 @@ export function ClockSwitch() {
   );
 }
 
-const AWAY_STOPS = [60_000, 10 * 60_000, 3_600_000, 4 * 3_600_000, 12 * 3_600_000, 24 * 3_600_000];
+const HOUR = 3_600_000;
+const AWAY_STOPS = [60_000, 10 * 60_000, HOUR, 4 * HOUR, 12 * HOUR, 24 * HOUR];
+const AWAY_TO_A_WEEK = [...AWAY_STOPS, 3 * 24 * HOUR, 7 * 24 * HOUR];
+
+/** A length of time away, as a person says it: `4h 00m` under a day, then days, then a week. */
+function howLong(ms: number): string {
+  const days = ms / (24 * HOUR);
+  if (days < 1) return fmtPlayed(ms);
+  if (days === 7) return "a week";
+  return days === 1 ? "a day" : `${days} days`;
+}
 
 /**
- * Sends the reader away: a choice of how long, and a button that moves the page's clock forward by it and lets the
- * engine pay for the gap the way it does when a player reopens the game. `paid` reads what the absence made.
+ * Sends the reader away: a choice of how long (a minute to a day, or to a week with `week`), and a button that moves
+ * the page's clock forward by it and lets the engine pay for the gap the way it does when a player reopens the game.
+ * `measure` reads what the absence made.
  */
-export function Away<S = Record<string, unknown>>({ measure }: { measure?: (state: S) => number }) {
+export function Away<S = Record<string, unknown>>({
+  measure,
+  week = false,
+}: {
+  measure?: (state: S) => number;
+  week?: boolean;
+}) {
   const { host } = useGuide();
   const { away } = useSnapshot();
+  const stops = week ? AWAY_TO_A_WEEK : AWAY_STOPS;
   const [stop, setStop] = useState(2);
   const [before, setBefore] = useState<number | null>(null);
   const id = useId();
-  const ms = AWAY_STOPS[stop] ?? 3_600_000;
+  const ms = stops[stop] ?? HOUR;
   const after = useView((measure ?? (() => 0)) as (state: Record<string, unknown>) => number);
   const made = before === null || !measure ? null : after - before;
   return (
@@ -148,17 +170,17 @@ export function Away<S = Record<string, unknown>>({ measure }: { measure?: (stat
           Be away for
         </label>
         <output className="num away__ms" htmlFor={id}>
-          {fmtPlayed(ms)}
+          {howLong(ms)}
         </output>
         <input
           id={id}
           className="control__slider"
           type="range"
           min={0}
-          max={AWAY_STOPS.length - 1}
+          max={stops.length - 1}
           step={1}
           value={stop}
-          aria-valuetext={fmtPlayed(ms)}
+          aria-valuetext={howLong(ms)}
           onChange={(e) => setStop(Number(e.currentTarget.value))}
         />
         <button
@@ -174,7 +196,7 @@ export function Away<S = Record<string, unknown>>({ measure }: { measure?: (stat
       </div>
       {away ? (
         <p className="away__note" role="status">
-          Back after {fmtPlayed(away.ms)}.
+          Back after {howLong(away.ms)}.
           {made !== null ? <> The time away paid {fmt(Math.max(0, made)).text}.</> : null}
         </p>
       ) : null}
@@ -182,14 +204,64 @@ export function Away<S = Record<string, unknown>>({ measure }: { measure?: (stat
   );
 }
 
-/** The save as the engine wrote it: its text, as it stands in storage now. */
-export function SaveText() {
+/**
+ * The save as the engine wrote it: its text, as it stands in storage now. `open` shows it from the start; each
+ * Decimal's tag (`{"$d": "…"}`) is marked.
+ */
+export function SaveText({ open = false }: { open?: boolean }) {
   const { saved } = useSnapshot();
   return (
-    <details className="savetext">
+    <details className="savetext" open={open}>
       <summary className="panel__label">The save, as stored</summary>
-      <pre className="savetext__body num">{saved ? pretty(saved) : "Nothing saved yet."}</pre>
+      <pre className="savetext__body num">
+        {saved
+          ? pretty(saved)
+              .split(/("\$d": "[^"]*")/)
+              .map((part, i) =>
+                i % 2 === 1 ? (
+                  <mark key={i} className="savetext__tag">
+                    {part}
+                  </mark>
+                ) : (
+                  part
+                ),
+              )
+          : "Nothing saved yet."}
+      </pre>
     </details>
+  );
+}
+
+/**
+ * Reloads the game as the browser would: the store writes its save as the page goes, and a new store reads it.
+ * `measure` reads a figure to compare before and after.
+ */
+export function Reload<S = Record<string, unknown>>({ measure }: { measure: (state: S) => number }) {
+  const { host } = useGuide();
+  const { build } = useSnapshot();
+  const now = useView(measure as (state: Record<string, unknown>) => number);
+  const [before, setBefore] = useState<{ value: number; build: number } | null>(null);
+  const came = before && build > before.build ? before : null;
+  return (
+    <div className="away">
+      <div className="panel__row">
+        <button
+          type="button"
+          className="button"
+          onClick={() => {
+            setBefore({ value: now, build });
+            host.reload?.();
+          }}
+        >
+          Reload the game
+        </button>
+      </div>
+      {came ? (
+        <p className="away__note" role="status">
+          A new store read the save: {fmt(came.value).text} before the reload, {fmt(now).text} now.
+        </p>
+      ) : null}
+    </div>
   );
 }
 

@@ -73,14 +73,16 @@ export class WorkerHost implements GameHost {
     private readonly original: string,
   ) {
     this.history = [original];
-    this.clockOn = options.clock;
-    const first = fresh(options.modules, {});
+    this.clockOn = options.clock === true;
+    const first = fresh(options.modules, {}, options);
     this.initial = first.snapshot;
     this.made = first.exports;
     this.snap = this.initial;
   }
 
   exports = () => this.made;
+
+  mounted = () => null;
 
   snapshot = () => this.snap;
 

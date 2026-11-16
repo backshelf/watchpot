@@ -3,7 +3,7 @@
 import { type MouseEvent, type PointerEvent, type ReactNode, useRef } from "react";
 import { useTooltip } from "watchpot/ui";
 import { useGuide } from "./context";
-import type { ParamDef } from "./page";
+import type { ParamDef, Run } from "./page";
 import type { ParamValue } from "./run";
 
 /**
@@ -58,8 +58,20 @@ export function written(def: ParamDef, value: ParamValue): string {
   if (def.kind === "choice") return def.options[Number(value)]?.code ?? "";
   const n = Number(value);
   if (def.code) return def.code(n);
+  if (def.log) return String(n);
   const decimals = (String(def.step).split(".")[1] ?? "").length;
   return n.toFixed(decimals);
+}
+
+/** A line's runs, with the runs of one control's token gathered: a plain run alone, a token's runs together. */
+function groups(line: Run[]): Run[][] {
+  const out: Run[][] = [];
+  for (const run of line) {
+    const last = out[out.length - 1];
+    if (run[2] && last?.[0]?.[2] === run[2]) last.push(run);
+    else out.push([run]);
+  }
+  return out;
 }
 
 /**
@@ -81,15 +93,21 @@ export function Code({ id, caption }: { id: string; caption?: ReactNode }) {
         <code>
           {code.lines.map((line, i) => (
             <span className="line" key={i}>
-              {line.map(([text, colour, param], j) => {
-                const style = code.palette[colour] ? { color: code.palette[colour] } : undefined;
+              {groups(line).map((group, j) => {
+                const [first] = group;
+                const param = first?.[2];
                 if (!param) {
+                  const [text = "", colour = 0] = first ?? [];
+                  const style = code.palette[colour] ? { color: code.palette[colour] } : undefined;
                   return (
                     <span key={j} style={style}>
                       {text}
                     </span>
                   );
                 }
+                // A token the highlighter split into several runs is one value: shown once, in its own colours
+                // while it is the file's.
+                const text = group.map(([t]) => t).join("");
                 const def = defs[param];
                 const value = params[param];
                 const now = def && value !== undefined ? written(def, value) : text;
@@ -100,7 +118,16 @@ export function Code({ id, caption }: { id: string; caption?: ReactNode }) {
                     data-changed={now !== text ? "" : undefined}
                     title={def?.label}
                   >
-                    {now}
+                    {now !== text
+                      ? now
+                      : group.map(([t, colour], k) => (
+                          <span
+                            key={k}
+                            style={code.palette[colour] ? { color: code.palette[colour] } : undefined}
+                          >
+                            {t}
+                          </span>
+                        ))}
                   </span>
                 );
               })}

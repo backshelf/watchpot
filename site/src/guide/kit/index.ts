@@ -2,6 +2,7 @@
 export { CodeBox } from "./codebox";
 export { useExample, useSnapshot, useView } from "./context";
 export { Controls } from "./controls";
+export { ExamplePage } from "./example-page";
 export { choice, definePage, type PageDef, slider, stepper } from "./page";
 export {
   Act,
@@ -11,9 +12,11 @@ export {
   Panel,
   Readout,
   Readouts,
+  Reload,
   SaveText,
   StartOver,
   StateTree,
   Value,
 } from "./panel";
 export { Code, Note, Term, Try } from "./prose";
+export { SaveStrip, TickLength, TickStrip } from "./timeline";

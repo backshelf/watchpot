@@ -6,7 +6,15 @@ import { readFileSync } from "node:fs";
 import { join } from "node:path";
 import { transform } from "sucrase";
 import { createGameStorage, createMemoryBackend, D } from "watchpot/core";
-import { defaultsFor, editFor, exampleFiles, listing, modulesFor, paramSite } from "../src/guide/data";
+import {
+  defaultsFor,
+  editFor,
+  exampleFiles,
+  listing,
+  modulesFor,
+  paramFile,
+  paramSite,
+} from "../src/guide/data";
 import { parseGlossary } from "../src/guide/glossary";
 import { fresh, harness } from "../src/guide/kit/host";
 import { liteTokens } from "../src/guide/kit/lite-highlight";
@@ -54,7 +62,7 @@ describe("each getting-started page", () => {
         function rangeOf(name: string): [number, number] {
           const def = page.params?.[name];
           if (!def) throw new Error(`no param ${name}`);
-          const r = paramSite(files.read(page.game.file), def).range;
+          const r = paramSite(files.read(paramFile(def, page.game.file)), def).range;
           return [r.start, r.end];
         }
       });
@@ -63,11 +71,11 @@ describe("each getting-started page", () => {
         const params = page.params ?? {};
         const modules = modulesFor(files, page.game.file, params);
         const defaults = defaultsFor(files, page);
-        expect(() => fresh(modules, defaults)).not.toThrow();
+        expect(() => fresh(modules, defaults, page.game)).not.toThrow();
         for (const [name, def] of Object.entries(params)) {
           const values = def.kind === "choice" ? def.options.map((_, i) => i) : [def.min, def.max];
           for (const value of values)
-            expect(() => fresh(modules, { ...defaults, [name]: value })).not.toThrow();
+            expect(() => fresh(modules, { ...defaults, [name]: value }, page.game)).not.toThrow();
         }
       });
 
@@ -152,6 +160,45 @@ describe("the button page's suggested edits", () => {
   });
 });
 
+/** A page's example, run as the panel runs it, with some of its controls moved. */
+function runPage(prefix: string, values: Record<string, number> = {}) {
+  const entry = pages.find((p) => p.slug.startsWith(prefix));
+  if (!entry) throw new Error(`no page ${prefix}`);
+  const { page } = entry;
+  const modules = modulesFor(files, page.game.file, page.params ?? {});
+  return fresh(modules, { ...defaultsFor(files, page), ...values }, page.game);
+}
+
+describe("what the pages show still holds", () => {
+  test("the Decimal page: >= says a balance of 9 covers 10, gte does not", () => {
+    const covers = (compare: number) =>
+      (runPage("08-", { compare }).exports.covers as (a: unknown, b: unknown) => boolean)(D(9), D(10));
+    expect(covers(0)).toBe(false);
+    expect(covers(1)).toBe(true);
+  });
+
+  test("the Decimal page: past 308 zeros the number gives up and the Decimal does not", () => {
+    const tenToThe = runPage("08-", { zeros: 309 }).exports.tenToThe as () => {
+      plain: number;
+      decimal: unknown;
+    };
+    const { plain, decimal } = tenToThe();
+    expect(plain).toBe(Infinity);
+    expect(String(decimal)).toBe("1e309");
+  });
+
+  test("the printing page: a count is rounded down, and its notation is the player's", () => {
+    const onScreen = (values: Record<string, number>) =>
+      (runPage("09-", values).exports.onScreen as () => { shown: { text: string } })().shown.text;
+    expect(onScreen({ bubbles: 1.529e6 })).toBe("1.52M");
+    expect(onScreen({ bubbles: 1.529e6, notation: 1 })).toBe("1.52e6");
+  });
+
+  test("the page that runs main.tsx mounts its App, and leaving the clock hook out still mounts it", () => {
+    for (const clock of [0, 1]) expect(runPage("05-", { clock }).mount).not.toBeNull();
+  });
+});
+
 describe("finding a piece of an example", () => {
   const text = [
     "/** The pot. */",
@@ -186,6 +233,21 @@ describe("finding a piece of an example", () => {
   test("a one-line entry is its line", () => {
     const r = findPiece(text, "pot > key");
     expect(text.slice(r.start, r.end).trim()).toBe('key: "pot",');
+  });
+
+  test("a name bound by destructuring, or a top-level call, is a piece of one statement", () => {
+    const tsx = [
+      "/** The hooks. */",
+      "const { useA, useB } = make();",
+      "function App() {",
+      "  return null;",
+      "}",
+      "mountGame(store, <App />);",
+    ].join("\n");
+    const hooks = findPiece(tsx, "useB");
+    expect(tsx.slice(hooks.start, hooks.end)).toBe("/** The hooks. */\nconst { useA, useB } = make();");
+    const mount = findPiece(tsx, "mountGame");
+    expect(tsx.slice(mount.start, mount.end)).toBe("mountGame(store, <App />);");
   });
 
   test("a token must be found once, inside its text", () => {

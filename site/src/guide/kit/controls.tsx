@@ -12,11 +12,14 @@ function NumberControl({ name, def }: { name: string; def: NumberParam }) {
   const original = Number(data.defaults[name]);
   const set = (next: number) => {
     const clamped = Math.min(def.max, Math.max(def.min, next));
-    // The step's grid, without float dust (0.1 + 0.2).
+    // The step's grid, without float dust (0.1 + 0.2); a value on powers of ten, to its significant figures.
     const decimals = (String(def.step).split(".")[1] ?? "").length;
-    setParam(name, Number(clamped.toFixed(decimals)));
+    const kept = def.log ? Number(clamped.toPrecision(def.digits ?? 4)) : Number(clamped.toFixed(decimals));
+    setParam(name, kept);
   };
   const shown = written(def, value);
+  // A log slider moves the power of ten.
+  const position = (v: number) => (def.log ? Math.log10(v) : v);
   return (
     <div className="control" data-kind={def.kind} data-changed={value !== original ? "" : undefined}>
       <label className="control__label" htmlFor={id}>
@@ -31,12 +34,15 @@ function NumberControl({ name, def }: { name: string; def: NumberParam }) {
           id={id}
           className="control__slider"
           type="range"
-          min={def.min}
-          max={def.max}
+          min={position(def.min)}
+          max={position(def.max)}
           step={def.step}
-          value={value}
+          value={position(value)}
           aria-valuetext={`${shown}${def.unit ? ` ${def.unit}` : ""}`}
-          onChange={(e) => set(Number(e.currentTarget.value))}
+          onChange={(e) => {
+            const at = Number(e.currentTarget.value);
+            set(def.log ? 10 ** at : at);
+          }}
         />
       ) : (
         <span className="control__stepper">
@@ -120,7 +126,7 @@ function ChoiceControl({ name, def }: { name: string; def: ChoiceParam }) {
         {def.options.map((option, i) => (
           <label key={option.code} className="control__choice">
             <input type="radio" name={id} checked={value === i} onChange={() => setParam(name, i)} />
-            <span>{option.label}</span>
+            <span className="control__face">{option.label}</span>
           </label>
         ))}
       </span>

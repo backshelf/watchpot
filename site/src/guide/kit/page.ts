@@ -5,8 +5,13 @@ import type { Keep } from "./host";
 import type { ModuleSet, ParamValue } from "./run";
 
 /** Where a control's value sits in the example: in piece `at`, the unique text `find`, and `token` inside it. */
-interface Site {
-  /** The piece of the page's game file: a top-level symbol, then ` > key` for an entry inside it. */
+export interface Site {
+  /**
+   * The example file the token is in, under `docs/examples/` (default: the page's game file). It must be the game
+   * file or a file the game file imports.
+   */
+  file?: string;
+  /** The piece of that file: a top-level symbol, then ` > key` for an entry inside it. */
   at: string;
   /** Text that occurs once in the piece and holds the token. */
   find: string;
@@ -19,11 +24,30 @@ export interface NumberParam extends Site {
   label: string;
   min: number;
   max: number;
+  /** The step between values; on a `log` slider, the step of the power of ten. */
   step: number;
+  /**
+   * A slider over powers of ten: it moves the value's exponent, so one slider spans many orders of magnitude. The
+   * value is kept to `digits` significant figures (default 4).
+   */
+  log?: boolean;
+  digits?: number;
   /** A word after the value (`ms`, `bubbles`). */
   unit?: string;
   /** How the value is written in the code (default: the number with the step's decimals). */
   code?: (value: number) => string;
+}
+
+/** One choice of a choice param. */
+export interface ChoiceOption {
+  label: string;
+  /** The code shown where the token was. One option's must be the example's own text. */
+  code: string;
+  /**
+   * The expression that runs when the shown code is not one (a line commented out runs as `undefined`). Default:
+   * `code`.
+   */
+  run?: string;
 }
 
 export interface ChoiceParam extends Site {
@@ -33,7 +57,7 @@ export interface ChoiceParam extends Site {
    * The choices, each an expression put where the token was. One of them must be the example's own text (it is the
    * default); a two-choice param draws as a switch.
    */
-  options: readonly { label: string; code: string }[];
+  options: readonly ChoiceOption[];
 }
 
 export type ParamDef = NumberParam | ChoiceParam;
@@ -55,10 +79,23 @@ export interface CodeDef {
 export interface GameDef {
   /** The example the page runs, under `docs/examples/`. Its `game` export (or the store it makes) is what plays. */
   file: string;
+  /**
+   * False for an example that is not a game (functions a panel calls with `useExample`): its modules run, and no
+   * store is made. Default true.
+   */
+  store?: boolean;
+  /**
+   * The packages the example imports besides `watchpot/core`, as modules (`{ react, "watchpot/react": wpReact }`).
+   * An example that calls `mountGame` is drawn by `<ExamplePage>`; one that calls `useGameClock` runs its own clock.
+   */
+  externals?: Record<string, unknown>;
   /** Where the game is kept between visits (default "local": in this browser, under the page's own name). */
   keep?: Keep;
-  /** Whether the clock ticks when the page opens (default true). */
-  clock?: boolean;
+  /**
+   * Whether the page's clock ticks when the page opens (default true). "example": the example starts its own clock
+   * (`useGameClock` in the page it mounts), so the page starts none and pays for no absence itself.
+   */
+  clock?: boolean | "example";
   /** The clock's interval, ms (default the engine's 100). */
   intervalMs?: number;
   /**

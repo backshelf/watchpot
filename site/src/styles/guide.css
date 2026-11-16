@@ -792,7 +792,7 @@ a.steps__cell:hover {
     color 140ms var(--ease-out);
 }
 
-.control__choice + .control__face {
+.control__choice + .control__choice .control__face {
   border-left: 0;
 }
 
@@ -808,6 +808,14 @@ a.steps__cell:hover {
 
 .control__choice:hover input:not(:checked) + .control__face {
   background: var(--hatch);
+}
+
+/* A choice that is not the file's own: the chosen cell is the reader's value, so it takes the live tone. */
+.control[data-changed] .control__choice input:checked + .control__face,
+.control[data-kind="switch"][data-changed] .control__switch[aria-checked="false"] > .control__switch-off {
+  background: var(--live);
+  color: var(--on-live);
+  box-shadow: inset 0 0 0 1px var(--ink);
 }
 
 /* ---------------------------------------------------------------- the code box */
@@ -1041,6 +1049,435 @@ a.steps__cell:hover {
   padding: 0 0.95rem 0.7rem;
   color: var(--text-faint);
   font-size: 0.75rem;
+}
+
+/* ---------------------------------------------------------------- time on a strip */
+
+/* The last few seconds, oldest on the left and now on the right: hairline seconds, a mark for each event. The newest
+ * mark is the live one. */
+.strip {
+  display: grid;
+  gap: 0.6rem;
+}
+
+.strip__svg {
+  display: block;
+  width: 100%;
+  height: auto;
+  overflow: visible;
+}
+
+.strip__base {
+  stroke: var(--ink);
+  stroke-width: 1;
+}
+
+.strip__second {
+  stroke: var(--rule);
+  stroke-width: 1;
+  stroke-dasharray: 2 3;
+}
+
+.strip__when {
+  fill: var(--ink-soft);
+  font-family: var(--font-mono);
+  font-size: 8.5px;
+}
+
+/* The key to a strip with two kinds of mark: the marks themselves, drawn small, beside their names. */
+.strip__legend {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  color: var(--ink-soft);
+  font-size: var(--step--1);
+}
+
+.strip__key {
+  display: inline-block;
+  flex: none;
+}
+
+.strip__key[data-kind="change"] {
+  width: 0.4rem;
+  height: 0.4rem;
+  border-radius: 50%;
+  background: var(--ink-soft);
+}
+
+.strip__key[data-kind="write"] {
+  width: 0.25rem;
+  height: 0.85rem;
+  margin-left: 0.6rem;
+  background: var(--ink);
+}
+
+.strip__tick {
+  fill: var(--ink);
+}
+
+.strip__tick[data-last] {
+  fill: var(--live);
+  stroke: var(--ink);
+  stroke-width: 0.75;
+}
+
+.strip__change {
+  fill: var(--ink-soft);
+}
+
+.strip__note {
+  color: var(--ink-soft);
+  font-size: var(--step--1);
+  line-height: 1.45;
+}
+
+.strip__note .num {
+  color: var(--ink);
+}
+
+/* The page's clock length: a control in the panel, drawn as the column's are. */
+.ticklength .panel__label {
+  align-self: center;
+}
+
+/* A Decimal in the save, as the save writes it. */
+.savetext__tag {
+  background: transparent;
+  color: var(--ink);
+  box-shadow: inset 0 -0.45em 0 var(--hatch);
+}
+
+/* The steps a pass runs: a row per pass, each step a ruled cell. */
+.passes__list {
+  display: grid;
+  gap: 0.45rem;
+  margin: 0.5rem 0 0;
+}
+
+.passes__row {
+  display: grid;
+  grid-template-columns: 7rem minmax(0, 1fr);
+  align-items: baseline;
+  gap: 0.6rem;
+}
+
+.passes__row dt {
+  color: var(--ink-soft);
+  font-size: var(--step--1);
+}
+
+.passes__row dd {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.3rem;
+  margin: 0;
+}
+
+.passes__step {
+  padding: 0.05rem 0.4rem;
+  border: var(--hair) solid var(--ink);
+  border-radius: 1px;
+  font-size: 0.75rem;
+}
+
+/* ---------------------------------------------------------------- numbers: too big, compared, printed */
+
+.numbers {
+  display: grid;
+  gap: 0.75rem;
+}
+
+.numbers__pair {
+  display: grid;
+  gap: 0.75rem;
+}
+
+.numbers__value {
+  font-size: 1.5rem;
+  letter-spacing: -0.02em;
+}
+
+/* The code a readout shows the result of, beside its name: in its own case, not the lettering's. */
+.readout__code {
+  margin-left: 0.4em;
+  color: var(--ink);
+  font-size: 0.8125rem;
+  font-stretch: 100%;
+  font-weight: 400;
+  letter-spacing: 0;
+  text-transform: none;
+}
+
+/* A number that has given up: ruled through, as anything that cannot be used is. */
+.readout[data-broken] .readout__value {
+  text-decoration: line-through;
+  text-decoration-thickness: 1.5px;
+}
+
+/* The powers of ten from 1 to 1,000 zeros as a scale: past 308, hatched, where a JavaScript number is Infinity. */
+.numbers__scale {
+  position: relative;
+  height: 2.25rem;
+  margin-top: 0.25rem;
+  border: var(--hair) solid var(--ink);
+  background: repeating-linear-gradient(90deg, var(--rule) 0 1px, transparent 1px 10%) var(--paper);
+}
+
+.numbers__beyond {
+  position: absolute;
+  inset: 0 0 0 auto;
+  right: 0;
+  display: flex;
+  align-items: center;
+  padding-left: 0.5rem;
+  background: repeating-linear-gradient(-45deg, var(--rule-strong) 0 1px, transparent 1px 5px)
+    var(--paper-sunk);
+  border-left: 2px solid var(--ink);
+  color: var(--ink-soft);
+  font-size: 0.75rem;
+  line-height: 1.2;
+}
+
+.numbers__beyond-text {
+  padding: 0.1rem 0.3rem;
+  background: var(--paper-sunk);
+}
+
+.numbers__limit {
+  position: absolute;
+  top: -0.35rem;
+  bottom: -0.35rem;
+  width: 0;
+}
+
+/* Where the slider has the zeros: the live mark. */
+.numbers__here {
+  position: absolute;
+  top: -0.3rem;
+  bottom: -0.3rem;
+  width: 0.5rem;
+  margin-left: -0.25rem;
+  background: var(--live);
+  border: var(--hair) solid var(--ink);
+}
+
+.numbers__ticks {
+  position: relative;
+  display: flex;
+  justify-content: space-between;
+  height: 1rem;
+  color: var(--ink-soft);
+  font-size: 0.6875rem;
+}
+
+.numbers__ticks span[style] {
+  position: absolute;
+  translate: -50% 0;
+}
+
+/* A row of balances, each a ruled cell: inked when the comparison said yes, struck through when it was wrong. */
+.covers {
+  display: grid;
+  gap: 0.5rem;
+}
+
+.covers__row {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(1.85rem, 1fr));
+  gap: 3px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.covers__cell {
+  display: grid;
+  place-items: center;
+  height: 1.85rem;
+  border: var(--hair) solid var(--rule-strong);
+  font-size: 0.75rem;
+}
+
+.covers__cell[data-yes] {
+  background: var(--ink);
+  border-color: var(--ink);
+  color: var(--paper);
+}
+
+/* A wrong yes: hatched rather than inked, ringed, and struck through. */
+.covers__cell[data-wrong] {
+  background: repeating-linear-gradient(-45deg, var(--rule-strong) 0 1px, transparent 1px 4px) var(--paper);
+  border: 2px solid var(--ink);
+  color: var(--ink);
+  font-weight: 600;
+  text-decoration: line-through;
+  text-decoration-thickness: 2px;
+}
+
+/* The printed number: big, its suffix set a size down (what the parts are for). */
+.printed {
+  display: grid;
+  gap: 0.35rem;
+}
+
+.printed__text {
+  font-size: clamp(2.25rem, 1.6rem + 2vw, 3rem);
+  font-weight: 450;
+  letter-spacing: -0.03em;
+  line-height: 1.05;
+  overflow-wrap: anywhere;
+}
+
+.printed__suffix {
+  font-size: 0.6em;
+  letter-spacing: 0;
+}
+
+.printed__parts {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  gap: 0.2rem 0.9rem;
+  margin: 0.4rem 0 0;
+  font-size: var(--step--1);
+}
+
+.printed__parts > div {
+  display: contents;
+}
+
+.printed__parts dt {
+  color: var(--ink-soft);
+}
+
+.printed__parts dd {
+  margin: 0;
+  overflow-wrap: anywhere;
+}
+
+.notations__table {
+  width: 100%;
+  margin-top: 0.4rem;
+  border-collapse: collapse;
+  font-size: var(--step--1);
+}
+
+.notations__table th,
+.notations__table td {
+  padding: 0.3rem 0.5rem;
+  border-bottom: var(--hair) solid var(--rule);
+  text-align: left;
+  font-weight: 400;
+}
+
+.notations__table td {
+  text-align: right;
+}
+
+.notations__table tr[data-chosen] th,
+.notations__table tr[data-chosen] td {
+  background: var(--ink);
+  color: var(--paper);
+}
+
+/* ---------------------------------------------------------------- the page an example draws */
+
+/* The example's own markup, which carries no look: a sheet of plain paper in the panel, set in the site's type. */
+.example-page {
+  display: grid;
+  gap: 0.5rem;
+}
+
+.example-page__sheet {
+  padding: 0.9rem 1rem 1rem;
+  background: var(--paper);
+  border: var(--hair) dashed var(--rule-strong);
+  border-radius: 2px;
+}
+
+.example-page__sheet main,
+.example-page__sheet section {
+  display: grid;
+  gap: 0.55rem;
+}
+
+.example-page__sheet main > * + * {
+  padding-top: 0.75rem;
+  border-top: var(--hair) solid var(--rule);
+}
+
+.example-page__sheet h1 {
+  margin: 0;
+  font-family: var(--font-mono);
+  font-size: 1.375rem;
+  font-weight: 450;
+  letter-spacing: -0.02em;
+  line-height: 1.15;
+}
+
+.example-page__sheet p {
+  margin: 0;
+  font-size: var(--step--1);
+}
+
+.example-page__sheet button {
+  justify-self: start;
+  min-height: 2.25rem;
+  padding: 0 0.85rem;
+  background: transparent;
+  border: var(--hair) solid var(--ink);
+  border-radius: 2px;
+  color: var(--ink);
+  font: inherit;
+  font-size: var(--step--1);
+}
+
+.example-page__sheet button:hover:not(:disabled) {
+  background: var(--ink);
+  color: var(--paper);
+}
+
+.example-page__sheet button:active:not(:disabled) {
+  translate: 0 1px;
+}
+
+.example-page__sheet button:disabled {
+  border-style: dashed;
+  color: var(--ink-faint);
+  cursor: default;
+}
+
+.example-page__sheet aside {
+  display: grid;
+  gap: 0.5rem;
+  padding: 0.6rem 0.75rem;
+  background: var(--paper-sunk);
+  border: var(--hair) solid var(--ink);
+}
+
+.example-page__problem {
+  display: grid;
+  gap: 0.45rem;
+  padding: 0.25rem 0 0.1rem 0.9rem;
+  border-left: 3px solid var(--ink);
+  font-size: var(--step--1);
+  line-height: 1.5;
+}
+
+.example-page__title {
+  font-weight: 620;
+  font-size: var(--step-0);
+}
+
+.example-page__summary {
+  color: var(--ink-soft);
+  cursor: pointer;
+}
+
+.example-page__raw {
+  display: block;
+  margin-top: 0.35rem;
+  overflow-wrap: anywhere;
 }
 
 /* ---------------------------------------------------------------- a glossary word */
