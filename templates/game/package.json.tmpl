@@ -15,7 +15,7 @@
     "test:slow": "bun test --pass-with-no-tests --path-ignore-patterns=\"**/node_modules/**\" .slow.test",
     "tokens": "bun design/build-tokens.ts",
     "sim": "bun sim/run.ts",
-    "verify": "bun run typecheck && bun run lint && bun run test:changed",
+    "verify": "bun run typecheck && bun run lint && bun run test:changed && bun test test/decimals.test.ts",
     "gates": "bun run typecheck && bun run lint && bun test && bun run build",
     "gates:full": "bun run gates && bun run test:slow && bun run sim -- --contract"
   },

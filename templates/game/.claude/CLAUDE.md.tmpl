@@ -111,7 +111,8 @@ cannot compile GLSL: a shader counts only once it has drawn in the browser with 
 ## Commands
 
 - `bun run dev` serves the game at http://localhost:3000 (HMR off: refresh; `PORT=<n>` for another port).
-- `bun run verify`: typecheck, lint, the tests the change touches. Green before every commit.
+- `bun run verify`: typecheck, lint, the tests the change touches, and `test/decimals.test.ts` (no two Decimals
+  compared with an operator: use `.lt()`, `.gte()`, `.eq()`). Green before every commit.
 - `bun run gates`: typecheck, lint, every fast test, the build. `bun run gates:full` adds the slow tier and the
   pacing contract.
 - `bun run sim -- [--hours=4] [--seed=sim] [--contract]`: played hours on `activeSchedule`, the contract judged at
