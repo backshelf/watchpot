@@ -81,13 +81,28 @@ export default definePage({
   `Code` (a listing from `code`), `Controls` (the page's controls, or `names` of some), `Try` (a numbered "try it"),
   `Note` (a set-apart note). Plain HTML elsewhere: `<p>`, `<h2>`, `<code>`, and `<pre className="guide-snippet">` for
   code the reader is told to type (not in an example; prove it in `site/test/guide.test.ts` as page 3's is).
-- **Controls.** `slider`, `stepper` (numbers: `min`, `max`, `step`, `unit`, and `code` to write the value),
-  `choice` (expressions put where the token was; two choices draw as a switch, more as a row).
+- **Controls.** `slider`, `stepper` (numbers: `min`, `max`, `step`, `unit`, and `code` to write the value; `log` for
+  a slider over powers of ten, kept to `digits` figures; a token inside quotes, `D("1.52e6")`, is a number too),
+  `choice` (expressions put where the token was; two choices draw as a switch, more as a row; an option's `run` is
+  what runs when its shown `code` is not an expression, as `// useGameClock(store)` runs `undefined`). A control's
+  token may sit in another example file the game imports: give it `file`.
 - **Panel.** `Panel`, `Readouts` / `Readout`, `Value` (a figure inside a button's words), `Actions` / `Act` (an action
   by its path, `ready` lights it when the game would take it), `ClockSwitch`, `Away` (send the reader away for a
-  while; `measure` says what to count), `SaveText`, `StateTree` (`only` some slices), `StartOver`.
+  while; `measure` says what to count, `week` stretches it to a week), `SaveText` (`open`), `StateTree` (`only` some
+  slices), `StartOver`, `Reload` (a new store reads the save, as a reload does).
+- **Time on a strip.** `TickStrip` (each tick of the last three seconds, as tall as what it paid, and what that comes
+  to a second), `TickLength` (how often the page's clock ticks), `SaveStrip` (each change to the state, and each
+  write of the save).
+- **An example's own page.** A page whose example is a React file (`game.file: "simmer/main.tsx"`) passes the
+  packages it imports as `game.externals` (`react`, `react/jsx-runtime`, `watchpot/react`); `<ExamplePage />` draws
+  what its `mountGame` call was handed, under its store, and says in plain words why it stopped if a component
+  throws. With `game.clock: "example"` the page starts no clock of its own: the example's `useGameClock` runs it,
+  pays for time away when it mounts, and lights the panel's lamp.
+- **An example that is not a game.** `game.store: false`: the example's modules run (with the controls' values) and
+  no store is made; the panel calls its functions with `useExample()`.
 - **Hooks.** `useView(select)` for anything else from the state; `useExample<typeof Example>()` for the example's
-  exported helpers (`burnerPrice`), run from the same modules as the game.
+  exported helpers (`burnerPrice`), run from the same modules as the game, or `useExample(file)` for another module
+  it loaded.
 - **Code box.** `game.edit: { at, trial }` and `<CodeBox />` in the body. The reader's version of piece `at` runs in a
   worker: it is transpiled there (sucrase: types stripped, no type checking), run against the real engine, played for a
   second and has each `trial` action pressed once, and only then replaces the running game. A syntax error, a throw or

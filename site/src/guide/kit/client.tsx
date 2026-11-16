@@ -1,6 +1,7 @@
 // A page in the browser: read the data the build put beside the HTML, make the game's host, and hydrate the article
 // the build drew. Each page's own script is this, with its page.
 import { hydrateRoot } from "react-dom/client";
+import { shownInPanel } from "./example-page";
 import { LocalHost } from "./host";
 import type { PageData, PageDef } from "./page";
 import { GuideRoot } from "./shell";
@@ -17,6 +18,8 @@ export function hydrateGuide(page: PageDef) {
     keep: page.game.keep ?? "local",
     clock: page.game.clock ?? true,
     intervalMs: page.game.intervalMs,
+    externals: page.game.externals,
+    store: page.game.store,
   };
   const host = data.edit
     ? new WorkerHost(
@@ -31,5 +34,9 @@ export function hydrateGuide(page: PageDef) {
     : new LocalHost(options, data.defaults);
   hydrateRoot(root, <GuideRoot page={page} data={data} host={host} />, {
     onRecoverableError: (error) => console.warn("guide: hydration", error),
+    // A mistake the page shows on purpose (an example's component that throws) is said in the panel, in plain words.
+    onCaughtError: (error, info) => {
+      if (!shownInPanel(error)) console.error(error, info.componentStack);
+    },
   });
 }

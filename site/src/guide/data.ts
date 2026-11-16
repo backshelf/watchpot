@@ -38,7 +38,10 @@ export function exampleFiles(repoRoot: string): ExampleFiles {
 
 const langOf = (file: string) => posix.extname(file).slice(1) || "ts";
 
-/** The token a param changes, and its default value. */
+/** The example file a param's token is in. */
+export const paramFile = (def: ParamDef, gameFile: string): string => def.file ?? gameFile;
+
+/** The token a param changes, and its default value. `text` is its file's (`paramFile`). */
 export function paramSite(text: string, def: ParamDef): { range: Range; value: ParamValue } {
   const piece = findPiece(text, def.at);
   const range = findToken(text, piece, def.find, def.token ?? def.find);
@@ -48,33 +51,51 @@ export function paramSite(text: string, def: ParamDef): { range: Range; value: P
     if (at < 0) throw new SourceError(`none of the choices is the example's own \`${written}\``);
     return { range, value: at };
   }
-  const value = Number(written);
+  // A number written as a string (`D("1.52e6")`) is a number all the same.
+  const value = Number(quoted(written) ? written.slice(1, -1) : written);
   if (!Number.isFinite(value)) throw new SourceError(`\`${written}\` is not a number`);
   return { range, value };
 }
 
+const quoted = (text: string) => /^(["'`]).*\1$/.test(text);
+
 /** The expression put where a param's token was: its value, read when the example runs. */
 function placeholder(name: string, def: ParamDef): string {
   const read = `__param(${JSON.stringify(name)})`;
-  if (def.kind !== "choice") return read;
+  if (def.kind !== "choice") return quoted(def.token ?? def.find) ? `String(${read})` : read;
   // A choice puts each of its expressions in, picked by the value: each stays code the example can run.
-  return `(${def.options.map((o, i) => `${read} === ${i} ? (${o.code}) : `).join("")}undefined)`;
+  return `(${def.options.map((o, i) => `${read} === ${i} ? (${o.run ?? o.code}) : `).join("")}undefined)`;
 }
 
+/**
+ * An example as JavaScript the page can run: types stripped, imports made `require` calls, JSX for React. The page
+ * imports a module and never runs it as a script, so `import.meta.main` (an example's "run me" block) is false.
+ */
 function toJs(source: string, path: string): string {
   const transforms: ("typescript" | "imports" | "jsx")[] = ["typescript", "imports"];
   if (path.endsWith(".tsx")) transforms.push("jsx");
-  return transform(source, { transforms, filePath: path, production: true, jsxRuntime: "automatic" }).code;
+  const js = transform(source, {
+    transforms,
+    filePath: path,
+    production: true,
+    jsxRuntime: "automatic",
+  }).code;
+  return js.replace(/\bimport\.meta\b/g, "({ main: false })");
 }
 
-/** The example's modules: the page's file with its params made placeholders, and every example file it imports. */
+/**
+ * The example's modules: the page's file and every example file it imports, each with the params whose tokens it
+ * holds made placeholders.
+ */
 export function modulesFor(files: ExampleFiles, main: string, params: Record<string, ParamDef>): ModuleSet {
-  const text = files.read(main);
-  const edits = Object.entries(params).map(([name, def]) => ({
-    range: paramSite(text, def).range,
-    text: placeholder(name, def),
-  }));
-  const js: Record<string, string> = { [main]: toJs(splice(text, edits), main) };
+  const edited = (path: string) => {
+    const text = files.read(path);
+    const edits = Object.entries(params)
+      .filter(([, def]) => paramFile(def, main) === path)
+      .map(([name, def]) => ({ range: paramSite(text, def).range, text: placeholder(name, def) }));
+    return toJs(splice(text, edits), path);
+  };
+  const js: Record<string, string> = { [main]: edited(main) };
   const queue = [main];
   while (queue.length > 0) {
     const path = queue.shift() ?? "";
@@ -90,9 +111,14 @@ export function modulesFor(files: ExampleFiles, main: string, params: Record<str
         }
       });
       if (!found || found in js) continue;
-      js[found] = toJs(files.read(found), found);
+      js[found] = edited(found);
       queue.push(found);
     }
+  }
+  for (const def of Object.values(params)) {
+    const file = paramFile(def, main);
+    if (!(file in js))
+      throw new SourceError(`a control's file, ${file}, is neither ${main} nor one it imports`);
   }
   return { main, js };
 }
@@ -160,8 +186,8 @@ export function listing(
   const shown = keptChars.join("");
   // Which listing offsets each param covers.
   const marks: { start: number; end: number; name: string }[] = [];
-  if (file === gameFile) {
-    for (const [name, p] of Object.entries(params)) {
+  for (const [name, p] of Object.entries(params)) {
+    if (paramFile(p, gameFile) === file) {
       const site = paramSite(text, p).range;
       const hits = keptFrom.flatMap((src, i) => (src >= site.start && src < site.end ? [i] : []));
       if (hits.length > 0) marks.push({ start: hits[0] ?? 0, end: (hits[hits.length - 1] ?? 0) + 1, name });
@@ -223,8 +249,10 @@ export function editFor(files: ExampleFiles, page: PageDef, worker: string): Edi
 
 /** Every value a page's params start at: the example's own. */
 export function defaultsFor(files: ExampleFiles, page: PageDef): Record<string, ParamValue> {
-  const text = files.read(page.game.file);
   return Object.fromEntries(
-    Object.entries(page.params ?? {}).map(([name, def]) => [name, paramSite(text, def).value]),
+    Object.entries(page.params ?? {}).map(([name, def]) => [
+      name,
+      paramSite(files.read(paramFile(def, page.game.file)), def).value,
+    ]),
   );
 }

@@ -54,12 +54,14 @@ export const sourceUrl = (path: string) => `example:///${path}`;
 
 /**
  * Evaluates `set.main` and what it requires, and returns its exports. `params` answers `__param(name)`, the
- * placeholder a page's control put where its token was.
+ * placeholder a page's control put where its token was. `loaded`, when given, collects every module's exports by
+ * path (a page reading a helper from a file its game imports).
  */
 export function runModules(
   set: ModuleSet,
   externals: Externals,
   params: Record<string, ParamValue> = {},
+  loaded: Record<string, Record<string, unknown>> = {},
 ): Record<string, unknown> {
   const done = new Map<string, Record<string, unknown>>();
   const param = (name: string) => {
@@ -85,6 +87,7 @@ export function runModules(
     const code = `${set.js[path] ?? ""}\n//# sourceURL=${sourceUrl(path)}`;
     new Function("require", "exports", "module", "__param", code)(require, exports, module, param);
     done.set(path, module.exports);
+    loaded[path] = module.exports;
     return module.exports;
   };
   if (!(set.main in set.js)) throw new RunError(`no module ${set.main}`);

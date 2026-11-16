@@ -50,6 +50,8 @@ Reference: [autobuyers](autobuyers.md).
 
 ## Backend
 
+**In short:** The place a save's text is kept: in a browser, its local storage.
+
 Where a save's text is kept: anything with `getItem`, `setItem` and `removeItem`. The engine ships
 `localStorageBackend` and `createMemoryBackend`; storage over the memory one is not durable, so `saveStatus` reads
 "unsaved". Taught in [chapter 9](guide/09-saving-and-time-away.md#where-it-writes).
@@ -230,6 +232,8 @@ still loads. Taught in [chapter 9](guide/09-saving-and-time-away.md#a-worked-mig
 
 ## Formatter
 
+**In short:** The game's number printers, set up once with the player's choices, so every number on the page reads the same way.
+
 A set of number printers bound to one set of options, such as the player's chosen notation: `formatter({ notation })`
 returns `num`, `full`, `rate`, `times`, `plus` and `counted`, each returning a string. `full` prints every digit,
 never a suffix, for a headline figure. Taught in
@@ -336,6 +340,8 @@ plays it through the store, and, when the [objective](#objective) cannot see wha
 
 ## Notation
 
+**In short:** How a number too long to read is written short: 1.52M, 1.52e6, or one of three other ways a player can pick.
+
 The way numbers read past the plain range: `suffix` (the default), `scientific`, `engineering`, `letters` or
 `logarithm`. Taught in [chapter 4](guide/04-words-and-numbers.md#one-formatter-for-the-whole-game). Reference:
 [notations](notations.md).
@@ -361,6 +367,8 @@ takes from. Taught in [chapter 11](guide/11-look-and-sound.md#where-recordings-c
 
 ## Pass
 
+**In short:** One run of the game's steps over some time: a tick while the game is open, or the catch-up for time it was closed.
+
 One run of every phase over a stretch of time. There are two kinds: the tick, for live play, and the catch-up, for time
 away. A step can be limited to one with `pass: "tick"` or `pass: "catchUp"`. Taught in
 [chapter 3](guide/03-the-mental-model.md#two-passes-the-tick-and-the-catch-up).
@@ -385,6 +393,8 @@ play. The code names each kind on its own (`autoPlayer`, `FixturePlay`). See [au
 [fixture play](#fixture-play).
 
 ## Phase
+
+**In short:** A stage of every tick, run in a fixed order; income is paid in the one called `produce`.
 
 A named stage of a pass. There are eight, always in this order: `guard`, `sync`, `rates`, `produce`, `automate`,
 `settle`, `commit`, `after`. Every step in one phase runs before any step in the next. Taught in
@@ -515,6 +525,8 @@ day) or a `SessionSchedule` (a lifelike week). Taught in
 
 ## Selector
 
+**In short:** A small function that picks the one value a component shows out of the whole state: `(s) => s.pot.bubbles`.
+
 A small function that picks one value out of the whole state for a component: `(s) => s.wallet.bubbles`. A selector
 that builds a new object or Decimal every time loops forever (a development build warns first); wrap it in
 `useShallow`. Taught in
@@ -577,6 +589,8 @@ then the caps. Introduced in [chapter 3](guide/03-the-mental-model.md#a-first-st
 [chapter 8](guide/08-effects.md). Reference: [stats](stat-graph.md).
 
 ## Step
+
+**In short:** A function a feature runs as time passes, such as the pot's simmer: on every tick it is handed the time that passed.
 
 A function a feature runs on every pass, placed under a phase and given a name: `steps.produce.simmer`. It gets the draft
 and a context with `dtMs`, `now` and `pass`. Taught in [chapter 2](guide/02-your-first-game.md#step-3-the-clock) and

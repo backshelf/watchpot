@@ -121,9 +121,4 @@ store.getState().pot.bubbles;    // what the panel reads`}</code>
       </Note>
     </>
   ),
-  next: {
-    href: "../guide/02-your-first-game.html#step-3-the-clock",
-    title: "Your first game, from step 3: the clock",
-    label: "Continue in the guide",
-  },
 });

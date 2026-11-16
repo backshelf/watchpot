@@ -66,9 +66,11 @@ those pages are the ones the rework is expected to export; check the files befor
 
 - **Idea.** Ten times a second the engine runs every feature's steps for the time that passed. A step that pays
   multiplies its rate by the time, so it pays the same whatever the tick's length.
-- **The reader does.** Slides the tick length (50 ms to 2 s); switches "multiply by the time" off and on.
-- **They see.** Ticks arriving faster or slower (a tick strip) while the rate per second holds; with the multiply off,
-  the rate swing with the tick length. The token `ctx.dtMs / 1000` marked in the code.
+- **The reader does.** Slides the page clock's tick length (50 ms to 1 s: past a second the engine splits a tick in
+  two, which would muddle the strip); switches what each tick pays between the rate times the time and the rate once.
+- **They see.** A strip of the last three seconds with a mark per tick, as tall as what it paid; "paid a second"
+  holding at 1.00 at every tick length, and with the multiply off swinging from 20 (50 ms) to 1 (1 s, right by luck).
+  The token `(SIMMER_PER_SECOND * ctx.dtMs) / 1000` marked in the code. The last tick's real length (98, 104 ms).
 - **Words.** tick, step, phase (one line: `produce` is where income is paid; the others come later).
 - **Teaches.** `simmer/game.ts`: `pot > steps`, `SIMMER_PER_SECOND`.
 
@@ -76,51 +78,66 @@ those pages are the ones the rework is expected to export; check the files befor
 
 - **Idea.** The page is React components that read the store with a hook and call actions on a press. The clock is
   started once, at the top.
-- **The reader does.** Toggles the clock hook off and on; toggles a selector that returns a new object every time
-  (the classic mistake) and sees React stop it.
-- **They see.** The real `Pot` component from the example rendered in the panel.
-- **Words.** selector, hook (plain).
-- **Teaches.** `simmer/main.tsx`: `Pot`, `App`; `createRuntimeHooks`, `useGameState`, `useGameClock`, `mountGame`.
+- **The reader does.** Taps the pot on Simmer's own page; leaves the `useGameClock` call out and puts it back; swaps
+  the pot's selector for `s.pot.bubbles.floor()` (a new Decimal on every call, the classic mistake in its most
+  innocent form) and back.
+- **They see.** The whole of `main.tsx` (`App`, with `Pot` and `Stove`) drawn in the panel by its own components
+  against its own store; the count stop with the hook left out while taps still work; the panel say in plain words
+  that React stopped drawing the page, and why.
+- **Words.** selector; component and hook (plain).
+- **Teaches.** `simmer/main.tsx`: `Pot`, `App`, `mountGame`; the `createRuntimeHooks` line (`useGameState`).
 
 ## 6. Saving, without writing any
 
 - **Idea.** The store saves itself: a second after a change at most, and at once when the page hides. A save is the
   state as text, with a version.
-- **The reader does.** Plays, then presses "reload" (the panel makes a new store over the same storage); "start over"
-  (`clearSave`).
-- **They see.** The save's text update once a second; after a reload, the count come back; a Decimal written as
-  `{"$d": …}`; the clock slice in it.
+- **The reader does.** Plays, then presses "reload" (the panel makes a new store over the same storage); switches the
+  save's `key` to another name and back; stops the clock and taps once; "start over" (`clearSave`).
+- **They see.** A strip of the last five seconds: a dot for every change to the state (ten a second), a bar for every
+  write (one a second, or one a second after a lone tap). The save's text, open, with each Decimal's `{"$d": …}`
+  marked, and the clock slice in it. After a reload, the count come back; under another key, a new game, and the old
+  one back when the key returns.
 - **Words.** save, backend.
-- **Teaches.** `simmer/game.ts`: `game` (`save: { key, version }`).
+- **Teaches.** `simmer/game.ts`: `game` (`save: { key, version }`), `store`; `guide-saving.ts`: `startOver`.
 
 ## 7. Time away: the catch-up
 
 - **Idea.** When the page opens, the engine first pays for the time it was closed, in one pass. Each paying step says
   whether it runs then (`pass`).
-- **The reader does.** Chooses "away for" (a minute to a week) and comes back; switches the stove's payment between
-  `"both"` and `"tick"`.
-- **They see.** The welcome-back line; the stove paying for the absence or not; the code's `pass` token marked.
+- **The reader does.** Chooses "away for" (a minute to a week) and comes back; lights burners with what it paid;
+  switches the stove's `pass` between `"both"`, `"tick"` and `"catchUp"`; closes the tab for a minute for real.
+- **They see.** Simmer's own page in the panel (as on page 5) and its own welcome-back note, `AwayNote`, saying what
+  the absence made; the stove paying for it or not; the engine's own list of the steps each pass runs
+  (`resolvedSteps`), the burn leaving the catch-up's; the code's `pass` token marked.
 - **Words.** catch-up, pass, offline progress (plain).
-- **Teaches.** `simmer/game.ts`: `pot > steps > produce > simmer`; `simmer/main.tsx`: `summarize`, `AwayNote`
-  (`useAwayReport`).
+- **Teaches.** `simmer/game.ts`: `pot > steps > produce > simmer`, `stove > steps > produce > burn`;
+  `simmer/main.tsx`: `summarize`, `AwayNote` (`useAwayReport`).
 
 ## 8. Numbers too big for JavaScript: Decimal
 
 - **Idea.** Idle numbers grow by multiplying and pass JavaScript's limit (about 1.8e308); a Decimal does not. It never
   changes in place and compares with methods.
-- **The reader does.** Slides an exponent from 1 to 1000; toggles comparing with `<` against `.lt()`.
-- **They see.** A plain number turn into `Infinity` past 308 while the Decimal carries on; `<` give the wrong answer.
+- **The reader does.** Slides the zeros from 1 to 1000; switches `covers` between `balance.gte(price)` and
+  `balance >= price`.
+- **They see.** A plain number turn into `Infinity` past 308 (ruled through, on a scale whose far side is hatched)
+  while the Decimal carries on; every balance from 0 to 30 asked whether it covers a price of 10, and with `>=` the
+  balances 2 to 9 wrongly saying yes (JavaScript compares the two as text).
 - **Words.** Decimal.
-- **Teaches.** `guide-words-and-numbers.ts`: `decimals`.
+- **Teaches.** `guide-words-and-numbers.ts`: `ZEROS`, `tenToThe`, `covers` (pieces written for this page), and
+  `decimals` (the habits in one place).
 
 ## 9. Printing a number for a player
 
 - **Idea.** A player reads `1.52M`, not `1520000`. `fmt` prints a number for a person, and rounds down so the screen
   never promises money the player lacks.
-- **The reader does.** Slides a value across thirty orders of magnitude; picks a notation.
-- **They see.** The printed text, its parts (the digits, the suffix), and the same value in each notation.
+- **The reader does.** Slides the bubbles across forty orders of magnitude (a slider over powers of ten, so it also
+  lands on counts like `1.529e6`); picks a notation.
+- **They see.** The printed text with its suffix set smaller, its parts (mantissa, suffix) and every digit
+  (`fmtFull`, up to about 9e15); `1.529e6` printed `1.52M` (it rounds down); plain digits under 100,000, a power of
+  ten past the last suffix; the same value in each notation, the picked one marked.
 - **Words.** notation, formatter.
-- **Teaches.** `guide-words-and-numbers.ts`: `printing`.
+- **Teaches.** `guide-words-and-numbers.ts`: `BUBBLES`, `NOTATION`, `onScreen`, `everyNotation` (written for this
+  page), and `printing` (the formatter and the small printers).
 
 ## 10. Something to buy: a burner and its price
 

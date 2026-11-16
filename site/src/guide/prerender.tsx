@@ -95,7 +95,7 @@ export async function prerender(job: Omit<PrerenderJob, "out">): Promise<Prerend
         next,
       };
       const used = new Set<string>();
-      const host = new StaticHost(fresh(modules, defaults));
+      const host = new StaticHost(fresh(modules, defaults, page.game));
       const html = renderToString(
         <GuideRoot page={page} data={data} host={host} glossary={glossary} used={used} />,
       );
