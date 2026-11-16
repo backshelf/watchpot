@@ -1,10 +1,16 @@
 // Written by /watchpot from .claude/specs/answers.json. It is the game's now: edit it freely.
-import type { BandRow, SessionSchedule } from "watchpot/sim";
+import { activeSchedule, type BandRow, type SessionSchedule } from "watchpot/sim";
 
 /** The session the game is built for: short sessions: a handful a day, about ten minutes each. */
 export const SESSION = "short";
 
-/** How the sim's player comes and goes. */
+/**
+ * How the sim's player plays: at it around the clock, a look every ten seconds and 3 presses at each, so every
+ * hour of the run is a played hour. The pacing contract is judged on this.
+ */
+export const ACTIVE = activeSchedule(10, 3);
+
+/** How a session player comes and goes (`bun run sim -- --sessions`): a second look at the game, never judged. */
 export const SCHEDULE: SessionSchedule = {
   kind: "sessions",
   wakeHour: { min: 7, max: 9 },
@@ -21,18 +27,21 @@ export const SCHEDULE: SessionSchedule = {
   firstDayBonusSessions: 1,
 };
 
-/** The days the contract reads, and how many the sim plays by default. */
-export const CONTRACT_DAYS = [1, 3, 7] as const;
+/** The played hours the contract reads (the first sitting: nobody starts an idle game and goes idle), and how many
+ * the sim plays by default (a day at most). */
+export const CONTRACT_HOURS = [1, 2, 4] as const;
+export const SIM_HOURS = 4;
+/** How many days a session run plays by default. */
 export const SIM_DAYS = 7;
 
 /**
- * The pacing contract: per metric, the [low, high] it should sit in by the end of each contract day. These are the
+ * The pacing contract: per metric, the [low, high] it should sit in at each contract hour of play. These are the
  * design's intent, not a measurement: tune the content until `bun run sim -- --contract` holds them, or move a band
  * on purpose and say why in the commit.
  */
 export const BANDS = [
   ["kinds", [[3, 5], [4, 5], [5, 5]]],
-  ["ranks", [[1, 90], [5, 120], [10, 300]]],
-  ["pulls", [[2, 40], [5, 120], [10, 400]]],
-  ["runs", [[0, 30], [1, 60], [2, 120]]],
+  ["ranks", [[1, 90], [5, 120], [10, 150]]],
+  ["pulls", [[1, 10], [2, 20], [3, 40]]],
+  ["runs", [[0, 40], [1, 80], [2, 120]]],
 ] as const satisfies readonly BandRow<string>[];

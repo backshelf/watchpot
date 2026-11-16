@@ -48,7 +48,7 @@ void main() {
   // interference and the roll bar
   float noise = valueNoise(vec2(uv.y * 60.0, u_time * 0.7));
   float bar = fract(uv.y - u_time * 0.04);
-  float roll = smoothstep(0.0, 0.04, bar) * smoothstep(0.16, 0.04, bar);
+  float roll = smoothstep(0.0, 0.04, bar) * (1.0 - smoothstep(0.04, 0.16, bar));
   float amount = (0.22 + 0.16 * heat);
   // colour: the ground lit toward the accent, per channel, kept low (text sits on this)
   vec3 lit = vec3(

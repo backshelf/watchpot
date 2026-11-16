@@ -1,0 +1,10 @@
+{
+  "name": "Tap Jar",
+  "premise": "A jar on a counter that fills one tap at a time.",
+  "voice": "Short and dry.",
+  "features": ["clicker"],
+  "currencies": { "main": { "name": "Tap" } },
+  "stats": { "output": "Knack", "offline": "Echo" },
+  "clicker": { "name": "Jar", "verb": "Tap", "line": "It rings a little." },
+  "session": "glance"
+}

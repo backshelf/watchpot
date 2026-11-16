@@ -1,13 +1,16 @@
 /**
- * The template's half of `/watchpot`: turns an answers file into a game. It lives with the template, so the content it
- * writes always matches the code it writes into, at whatever engine tag the template came from.
+ * Turns an answers file into a game (`answers.md` beside this file is the schema). It lives with the template, so the
+ * content it writes always matches the code it writes into, at whatever engine tag the template came from. `new.ts`
+ * runs it and then the install; this is the step on its own.
  *
- *   bun .scaffold/generate.ts --answers <answers.json> --out <dir> [--engine v0.3.1] [--mode full|content]
+ *   bun .scaffold/generate.ts --answers <answers.json> --out <dir> [--engine <tag>] [--mode full|content]
  *
- * `full` (default) runs in a copy of the template: it writes the content, drops the files and blocks of the flags not
- * chosen, and renders every `*.tmpl` into its file. `content` only rewrites the content files, for every core and
- * feature at once: that is how the template's own example (the union of everything, which the engine's checks
- * compile and test) is made from `answers.example.json`.
+ * `--engine` defaults to this engine's own version (`v` and its `package.json` version). `full` (default) copies the
+ * template into `--out` when that is empty or missing (a folder holding a copy already is generated in place; the
+ * template itself is refused), writes the content, drops the files and blocks of the flags not chosen, renders every
+ * `*.tmpl` into its file, compiles `src/tokens.css` and formats the result with Biome. `content` only rewrites the
+ * content files, for every core and feature at once: that is how the template's own example (the union of
+ * everything, which the engine's checks compile and test) is made from `answers.example.json`.
  *
  * Flags: the features chosen, the core (`generators` or `dimensions`) and the backdrop's base (`weather`, `print`,
  * `signal` or `cells`). A file whose first line is `// @feature <flag>` is kept only when the flag is chosen (the line
@@ -15,7 +18,7 @@
  * holds; blocks nest, and the marker lines go. `@if a|b` holds when any of them is chosen, `@if !a|b` when none is. In
  * JSX the markers are `{/* @if <f> *\/}` and `{/* @end *\/}`; in CSS, `/* @if <f> *\/` and `/* @end *\/`.
  */
-import { mkdir, readdir, rm } from "node:fs/promises";
+import { cp, mkdir, readdir, rm } from "node:fs/promises";
 import { dirname, join, resolve } from "node:path";
 
 // ---------------------------------------------------------------------------------------------- the answers
@@ -51,8 +54,8 @@ interface WordIn {
 }
 interface FontIn {
   family: string;
-  /** The Google Fonts css2 `family=` value, exactly (`Work+Sans:wght@100..900`). */
-  spec: string;
+  /** The Google Fonts css2 `family=` value, exactly (`Work+Sans:wght@100..900`); none for a font the system has. */
+  spec?: string;
   fallback?: string;
 }
 /** An achievement's condition: exactly one of these keys (`own` takes `count` beside it). */
@@ -75,7 +78,8 @@ export interface Answers {
   features?: string[];
   currencies: { main: WordIn; premium?: WordIn };
   stats: { output: string; offline: string; gain?: string };
-  generators: { name: string; line: string }[];
+  /** Cheapest first; none at all only beside a clicker. */
+  generators?: { name: string; line: string }[];
   clicker?: { name: string; verb: string; line: string };
   tree?: { name: string; nodes: { name: string; line: string; stat: string }[] };
   gacha?: {
@@ -89,12 +93,31 @@ export interface Answers {
   visitor?: { name: string; line: string; buff: { name: string; mult: number; seconds: number } };
   tabs?: Partial<Record<"make" | "tree" | "gacha" | "prestige" | "achievements", string>>;
   session: string;
-  look: {
-    palette: { ground: string; ink: string; signal: string; rarities?: string[] };
-    type: { display: FontIn; ui: FontIn; num: FontIn };
-    surface: { base: string; line: string };
-    moment: string;
+  /** Every part optional: system fonts, the default palette, no backdrop and no moment until the game has its own. */
+  look?: {
+    palette?: { ground?: string; ink?: string; signal?: string; rarities?: string[] };
+    type?: { display?: FontIn; ui?: FontIn; num?: FontIn };
+    surface?: { base: string; line: string };
+    moment?: string;
   };
+}
+
+/** The palette a game gets when its answers name none: ink on paper, a blue signal. */
+export const DEFAULT_PALETTE = { ground: "#f3f1ec", ink: "#16181d", signal: "#2f5fa7" } as const;
+/** The type a game gets when its answers name none: the system's own faces, nothing to download. */
+export const DEFAULT_TYPE = {
+  display: { family: "system-ui", fallback: "sans-serif" },
+  ui: { family: "system-ui", fallback: "sans-serif" },
+  num: { family: "ui-monospace", fallback: "monospace" },
+} as const satisfies Record<"display" | "ui" | "num", FontIn>;
+
+/** The look with every default filled in. */
+export interface Look {
+  palette: { ground: string; ink: string; signal: string; rarities: string[] };
+  type: { display: FontIn; ui: FontIn; num: FontIn };
+  /** The starter backdrop and the sentence every shader answers to; null for a page with no backdrop. */
+  surface: { base: SurfaceId; line: string } | null;
+  moment: string | null;
 }
 
 /** A CSS-ident-safe id: lowercase letters, digits and hyphens. */
@@ -164,8 +187,12 @@ export interface Plan {
   name: string;
   slug: string;
   core: CoreId;
+  /** The core's producers or tiers, cheapest first: none for a game that is its clicker alone. */
+  generators: { name: string; line: string }[];
   features: Set<FeatureId>;
-  surface: SurfaceId;
+  /** The starter backdrop, or null for none. */
+  surface: SurfaceId | null;
+  look: Look;
   main: Word;
   premium: Word | null;
   session: SessionId;
@@ -197,8 +224,11 @@ export function plan(answers: Answers): Plan {
   if (!answers.stats?.output || !answers.stats?.offline) problems.push("stats: name the output and offline stats");
   const n = answers.generators?.length ?? 0;
   const [low, high] = core === "dimensions" ? [4, 8] : [3, 8];
-  if (n < low || n > high)
-    problems.push(`generators: ${low} to ${high} with core "${core}", ${core === "dimensions" ? "lowest tier" : "cheapest"} first (got ${n})`);
+  const clickerAlone = n === 0 && core === "generators" && features.has("clicker");
+  if (!clickerAlone && (n < low || n > high))
+    problems.push(
+      `generators: ${low} to ${high} with core "${core}", ${core === "dimensions" ? "lowest tier" : "cheapest"} first${core === "generators" ? " (or none beside a clicker)" : ""} (got ${n})`,
+    );
   const ids = (answers.generators ?? []).map((g) => slugify(g.name));
   if (new Set(ids).size !== ids.length) problems.push("generators: two share an id (their names slugged)");
   const statOk = (s: string, where: string) => {
@@ -262,24 +292,42 @@ export function plan(answers: Answers): Plan {
   const session = (SESSIONS as readonly string[]).includes(answers.session)
     ? (answers.session as SessionId)
     : (problems.push(`session: one of ${SESSIONS.join(", ")}`), "short");
-  const p = answers.look?.palette;
-  for (const k of ["ground", "ink", "signal"] as const)
-    if (!HEX.test(p?.[k] ?? "")) problems.push(`look.palette.${k}: a #rrggbb colour`);
-  for (const [i, c] of (p?.rarities ?? []).entries())
-    if (!HEX.test(c)) problems.push(`look.palette.rarities[${i}]: a #rrggbb colour`);
-  for (const k of ["display", "ui", "num"] as const)
-    if (!answers.look?.type?.[k]?.family || !answers.look.type[k].spec)
-      problems.push(`look.type.${k}: a Google font's family and css2 spec`);
-  const surface = (answers.look?.surface?.base ?? "") as SurfaceId;
-  if (!(SURFACES as readonly string[]).includes(surface)) problems.push(`look.surface.base: one of ${SURFACES.join(", ")}`);
-  if (!answers.look?.surface?.line) problems.push("look.surface.line: the sentence every shader answers to");
-  if (!answers.look?.moment) problems.push("look.moment: one sentence");
+  const look = readLook(answers.look, problems);
   if (problems.length) throw new Error(`The answers have problems:\n- ${problems.join("\n- ")}`);
-  return { answers, name: answers.name, slug, core, features, surface, main, premium, session, whens };
+  const generators = answers.generators ?? [];
+  const surface = look.surface?.base ?? null;
+  return { answers, name: answers.name, slug, core, generators, features, surface, look, main, premium, session, whens };
 }
 
-/** Every flag the gating reads: the features, the core and the backdrop's base. */
-export const flagsOf = (pl: Plan): Set<string> => new Set<string>([...pl.features, pl.core, pl.surface]);
+/** The look with its defaults, pushing what is wrong with the parts the answers give. */
+function readLook(look: Answers["look"], problems: string[]): Look {
+  const p = look?.palette;
+  const palette = {
+    ground: p?.ground ?? DEFAULT_PALETTE.ground,
+    ink: p?.ink ?? DEFAULT_PALETTE.ink,
+    signal: p?.signal ?? DEFAULT_PALETTE.signal,
+    rarities: p?.rarities ?? [],
+  };
+  for (const k of ["ground", "ink", "signal"] as const)
+    if (!HEX.test(palette[k])) problems.push(`look.palette.${k}: a #rrggbb colour`);
+  for (const [i, c] of palette.rarities.entries())
+    if (!HEX.test(c)) problems.push(`look.palette.rarities[${i}]: a #rrggbb colour`);
+  const type = { ...DEFAULT_TYPE, ...look?.type };
+  for (const k of ["display", "ui", "num"] as const)
+    if (!type[k]?.family) problems.push(`look.type.${k}: a family (with its Google Fonts css2 spec, or none for a system font)`);
+  let surface: Look["surface"] = null;
+  if (look?.surface) {
+    const base = look.surface.base as SurfaceId;
+    if (!(SURFACES as readonly string[]).includes(base)) problems.push(`look.surface.base: one of ${SURFACES.join(", ")}`);
+    if (!look.surface.line) problems.push("look.surface.line: the sentence every shader answers to");
+    surface = { base, line: look.surface.line };
+  }
+  return { palette, type, surface, moment: look?.moment || null };
+}
+
+/** Every flag the gating reads: the features, the core (when it has producers) and the backdrop's base (when there is one). */
+export const flagsOf = (pl: Plan): Set<string> =>
+  new Set<string>([...pl.features, ...(pl.generators.length ? [pl.core] : []), ...(pl.surface ? [pl.surface] : [])]);
 /** Every flag there is: the template's own state, the union of every core, feature and base. */
 export const ALL_FLAGS: ReadonlySet<string> = new Set<string>([...FEATURES, ...CORES, ...SURFACES]);
 
@@ -303,7 +351,10 @@ const ODDS: Record<number, number[]> = {
 const TIER_BASE = [10, 100, 1e4, 1e6, 1e9, 1e13, 1e18, 1e24];
 const TIER_STEP = [1e3, 1e4, 1e5, 1e6, 1e8, 1e10, 1e12, 1e15];
 
-/** The pacing presets: how a session-length answer plays in the sim, and the bands it is held to. */
+/** The presses the sim's player makes at each look when the game has a clicker. */
+const PRESSES = 3;
+
+/** The pacing presets: how a session-length answer plays in the sim's session run (`--sessions`). */
 export const PACING: Record<
   SessionId,
   {
@@ -355,12 +406,13 @@ function tabsOf(pl: Plan) {
  */
 export function contentFiles(pl: Plan, union = false): Record<string, string> {
   const a = pl.answers;
-  const has = (x: FeatureId | CoreId) => union || pl.features.has(x as FeatureId) || pl.core === x;
+  const n = pl.generators.length;
+  // A core with no producers (a clicker alone) writes no file of its own.
+  const has = (x: FeatureId | CoreId) => union || pl.features.has(x as FeatureId) || (pl.core === x && n > 0);
   const out: Record<string, string> = {};
   const rarities = has("gacha") && a.gacha ? a.gacha.rarities.map((r) => r.id ?? slugify(r.name)) : [];
   const currencies = [pl.main, ...(pl.premium ? [pl.premium] : [])];
   const tabs = tabsOf(pl);
-  const n = a.generators.length;
 
   out["src/content/words.ts"] = [
     HEAD,
@@ -410,10 +462,10 @@ export function contentFiles(pl: Plan, union = false): Record<string, string> {
     "/** The tabs' names, one per screen. */",
     `export const TAB_NAMES = ${ts(Object.fromEntries(Object.entries(tabs).filter(([k]) => k === "make" || has(k as FeatureId))))};`,
     "",
-    "/** The starter backdrop this game was scaffolded with (`src/shaders/`); the build writes its own. */",
-    `export const SURFACE = ${ts(pl.surface)};`,
+    "/** The starter backdrop this game was scaffolded with (`src/shaders/`), or none; the build writes its own. */",
+    `export const SURFACE: string | null = ${ts(pl.surface)};`,
     "/** The sentence every shader in the game answers to. */",
-    `export const SURFACE_LINE = ${ts(a.look.surface.line)};`,
+    `export const SURFACE_LINE = ${ts(pl.look.surface?.line ?? "")};`,
     "",
   ].join("\n");
 
@@ -426,7 +478,7 @@ export function contentFiles(pl: Plan, union = false): Record<string, string> {
     "export const OFFLINE_BASE = 0.5;",
     "export const OFFLINE_CAP_MS = 8 * 3_600_000;",
     "/** The income a late game makes a second: where the backdrop's heat reaches 1 (log scale from 1). */",
-    `export const LATE_RATE = ${pl.core === "dimensions" && !union ? "1e30" : `${Number((10 * 12 ** (n - 1)).toPrecision(3))} * 100`};`,
+    `export const LATE_RATE = ${pl.core === "dimensions" && !union ? "1e30" : n ? `${Number((10 * 12 ** (n - 1)).toPrecision(3))} * 100` : "1e3"};`,
     "",
   ].join("\n");
 
@@ -451,7 +503,7 @@ export function contentFiles(pl: Plan, union = false): Record<string, string> {
       "",
       "/** Cheapest first. Each costs twelve times the last; one pays itself back in a minute, the next in two, and so on. */",
       "export const GENERATORS: readonly GeneratorDef[] = [",
-      ...a.generators.map(
+      ...pl.generators.map(
         (g, i) =>
           `  { id: ${ts(slugify(g.name))}, name: ${ts(g.name)}, line: ${ts(g.line)}, cost: { base: ${10 * 12 ** i}, growth: COST_GROWTH, round: "floor" }, rate: ${Number(((10 * 12 ** i) / (60 * 2 ** i)).toPrecision(3))} },`,
       ),
@@ -461,7 +513,7 @@ export function contentFiles(pl: Plan, union = false): Record<string, string> {
   }
 
   if (has("dimensions")) {
-    const tiers = a.generators.slice(0, 8);
+    const tiers = pl.generators.slice(0, 8);
     out["src/content/dimensions.ts"] = [
       "// @feature dimensions",
       HEAD,
@@ -622,7 +674,9 @@ export function contentFiles(pl: Plan, union = false): Record<string, string> {
     const per =
       pl.core === "dimensions" && !union
         ? (TIER_BASE[Math.min(n, 8) - 1] ?? 1e6) * 1e3
-        : 10 * 12 ** (n - 1) * 1000;
+        : n
+          ? 10 * 12 ** (n - 1) * 1000
+          : 1e4;
     out["src/content/prestige.ts"] = [
       "// @feature prestige",
       HEAD,
@@ -655,7 +709,7 @@ export function contentFiles(pl: Plan, union = false): Record<string, string> {
       pulls: "  /** Pull this many times, ever. */\n  | { pulls: number }",
     };
     const whenText = (w: When): string => {
-      if (w.kind === "own") return `{ own: ${ts(slugify(a.generators[w.index ?? 0]?.name ?? ""))}, count: ${w.n} }`;
+      if (w.kind === "own") return `{ own: ${ts(slugify(pl.generators[w.index ?? 0]?.name ?? ""))}, count: ${w.n} }`;
       return `{ ${w.kind}: ${w.n} }`;
     };
     out["src/content/achievements.ts"] = [
@@ -720,28 +774,37 @@ export function contentFiles(pl: Plan, union = false): Record<string, string> {
   // any real shape: its rank and reset bands are held wide, and only the real shapes are held to the design's bands.
   // A dimensions chain compounds faster than a list of producers: the same day holds more ranks and more resets.
   const quick = pl.core === "dimensions" && !union ? 3 : 1;
+  const presses = has("clicker") ? PRESSES : 0;
   const bandRows: string[] = [
-    `  ["kinds", [[${Math.min(3, n)}, ${n}], [${n - 1}, ${n}], [${n}, ${n}]]],`,
+    // A clicker alone has no producers to count: its contract is the balance it presses up.
+    n ? `  ["kinds", [[${Math.min(3, n)}, ${n}], [${n - 1}, ${n}], [${n}, ${n}]]],` : '  ["main", [[2.5, 4], [3, 4.5], [3.25, 5]]],',
     ...(has("tree")
       ? [
           union
-            ? `  ["ranks", [[1, ${rankHigh(90)}], [5, ${rankHigh(120)}], [10, ${rankHigh(300)}]]],`
-            : `  ["ranks", [[1, ${rankHigh(30) * quick}], [5, ${rankHigh(60) * quick}], [10, ${rankHigh(200) * quick}]]],`,
+            ? `  ["ranks", [[1, ${rankHigh(90)}], [5, ${rankHigh(120)}], [10, ${rankHigh(150)}]]],`
+            : `  ["ranks", [[1, ${rankHigh(60) * quick}], [5, ${rankHigh(90) * quick}], [10, ${rankHigh(120) * quick}]]],`,
         ]
       : []),
-    ...(has("gacha") ? ['  ["pulls", [[2, 40], [5, 120], [10, 400]]],'] : []),
+    // The premium drips one pull's worth in an hour, on top of the two the start pays for.
+    ...(has("gacha") ? ['  ["pulls", [[1, 10], [2, 20], [3, 40]]],'] : []),
     ...(has("prestige")
-      ? [union ? '  ["runs", [[0, 30], [1, 60], [2, 120]]],' : `  ["runs", [[0, ${3 * quick}], [1, ${8 * quick}], [2, ${24 * quick}]]],`]
+      ? [union ? '  ["runs", [[0, 40], [1, 80], [2, 120]]],' : `  ["runs", [[0, ${3 * quick}], [1, ${8 * quick}], [2, ${24 * quick}]]],`]
       : []),
   ];
   out["src/content/pacing.ts"] = [
     HEAD,
-    'import type { BandRow, SessionSchedule } from "watchpot/sim";',
+    'import { activeSchedule, type BandRow, type SessionSchedule } from "watchpot/sim";',
     "",
     `/** The session the game is built for: ${pc.label}. */`,
     `export const SESSION = ${ts(pl.session)};`,
     "",
-    "/** How the sim's player comes and goes. */",
+    "/**",
+    ` * How the sim's player plays: at it around the clock, a look every ten seconds${presses ? ` and ${presses} presses at each` : ""}, so every`,
+    " * hour of the run is a played hour. The pacing contract is judged on this.",
+    " */",
+    `export const ACTIVE = activeSchedule(10, ${presses});`,
+    "",
+    "/** How a session player comes and goes (`bun run sim -- --sessions`): a second look at the game, never judged. */",
     "export const SCHEDULE: SessionSchedule = {",
     '  kind: "sessions",',
     "  wakeHour: { min: 7, max: 9 },",
@@ -758,12 +821,15 @@ export function contentFiles(pl: Plan, union = false): Record<string, string> {
     "  firstDayBonusSessions: 1,",
     "};",
     "",
-    "/** The days the contract reads, and how many the sim plays by default. */",
-    "export const CONTRACT_DAYS = [1, 3, 7] as const;",
+    "/** The played hours the contract reads (the first sitting: nobody starts an idle game and goes idle), and how many",
+    " * the sim plays by default (a day at most). */",
+    "export const CONTRACT_HOURS = [1, 2, 4] as const;",
+    "export const SIM_HOURS = 4;",
+    "/** How many days a session run plays by default. */",
     "export const SIM_DAYS = 7;",
     "",
     "/**",
-    " * The pacing contract: per metric, the [low, high] it should sit in by the end of each contract day. These are the",
+    " * The pacing contract: per metric, the [low, high] it should sit in at each contract hour of play. These are the",
     " * design's intent, not a measurement: tune the content until `bun run sim -- --contract` holds them, or move a band",
     " * on purpose and say why in the commit.",
     " */",
@@ -834,9 +900,11 @@ function surface(ground: string, ink: string, signal: string, dark: boolean) {
   };
 }
 
+/** CSS's generic and system families: named bare in a font stack, never quoted. */
+const GENERIC = new Set(["system-ui", "ui-sans-serif", "ui-serif", "ui-monospace", "ui-rounded", "sans-serif", "serif", "monospace", "cursive", "fantasy", "math"]);
+
 function tokens(pl: Plan, rarities: string[]) {
-  const { ground, ink, signal } = pl.answers.look.palette;
-  const hues = pl.answers.look.palette.rarities ?? [];
+  const { ground, ink, signal, rarities: hues } = pl.look.palette;
   const dark = luminance(ground) < 0.4;
   const base: Record<string, string> = surface(ground, ink, signal, dark);
   rarities.forEach((id, i) => {
@@ -847,8 +915,8 @@ function tokens(pl: Plan, rarities: string[]) {
   for (let i = 0; i < 5; i++) base[`foil-${i + 1}`] = foil[i % foil.length] ?? signal;
   // A light palette gets a dark scheme (Settings › Appearance, or the OS): the same hues on the ink's night side.
   const night = dark ? null : surface(mix(ink, "#000000", 0.25), mix(ground, "#ffffff", 0.3), signal, true);
-  const t = pl.answers.look.type;
-  const fam = (f: FontIn) => `"${f.family}", ${f.fallback ?? "sans-serif"}`;
+  const t = pl.look.type;
+  const fam = (f: FontIn) => `${GENERIC.has(f.family) ? f.family : `"${f.family}"`}, ${f.fallback ?? "sans-serif"}`;
   return {
     name: pl.name,
     version: 1,
@@ -947,19 +1015,23 @@ function tokens(pl: Plan, rarities: string[]) {
 
 /** Warnings for colour pairs below the reading line; the scaffold prints them. */
 export function lookWarnings(pl: Plan): string[] {
-  const { ground, ink, signal } = pl.answers.look.palette;
+  const { ground, ink, signal } = pl.look.palette;
   const out: string[] = [];
+  // Floored to two places, so a ratio just under the line never prints as the line itself.
+  const ratio = (c: number) => `${(Math.floor(c * 100) / 100).toFixed(2)}:1`;
   const c1 = contrast(ground, ink);
-  if (c1 < 7) out.push(`ink on ground is ${c1.toFixed(1)}:1 (aim for 7:1 or more)`);
+  if (c1 < 7) out.push(`ink ${ink} on ground ${ground} is ${ratio(c1)} (aim for 7:1 or more)`);
   const on = contrast(signal, "#121214") >= contrast(signal, "#ffffff") ? "#121214" : "#ffffff";
   const c2 = contrast(signal, on);
-  if (c2 < 4.5) out.push(`text on the signal is ${c2.toFixed(1)}:1 (needs 4.5:1)`);
+  if (c2 < 4.5) out.push(`text ${on} on the signal ${signal} is ${ratio(c2)} (needs 4.5:1)`);
   return out;
 }
 
+/** The `<link>`s for the Google-hosted fonts, or nothing when every face is the system's. */
 export function fontLinks(pl: Plan): string {
-  const t = pl.answers.look.type;
-  const specs = [...new Set([t.display.spec, t.ui.spec, t.num.spec])];
+  const t = pl.look.type;
+  const specs = [...new Set([t.display.spec, t.ui.spec, t.num.spec])].filter((s): s is string => !!s);
+  if (!specs.length) return "";
   return [
     '<link rel="preconnect" href="https://fonts.googleapis.com" />',
     '    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />',
@@ -973,10 +1045,14 @@ function concept(pl: Plan, tabs: ReturnType<typeof tabsOf>): string {
   const a = pl.answers;
   const f = pl.features;
   const lower = (s: string) => s.toLowerCase();
-  const core =
-    pl.core === "dimensions"
-      ? `- **${tabs.make}.** A chain of ${a.generators.length} tiers: ${a.generators.map((g) => g.name).join(", ")}. The first makes ${lower(pl.main.plural)}, each other makes the tier below it, and every ten bought of a tier doubles it.`
-      : `- **${tabs.make}.** ${a.generators.length} generators make ${lower(pl.main.plural)}: ${a.generators.map((g) => g.name).join(", ")}.`;
+  const gens = pl.generators;
+  const core = !gens.length
+    ? `- **${tabs.make}.** No producers: the press is the game.`
+    : pl.core === "dimensions"
+      ? `- **${tabs.make}.** A chain of ${gens.length} tiers: ${gens.map((g) => g.name).join(", ")}. The first makes ${lower(pl.main.plural)}, each other makes the tier below it, and every ten bought of a tier doubles it.`
+      : `- **${tabs.make}.** ${gens.length} generators make ${lower(pl.main.plural)}: ${gens.map((g) => g.name).join(", ")}.`;
+  const look = pl.look;
+  const google = (["display", "ui", "num"] as const).some((k) => look.type[k].spec);
   const lines = [
     `# ${pl.name}`,
     "",
@@ -1021,10 +1097,12 @@ function concept(pl: Plan, tabs: ReturnType<typeof tabsOf>): string {
     "",
     "## Look",
     "",
-    `- Palette: ground \`${a.look.palette.ground}\`, ink \`${a.look.palette.ink}\`, signal \`${a.look.palette.signal}\`${a.look.palette.rarities?.length ? `, rarities ${a.look.palette.rarities.map((c) => `\`${c}\``).join(" ")}` : ""}.`,
-    `- Type: ${a.look.type.display.family} (display), ${a.look.type.ui.family} (interface), ${a.look.type.num.family} (numbers), from Google Fonts.`,
-    `- **The surface.** ${a.look.surface.line} (scaffolded on the \`${pl.surface}\` starter in \`src/shaders/\`, to be replaced.)`,
-    `- **The moment.** ${a.look.moment}`,
+    `- Palette: ground \`${look.palette.ground}\`, ink \`${look.palette.ink}\`, signal \`${look.palette.signal}\`${look.palette.rarities.length ? `, rarities ${look.palette.rarities.map((c) => `\`${c}\``).join(" ")}` : ""}.`,
+    `- Type: ${look.type.display.family} (display), ${look.type.ui.family} (interface), ${look.type.num.family} (numbers)${google ? ", from Google Fonts" : ""}.`,
+    look.surface
+      ? `- **The surface.** ${look.surface.line} (scaffolded on the \`${look.surface.base}\` starter in \`src/shaders/\`, to be replaced.)`
+      : "- **The surface.** None yet: the page has no backdrop.",
+    ...(look.moment ? [`- **The moment.** ${look.moment}`] : []),
     "",
   ];
   return lines.join("\n");
@@ -1114,31 +1192,101 @@ export function templateVars(pl: Plan, engine: string): Record<string, string> {
     "6. **The moment.** Build it for real (mechanics, shader, sound, words) with a way to replay it in development, and watch it play. Done when it is better than the sentence that described it.",
     "7. **Proof.** `bun run gates:full`; every screen in the Browser pane at desktop and phone width with a clean console, the save surviving a reload, the main loop by keyboard alone; the engine sweep (anything generic moves to the engine, released as a tag).",
   ].join("\n");
-  const features = [
-    pl.core,
-    ...[...f].map((x) => (x === "visitor" ? "visitor (spawns + buffs)" : x === "tree" ? "tree (upgradeTree)" : x)),
-  ];
+  // The features alone: the core has its own placeholder, so it is never listed twice.
+  const features = [...f].map((x) => (x === "visitor" ? "visitor (spawns + buffs)" : x === "tree" ? "tree (upgradeTree)" : x));
   return {
     name: pl.name,
     slug: pl.slug,
     engine,
     premise: pl.answers.premise,
     voice: pl.answers.voice,
-    moment: pl.answers.look.moment,
+    moment: pl.look.moment ?? "None chosen yet.",
     session: PACING[pl.session].label,
-    core: pl.core,
-    features: features.join(", "),
-    surface: pl.surface,
-    surfaceLine: pl.answers.look.surface.line,
+    core: pl.generators.length ? pl.core : "none (the clicker alone)",
+    features: features.length ? features.join(", ") : "no other features",
+    surface: pl.surface ?? "backdrop",
+    surfaceLine: pl.look.surface?.line ?? "None chosen yet: the page has no backdrop.",
     owes,
     fontLinks: fontLinks(pl),
   };
 }
 
-export async function generate(opts: { answers: string; out: string; engine: string; mode: "full" | "content" }) {
+/** This template, and the engine it ships in (a checkout, or `node_modules/watchpot`). */
+export const TEMPLATE = resolve(import.meta.dir, "..");
+const ENGINE = resolve(TEMPLATE, "..", "..");
+
+/** The engine tag this template belongs to: `v` and the engine's `package.json` version. */
+export async function engineTag(): Promise<string> {
+  const pkg = (await Bun.file(join(ENGINE, "package.json")).json()) as { version: string };
+  return `v${pkg.version}`;
+}
+
+/** Whether `dir` is missing or holds nothing. */
+async function vacant(dir: string): Promise<boolean> {
+  try {
+    return (await readdir(dir)).length === 0;
+  } catch {
+    return true;
+  }
+}
+
+/** Copies the template into `out`, leaving out its scaffold, installs and git folder. */
+async function copyTemplate(out: string) {
+  await cp(TEMPLATE, out, {
+    recursive: true,
+    filter: (src) => !/[\\/](node_modules|\.git|\.scaffold)([\\/]|$)/.test(src.slice(TEMPLATE.length)),
+  });
+}
+
+/** Compiles `design/tokens.json` into `src/tokens.css` with the engine's own compiler, as `bun run tokens` does. */
+async function writeTokens(out: string) {
+  const { buildTokens } = await import(join(ENGINE, "src", "kit", "theme", "build.ts"));
+  await buildTokens({ tokens: join(out, "design", "tokens.json"), out: join(out, "src", "tokens.css") });
+}
+
+/**
+ * Formats and fixes the written game with Biome (its own `biome.json`): the game's install when it has one, else the
+ * engine's. False when neither has Biome; `bun run lint:fix` after the install does the same.
+ */
+function lintFix(out: string): boolean {
+  let bin: string;
+  try {
+    bin = Bun.resolveSync("@biomejs/biome/bin/biome", out);
+  } catch {
+    try {
+      bin = Bun.resolveSync("@biomejs/biome/bin/biome", ENGINE);
+    } catch {
+      return false;
+    }
+  }
+  const p = Bun.spawnSync([process.execPath, bin, "check", "--write", "."], { cwd: out, stdout: "pipe", stderr: "pipe" });
+  if (p.exitCode !== 0) throw new Error(`biome check --write failed in ${out}:\n${p.stdout.toString()}${p.stderr.toString()}`);
+  return true;
+}
+
+/**
+ * Writes a game from an answers file. In `full` mode `out` is the game: an empty or missing folder gets a copy of this
+ * template first; a folder that already holds one (its `*.tmpl` files) is generated in place. Then the content, the
+ * gating, the `*.tmpl` files, `src/tokens.css` and a Biome pass. `content` mode writes the content files only.
+ */
+export async function generate(opts: {
+  answers: string;
+  out: string;
+  engine: string;
+  mode: "full" | "content";
+  /** The closing Biome pass (default on). */
+  lint?: boolean;
+}) {
   // An absolute folder: Bun on Windows refuses `mkdir(".", { recursive: true })`.
   opts = { ...opts, out: resolve(opts.out) };
   const pl = plan(await Bun.file(opts.answers).json());
+  if (opts.mode === "full") {
+    if (opts.out === TEMPLATE)
+      throw new Error("--out is the template itself: full mode would rewrite it (regenerate its content with --mode content)");
+    if (await vacant(opts.out)) await copyTemplate(opts.out);
+    else if (!(await walk(opts.out)).some((rel) => rel.endsWith(".tmpl")))
+      throw new Error(`${opts.out} holds no *.tmpl files: give an empty folder, or a fresh copy of the template`);
+  }
   const files = contentFiles(pl, opts.mode === "content");
   for (const [rel, text] of Object.entries(files)) await write(join(opts.out, rel), text);
   if (opts.mode === "content") return pl;
@@ -1164,6 +1312,8 @@ export async function generate(opts: { answers: string; out: string; engine: str
       await rm(path);
     } else if (gated !== text) await Bun.write(path, gated);
   }
+  await writeTokens(opts.out);
+  if (opts.lint !== false && !lintFix(opts.out)) console.warn("generate: no Biome to format with; run `bun run lint:fix` after `bun install`");
   return pl;
 }
 
@@ -1171,11 +1321,13 @@ if (import.meta.main) {
   const answers = arg("answers");
   const out = arg("out");
   if (!answers || !out) {
-    console.error("usage: bun .scaffold/generate.ts --answers <file> --out <dir> [--engine <tag>] [--mode full|content]");
+    console.error(
+      "usage: bun .scaffold/generate.ts --answers <file> --out <dir> [--engine <tag, default this engine's>] [--mode full|content]",
+    );
     process.exit(2);
   }
   const mode = arg("mode") === "content" ? "content" : "full";
-  const pl = await generate({ answers, out, engine: arg("engine") ?? "v0.3.1", mode });
+  const pl = await generate({ answers, out, engine: arg("engine") ?? (await engineTag()), mode });
   for (const w of lookWarnings(pl)) console.warn(`look: ${w}`);
   console.log(`generated ${pl.name} (${mode}): ${pl.core}${[...pl.features].map((f) => `, ${f}`).join("")}, ${pl.surface} backdrop`);
 }

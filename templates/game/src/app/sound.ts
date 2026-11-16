@@ -13,7 +13,8 @@ export const sound = createSound({
   cues: {
     buy: { bus: "ui", voices: [{ voice: { frequency: 520, attack: 0.005, sustain: 0.02, release: 0.08, wave: "triangle" } }] },
     // @if clicker
-    press: { bus: "ui", voices: [{ voice: { frequency: 340, attack: 0.002, sustain: 0.01, release: 0.05, wave: "sine" } }] },
+    // A press can come twenty times a second: one sound per 50 ms keeps a fast hand from stacking into a buzz.
+    press: { bus: "ui", cooldownMs: 50, voices: [{ voice: { frequency: 340, attack: 0.002, sustain: 0.01, release: 0.05, wave: "sine" } }] },
     crit: {
       voices: [
         { voice: { frequency: 440, attack: 0.002, sustain: 0.02, release: 0.1, wave: "triangle" } },

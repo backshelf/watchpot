@@ -2,15 +2,40 @@
 
 {{premise}}
 
-An idle game made with `/watchpot` on the watchpot engine ({{engine}}): a `{{core}}` core with {{features}}, on the
-engine's systems. Built for {{session}}.
+An idle game on the watchpot engine ({{engine}}), scaffolded from its game template. Core: {{core}}. Features:
+{{features}}. Built for {{session}}.
+
+Needs Bun 1.4.3 or later (`bun check` typechecks).
+
+## Commands
 
 ```sh
 bun install
-bun run dev        # http://localhost:3000
-bun run verify     # typecheck, lint, changed tests
-bun run sim -- --player=auto --contract
+bun run dev        # http://localhost:3000 (PORT=<n> for another); #dev opens the dev panel
+bun run verify     # typecheck, lint, the tests a change touches (every test before the first commit)
+bun run gates      # typecheck, lint, every fast test, the build; gates:full adds the slow tier and the contract
+bun run sim -- --contract     # four played hours on the auto-player, judged against the pacing bands
+bun run sim -- --sessions     # a week of a person coming and going, never judged
+bun run tokens     # after editing design/tokens.json
+bun run lint:fix   # format
 ```
 
-The concept is in `.claude/specs/concept.md`; how the code is laid out, and what the game still owes, in
-`.claude/CLAUDE.md`.
+## Where things are
+
+- `src/content/` the data: the words (`words.ts`), the economy, the core's list and one file per feature;
+  `pacing.ts` holds how the sim plays and the pacing contract.
+- `src/game/` the features on the engine's factories (`wallet`, `stats`, `settings`, the core and the chosen
+  features), `income.ts`, `bus.ts`, `game.ts` (`defineGame`, the feature order and the save) and the store.
+- `src/app/` the page: `App.tsx` over the `Shell`, the tabs, the header, the about sheet, the icons, the sounds, and
+  `hooks.ts` (`useGameState`, `useGameView`, `useGameStore`). `src/screens/` one screen per tab.
+- `src/ui/` the game's own components over the engine's headless `watchpot/ui`, each with its CSS module, and
+  `theme.css`; `src/ui/README.md` lists the `--ui-*` tokens they read.
+- `src/shaders/` the backdrop's fragment and its still.
+- `design/tokens.json` the palette and type, compiled to `src/tokens.css` by `bun run tokens` (commit both).
+- `sim/` the headless sim (`run.ts`) and what it reads off a row (`row.ts`). `test/` the game's tests.
+
+The engine's guide is its `README.md` and `docs/` (`node_modules/watchpot/`). To move to a newer engine, change the
+tag on `watchpot` in `package.json` and run `bun install`.
+
+`.claude/` holds the concept as the scaffold took it down (`specs/concept.md`, the answers beside it) and notes for
+an agent working on the game (`CLAUDE.md`); the game does not need them.

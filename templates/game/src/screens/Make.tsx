@@ -1,14 +1,16 @@
 import { fmt } from "watchpot/core";
-import type { BuyMode } from "watchpot/ui";
-import { useState } from "react";
 import { useGameState } from "../app/hooks";
 import { glyphOf } from "../app/icons";
 import { CURRENCY, MAIN, STAT, TAB_NAMES } from "../content/words";
 import { incomeOf } from "../game/income";
-import { BuyAmount } from "../ui/BuyAmount";
 import { Counter } from "../ui/Counter";
 import { Title } from "../ui/Title";
 import s from "./screens.module.css";
+// @if generators|dimensions
+import type { BuyMode } from "watchpot/ui";
+import { useState } from "react";
+import { BuyAmount } from "../ui/BuyAmount";
+// @end
 // @if generators
 import { GeneratorList } from "./Generators";
 // @end
@@ -22,6 +24,7 @@ import { PressPanel } from "./Press";
 import { BoostChip } from "../app/Visitor";
 // @end
 
+// @if generators|dimensions
 /** The buy modes the lists offer: one, ten, or as many as the balance covers. */
 const MODES = [
   { value: 1, label: "×1" },
@@ -29,6 +32,7 @@ const MODES = [
   { value: "max", label: "Max" },
 ] as const satisfies readonly { value: BuyMode; label: string }[];
 type Mode = (typeof MODES)[number]["value"];
+// @end
 
 /** The main screen: the balance and its rate, what raises it now, the thing pressed, and the core's list. */
 export function MakeScreen() {
@@ -38,7 +42,9 @@ export function MakeScreen() {
   const balance = st.wallet[MAIN];
   const income = incomeOf(st);
   const output = st.stats.output;
+  // @if generators|dimensions
   const [mode, setMode] = useState<Mode>(1);
+  // @end
   const words = CURRENCY[MAIN];
   const shown = fmt(balance);
   return (
@@ -60,7 +66,9 @@ export function MakeScreen() {
       {/* @if clicker */}
       <PressPanel />
       {/* @end */}
+      {/* @if generators|dimensions */}
       <BuyAmount options={MODES} value={mode} onChange={setMode} label="How many to buy" />
+      {/* @end */}
       {/* @if generators */}
       <GeneratorList mode={mode} />
       {/* @end */}

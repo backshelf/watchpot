@@ -41,6 +41,7 @@ describe("the app", () => {
     }
   });
 
+  // @if generators|dimensions
   test("the buy amount switches what a buy button asks for", () => {
     const { store } = freshStore(game);
     store.getState().wallet.credit(MAIN, 1e12);
@@ -48,6 +49,16 @@ describe("the app", () => {
     const modes = screen.getByRole("radiogroup", { name: "How many to buy" });
     fireEvent.click(within(modes).getByRole("radio", { name: "×10" }));
     expect(screen.getAllByRole("button", { name: /^Get 10/ }).length).toBeGreaterThan(0);
+  });
+  // @end
+
+  test("#dev opens the dev panel over the game, and its close clears the hash", async () => {
+    const { store } = freshStore(game);
+    location.hash = "#dev";
+    renderWith(store, <App />);
+    const panel = await screen.findByRole("complementary", { name: "Dev" });
+    fireEvent.click(within(panel).getByRole("button", { name: "Close" }));
+    expect(location.hash).toBe("");
   });
 
   // @if clicker
