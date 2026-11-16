@@ -1,15 +1,17 @@
 import { D, Decimal, type DecimalSource } from "./decimal";
 
 /**
- * Number formatting per decisions.md:
- * - below 100,000: plain with thousands separators ("12,480")
+ * Numbers as the player reads them. The default notation, `suffix`:
+ * - below 100,000 (`PLAIN_BELOW`): plain digits with thousands separators ("12,480")
  * - from 100,000: two decimals and a suffix K M B T Qa Qi Sx Sp Oc No Dc ("1.52M")
  * - from 1e36 (past the last suffix): scientific ("1.00e36")
- * Mantissas are floored, never rounded up: nothing is rounded away from the player.
+ * The other notations (`NOTATIONS`) keep the plain range and change what comes after it. Every figure is floored,
+ * never rounded up: nothing is rounded away from the player.
  *
- * Which one a call site uses (economy-midgame): `fmtFull` for headline numbers, which are power, balances (the
- * header pills and wallet numbers) and reward payouts, so a big number reads in full ("1,000,000,000"). `fmt` for
- * costs, rates and small supporting numbers, where the suffix keeps a line short.
+ * In a page, bind the options once with `formatter()` and print strings: `num` for costs, rates and supporting
+ * figures, where the suffix keeps a line short; `full` for a headline figure that should read in full
+ * ("1,000,000,000"). `fmt` itself returns a `Formatted` (its `.text` is the string; the mantissa and suffix are
+ * there for a ticker that animates them), so `{fmt(n)}` is not something JSX can render.
  */
 export const SUFFIXES = ["", "K", "M", "B", "T", "Qa", "Qi", "Sx", "Sp", "Oc", "No", "Dc"] as const;
 /** Below this value `fmt` prints plain digits with separators. */
@@ -38,13 +40,23 @@ export const NOTATIONS = ["suffix", "scientific", "engineering", "letters", "log
 /** One of `NOTATIONS`. */
 export type Notation = (typeof NOTATIONS)[number];
 
-/** Options for `fmt`: the decimals shown in the plain range. */
+/**
+ * Options for `fmt`: the notation, where its plain range ends, and the decimals shown inside that range. Past the
+ * plain range every notation prints its own fixed precision, whatever `decimals` says.
+ */
 export interface FmtOptions {
-  /** Decimals to show in the plain range (default 0). Rates under 1,000 read better with one. */
+  /**
+   * Decimals shown in the plain range only, 0 to 6 (default 0). Past it the precision is the notation's own: two
+   * decimals under `suffix`, `scientific` and `letters`, three figures under `engineering`, two decimals of the
+   * exponent under `logarithm`. Rates under 1,000 read better with one.
+   */
   decimals?: number;
   /** "suffix" (default) walks K..Dc; the others print plain digits, then their own form from `plainBelow`. */
   notation?: Notation;
-  /** Where plain digits end in every notation but `suffix` (default `PLAIN_BELOW`). */
+  /**
+   * Where plain digits end, under every notation but `suffix` (default `PLAIN_BELOW`). Under `suffix` it is ignored:
+   * plain digits always end at `PLAIN_BELOW`.
+   */
   plainBelow?: number;
   /** `decimals` applies only to values under this (default: the whole plain range). */
   decimalsBelow?: number;
@@ -59,7 +71,10 @@ function floorTo(value: number, places: number): number {
   return Math.floor(denoised * scale + 1e-9) / scale;
 }
 
-/** Formats a number for display: plain digits, then `K` to `Dc` suffixes, then scientific. */
+/**
+ * Formats a number for display: plain digits, then `K` to `Dc` suffixes, then scientific (or the chosen notation's
+ * form). Returns the parts and the string (`.text`); `formatter().num` returns the string alone.
+ */
 export function fmt(value: DecimalSource, options: FmtOptions = {}): Formatted {
   const d = D(value);
   if (d.isNan()) return { mantissa: 0, suffix: "", text: "0", negative: false };
@@ -219,20 +234,27 @@ export function fmtPlayed(ms: number): string {
   return `${m}m ${String(s % 60).padStart(2, "0")}s`;
 }
 
-/** The printers bound to one set of options. */
+/** The printers bound to one set of options, each returning a string. */
 export interface Formatter {
-  /** A number; `decimals` overrides the options' for this call. */
+  /** A number as `fmt(value, options).text`; `decimals` overrides the options' for this call. */
   num(value: DecimalSource, decimals?: number): string;
+  /** Every digit with separators, never a suffix (`fmtFull`): a headline figure. The options do not apply. */
+  full(value: DecimalSource): string;
+  /** A multiplier (`fmtTimes`): "×3.20". */
   times(value: DecimalSource): string;
+  /** An addition to a base (`fmtPlus`): "+0.50". */
   plus(value: DecimalSource): string;
+  /** A rate per second (`fmtRate`): "12.5/s". */
   rate(value: DecimalSource): string;
+  /** A count with its word (`fmtCounted`): "2 gems". */
   counted(value: DecimalSource, words: readonly [one: string, many: string]): string;
 }
 
-/** Binds `num` and the four printers to one set of options, so a game sets its notation once. */
+/** Binds `num`, `full` and the four printers to one set of options, so a game sets its notation once. */
 export function formatter(options: FmtOptions = {}): Formatter {
   return {
     num: (value, decimals) => fmt(value, decimals === undefined ? options : { ...options, decimals }).text,
+    full: fmtFull,
     times: (value) => fmtTimes(value, options),
     plus: (value) => fmtPlus(value, options),
     rate: (value) => fmtRate(value, options),

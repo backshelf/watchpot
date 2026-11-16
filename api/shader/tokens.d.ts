@@ -10,6 +10,7 @@ export declare function readTokens<N extends string>(el: Element, names: readonl
 /**
  * The colour tokens `names` at `ref`'s element, as `#rrggbbaa` strings a shader's uniforms take directly; null
  * until every one reads as a colour (no stylesheet: show the still). Read again when `data-theme`, `data-scheme`,
- * `class` or `style` changes on the element or any ancestor, and when the system colour scheme flips.
+ * `class` or `style` changes on the element or any ancestor, and when the system colour scheme flips. In
+ * development a token with no value there is named in a console warning, once per mount.
  */
 export declare function useShaderTokens<N extends string>(ref: RefObject<Element | null>, names: readonly N[]): Record<N, string> | null;

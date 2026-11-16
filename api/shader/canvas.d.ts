@@ -28,14 +28,27 @@ export declare function pinShaderClock(seconds: number | null): void;
  * clock of its own (`useSteppedFrame`, a game's timeline) to hold the same instant the canvases do.
  */
 export declare function shaderClockPin(): number | null;
-/** Props of `ShaderCanvas`: the fragment, its uniforms, time and budget controls, the still and the canvas's class. */
-export interface ShaderCanvasProps {
+/**
+ * A fragment with what belongs to it, as a game's shader module exports it: spread onto the canvas
+ * (`<ShaderCanvas {...SURFACE} uniforms={…} />`), since `ShaderCanvasProps` takes every field.
+ */
+export interface ShaderSurface {
     /** The game's GLSL ES 3.00 fragment, written after `SHADER_HEAD` (declare its uniforms; write `main`). */
     fragment: string;
-    /** The game's uniforms; pushed to the GPU when they change by value, without a React render of their own. */
-    uniforms?: Uniforms;
     /** Kinds for values inference gets wrong (an `int`, a 3-float array). */
     kinds?: UniformKinds;
+    /** The time drawn under `reduced`, seconds: a frame that looks good frozen. Default 0. */
+    reducedTime?: number;
+    /** Drawn instead of the canvas when WebGL2 is missing or the shader fails (a CSS gradient). */
+    still?: ReactNode;
+}
+/** Props of `ShaderCanvas`: the surface, its uniforms, time and budget controls, and the canvas's class. */
+export interface ShaderCanvasProps extends ShaderSurface {
+    /**
+     * The game's uniforms, every one set on every frame drawn. A new value (compared by value) draws a frame at once
+     * while the canvas holds still; while it loops, the next frame carries it. Neither costs a React render of its own.
+     */
+    uniforms?: Uniforms;
     /** Drive time yourself (seconds): the canvas then draws on change instead of looping. */
     time?: number;
     /** The highest pixel ratio drawn at. Default 2. */
@@ -51,12 +64,8 @@ export interface ShaderCanvasProps {
     paused?: boolean;
     /** Reduced motion (the game passes its setting): one frame at `reducedTime`, held. */
     reduced?: boolean;
-    /** The time drawn under `reduced`, seconds. Default 0. */
-    reducedTime?: number;
     /** Track the pointer over the canvas into `u_pointer`. Default false (it stays in the middle). */
     pointer?: boolean;
-    /** Drawn instead of the canvas when WebGL2 is missing or the shader fails (a CSS gradient). */
-    still?: ReactNode;
     /** Told why there is no shader: "WebGL2 is unavailable" or the driver's log with the fragment's line numbers. */
     onError?: (log: string) => void;
     className?: string;

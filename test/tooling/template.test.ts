@@ -2,18 +2,24 @@
 // every gating marker in the template names a flag it knows.
 import { describe, expect, test } from "bun:test";
 import { readdirSync, readFileSync } from "node:fs";
-import { join } from "node:path";
+import { mkdir, mkdtemp, rm, writeFile } from "node:fs/promises";
+import { tmpdir } from "node:os";
+import { dirname, join } from "node:path";
 import {
   ALL_FLAGS,
   type Answers,
   contentFiles,
+  engineTag,
   flagsOf,
+  fontLinks,
   gate,
+  generate,
+  lookWarnings,
   plan,
+  TEMPLATE,
   templateVars,
 } from "../../templates/game/.scaffold/generate";
 
-const TEMPLATE = join(import.meta.dir, "..", "..", "templates", "game");
 const fixture = (name: string): Answers =>
   JSON.parse(readFileSync(join(TEMPLATE, ".scaffold", "fixtures", `${name}.json`), "utf8"));
 const example = (): Answers =>
@@ -31,15 +37,48 @@ const problems = (a: Answers): string => {
 
 describe("the template's answers", () => {
   test("the example and every fixture plan cleanly", () => {
-    for (const a of [example(), fixture("everything"), fixture("dimensions"), fixture("smallest")])
+    for (const a of [
+      example(),
+      fixture("everything"),
+      fixture("dimensions"),
+      fixture("dimensions-reset"),
+      fixture("smallest"),
+      fixture("smallest-clicker"),
+    ])
       expect(problems(a)).toBe("");
   });
 
-  test("the smallest answers take the defaults: a generators core and no features", () => {
+  test("a clicker alone needs no producers and no look: no core flag, no backdrop, the system's fonts", () => {
+    const pl = plan(fixture("smallest-clicker"));
+    expect([...flagsOf(pl)]).toEqual(["clicker"]);
+    expect(pl.surface).toBeNull();
+    expect(fontLinks(pl)).toBe("");
+    const tokens = JSON.parse(contentFiles(pl)["design/tokens.json"] ?? "{}");
+    expect(tokens.type.families.ui).toBe("system-ui, sans-serif");
+    expect(Object.keys(contentFiles(pl))).not.toContain("src/content/generators.ts");
+    // Without the clicker, no producers is no game.
+    expect(problems({ ...fixture("smallest-clicker"), features: [] })).toContain("generators: 3 to 8");
+    expect(problems({ ...fixture("smallest-clicker"), core: "dimensions" })).toContain("generators: 4 to 8");
+  });
+
+  test("a contrast warning never prints a ratio at or above the line it fails", () => {
+    const base = fixture("smallest");
+    for (let v = 0x40; v <= 0xc0; v += 1) {
+      const grey = `#${v.toString(16).padStart(2, "0").repeat(3)}`;
+      const pl = plan({ ...base, look: { palette: { ground: "#ffffff", ink: "#000000", signal: grey } } });
+      for (const w of lookWarnings(pl)) {
+        const [, ratio] = w.match(/is ([\d.]+):1 \(needs ([\d.]+):1\)/) ?? [];
+        expect(Number(ratio)).toBeLessThan(4.5);
+        expect(w).toContain(grey);
+      }
+    }
+  });
+
+  test("the smallest answers take the defaults: a generators core, no features and no backdrop", () => {
     const pl = plan(fixture("smallest"));
     expect(pl.core).toBe("generators");
     expect([...pl.features]).toEqual([]);
-    expect([...flagsOf(pl)].sort()).toEqual(["generators", "weather"]);
+    expect([...flagsOf(pl)]).toEqual(["generators"]);
   });
 
   test("a dimensions core needs four tiers, a generators core three, and eight at most", () => {
@@ -103,6 +142,46 @@ describe("what the template writes", () => {
   test("the tabs' names list only the screens the game has", () => {
     const words = contentFiles(plan(fixture("smallest")))["src/content/words.ts"] ?? "";
     expect(words).toContain('export const TAB_NAMES = {"make":"Pebbles"}');
+  });
+
+  test("the README lists the features once, never the core among them", () => {
+    const vars = templateVars(plan(fixture("everything")), "v0.0.0");
+    expect(vars.features?.split(", ")).not.toContain("generators");
+    expect(templateVars(plan(fixture("smallest")), "v0.0.0").features).toBe("no other features");
+  });
+
+  test("full mode refuses the template itself and a folder that holds no template", async () => {
+    const answers = join(TEMPLATE, ".scaffold", "fixtures", "smallest.json");
+    const opts = { answers, engine: "v0.0.0", mode: "full" as const };
+    await expect(generate({ ...opts, out: TEMPLATE })).rejects.toThrow("the template itself");
+    const dir = await mkdtemp(join(tmpdir(), "watchpot-gen-"));
+    try {
+      await mkdir(join(dir, "src"));
+      await writeFile(join(dir, "src", "main.ts"), "");
+      await expect(generate({ ...opts, out: dir })).rejects.toThrow("no *.tmpl");
+    } finally {
+      await rm(dir, { recursive: true, force: true });
+    }
+  });
+
+  test("full mode copies the template into a missing folder and leaves a game with its tokens", async () => {
+    const answers = join(TEMPLATE, ".scaffold", "fixtures", "smallest-clicker.json");
+    const dir = join(await mkdtemp(join(tmpdir(), "watchpot-gen-")), "game");
+    try {
+      await generate({ answers, out: dir, engine: "v0.0.0", mode: "full", lint: false });
+      const files = readdirSync(dir, { recursive: true }).map((f) => String(f).replaceAll("\\", "/"));
+      expect(files).toContain("package.json");
+      expect(files).toContain("src/tokens.css");
+      expect(files.filter((f) => f.endsWith(".tmpl") || f.startsWith(".scaffold"))).toEqual([]);
+      expect(readFileSync(join(dir, "package.json"), "utf8")).toContain("watchpot.git#v0.0.0");
+    } finally {
+      await rm(dirname(dir), { recursive: true, force: true });
+    }
+  });
+
+  test("the default engine tag is this engine's own version", async () => {
+    const pkg = JSON.parse(readFileSync(join(TEMPLATE, "..", "..", "package.json"), "utf8"));
+    expect(await engineTag()).toBe(`v${pkg.version}`);
   });
 
   test("every .tmpl placeholder has a value", () => {

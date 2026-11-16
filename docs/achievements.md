@@ -1,4 +1,4 @@
-## Achievements
+# Achievements
 
 A wall of things a player does once, laid in rows of a fixed width: each earned at most once and kept for good, a
 global multiplier from the count earned and the rows completed (the usual achievement-wall model: ×1.03 each, ×1.25

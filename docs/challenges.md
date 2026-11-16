@@ -1,4 +1,4 @@
-## Challenges
+# Challenges
 
 A run under a restriction, for a permanent reward. Entering a challenge resets the run and switches on its named rule
 flags, which the game's own rules read with `challengeRule`; when its goal holds it completes (counted, its best time
@@ -62,8 +62,10 @@ export const speedBus = (s: { trials: { completions: Record<string, number> } })
   busOf(trials.rules.contributions(s.trials));
 ```
 
-- **`challenges({ key, list, onComplete? })`** saves `{ active, startedAt, rules, completions, bestMs }` under `key`
-  (the stat bus's source prefix too) with `reset: "never"`. A profile reset clears it; a run reset never does.
+- **`challenges({ key, list, onComplete?, depth? })`** saves `{ active, startedAt, rules, completions, bestMs }` under
+  `key` (the stat bus's source prefix too) with `reset: "never"`. A profile reset clears it; a run reset never does.
+  `depth` (default 1) is how deep entering, leaving and completing reset: challenges of a higher layer reset at its
+  depth.
 - **`ChallengeDef<G, E>`**: `id`, `unlocked?(state)`, `goal(state)`, `maxCompletions?` (default 1), `effects?(completions)
   → E[]` (the reward for the completions so far) and `rules?: string[]` (the restriction's flags).
 - **`enter(id)`** resets the run (the store's `resetRun`, inside its recipe) and marks the challenge active; it

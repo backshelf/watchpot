@@ -27,12 +27,23 @@ void main() {
 `;
 
 /**
- * A driver's compile log with its line numbers moved from the full source to the game's fragment
- * (`ERROR: 0:12:` becomes `ERROR: 0:4:`); a line inside the head reads `head:N`. Pure.
+ * The line `compose` puts between the chunks and the game's own code, so a log can count from there.
+ * @internal
  */
-export function fixLog(log: string, headLines = HEAD_LINES): string {
+export const MAIN_MARK = "// ---- main";
+
+/**
+ * A driver's compile log with its line numbers moved from the full source to the game's fragment
+ * (`ERROR: 0:12:` becomes `ERROR: 0:4:`); a line inside the head reads `head:N`. Given the `fragment` and it came
+ * from `compose`, a line past the chunks reads `main:N`, counted from the first line of the code given to `compose`
+ * after them. Pure.
+ */
+export function fixLog(log: string, headLines = HEAD_LINES, fragment?: string): string {
+  // The fragment line the mark is on (1-based); 0 for none.
+  const mark = (fragment?.split("\n").indexOf(MAIN_MARK) ?? -1) + 1;
   return log.replace(/\b(\d+):(\d+):/g, (_whole, file: string, line: string) => {
     const n = Number(line) - headLines;
-    return n > 0 ? `${file}:${n}:` : `head:${line}:`;
+    if (n <= 0) return `head:${line}:`;
+    return mark > 0 && n > mark ? `main:${n - mark}:` : `${file}:${n}:`;
   });
 }

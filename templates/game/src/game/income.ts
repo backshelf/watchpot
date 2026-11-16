@@ -21,6 +21,9 @@ export interface IncomeSources {
 }
 
 /** What the core makes of the main currency a second now, every stat applied. */
+// @if !generators|dimensions
+// biome-ignore lint/correctness/noUnusedFunctionParameters: no producers yet; the sources are what a core will read.
+// @end
 export function incomeOf(s: IncomeSources): Decimal {
   let total = ZERO;
   // @if generators

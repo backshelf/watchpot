@@ -24,13 +24,29 @@ export declare function IdleStoreProvider({ store, children }: {
     store: RuntimeStore;
     children: ReactNode;
 }): import("react").JSX.Element;
-/** The store in context, untyped: what the engine's own hooks, the shell and the dev panel read. */
-export declare function useIdleStore(): RuntimeStore;
+/**
+ * The store in context, untyped: what the engine's own hooks, the shell and the dev panel read. Outside a provider it
+ * throws, naming `hook` (the engine hook that was called) and the ways to provide the store.
+ */
+export declare function useIdleStore(hook?: string): RuntimeStore;
+/**
+ * Wraps a selector that builds a new value from the same state (an object, an array, a Decimal from arithmetic), so
+ * it hands back its last value while the new one is shallowly equal: `useGameState(useShallow((s) => ({ a: s.a })))`.
+ * A Decimal compares by its fields, so `useShallow((s) => s.gold.mul(2))` is stable too. zustand's own, here so a
+ * game needs no import of zustand for it.
+ */
+export declare const useShallow: <S, U>(selector: (state: S) => U) => (state: S) => U;
 /** The typed store hooks `createRuntimeHooks` makes for a game: `useGameStore`, `useGameState` and `useGameView`. */
 export interface RuntimeHooks<Store extends RuntimeStore> {
     /** The store in context, as the game's own type. Handlers read it with `store.getState()`. */
     useGameStore(): Store;
-    /** `useStore(selector)` against the store in context. Object-building selectors want `useShallow`. */
+    /**
+     * `useStore(selector)` against the store in context: re-renders when the selected value changes by identity
+     * (`Object.is`). So a selector must answer the same state with the same value: one that builds a new object,
+     * array or Decimal on every call (`(s) => ({ a: s.a })`, `(s) => s.gold.mul(2)`) re-renders until React throws.
+     * Wrap such a selector in `useShallow`, or select the stored values and compute in the render. In development
+     * the first such selector is named in a console warning.
+     */
     useGameState<T>(selector: (state: StoreState<Store>) => T): T;
     /**
      * The whole state at a slow pace (`usePacedState`), for a screen that reads much of it: at once after the

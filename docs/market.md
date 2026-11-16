@@ -1,4 +1,4 @@
-## Markets
+# Markets
 
 Things with a price that wanders on its own, to buy low and sell high: a stock exchange, a commodity board, a black
 market. A ticker's price is a pure function of game time and the market's saved seed (smooth noise in three octaves

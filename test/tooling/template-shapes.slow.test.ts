@@ -22,23 +22,26 @@ function run(cmd: string[], cwd: string) {
 
 afterAll(() => rmSync(SCRATCH, { recursive: true, force: true }));
 
-describe.each(["everything", "dimensions", "dimensions-reset", "smallest"])("the %s shape", (name) => {
-  const dir = join(SCRATCH, name);
+describe.each(["everything", "dimensions", "dimensions-reset", "smallest", "smallest-clicker"])(
+  "the %s shape",
+  (name) => {
+    const dir = join(SCRATCH, name);
 
-  test(
-    "type-checks, passes its tests and holds its contract",
-    async () => {
-      await writeShape(join(ROOT, "templates", "game", ".scaffold", "fixtures", `${name}.json`), dir);
-      const tsc = run([TSC, "-p", dir], ROOT);
-      expect(tsc.out).toBe("");
-      expect(tsc.code).toBe(0);
-      const tests = run(["bun", "test"], dir);
-      expect(tests.out).toContain(" 0 fail");
-      expect(tests.code).toBe(0);
-      const sim = run(["bun", "sim/run.ts", "--contract"], dir);
-      expect(sim.out).not.toContain("| OUT |");
-      expect(sim.code).toBe(0);
-    },
-    { timeout: 120_000 },
-  );
-});
+    test(
+      "type-checks, passes its tests and holds its contract",
+      async () => {
+        await writeShape(join(ROOT, "templates", "game", ".scaffold", "fixtures", `${name}.json`), dir);
+        const tsc = run([TSC, "-p", dir], ROOT);
+        expect(tsc.out).toBe("");
+        expect(tsc.code).toBe(0);
+        const tests = run(["bun", "test"], dir);
+        expect(tests.out).toContain(" 0 fail");
+        expect(tests.code).toBe(0);
+        const sim = run(["bun", "sim/run.ts", "--contract"], dir);
+        expect(sim.out).not.toContain("| OUT |");
+        expect(sim.code).toBe(0);
+      },
+      { timeout: 120_000 },
+    );
+  },
+);

@@ -1,6 +1,6 @@
-// The hooks entry: `watchpot/react` without the game shell, the dev panel or the runtime, for a game that draws its
-// own page. Nothing here reaches the kit or a stylesheet (`test/rules/hooks.test.ts`), so a build with no CSS-module
-// loader can import it. Every export is the same binding `watchpot/react` has.
+// The hooks entry: `watchpot/react` without the game shell, the dev panel or the runtime. A game imports
+// `watchpot/react` by default and this one only in a build with no CSS-module loader: nothing here reaches the kit or
+// a stylesheet (`test/rules/hooks.test.ts`). Every export is the same binding `watchpot/react` has.
 export {
   type AwayGain,
   type AwayOptions,
@@ -13,6 +13,7 @@ export {
 export { type BootMachine, useBoot } from "../react/boot";
 export { clockLens, useClockNow, useTickNow, warpClock } from "../react/clock";
 export { type GameClockState, useGameClock } from "../react/gameClock";
+export { useHashRoute } from "../react/hashRoute";
 export { useHotkeys } from "../react/hotkeys";
 export {
   type PageLayout,
@@ -53,6 +54,7 @@ export {
   type RuntimeStore,
   type StoreState,
   useIdleStore,
+  useShallow,
 } from "../react/store";
 export { type LayerSwap, type LayerSwapOptions, useLayerSwap } from "../react/swap";
 export { type AwayTitleOptions, claimTabTitle, releaseTabTitle, useAwayTitle } from "../react/tabTitle";

@@ -318,8 +318,10 @@ export interface BuyAmountProps<T extends BuyMode = BuyMode>
   value?: T;
   defaultValue?: T;
   onValueChange?: (value: T) => void;
-  /** Each option's own props (a class, a title), by option. */
-  optionProps?: (option: BuyAmountOption<T>) => ComponentPropsWithRef<"button">;
+  /** Each option's own props (a class, a title, a `data-*` attribute), by option. */
+  optionProps?: (
+    option: BuyAmountOption<T>,
+  ) => ComponentPropsWithRef<"button"> & { [data: `data-${string}`]: string | number | boolean | undefined };
 }
 
 /**

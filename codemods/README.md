@@ -5,7 +5,8 @@ A release that breaks a consumer's code ships a codemod beside it, so a game upg
 - **When**: any change to the public API report (`api/`) that removes, renames or retypes an export, or changes what
   a saved key or a tick phase means, is breaking. Additions are not.
 - **One per breaking release**, named `<version>-<what>.ts` (`0.2.0-rename-reach.ts`), run from the game's root:
-  `bun ../watchpot/codemods/<file>.ts [--write]`. It prints the edits it would make and applies them only with
+  `bun node_modules/watchpot/codemods/<file>.ts [--write]` (the installed package carries them; a sibling checkout's
+  `bun ../watchpot/codemods/<file>.ts` works too). It prints the edits it would make and applies them only with
   `--write`. It rewrites imports and call sites it can prove; what it cannot prove, it lists for a human.
 - **The changelog entry** for that version names the codemod and says what it leaves to hand.
 - **A save-shape change** is never a codemod: it is a `migrations` step with a fixture, in the engine.
@@ -21,3 +22,6 @@ A release that breaks a consumer's code ships a codemod beside it, so a game upg
   what to write instead. A game that already imports `watchpot/sound` (the template, the example) has nothing to
   rewrite and only the listed call sites to read.
 - `0.17.0-watchpot.ts`: the package's old codename becomes `watchpot` in a game's specifiers, dependency and docs.
+- `0.18.0-offline-credit.ts`: optional. The pure helpers `catchUp` and `catchUpSteps` (and their types) become
+  `offlineCredit` and `offlineSteps`; the old names stay as deprecated aliases. The store's `catchUp` action keeps its
+  name, and the codemod leaves members, strings and comments alone.

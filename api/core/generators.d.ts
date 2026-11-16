@@ -36,17 +36,34 @@ interface GeneratorBase<C extends string> {
     /** Owned at the start of a run (default 0). */
     readonly free?: number;
 }
-/**
- * One generator. With `rate` it makes that much a second per one owned; with `cycle` it completes a cycle of
- * `cycle.ms` and pays `cycle.pays` per one owned. The game's own fields (a name, a line) ride along.
- */
-export type GeneratorDef<C extends string = string> = GeneratorBase<C> & ({
+/** A generator that makes `rate` a second per one owned. Extend it for a game's own fields on a rate list. */
+export type RateGeneratorDef<C extends string = string> = GeneratorBase<C> & {
     readonly rate: DecimalSource;
     readonly cycle?: undefined;
-} | {
+};
+/** A generator that completes a cycle of `cycle.ms` and pays `cycle.pays` per one owned. */
+export type CycleGeneratorDef<C extends string = string> = GeneratorBase<C> & {
     readonly cycle: GeneratorCycle;
     readonly rate?: undefined;
-});
+};
+/**
+ * One generator. With `rate` it makes that much a second per one owned; with `cycle` it completes a cycle of
+ * `cycle.ms` and pays `cycle.pays` per one owned. The game's own fields (a name, a line) ride along: a game that adds
+ * them writes `(RateGeneratorDef<C> | CycleGeneratorDef<C>) & Extra`, or extends one of the two.
+ */
+export type GeneratorDef<C extends string = string> = RateGeneratorDef<C> | CycleGeneratorDef<C>;
+/** What every generators callback is given after its own arguments: game time now (a buff's clock). */
+export interface GeneratorsCallbackContext {
+    readonly now: number;
+}
+/** A buy mode, as `watchpot/ui`'s `BuyMode`: a fixed count, as many as affordable, or up to the next milestone. */
+export type GeneratorBuyMode = number | "max" | "next";
+/** One buy row, worked out: how many the mode buys (at least 1, for the price shown), their price, and whether it can. */
+export interface GeneratorRow {
+    readonly count: number;
+    readonly price: Decimal;
+    readonly canBuy: boolean;
+}
 /** What `cyclesIn` returns: cycles completed over the stretch and the progress into the next. */
 export interface CycleStep {
     readonly completed: number;
@@ -79,43 +96,64 @@ export interface GeneratorActions {
     /** Starts a cycle generator's cycle. False when it is not a cycle, none is owned, one is under way, or it is automated. */
     run(id: string): boolean;
 }
-/** A generator list's rules, read off the game state. */
+/**
+ * A generator list's rules, read off the game state. A rule that reads a callback takes game time as a trailing
+ * `now`, handed to the callback as `{ now }`: default the state's `gameNow()` when it carries one (a store's state
+ * does), else 0. A screen that reads a buff in `mult` passes the `now` it renders at.
+ */
 export interface GeneratorRules<G, T extends GeneratorDef> {
     readonly list: readonly T[];
     /** A generator by id. */
     generator(id: string): T | undefined;
     /** Whether it can be bought now. */
-    open(state: G, id: string): boolean;
+    open(state: G, id: string, now?: number): boolean;
     /** How many are owned. */
     owned(state: G, id: string): number;
     /** The price of the next `count` (default 1). */
     price(state: G, id: string, count?: number): Decimal;
     /** How many more the balance covers (0 when it is not open). */
-    affordable(state: G, id: string): number;
-    /** Every milestone reached, its own and the global ones, folded: the product of the mults and of the speeds. */
-    boost(state: G, id: string): {
+    affordable(state: G, id: string, now?: number): number;
+    /**
+     * Every milestone reached, its own and the global ones, folded: the product of the mults and of the speeds (1 and
+     * 1 while the definition's `milestones` gate is shut).
+     */
+    boost(state: G, id: string, now?: number): {
         readonly mult: number;
         readonly speed: number;
     };
     /** The cycle's length now, after the speed (null for a rate generator). */
-    cycleMs(state: G, id: string): number | null;
+    cycleMs(state: G, id: string, now?: number): number | null;
     /** Whether a cycle generator restarts itself. */
-    automated(state: G, id: string): boolean;
+    automated(state: G, id: string, now?: number): boolean;
     /** What one cycle pays now, all owned (zero for a rate generator). */
-    cyclePays(state: G, id: string): Decimal;
+    cyclePays(state: G, id: string, now?: number): Decimal;
     /** What the generator makes a second, all owned, every multiplier applied; a cycle by its average rate. */
-    rate(state: G, id: string): Decimal;
+    rate(state: G, id: string, now?: number): Decimal;
     /** How many more reach its next milestone, or null past the last. */
     untilMilestone(state: G, id: string): number | null;
     /** What the list makes a second, per currency: rate generators and automated cycles (a hand cycle is not income). */
-    perSecond(state: G): Record<string, Decimal>;
+    perSecond(state: G, now?: number): Record<string, Decimal>;
+    /**
+     * How an absence counts now: the definition's `away`, or all of it (`{ rate: 1 }`). A game's own produce step runs
+     * its catch-up through `catchUp(dtMs, away.rate, away.capMs)` to credit what the list is credited.
+     */
+    away(state: G, now?: number): GeneratorAway;
+    /**
+     * One buy row for `mode` (`watchpot/ui`'s `BuyMode`): `count` is what the mode buys, at least 1 so the row always
+     * shows a price; `price` is the price of `count`; `canBuy` is whether the mode buys anything and the balance covers
+     * it (false when it is closed, or for `"next"` past the last milestone).
+     */
+    row(state: G, id: string, mode: GeneratorBuyMode, now?: number): GeneratorRow;
 }
-/** The draft helpers, for a recipe or a step (an autobuyer's purchase). Each returns how many it bought. */
+/**
+ * The draft helpers, for a recipe or a step (an autobuyer's purchase). Each returns how many it bought. `now` reaches
+ * the `open` callback (default as the rules').
+ */
 export interface GeneratorHelpers {
     /** Buys exactly `count` (default 1) inside a recipe, or nothing. */
-    buy(draft: object, id: string, count?: number): number;
+    buy(draft: object, id: string, count?: number, now?: number): number;
     /** Buys as many as the balance covers inside a recipe, `limit` at most. */
-    buyMax(draft: object, id: string, limit?: number): number;
+    buyMax(draft: object, id: string, limit?: number, now?: number): number;
 }
 /** A `generators` feature, carrying its rules as `.rules` and the draft helpers `buy` and `buyMax`. */
 export type GeneratorsFeature<K extends string, G, T extends GeneratorDef> = Feature<K, GeneratorsState, GeneratorActions> & GeneratorHelpers & {
@@ -130,23 +168,31 @@ export interface GeneratorsDef<K extends string, T extends GeneratorDef<C>, WK e
     /** The currencies feature the list buys from and pays into. */
     readonly wallet: CurrenciesFeature<WK, C, WS, WA>;
     readonly list: readonly T[];
-    /** The game's multiplier on one generator's output (its stat bus), read off the whole game state. */
-    readonly mult?: (state: G, def: T) => DecimalSource;
+    /**
+     * The game's multiplier on one generator's output (its stat bus), read off the whole game state. `ctx.now` is game
+     * time, so a buff multiplies here: `(s, g, { now }) => buffActive(s.buffs, "rush", now) ? 2 : 1`.
+     */
+    readonly mult?: (state: G, def: T, ctx: GeneratorsCallbackContext) => DecimalSource;
     /** Milestones every generator gets once the lowest owned count across the list reaches them. */
     readonly global?: readonly Threshold<GeneratorBoost>[];
+    /**
+     * Whether a generator's milestones count, its own and the global ones: a rule of the game's that turns them off
+     * (a challenge). Default: always.
+     */
+    readonly milestones?: (state: G, def: T, ctx: GeneratorsCallbackContext) => boolean;
     /** Whether a generator can be bought. Default: always. */
-    readonly open?: (state: G, def: T) => boolean;
+    readonly open?: (state: G, def: T, ctx: GeneratorsCallbackContext) => boolean;
     /** Whether a cycle generator restarts itself (a manager bought). Default: never; `run(id)` starts each cycle. */
-    readonly automated?: (state: G, def: T) => boolean;
+    readonly automated?: (state: G, def: T, ctx: GeneratorsCallbackContext) => boolean;
     /** How an absence counts. Default: all of it. */
-    readonly away?: (state: G) => GeneratorAway;
+    readonly away?: (state: G, ctx: GeneratorsCallbackContext) => GeneratorAway;
     readonly reset?: ResetRule<GeneratorsState>;
 }
 /**
  * A building list as a feature. It saves `{ owned, progress, running }` under `key`, works out `perSecond` in the
  * step `<key>.rates.perSecond` and pays in `<key>.produce.make` (over a tick, and over an absence through `away`),
  * buys from `wallet` and carries its rules as `.rules`. Its auto-player moves buy one of each open generator,
- * valued at the income it adds a second, and start every idle hand cycle for free. A prestige reset starts the list
+ * valued at the income it adds a second, and start every idle hand cycle for free. A run reset starts the list
  * over (the `free` ones owned again) unless `reset` says otherwise. The callbacks read the whole game state, so
  * annotate one of them with the game's state type.
  */

@@ -47,6 +47,20 @@ describe("a vocabulary types the engine's words", () => {
     expect(TOY.stats).toEqual(["toy.speed", "toy.luck"]);
   });
 
+  test("stats and rarities may be left out: empty, and a ladder of its own still needs a rung", () => {
+    const bare = vocab({ currencies: ["gold"] });
+    expect(bare.stats).toEqual([]);
+    expect(bare.rarities.size).toBe(0);
+    expect(bare.rarities.next("x" as never)).toBeUndefined();
+    // @ts-expect-error no rarities declared, so no rung is one
+    const none: RarityOf<typeof bare> = "common";
+    // Inline lists keep their words without `as const`.
+    const inline = vocab({ currencies: ["gold"], rarities: ["common", "rare"] });
+    const rung: RarityOf<typeof inline> = "rare";
+    expect([none, rung]).toHaveLength(2);
+    expect(() => ladder([])).toThrow("at least one rung");
+  });
+
   test("a reward is one plain kind per currency plus the game's own, which may replace a currency's", () => {
     const rewards: ToyReward[] = [
       { kind: "gems", amount: 5 },

@@ -87,6 +87,7 @@ export declare const RESERVED_CURRENCY_FIELDS: readonly string[];
 /**
  * Declares a currencies feature over a vocabulary's currencies. Throws at definition on a total for a currency the
  * vocabulary lacks, a name in `RESERVED_CURRENCY_FIELDS`, or a field taken twice (by a currency, a total or an
- * extra); a game action named like a balance, a total or `debit` throws when the store is built.
+ * extra: `extra` is called once here to claim its keys, so keep it pure); a game action named like a balance, a
+ * total or `debit` throws when the game is defined (`defineGame` builds the actions once to check them).
  */
 export declare function currencies<const K extends string, V extends AnyVocab, const E extends TotalsMap<CurrencyOf<V>> = Record<never, never>, const P extends TotalsMap<CurrencyOf<V>> = Record<never, never>, X extends object = Record<never, never>, A extends object = Record<never, never>, G extends object = Record<K, CurrenciesState<CurrencyOf<V>, FieldOf<E> | FieldOf<P>, X>>>(def: CurrenciesDef<K, V, E, P, X, A, G>): CurrenciesFeature<K, CurrencyOf<V>, CurrenciesState<CurrencyOf<V>, FieldOf<NoInfer<E>> | FieldOf<NoInfer<P>>, NoInfer<X>>, A>;

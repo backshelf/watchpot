@@ -10,11 +10,14 @@ export const AWAY_REPORT_MIN_MS = 30_000;
 export const TICK_INTERVAL_MS = 100;
 /** A single tick never advances more than this; a longer frame short of `AWAY_AFTER_MS` is split into steps. */
 export const MAX_STEP_MS = 1000;
-/** The gap after which a step is treated as time away rather than a long frame, in milliseconds. */
+/**
+ * The gap after which a step, or a hidden spell, is treated as time away rather than paid as live ticks, in
+ * milliseconds.
+ */
 export const AWAY_AFTER_MS = 5000;
 
-/** The result of `catchUp`: time away, time credited after the rate and cap, and whether the cap bit. */
-export interface CatchUp {
+/** The result of `offlineCredit`: time away, time credited after the rate and cap, and whether the cap bit. */
+export interface OfflineCredit {
   /** Wall time away. */
   awayMs: number;
   /** Time credited to the game tab after the cap and the rate: the income is `rate x min(away, cap)`. */
@@ -25,9 +28,9 @@ export interface CatchUp {
 
 /**
  * How much of an absence the game tab pays for: `offlineRate` of the time, up to `capMs`. Pure. The caller passes the
- * tuned rate and cap.
+ * tuned rate and cap. Not the store's `catchUp` action, which runs the pass that pays it.
  */
-export function catchUp(elapsedMs: number, offlineRate: number, capMs: number): CatchUp {
+export function offlineCredit(elapsedMs: number, offlineRate: number, capMs: number): OfflineCredit {
   const away = Math.max(0, Number.isFinite(elapsedMs) ? elapsedMs : 0);
   const rate = Math.min(1, Math.max(0, offlineRate));
   const capped = away > capMs;
@@ -35,22 +38,22 @@ export function catchUp(elapsedMs: number, offlineRate: number, capMs: number): 
   return { awayMs: away, creditedMs: counted * rate, rate, capped };
 }
 
-/** `catchUp` plus how to replay it: `steps` slices of `stepMs` each, 0 steps when nothing is credited. */
-export interface CatchUpSteps extends CatchUp {
+/** `offlineCredit` plus how to replay it: `steps` slices of `stepMs` each, 0 steps when nothing is credited. */
+export interface OfflineSteps extends OfflineCredit {
   steps: number;
   stepMs: number;
 }
 
 /**
- * `catchUp` for a game that replays its tick rule over an absence: `steps` is `max(1, min(maxSteps, ceil(credited /
- * minStepMs)))`, or 0 when nothing is credited, and `stepMs` is the credited time over `steps`. Defaults: rate 1,
- * 240 steps, 1,000 ms at least per step. Pure.
+ * `offlineCredit` for a game that replays its tick rule over an absence: `steps` is `max(1, min(maxSteps,
+ * ceil(credited / minStepMs)))`, or 0 when nothing is credited, and `stepMs` is the credited time over `steps`.
+ * Defaults: rate 1, 240 steps, 1,000 ms at least per step. Pure.
  */
-export function catchUpSteps(
+export function offlineSteps(
   elapsedMs: number,
   options: { capMs: number; rate?: number; maxSteps?: number; minStepMs?: number },
-): CatchUpSteps {
-  const span = catchUp(elapsedMs, options.rate ?? 1, options.capMs);
+): OfflineSteps {
+  const span = offlineCredit(elapsedMs, options.rate ?? 1, options.capMs);
   if (!(span.creditedMs > 0)) return { ...span, steps: 0, stepMs: 0 };
   const steps = Math.max(
     1,
@@ -59,11 +62,26 @@ export function catchUpSteps(
   return { ...span, steps, stepMs: span.creditedMs / steps };
 }
 
+/**
+ * @deprecated Renamed `offlineCredit`; the store's `catchUp` action keeps its name.
+ * `codemods/0.18.0-offline-credit.ts` moves a game.
+ */
+export const catchUp = offlineCredit;
+/** @deprecated Renamed `OfflineCredit`. */
+export type CatchUp = OfflineCredit;
+/** @deprecated Renamed `offlineSteps`; `codemods/0.18.0-offline-credit.ts` moves a game. */
+export const catchUpSteps = offlineSteps;
+/** @deprecated Renamed `OfflineSteps`. */
+export type CatchUpSteps = OfflineSteps;
+
 /** What the engine clock calls: `onTick` for live ticks, `onAway` for a gap, `onHide` when the tab hides. */
 export interface ClockHandlers {
-  /** A live tick of `dtMs` (at most MAX_STEP_MS) ending at `now`; a longer frame arrives as several. */
+  /**
+   * A live tick of `dtMs` (at most `maxStepMs`) ending at `now`. A longer frame, or a hidden spell, up to
+   * `awayAfterMs` arrives as several.
+   */
   onTick: (dtMs: number, now: number) => void;
-  /** A gap of `elapsedMs` (hidden tab, sleep, a long frame) ending at `now`. */
+  /** A gap longer than `awayAfterMs` (a hidden tab, sleep, a stalled frame) of `elapsedMs`, ending at `now`. */
   onAway: (elapsedMs: number, now: number) => void;
   /** The document went hidden; the store flushes its save here. */
   onHide?: (now: number) => void;
@@ -157,10 +175,8 @@ export function createClock(handlers: ClockHandlers, options: ClockOptions): Clo
   const resume = () => {
     if (!paused) return;
     paused = false;
-    const at = now();
-    const gap = at - last;
-    last = at;
-    if (gap > 0) handlers.onAway(gap, at);
+    // The hidden spell is paid as one step: a brief switch as live ticks, only a long one as time away.
+    step();
     handle = schedule(() => step(), intervalMs);
   };
 

@@ -5,6 +5,7 @@ import {
   fmt,
   fmtCents,
   fmtCounted,
+  fmtFull,
   fmtPlayed,
   fmtPlus,
   fmtRate,
@@ -134,6 +135,7 @@ describe("the printers", () => {
     expect(f.plus(2e9)).toBe("+2.00e9");
     expect(f.rate(2e9)).toBe("2.00e9/s");
     expect(f.counted(1, ["a", "b"])).toBe("1 a");
+    expect(f.full(2.5e9)).toBe(fmtFull(2.5e9));
     expect(formatter().num(1.52e6)).toBe("1.52M");
   });
 });

@@ -1,4 +1,4 @@
-## Buffs
+# Buffs
 
 Timed effects: a rush that multiplies income by seven for 77 seconds (the usual timed-multiplier model). A buff runs from the
 game time it started to its `until`; starting it again follows its stacking rule. Expiry runs early in every pass on

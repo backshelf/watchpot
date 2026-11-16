@@ -2,6 +2,7 @@ import { useLayoutEffect, useState } from "react";
 import { startGameClock } from "../core/clock-feature";
 import { watchOtherTabs } from "../core/persist";
 import type { RootActions } from "../core/store";
+import { noteOpening } from "./away";
 
 /** What `useGameClock` returns. */
 export interface GameClockState {
@@ -19,7 +20,10 @@ export function useGameClock(store: { getState(): RootActions }): GameClockState
   const [taken, setTaken] = useState(false);
   const [failure, setFailure] = useState<{ error: unknown } | null>(null);
   useLayoutEffect(() => {
+    const before = store.getState();
     const clock = startGameClock(store, { onFail: (error) => setFailure({ error }) });
+    // For a `useAwayReport` later in this component, whose subscription comes after this catch-up.
+    noteOpening(store, before);
     const unwatch = watchOtherTabs(store, () => {
       clock.stop();
       setTaken(true);

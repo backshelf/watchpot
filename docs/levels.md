@@ -1,4 +1,4 @@
-## Levels
+# Levels
 
 Experience and levels, as curves with exact inverses. A curve says how much XP each level takes; the readers go
 both ways, from a level to the total it needs and from a total back to the level it reaches, and always agree:

@@ -1,4 +1,4 @@
-import type { Decimal, FeatureSpec, Move } from "../core";
+import { type Decimal, type FeatureSpec, type Move } from "../core";
 import { type Rng, type Schedule } from "./schedule";
 import type { SimWorld } from "./world";
 /**
@@ -14,9 +14,15 @@ export interface Playable {
 export declare function movesOf<S extends object>(game: Playable, state: S): Move<S>[];
 /** Options for `autoPlayer`: how to read a balance by currency, and the most moves one look may make. */
 export interface AutoPlayerOptions<S> {
-    /** What the state holds of a currency a move's cost names: the auto-player buys only what this covers. */
-    balance(state: S, currency: string): Decimal;
-    /** The most moves one look makes, against a move that never stops going through. Default 1,000. */
+    /**
+     * What the state holds of a currency a move's cost names: the auto-player buys only what this covers. Default,
+     * when the game has exactly one `currencies` feature, its balance of that currency; otherwise required.
+     */
+    balance?(state: S, currency: string): Decimal;
+    /**
+     * The most moves one look makes, against a move that never stops going through. Default 1,000. A free move whose
+     * `apply` keeps succeeding is taken again and again until this runs out, so a free move should refuse once taken.
+     */
     maxMoves?: number;
 }
 /** What a look did: purchases and free moves taken. */
@@ -33,7 +39,7 @@ export interface AutoStore<S> {
  * share of its currency it spends (`amount / balance`), so a gem and a gold purchase compare; ties go to the first
  * declared. A move whose `apply` refuses is not tried again in the look; one valued at or below 0 is never taken.
  */
-export declare function autoPlayer<S extends object>(game: Playable, { balance, maxMoves }: AutoPlayerOptions<S>): {
+export declare function autoPlayer<S extends object>(game: Playable, { balance: given, maxMoves }?: AutoPlayerOptions<S>): {
     look(store: AutoStore<S>): LookResult;
 };
 /** One look's place in the days: its day, its session (from 0, across the run), its index in the session. */
@@ -59,10 +65,15 @@ export interface PlayDaysOptions<W extends SimWorld> {
     afterLook?(): void;
     /** The close of a day played (from 1); a skipped day has none. */
     dayEnd?(day: number): void;
+    /** Stops the run when true, checked after each look's play (a "when does X first happen" probe). */
+    until?(): boolean;
+    /** Stops the run once this much sim time has passed since `start` (checked like `until`). */
+    hours?: number;
 }
 /**
  * Days of play on a schedule (`planDay`): before each session the gap is a closed tab (`away`) or, when the session
  * before left it open, play in the background; a session is looks at its cadence, the time between them played,
- * until its attended time runs out.
+ * until its attended time runs out. `until` or `hours` stops it early, after the look that crossed it; a day cut
+ * short has no `dayEnd`.
  */
-export declare function playDays<W extends SimWorld>({ world, schedule, days, start, rng, look, afterLook, dayEnd, }: PlayDaysOptions<W>): void;
+export declare function playDays<W extends SimWorld>({ world, schedule, days, start, rng, look, afterLook, dayEnd, until, hours, }: PlayDaysOptions<W>): void;

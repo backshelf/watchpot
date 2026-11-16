@@ -26,7 +26,7 @@ void main() {
   vec2 w = domainWarp(p + vec2(0.0, -t * 0.8), 0.8 + 0.9 * heat, t * 3.0);
   float mist = smoothstep(0.32, 0.9, 0.5 + 0.5 * fbm(w * 1.25, 5));
   // the shape: heavier toward the foot of the page, where condensation gathers
-  float pool = smoothstep(0.85, 0.0, uv.y);
+  float pool = 1.0 - smoothstep(0.0, 0.85, uv.y);
   float amount = clamp(mist * (0.45 + 0.4 * heat + 0.35 * pool), 0.0, 1.0);
   // colour: ground toward the accent, never more than a quarter of the way (text sits on this)
   vec3 colour = oklabMix(u_ground.rgb, u_accent.rgb, amount * (0.16 + 0.1 * heat));

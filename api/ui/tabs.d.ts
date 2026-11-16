@@ -126,8 +126,10 @@ export interface BuyAmountProps<T extends BuyMode = BuyMode> extends Omit<Compon
     value?: T;
     defaultValue?: T;
     onValueChange?: (value: T) => void;
-    /** Each option's own props (a class, a title), by option. */
-    optionProps?: (option: BuyAmountOption<T>) => ComponentPropsWithRef<"button">;
+    /** Each option's own props (a class, a title, a `data-*` attribute), by option. */
+    optionProps?: (option: BuyAmountOption<T>) => ComponentPropsWithRef<"button"> & {
+        [data: `data-${string}`]: string | number | boolean | undefined;
+    };
 }
 /**
  * The buy-mode switch (x1, x10, x100, max, next): a radio group, one tab stop, arrows move and select. Each option

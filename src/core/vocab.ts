@@ -6,7 +6,7 @@ import type { DecimalSource } from "./decimal";
  * pity ladder is generic over the game's words.
  *
  * ```ts
- * const TOY = vocab({ currencies: ["gold", "gems"], stats: ["gold.rate"], rarities: ["common", "rare"] } as const);
+ * const TOY = vocab({ currencies: ["gold", "gems"], stats: ["gold.rate"], rarities: ["common", "rare"] });
  * type Reward = RewardOf<typeof TOY, { kind: "chest"; count: number }>;
  * ```
  */
@@ -38,8 +38,13 @@ export interface Ladder<R extends string> {
 
 /** A ladder over the rungs given, lowest first. Throws on an empty list or a repeated rung. */
 export function ladder<const R extends readonly string[]>(ids: R): Ladder<R[number]> {
-  type Rung = R[number];
   if (ids.length === 0) throw new Error("ladder: needs at least one rung");
+  return rungs(ids);
+}
+
+/** The ladder over `ids`, which may be empty (a vocabulary with no rarities). Throws on a repeated rung. */
+function rungs<const R extends readonly string[]>(ids: R): Ladder<R[number]> {
+  type Rung = R[number];
   const index = new Map<string, number>();
   ids.forEach((id, i) => {
     if (index.has(id)) throw new Error(`ladder: "${id}" appears twice`);
@@ -65,7 +70,10 @@ export function ladder<const R extends readonly string[]>(ids: R): Ladder<R[numb
   };
 }
 
-/** A game's words: its currencies, its stat ids and its rarity ladder. */
+/**
+ * A game's words: its currencies, its stat ids and its rarity ladder. A vocabulary that declares no rarities has an
+ * empty ladder (`size` 0), which a system that draws rarities refuses when it is defined.
+ */
 export interface Vocab<C extends string, S extends string, R extends string> {
   readonly currencies: readonly C[];
   readonly stats: readonly S[];
@@ -76,23 +84,29 @@ export interface Vocab<C extends string, S extends string, R extends string> {
 export type AnyVocab = Vocab<string, string, string>;
 
 /**
- * Declares a vocabulary. Each list is a const tuple (write `as const`, or pass a `const` array); `stats` may also be
- * a record of ids (a game's `STAT = { gold: "game.gold", … } as const`), whose values are the ids. Throws on a
- * repeated currency, stat or rarity, naming it.
+ * Declares a vocabulary. Each list keeps its literal words when written inline in the call; a list declared on its
+ * own line first needs `as const` there. `stats` may also be a record of ids (a game's
+ * `STAT = { gold: "game.gold", … } as const`), whose values are the ids. `stats` and `rarities` are optional: left
+ * out, they are empty. Throws on a repeated currency, stat or rarity, naming it.
  */
 export function vocab<
   const C extends readonly string[],
-  const S extends readonly string[] | Readonly<Record<string, string>>,
-  const R extends readonly string[],
+  const S extends readonly string[] | Readonly<Record<string, string>> = readonly [],
+  const R extends readonly string[] = readonly [],
 >(def: {
   readonly currencies: C;
-  readonly stats: S;
-  readonly rarities: R;
+  readonly stats?: S;
+  readonly rarities?: R;
 }): Vocab<C[number], StatIds<S>, R[number]> {
-  const stats = (Array.isArray(def.stats) ? def.stats : Object.values(def.stats)) as readonly StatIds<S>[];
+  const given = def.stats ?? [];
+  const stats = (Array.isArray(given) ? given : Object.values(given)) as readonly StatIds<S>[];
   unique("currency", def.currencies);
   unique("stat", stats);
-  return { currencies: def.currencies, stats, rarities: ladder(def.rarities) };
+  return {
+    currencies: def.currencies,
+    stats,
+    rarities: rungs(def.rarities ?? ([] as readonly string[] as R)),
+  };
 }
 
 type StatIds<S> = S extends readonly string[] ? S[number] : S[keyof S] & string;

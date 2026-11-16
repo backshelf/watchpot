@@ -31,8 +31,8 @@ export type Grid = "off" | "32" | "16" | "8" | "4" | "bar";
 
 /**
  * One clip in a 0.6 sampled cue: `at` seconds after the cue starts, scaled to a target RMS of `level`, played at
- * `playbackRate` (2 is an octave up and half as long). Every layer of a cue plays together. Still read; a new
- * cue names `takes`.
+ * `playbackRate` (2 is an octave up and half as long). Every layer of a cue plays together.
+ * @deprecated Still read; a new cue names `takes`.
  */
 export interface ClipLayer<F extends string = string> {
   file: F;
@@ -52,7 +52,10 @@ export interface ClipLayer<F extends string = string> {
 export interface Cue<B extends string = string, F extends string = string> {
   /** zzfx layers: the fallback, or the whole cue. */
   voices?: readonly Layer[];
-  /** The 0.6 shape: clips by file name, all layers together. Still read; a new cue names `takes`. */
+  /**
+   * The 0.6 shape: clips by file name, all layers together.
+   * @deprecated Still read; a new cue names `takes`.
+   */
   clips?: readonly ClipLayer<F>[];
   /** Recordings from packs; one is picked per play. */
   takes?: readonly Take[];
@@ -104,7 +107,12 @@ export interface PlayOptions<B extends string = string> {
   velocity?: number;
   /** Where on the screen it happened: a viewport point or an element. */
   at?: { x: number; y: number } | Element;
-  /** The player's own hand did it: never skipped, dry and forward. */
+  /**
+   * Whose hand did it. `true`, the player's: the governor never skips or rolls it and ignores the cue's
+   * `cooldownMs`, and repetition lowers it 3 dB at most. `false`, the machine's. Either way the mix shapes it by
+   * `SoundOptions.presence` (by default the player's plays as written and the machine's 6 dB down, with more of its
+   * first send). Absent: neither, and untouched by `presence`.
+   */
   mine?: boolean;
   /** A ratio on top of everything else. */
   rate?: number;
@@ -172,7 +180,10 @@ export interface SoundOptions<K extends string, F extends string = string, B ext
   mix?: MixFile | MixFileV1;
   /** Every cue by key. */
   cues: Readonly<Record<K, Cue<DefaultBus | NoInfer<B>, F>>>;
-  /** The 0.6 clip registry: every clip by name, to its URL. Still read; a new game ships packs. */
+  /**
+   * The 0.6 clip registry: every clip by name, to its URL.
+   * @deprecated Still read; a new game ships `packs`.
+   */
   samples?: Readonly<Record<F, string>>;
   /** Every pack by name: loaded by `loadPack(name)`, freed by `unloadPack(name)`. */
   packs?: Readonly<Record<string, PackSource>>;
@@ -433,8 +444,10 @@ export interface Space {
  */
 export interface Sound<K extends string, B extends string = never> {
   /**
-   * Plays a cue by key and returns its voice (one handle over every voice the play started), or null when nothing started:
-   * muted, before `unlock()`, while the context is not running, or on the fallback path.
+   * Plays a cue by key and returns its voice (one handle over every voice the play started), or null when there is
+   * no voice to hand back: nothing started (muted, before `unlock()`, while the context is not running, a `loop`
+   * cue on the fallback path), or it played on the fallback path (`mode()` is "fallback"), which sounds but keeps
+   * no voice to stop. Null is not proof of silence.
    */
   play(key: K, options?: PlayOptions<DefaultBus | B>): VoiceHandle | null;
   /** Starts the engine and resumes its AudioContext. Call from inside a user gesture; safe to call repeatedly. */
@@ -468,6 +481,7 @@ export interface Sound<K extends string, B extends string = never> {
   /**
    * Fetches and decodes every 0.6 clip not yet decoded. A clip that fails stays out (its cues use their zzfx
    * voices) and is tried again on the next call. Needs `unlock()` first.
+   * @deprecated The 0.6 clip registry is still read; a new game ships packs and loads them with `loadPack`.
    */
   loadSamples(): Promise<void>;
   /** Whether a cue plays a recording or its zzfx voices right now, and for how many seconds. */

@@ -29,8 +29,10 @@ export interface FreshStoreOptions<B extends StorageBackend = MemoryBackend> {
 export interface FreshStore<S extends object, B extends StorageBackend> {
   store: IdleStore<S>;
   backend: B;
-  /** The store's wall: move it, then `tick` or `catchUp`. */
+  /** The store's wall: move it, then `tick` or `catchUp` (or `play`, which does both). */
   clock: TestClock;
+  /** Moves the clock forward `ms` and ticks the store over it, at the new now: one number, not two. */
+  play(ms: number): void;
 }
 
 /**
@@ -55,20 +57,25 @@ export function freshStore<
     seed: options.seed,
   });
   if (options.catchUp ?? true) store.getState().catchUp(clock.now());
-  return { store, backend, clock };
+  const play = (ms: number): void => store.getState().tick(ms, clock.advance(ms));
+  return { store, backend, clock, play };
 }
 
-/** Plays a store: buys, ticks, moves the clock. A fixture's author. */
-export type Persona<S extends object> = (store: IdleStore<S>, clock: TestClock) => void;
+/** Plays a store: buys, ticks, moves the clock. A fixture's author (not the sim's auto-player). */
+export type FixturePlay<S extends object> = (store: IdleStore<S>, clock: TestClock) => void;
+
+/** @deprecated Renamed `FixturePlay` (the sim's player is the auto-player); this alias goes in a later major. */
+export type Persona<S extends object> = FixturePlay<S>;
 
 /**
- * A save made by play: a fresh store (seeded `fixture` unless `seed` says otherwise, so the same persona makes
- * the same save), `persona` run on it, then exported at the wall's now. The string is the export envelope, which is
- * also exactly what the backend holds: hand it to `freshStore({ save })`, an import, or a fixture file.
+ * A save made by play: a fresh store (seeded `fixture` unless `seed` says otherwise, so the same play makes the
+ * same save), `persona` run on it, then exported at the wall's now. The string is the export envelope: compatible
+ * with what the backend holds (a load reads either), not identical to it. Hand it to `freshStore({ save })`, an
+ * import, or a fixture file.
  */
 export function fixtureSave<F extends readonly FeatureSpec[], R extends object>(
   game: Game<F, R>,
-  persona: Persona<StateOf<F> & R>,
+  persona: FixturePlay<StateOf<F> & R>,
   options: Omit<FreshStoreOptions, "backend" | "save" | "catchUp"> = {},
 ): string {
   const { store, clock } = freshStore(game, { seed: "fixture", ...options });

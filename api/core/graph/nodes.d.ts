@@ -15,8 +15,15 @@ export interface GraphNode<E, C extends string = string> {
     name: string;
     /** What it does, in the voice of its world. */
     line: string;
-    /** The price of rank one; each further rank multiplies by `costGrowth`. */
+    /**
+     * The price of rank one; each further rank multiplies by `costGrowth`. Read fresh on every price, check and buy, so
+     * a line may be a getter (a price the game fits or tunes at run time) and the next read sees the new amount.
+     */
     cost: readonly NodeCost<C>[];
+    /**
+     * What each further rank's price is multiplied by. Default `DEFAULT_COST_GROWTH` (1.5), even on a node that has
+     * more than one rank and never says so: set it on every node above one rank (1 for a flat price).
+     */
     costGrowth?: number;
     maxLevel: number;
     /** Node ids that must be at rank one or more first. */
@@ -24,7 +31,7 @@ export interface GraphNode<E, C extends string = string> {
     /** Applied once per rank owned. */
     effects: readonly E[];
 }
-/** The default growth of a node's price per rank. */
+/** The growth of a node's price per rank when the node gives no `costGrowth`: 1.5. */
 export declare const DEFAULT_COST_GROWTH = 1.5;
 /** The price of the next rank when `level` are owned, floored. */
 export declare function rankCost<C extends string = string>(node: GraphNode<unknown, C>, level: number): {

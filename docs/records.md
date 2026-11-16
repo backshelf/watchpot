@@ -1,4 +1,4 @@
-## Records
+# Records
 
 The statistics screen: named running values, each folded by its kind and kept at the scopes it names (this run, the
 whole life of the profile), with the best of every finished run and a short list of past runs beside them. A run reset

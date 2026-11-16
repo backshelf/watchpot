@@ -1,4 +1,4 @@
-import { afterEach, describe, expect, test } from "bun:test";
+import { afterEach, describe, expect, spyOn, test } from "bun:test";
 import { render, renderHook } from "@testing-library/react";
 import { StrictMode } from "react";
 import { freshStore } from "watchpot/test";
@@ -62,15 +62,49 @@ describe("usePageRuntime", () => {
       </StrictMode>,
     );
     expect(seen.at(-1)).toBe(false);
-    expect(html().motion).toBeUndefined();
+    expect(html().motion).toBe("full");
     expect(html().scheme).toBe("light");
     expect(sound.seen.muted.at(-1)).toBe(false);
 
     view.unmount();
+    expect(html().motion).toBeUndefined();
     expect(html().scheme).toBeUndefined();
     expect(sound.seen.armed).toBe(sound.seen.disarmed);
     // A shell that goes leaves the engine unmuted for whatever mounts next.
     expect(sound.seen.muted.at(-1)).toBe(false);
+  });
+
+  test("data-motion is the resolved motion: the OS answers for the default, never over the player's choice", () => {
+    const os = spyOn(window, "matchMedia").mockImplementation(
+      (query: string) =>
+        ({
+          matches: query.includes("reduced-motion"),
+          media: query,
+          addEventListener() {},
+          removeEventListener() {},
+        }) as unknown as MediaQueryList,
+    );
+    try {
+      const seen: boolean[] = [];
+      const report = (r: boolean) => void seen.push(r);
+      const view = render(
+        <StrictMode>
+          <Page options={{}} report={report} />
+        </StrictMode>,
+      );
+      expect(seen.at(-1)).toBe(true);
+      expect(html().motion).toBe("reduced");
+      view.rerender(
+        <StrictMode>
+          <Page options={{ motion: "full" }} report={report} />
+        </StrictMode>,
+      );
+      expect(seen.at(-1)).toBe(false);
+      expect(html().motion).toBe("full");
+      view.unmount();
+    } finally {
+      os.mockRestore();
+    }
   });
 });
 
@@ -91,5 +125,14 @@ describe("useGameRuntime", () => {
     expect(sound.seen.muted.at(-1)).toBe(true);
     expect(() => view.unmount()).not.toThrow();
     expect(html().motion).toBeUndefined();
+  });
+
+  test("motion and scheme default to system", () => {
+    const { store } = freshStore(toy);
+    const view = renderHook(() => useGameRuntime(store));
+    expect(view.result.current.taken).toBe(false);
+    expect(html().motion).toBeDefined();
+    expect(html().scheme).toBeDefined();
+    view.unmount();
   });
 });

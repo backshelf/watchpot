@@ -141,4 +141,31 @@ describe("autobuyers", () => {
     expect(store.getState().auto.bought.mills).toBe(0);
     expect(store.getState().auto.lastAt).toEqual({});
   });
+
+  test("a run that puts a new slice in place still counts what it bought", () => {
+    type Slice = {
+      on: Record<string, boolean>;
+      lastAt: Record<string, number>;
+      bought: Record<string, number>;
+    };
+    const swap = autobuyers({
+      key: "swap",
+      list: [
+        {
+          id: "renew",
+          unlocked: () => true,
+          intervalMs: () => 0,
+          run: (d: { swap: Slice }) => {
+            // A game's own reset that replaces the record rather than writing into it.
+            d.swap = { on: { ...d.swap.on }, lastAt: { ...d.swap.lastAt }, bought: {} };
+            return 1;
+          },
+        },
+      ],
+    });
+    const g = defineGame({ id: "swap", save: { key: "swap.save", version: 1 }, features: [swap] });
+    const { store } = freshStore(g);
+    store.getState().tick(100, T0 + 100);
+    expect(store.getState().swap.bought.renew).toBe(1);
+  });
 });

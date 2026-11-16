@@ -1,4 +1,4 @@
-## Missions
+# Missions
 
 Timed tasks in slots: send something away, collect when it is back (an expedition, a delivery, a research job). A
 mission's cost is taken at the start through the game's `pay` hook, and its reward is rolled at the start too, on the

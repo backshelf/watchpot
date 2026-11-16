@@ -357,25 +357,32 @@ describe("the table", () => {
     "src/react/index.ts",
   ];
 
-  test(`sorts every export of the ${TAG} kit and react entries into exactly one bucket`, () => {
-    const tree = gitTree(ROOT, TAG, BARRELS);
-    const found: string[] = [];
-    const walk = (barrel: string, entry: string) => {
-      for (const ref of scanRefs(tree.read(barrel))) {
-        const module = posix.join(posix.dirname(barrel), ref.module).slice("src/".length);
-        if (ref.form === "star") walk(`src/${module}/index.ts`, entry);
-        else
-          for (const s of ref.specs ?? [])
-            found.push(`${entry}|${module}|${s.name}|${s.type || ref.typeOnly}`);
-      }
-    };
-    walk("src/kit/index.ts", "watchpot/kit");
-    walk("src/react/index.ts", "watchpot/react");
-    const table = OLD_EXPORTS.map((e) => `${e.entry}|${e.module}|${e.name}|${e.type}`);
-    expect(table.sort()).toEqual(found.sort());
-    const names = OLD_EXPORTS.map((e) => `${e.entry}|${e.name}`);
-    expect(new Set(names).size).toBe(names.length);
-  });
+  // The table is checked against the tagged tree; a history that no longer holds the tag has nothing to check.
+  const tagged =
+    Bun.spawnSync(["git", "rev-parse", "--verify", "--quiet", `${TAG}^{commit}`], { cwd: ROOT }).exitCode ===
+    0;
+  test.skipIf(!tagged)(
+    `sorts every export of the ${TAG} kit and react entries into exactly one bucket`,
+    () => {
+      const tree = gitTree(ROOT, TAG, BARRELS);
+      const found: string[] = [];
+      const walk = (barrel: string, entry: string) => {
+        for (const ref of scanRefs(tree.read(barrel))) {
+          const module = posix.join(posix.dirname(barrel), ref.module).slice("src/".length);
+          if (ref.form === "star") walk(`src/${module}/index.ts`, entry);
+          else
+            for (const s of ref.specs ?? [])
+              found.push(`${entry}|${module}|${s.name}|${s.type || ref.typeOnly}`);
+        }
+      };
+      walk("src/kit/index.ts", "watchpot/kit");
+      walk("src/react/index.ts", "watchpot/react");
+      const table = OLD_EXPORTS.map((e) => `${e.entry}|${e.module}|${e.name}|${e.type}`);
+      expect(table.sort()).toEqual(found.sort());
+      const names = OLD_EXPORTS.map((e) => `${e.entry}|${e.name}`);
+      expect(new Set(names).size).toBe(names.length);
+    },
+  );
 
   test("the retired matcher takes whole folders and the named files only", () => {
     expect(isRetired("src/kit/ui/cx.ts")).toBe(true);

@@ -53,9 +53,9 @@ export interface AllocationState {
 }
 /** The feature's actions. Each returns the units it moved. */
 export interface AllocationActions {
-    /** Moves `n` free units into a sink, clamped to what is free and to its cap. */
+    /** Moves `n` free units into a sink, clamped to what is free and to its cap: `assignUnits` on the saved record. */
     assign(id: string, n: number): number;
-    /** Takes `n` units back out of a sink. */
+    /** Takes `n` units back out of a sink: `assignUnits` with `-n`. */
     unassign(id: string, n: number): number;
     /** Takes every unit back. */
     clear(): number;
@@ -95,7 +95,7 @@ export type AllocationFeature<K extends string, G, E> = Feature<K, AllocationSta
  * A pool split between sinks, as a feature. It saves `{ assigned, order, progress, level }` under `key` (the stat bus's
  * source prefix too). `<key>.sync.pool` trims the record when the pool or a cap shrinks; `<key>.produce.fill` fills the
  * bars over a tick, and over an absence through `away` (default: all of it), several levels in one step when the work
- * covers them. A prestige reset clears it unless `reset` says otherwise. The callbacks read the whole game state, so
+ * covers them. A run reset clears it unless `reset` says otherwise. The callbacks read the whole game state, so
  * annotate one of them with the game's state type.
  */
 export declare function allocation<const K extends string, E = never, G extends object = object>(def: {

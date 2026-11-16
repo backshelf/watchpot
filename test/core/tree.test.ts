@@ -177,6 +177,37 @@ describe("tree", () => {
     expect(add(3) - add(2)).toBe(1);
   });
 
+  test("buying the cheapest buys in rising price order, leaves no rank it could have bought, and holds back closed", () => {
+    const base = NODES[0] as Node;
+    const shop = tree<Node>({
+      id: "shop",
+      nodes: [
+        { ...base, id: "a", cost: [{ currency: "gold", amount: 3 }], costGrowth: 2, maxLevel: 10 },
+        { ...base, id: "b", cost: [{ currency: "gold", amount: 5 }], costGrowth: 1.5, maxLevel: 10 },
+        { ...base, id: "c", cost: [{ currency: "gold", amount: 1 }], costGrowth: 1, maxLevel: 10 },
+        { ...base, id: "free", cost: [], costGrowth: 1, maxLevel: Number.POSITIVE_INFINITY },
+      ],
+    });
+    const purse = memoryPurse({ gold: 200, gems: 0 });
+    const ranks: Record<string, number> = {};
+    const paid: number[] = [];
+    const watched: Purse<"gold" | "gems"> = {
+      balance: purse.balance,
+      debit: (c, amount) => {
+        paid.push(D(amount).toNumber());
+        return purse.debit(c, amount);
+      },
+    };
+    const n = shop.buyCheapest(ranks, watched, { open: (node) => node.id !== "b" });
+    expect(n).toBe(paid.length);
+    expect(paid).toEqual([...paid].sort((x, y) => x - y));
+    expect(ranks.b).toBeUndefined();
+    expect(ranks.free).toBeUndefined(); // free and endless: skipped without a limit
+    for (const id of ["a", "c"]) expect(shop.affordable(id, ranks, (c) => purse.balance(c))).toBe(0);
+    expect(shop.buyCheapest(ranks, memoryPurse({ gold: 0, gems: 0 }), { limit: 4 })).toBe(4); // the free one, now
+    expect(ranks.free).toBe(4);
+  });
+
   test("it refuses a repeated node or a requirement outside the tree", () => {
     expect(() => tree({ id: "t", nodes: [NODES[0] as Node, NODES[0] as Node] })).toThrow(/drill/);
     expect(() => tree({ id: "t", nodes: [NODES[1] as Node] })).toThrow(/drill/);
@@ -219,6 +250,41 @@ describe("upgradeTree", () => {
     );
     expect(closed.getState().mine.buyMax("drill")).toBe(0);
     expect(closed.getState().wallet.gold.eq(12)).toBe(true);
+  });
+
+  test("its readers answer as its actions do: a closed node is neither offered nor bought", () => {
+    const gated = upgradeTree({
+      key: "mine",
+      nodes: NODES,
+      wallet,
+      open: (s: { wallet: { gold: Decimal } }, node) => node.id !== "laser" || s.wallet.gold.gte(50),
+    });
+    const store = createIdleStore(
+      defineGame({ id: "toy", save: { key: "toy.save", version: 1 }, features: [wallet, gated], vocab: TOY }),
+      { storage: createGameStorage(createMemoryBackend(), { debounceMs: 0 }), now: () => T0 },
+    );
+    store.getState().mine.buy("drill");
+    store.getState().wallet.credit("gems", 5);
+    const st = store.getState();
+    for (const id of ["drill", "laser", "nope"]) {
+      const offered = gated.check(st, id) === null;
+      expect(gated.affordable(st, id) > 0).toBe(offered);
+      expect(store.getState().mine.buy(id).ok).toBe(offered);
+    }
+    expect(gated.open(st, "laser")).toBe(false);
+    expect(gated.check(st, "laser")).toEqual({ ok: false, code: "closed" });
+    expect(gated.open(st, "nope")).toBe(false);
+  });
+
+  test("buys everything the wallet covers, cheapest first, and only what is open", () => {
+    const store = storeOf();
+    store.getState().wallet.credit("gold", 100);
+    store.getState().wallet.credit("gems", 2);
+    const n = store.getState().mine.buyAll();
+    const st = store.getState();
+    expect(n).toBe((st.mine.ranks.drill ?? 0) + (st.mine.ranks.laser ?? 0));
+    for (const id of ["drill", "laser"]) expect(mine.affordable(st, id)).toBe(0);
+    expect(store.getState().mine.buyAll()).toBe(0);
   });
 });
 

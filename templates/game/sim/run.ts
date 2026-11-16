@@ -1,31 +1,31 @@
 /**
- * The sim: plays the game headless on the engine's auto-player (every feature's `moves`), on the session schedule in
- * `src/content/pacing.ts`, and prints a timeline. `--contract` also judges the pacing bands and exits 1 on a miss.
- * `--straight=<hours>` plays one unbroken sitting instead, the tab open throughout, looking in at the schedule's
- * pace, and prints the same table.
+ * The sim: plays the game headless on the engine's auto-player (every feature's `moves`) and prints a timeline. By
+ * default it plays `ACTIVE` from `src/content/pacing.ts`, a player at it around the clock, so every hour of the run is
+ * a played hour; `--contract` judges the pacing bands at their played hours and exits 1 on a miss. `--sessions` plays
+ * the session schedule instead (`SCHEDULE`, days of a person coming and going), a second look that is never judged.
  *
- *   bun run sim -- --player=auto [--days=7] [--seed=sim] [--contract]
- *   bun run sim -- --straight=<hours> [--seed=sim]
+ *   bun run sim -- [--hours=12] [--seed=sim] [--contract]
+ *   bun run sim -- --sessions [--days=7] [--seed=sim]
  */
 import { type Decimal, ZERO } from "watchpot/core";
 import {
   autoPlayer,
-  byDay,
+  byHour,
   createSimWorld,
   formatVerdicts,
   grid,
   judge,
+  type LookAt,
   markdownTable,
   playDays,
-  playStraight,
   rngFor,
-  SIM_TICK_MS,
+  type Schedule,
   sampler,
   simArgs,
   simStore,
   table,
 } from "watchpot/sim";
-import { BANDS, CONTRACT_DAYS, SCHEDULE, SIM_DAYS } from "../src/content/pacing";
+import { ACTIVE, BANDS, CONTRACT_HOURS, SCHEDULE, SIM_DAYS, SIM_HOURS } from "../src/content/pacing";
 import { type GameState, game } from "../src/game/game";
 import { COLUMNS, readRow, type Row } from "./row";
 
@@ -36,20 +36,21 @@ if (player !== "auto") {
   console.error(`unknown player "${player}": the template ships the engine's auto-player only (--player=auto)`);
   process.exit(2);
 }
-const days = Number(args.get("days") ?? SIM_DAYS);
 const seed = args.get("seed") ?? "sim";
 const contract = args.has("contract");
-const straight = args.has("straight") ? Number(args.get("straight")) : null;
-if (straight !== null && !(straight > 0)) {
-  console.error(`--straight takes the sitting's hours: --straight=1 (got "${args.get("straight")}")`);
+const sessions = args.has("sessions");
+const hours = Number(args.get("hours") ?? SIM_HOURS);
+const days = Number(args.get("days") ?? SIM_DAYS);
+if (!(hours > 0 && hours <= 24)) {
+  console.error(`--hours takes the played hours, a day at most: --hours=12 (got "${args.get("hours")}")`);
   process.exit(2);
 }
-if (straight !== null && contract) {
-  console.error("--contract judges whole days; a straight sitting has none, so run them apart");
+if (sessions && contract) {
+  console.error("--contract judges played hours; a session run is never judged, so run them apart");
   process.exit(2);
 }
 
-/** A Monday, 08:00 local: the first session opens here. */
+/** A Monday, 08:00 local: the first look happens here. */
 const START = new Date(2026, 0, 5, 8, 0, 0).getTime();
 const started = performance.now();
 
@@ -60,8 +61,8 @@ const auto = autoPlayer<GameState>(game, {
 });
 const take = () => readRow(state(), (world.now() - START) / HOUR);
 /**
- * The day's best kinds and ranks: a day-end row reports how far the day's play got, so a prestige just before
- * midnight (which empties both) does not read as a day that got nowhere.
+ * The best kinds and ranks so far (a session run: that day): a row reports how far the play got, so a prestige just
+ * before it (which empties both) does not read as play that got nowhere.
  */
 const NONE = {
   kinds: 0,
@@ -79,50 +80,44 @@ const climb = (r: Row) => {
   };
   return r;
 };
+const marks = sessions ? [0.25, 0.5, 1, 2, 4] : [...new Set([0.25, 0.5, 1, 2, 4, 8, ...CONTRACT_HOURS])].sort((a, b) => a - b);
 const rows = sampler<Row>({
-  marks: [0.25, 0.5, 1, 2, 4].map((h) => h * HOUR),
+  marks: marks.map((h) => h * HOUR),
   start: START,
-  take,
+  take: () => ({ ...take(), ...best }),
   at: (r) => r.hours,
 });
 let bought = 0;
-const look = () => {
+let presses = 0;
+const look = (at: LookAt) => {
+  // @if clicker
+  for (let i = 0; i < at.presses; i++) state().clicker.click();
+  // @end
+  presses += at.presses;
   bought += auto.look(world.store as never).bought;
 };
-if (straight === null) {
-  playDays({
-    world,
-    schedule: SCHEDULE,
-    days,
-    start: START,
-    rng: rngFor(seed, player),
-    look,
-    afterLook: () => {
-      climb(take());
-      rows.look(world.now());
-    },
-    dayEnd: (day) => {
-      rows.close({ ...climb(take()), ...best, day });
-      best = NONE;
-    },
-  });
-} else {
-  // One sitting, looking in at the middle of the schedule's look gap, in the same minute ticks the days play in.
-  const { min, max } = SCHEDULE.lookEveryMin;
-  playStraight({
-    world,
-    ms: straight * HOUR,
-    lookEveryMs: ((min + max) / 2) * 60_000,
-    tickMs: SIM_TICK_MS,
-    look,
-    afterLook: () => rows.look(world.now()),
-  });
-  rows.close(take());
-}
+// The active run is one sitting of `hours` from the first look: the schedule's day, cut to its length.
+const schedule: Schedule = sessions ? SCHEDULE : { ...ACTIVE, sleepHour: ACTIVE.wakeHour + hours };
+playDays({
+  world,
+  schedule,
+  days: sessions ? days : 1,
+  start: START,
+  rng: rngFor(seed, player),
+  look,
+  afterLook: () => {
+    climb(take());
+    rows.look(world.now());
+  },
+  dayEnd: (day) => {
+    rows.close({ ...climb(take()), ...best, ...(sessions ? { day } : {}) });
+    best = NONE;
+  },
+});
 
 const fixed = (n: number, d = 1) => n.toFixed(d);
-const span = straight === null ? `${days} days` : `one ${straight}h sitting`;
-console.log(`sim: ${player} player, seed ${seed}, ${span}, ${bought} purchases, ${fixed((performance.now() - started) / 1000)}s`);
+const span = sessions ? `${days} days of sessions` : `${hours} played hours`;
+console.log(`sim: ${player} player, seed ${seed}, ${span}, ${bought} purchases, ${presses} presses, ${fixed((performance.now() - started) / 1000)}s`);
 console.log(
   markdownTable(
     ["day", "hours", ...COLUMNS.map(([heading]) => heading)],
@@ -131,23 +126,21 @@ console.log(
 );
 
 if (contract) {
-  const hoursOf = (r: Row) => r.hours;
-  const CONTRACT = table(
-    byDay(hoursOf),
-    {
-      kinds: { name: "Producer kinds owned (the day's best)", read: (r: Row) => r.kinds },
-      // @if tree
-      ranks: { name: "Upgrade ranks (the day's best)", read: (r: Row) => r.ranks },
-      // @end
-      // @if gacha
-      pulls: { name: "Pulls", read: (r: Row) => r.pulls },
-      // @end
-      // @if prestige
-      runs: { name: "Prestige resets", read: (r: Row) => r.runs },
-      // @end
-    },
-    grid(CONTRACT_DAYS, BANDS),
-  );
+  // Every metric a band may name; `BANDS` holds bands for some of them.
+  const metrics = {
+    main: { name: "log10 of the main balance", read: (r: Row) => r.main },
+    kinds: { name: "Producer kinds owned (the best so far)", read: (r: Row) => r.kinds },
+    // @if tree
+    ranks: { name: "Upgrade ranks (the best so far)", read: (r: Row) => r.ranks },
+    // @end
+    // @if gacha
+    pulls: { name: "Pulls", read: (r: Row) => r.pulls },
+    // @end
+    // @if prestige
+    runs: { name: "Prestige resets", read: (r: Row) => r.runs },
+    // @end
+  };
+  const CONTRACT = table(byHour((r: Row) => r.hours), metrics, grid(CONTRACT_HOURS, BANDS));
   const verdicts = judge(rows.rows, CONTRACT);
   console.log(formatVerdicts(verdicts));
   if (verdicts.some((v) => !v.ok)) process.exit(1);

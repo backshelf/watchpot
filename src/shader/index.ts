@@ -6,6 +6,7 @@ export {
   ShaderCanvas,
   type ShaderCanvasProps,
   type ShaderHandle,
+  type ShaderSurface,
   shaderClockPin,
 } from "./canvas";
 export {

@@ -12,6 +12,7 @@ import type { Softcap, StatDef } from "./stats";
 /** What a source does to a stat: adds to its base or multiplies it, by a value read off the state `q`. */
 export interface LiveEffect<S extends string, Q> {
   readonly stat: S;
+  /** Adds to the base, or multiplies (`"mul"`, where the bus's `Effect` says `mult`). */
   readonly op: "add" | "mul";
   /** Called at most once per graph, with the state the graph is over. */
   readonly value: (q: Q) => DecimalSource;
@@ -25,7 +26,11 @@ export interface LiveSource<S extends string, F extends string, Q> {
   readonly flags?: readonly F[];
 }
 
-/** Where a source comes from and when it counts. A source whose `group` is muted loses its effects, never its flags. */
+/**
+ * Where a source comes from and when it counts. A source whose `group` is muted loses its effects, never its flags:
+ * a flag it raises stays raised while it is `active`, so a source a game means to switch off whole reads the mute in
+ * its own `active` too.
+ */
 export interface LiveMeta<Q, G extends string = string> {
   readonly label: string;
   readonly owner: string;
@@ -72,7 +77,9 @@ export interface StatGraph<S extends string, F extends string> {
   flag(id: F): boolean;
 }
 
-/** A live index's stat bases (default: 1 for every stat) and caps per stat. */
+/**
+ * A live index's stat bases (default: 1 for every stat, where the bus's `statValue` defaults to 0) and caps per stat.
+ */
 export interface LiveIndexOptions<S extends string> {
   base?: (stat: S) => DecimalSource;
   caps?: Partial<Record<S, StatDef>>;
@@ -82,7 +89,10 @@ export interface LiveIndexOptions<S extends string> {
 export interface LiveIndex<S extends string, F extends string, Q, G extends string = string> {
   /** Indexes every effect and flag of the source under its meta. Graphs already made do not see it. */
   add(source: LiveSource<S, F, Q>, meta: LiveMeta<Q, G>): void;
-  /** A graph over one state; `muted` silences the effects of a group (never its flags). */
+  /**
+   * A graph over one state; `muted` silences the effects of a group. Never its flags: `flag` still reads a muted
+   * group's sources as raised, so a mute meant to switch a source off whole goes in its `active` as well.
+   */
   over(q: Q, options?: { muted?: (group: G) => boolean }): StatGraph<S, F>;
 }
 

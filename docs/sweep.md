@@ -1,4 +1,4 @@
-## Sweeps
+# Sweeps
 
 A timing bar: a cursor crossing a track, targets on the track, and a strike graded by how near the cursor is to a
 target's centre. A scanner, a fishing line, a perfect-press meter. The cursor's place is a pure function of game

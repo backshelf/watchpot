@@ -72,7 +72,7 @@ export type AutobuyersFeature<K extends string, G> = Feature<K, AutobuyersState,
 /**
  * Autobuyers as a feature. It saves `{ on, lastAt, bought }` under `key` and fires in one step, `<key>.automate.fire`:
  * every unlocked autobuyer that is switched on and due by `everyMs`, highest `priority` first. A catch-up fires each
- * at most once at its end: purchases during an absence are not simulated, only the first one back. A prestige reset
+ * at most once at its end: purchases during an absence are not simulated, only the first one back. A run reset
  * keeps the player's switches and clears the rest, unless `reset` says otherwise. The callbacks read the whole game
  * state, so annotate one of them with the game's state type.
  */
@@ -144,7 +144,9 @@ export function autobuyers<const K extends string, G extends object = object>(de
             if (next === null) continue;
             s.lastAt[a.id] = next;
             const n = a.run(d as unknown as Draft<G>, ctx);
-            if (n > 0) s.bought[a.id] = (s.bought[a.id] ?? 0) + n;
+            // Read the slice again: a `run` that resets the run may have put a new record in its place.
+            const after = own(d);
+            if (n > 0) after.bought[a.id] = (after.bought[a.id] ?? 0) + n;
           }
         },
       },
