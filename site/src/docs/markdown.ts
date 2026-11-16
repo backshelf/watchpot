@@ -34,6 +34,8 @@ export interface ParsedPage {
 
 const HEADING = /<h([1-6])>([\s\S]*?)<\/h\1>/g;
 const LINK = /<a href="([^"]*)"(?: title="([^"]*)")?>([\s\S]*?)<\/a>/g;
+/** Inline code outside a link and outside a listing (group 2); a link or a listing, to be skipped whole (group 1). */
+const MENTION = /(<a [\s\S]*?<\/a>|<pre>[\s\S]*?<\/pre>)|<code>([^<]+)<\/code>/g;
 const CODE = /<pre><code(?: class="language-([^"]*)")?>([\s\S]*?)<\/code><\/pre>/g;
 
 /** Parses one markdown file: title, heading ids, links, prose. */
@@ -76,6 +78,11 @@ export function parseMarkdown(source: string): ParsedPage {
 
 export interface RenderOptions {
   link: (href: string) => ResolvedLink;
+  /**
+   * Inline code that names a rendered source file (`start-a-game.ts`, `examples/vocab.ts`): the URL of its page,
+   * or null to leave the code as it is. The docs name their examples this way far more often than they link them.
+   */
+  mention?: (text: string) => string | null;
   highlight: Highlight;
 }
 
@@ -96,6 +103,11 @@ export function renderBody(html: string, options: RenderOptions): string {
       const title = titleAttr ? ` title="${titleAttr}"` : "";
       const rel = resolved.external ? ' rel="noopener"' : "";
       return `<a href="${escapeHtml(resolved.href)}"${title}${rel}>${text}</a>`;
+    })
+    .replace(MENTION, (whole, skipped: string | undefined, text: string | undefined) => {
+      if (skipped !== undefined || text === undefined) return whole;
+      const href = options.mention?.(decodeEntities(text)) ?? null;
+      return href === null ? whole : `<a class="code-link" href="${escapeHtml(href)}">${whole}</a>`;
     })
     .replace(CODE, (_whole, lang: string | undefined, body: string) => {
       const name = lang ? decodeEntities(lang).split(/\s/)[0] || "text" : "text";

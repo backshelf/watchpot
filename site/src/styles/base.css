@@ -251,6 +251,7 @@ svg {
 }
 
 .mark {
+  flex: none;
   width: 1.5rem;
   height: 1.5rem;
   fill: none;
@@ -330,5 +331,28 @@ svg {
     animation-duration: 1ms;
     animation-iteration-count: 1;
     scroll-behavior: auto;
+  }
+}
+
+/* A narrow masthead keeps the switch as its mark alone (its name is still its accessible name). */
+@media (max-width: 30rem) {
+  .scheme [data-scheme-label] {
+    display: none;
+  }
+
+  .mast {
+    gap: 0.75rem;
+  }
+
+  .mast__tools {
+    gap: 0.5rem;
+  }
+}
+
+/* Fingers get more room than a cursor does. */
+@media (pointer: coarse) {
+  .scheme,
+  .mast__menu {
+    min-height: 2.75rem;
   }
 }

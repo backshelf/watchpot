@@ -220,3 +220,13 @@
   display: grid;
   gap: clamp(1rem, 2vw, 1.5rem);
 }
+
+@media (pointer: coarse) {
+  .seg > * {
+    min-height: 2.75rem;
+  }
+
+  .button--small {
+    min-height: 2.75rem;
+  }
+}

@@ -18,6 +18,9 @@ const TOKENS = ["--paper", "--ink", "--live"] as const;
 /** How wide a label column must be to carry a part's line under its name. */
 const ROOMY = 128;
 
+/** Below this figure width the leaders are short and the drawing takes the margin. */
+const TIGHT = 480;
+
 const easeOut = (t: number) => 1 - (1 - t) ** 4;
 
 /** The same drawing without WebGL: the parts' faces as polygons, back to front. */
@@ -54,8 +57,9 @@ export function Hero() {
     const measure = () => {
       const { width, height } = el.getBoundingClientRect();
       if (width < 10 || height < 10) return;
-      const column = Math.max(72, Math.min(190, width * 0.21));
-      const fitted = fit(width - 2 * column, height, 18);
+      // A phone keeps a column wide enough for the longest name on one line, and gives the drawing the rest.
+      const column = Math.max(82, Math.min(190, width * 0.21));
+      const fitted = fit(width - 2 * column, height, width < TIGHT ? 6 : 18);
       setGeo({ ...fitted, width, height, ox: width / 2 });
     };
     measure();
@@ -132,7 +136,7 @@ export function Hero() {
   );
 
   const roomy = geo ? (geo.width - 2 * 0.866 * geo.scale) / 2 - 30 >= ROOMY : true;
-  const edge = geo ? 0.866 * geo.scale + 26 : 0;
+  const edge = geo ? 0.866 * geo.scale + (geo.width < TIGHT ? 12 : 26) : 0;
 
   return (
     <section className="hero sheet" aria-labelledby="hero-title">

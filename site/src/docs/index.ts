@@ -232,10 +232,28 @@ export async function buildDocs(options: DocsOptions): Promise<DocsResult> {
   const shellFor = (out: string, slots: Record<string, string>) => fillShell(options.shell, out, slots);
   const urlFrom = (from: string) => (to: string) => relativeUrl(from, to);
 
+  // A source file by its bare name, where one file alone has it (`gacha.ts`); null where two do.
+  const byName = new Map<string, string | null>();
+  for (const path of sourceMap.keys()) {
+    const name = posix.basename(path);
+    byName.set(name, byName.has(name) ? null : path);
+  }
+
   for (const page of pages) {
     const group = groupOf(nav, page.out);
     const body = renderBody(page.parsed.html, {
       highlight,
+      mention: (text) => {
+        if (!/^[\w./@-]+\.\w+$/.test(text)) return null;
+        const near = posix.normalize(posix.join(posix.dirname(page.repoPath), text));
+        const hit = [near, posix.normalize(text), byName.get(text) ?? ""].find((p) => sourceMap.has(p));
+        const out = hit ? sourceMap.get(hit) : undefined;
+        if (!hit || !out) return null;
+        const users = usedBy.get(hit) ?? [];
+        if (!users.includes(page)) users.push(page);
+        usedBy.set(hit, users);
+        return relativeUrl(page.out, out);
+      },
       link: (href) => {
         const resolved = resolveLink(href, { repoPath: page.repoPath, outPath: page.out }, ctx);
         if (resolved.kind === "missing") warnings.push(`${page.repoPath}: broken link "${href}"`);

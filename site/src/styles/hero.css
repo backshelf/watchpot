@@ -222,6 +222,13 @@
   display: block;
 }
 
+/* Where the columns are narrow a label is its name alone, on one line. */
+.fig:not([data-roomy]) .callout__name {
+  font-size: 0.625rem;
+  letter-spacing: 0.04em;
+  white-space: nowrap;
+}
+
 .callout[data-focused] .callout__name,
 .callout a:hover .callout__name {
   background: var(--live);
@@ -260,7 +267,7 @@
 
   .fig {
     order: 2;
-    height: clamp(24rem, 118vw, 40rem);
+    height: clamp(21rem, 98vw, 36rem);
   }
 }
 
@@ -275,5 +282,17 @@
 
   .titleblock > div:nth-child(4) {
     grid-column: 1 / -1;
+  }
+}
+
+@media (pointer: coarse) {
+  .callout a {
+    min-height: 1.75rem;
+    align-content: center;
+  }
+
+  .titleblock a {
+    display: inline-block;
+    padding-block: 0.4rem;
   }
 }
