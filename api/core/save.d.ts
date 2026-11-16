@@ -42,10 +42,17 @@ export declare function migrationProblems(steps: MigrationSteps): string[];
 /** The oldest save version the steps bring forward: the save's own version when none are declared. */
 export declare function oldestReadable(steps: MigrationSteps): number;
 /**
+ * A saved value read loosely, for a migration step (which is handed `unknown`): its own fields when it is a plain
+ * object, else an empty record. Decimals inside are already revived. `const old = savedRecord(saved);
+ * return { ...old, count: old.owned ?? 0 }`; the game's step reads a slice the same way, `savedRecord(old.wallet)`.
+ */
+export declare function savedRecord(saved: unknown): Record<string, unknown>;
+/**
  * What the loader keeps of a saved state at `fromVersion`: the state itself at the current version; from an older
  * one, the state brought forward by `steps` one version at a time (at each, the game's step over the whole state,
- * then each feature's over its own data in feature order), or nothing (a fresh profile) when a version on the way
- * has no step. A newer one is a typed error. A step that throws is not caught here.
+ * then each feature's over its own data in feature order, skipping a feature the save has no slice for), or nothing
+ * (a fresh profile) when a version on the way has no step. A newer one is a typed error. A step that throws is not
+ * caught here.
  */
 export declare function migrate(state: unknown, fromVersion: number, toVersion: number, steps?: MigrationSteps): unknown;
 /** The export format: a version, when it was saved and the state. */

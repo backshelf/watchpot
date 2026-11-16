@@ -49,26 +49,33 @@ export function registerStore(store: object, meta: StoreMeta): void {
   flushOnHide(store);
 }
 
+/** Removes a collected store's hide listeners, so a page that builds many stores (tests, sims) does not pile them up. */
+const hideListeners =
+  typeof FinalizationRegistry === "undefined"
+    ? undefined
+    : new FinalizationRegistry<() => void>((detach) => detach());
+
 /**
- * The page-hide flush. The listener holds the store weakly, so a store dropped (a test's, a sim's) is collected, and
- * the listener goes with the next hide.
+ * The page-hide flush. The listener holds the store weakly, and its listeners are removed once the store is
+ * collected (a test's, a sim's), or at the next hide after.
  */
 function flushOnHide(store: object): void {
   if (typeof window === "undefined" || typeof document === "undefined") return;
   const ref = new WeakRef(store);
+  const detach = () => {
+    document.removeEventListener("visibilitychange", onHide);
+    window.removeEventListener("pagehide", onHide);
+  };
   const onHide = (event: Event) => {
     const live = ref.deref();
-    if (!live) {
-      document.removeEventListener("visibilitychange", onHide);
-      window.removeEventListener("pagehide", onHide);
-      return;
-    }
+    if (!live) return detach();
     if (event.type === "visibilitychange" && !document.hidden) return;
     if ((hideHolds.get(live) ?? 0) > 0) return;
     metaByStore.get(live)?.storage.flush();
   };
   document.addEventListener("visibilitychange", onHide);
   window.addEventListener("pagehide", onHide);
+  hideListeners?.register(store, detach);
 }
 
 /**

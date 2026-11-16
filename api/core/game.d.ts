@@ -49,9 +49,17 @@ export type GameVocab<G> = G extends {
 /** Any game, as the runner and the store take it. */
 export type AnyGame = Game<readonly FeatureSpec[], object>;
 /**
- * Declares a game: its features in order, where its clock lives, and which steps run first in a phase. Checks
- * at definition time, naming the feature in the error: keys are unique, transient and kept keys exist in
- * `initial`, every id in `order` is a step some feature (or the clock) declares in that phase, and the migrations,
- * when there are any, step through every version from the oldest they declare to the save's.
+ * Declares a game: its features in order, where its clock lives, and which steps run first in a phase.
+ *
+ * Steps run phase by phase (`PHASES`), whatever the list says; the feature list ranks steps only inside one phase,
+ * after the ids `order` pulls to the front. A step that reads a slice another feature writes later in the same
+ * phase reads the value from the pass before: put the writer in an earlier phase, earlier in the list, or in
+ * `order`.
+ *
+ * Checks at definition time, naming the feature in the error: keys are unique, transient and kept keys exist in
+ * `initial`, no action is named like a key of its feature's `initial` (or a game action like a feature's key),
+ * every id in `order` is a step its feature (or the clock) declares in that phase, and the migrations, when there
+ * are any, step through every version from the oldest they declare to the save's. It calls every `initial` and
+ * builds every `actions` once to check them, so both stay pure and cheap.
  */
 export declare function defineGame<const F extends readonly FeatureSpec[], R extends object = Record<never, never>, C extends ClockSpec<F> | undefined = undefined, G extends object = StateOf<FeaturesOf<F, C>>, V extends AnyVocab | undefined = undefined>(def: GameDef<F, R, C, G, V>): Game<FeaturesOf<F, C>, R, V>;

@@ -19,6 +19,7 @@ import {
   pullsUntilPity,
   seedRng,
   softPityExtra,
+  vocab,
 } from "watchpot/core";
 import { T0 } from "./toy";
 
@@ -179,6 +180,13 @@ function bagStore(seed = "bag", backend = createMemoryBackend()) {
 }
 
 describe("gacha()", () => {
+  test("refuses a vocabulary with no rarities at definition", () => {
+    const bare = vocab({ currencies: ["gold"] });
+    expect(() =>
+      gacha({ key: "empty", ladder: bare.rarities, odds: { box: {} }, pity: { box: [] } }),
+    ).toThrow(/gacha "empty": its ladder has no rungs/);
+  });
+
   test("a fresh gacha holds zeroed counters for every box and floor", () => {
     const s = bagStore().store.getState().bag;
     expect(s.pity).toEqual({ plain: { opal: 0, ruby: 0, star: 0 }, shiny: { star: 0 } });

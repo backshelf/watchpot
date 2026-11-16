@@ -64,10 +64,14 @@ export interface IdleStoreOptions {
 /** The saved fields of every feature. The data objects are frozen and shared: read them, never write them. */
 export declare function partializeState(features: readonly FeatureSpec[], state: object): PersistedState;
 /**
- * Saved fields over a feature's current data, keeping the actions. A Decimal default coerces a saved number or
- * string; a plain-object default under a plain-object save is filled one level down, so a key added since the
- * save loads as its default. The feature's `merge` then runs over the result.
+ * Saved fields over a feature's current data, keeping the actions. A saved `undefined` is a missing field (the
+ * default stays). Under a Decimal default a saved Decimal, number or string is read as one, and anything else, or
+ * what reads as NaN, leaves the default; a plain-object default under a plain-object save is filled one level down,
+ * so a key added since the save loads as its default. The feature's `merge` then runs over the result.
  */
 export declare function mergeFeature<T extends object>(f: FeatureSpec, fresh: T, saved: unknown): T;
-/** Builds the zustand store a game runs from its definition: every feature's state and actions, the tick and the save. */
+/**
+ * Builds the zustand store a game runs from its definition: every feature's state and actions, the tick and the save.
+ * Where there is a page it flushes the save itself when the page hides, clock or no clock (`registerStore`).
+ */
 export declare function createIdleStore<F extends readonly FeatureSpec[], R extends object>(game: Game<F, R>, options: IdleStoreOptions): IdleStore<StateOf<F> & R>;
