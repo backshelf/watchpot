@@ -4,7 +4,7 @@ import { describe, expect, test } from "bun:test";
 import { readdirSync, readFileSync } from "node:fs";
 import { mkdir, mkdtemp, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
-import { join } from "node:path";
+import { dirname, join } from "node:path";
 import {
   ALL_FLAGS,
   type Answers,
@@ -161,6 +161,21 @@ describe("what the template writes", () => {
       await expect(generate({ ...opts, out: dir })).rejects.toThrow("no *.tmpl");
     } finally {
       await rm(dir, { recursive: true, force: true });
+    }
+  });
+
+  test("full mode copies the template into a missing folder and leaves a game with its tokens", async () => {
+    const answers = join(TEMPLATE, ".scaffold", "fixtures", "smallest-clicker.json");
+    const dir = join(await mkdtemp(join(tmpdir(), "watchpot-gen-")), "game");
+    try {
+      await generate({ answers, out: dir, engine: "v0.0.0", mode: "full", lint: false });
+      const files = readdirSync(dir, { recursive: true }).map((f) => String(f).replaceAll("\\", "/"));
+      expect(files).toContain("package.json");
+      expect(files).toContain("src/tokens.css");
+      expect(files.filter((f) => f.endsWith(".tmpl") || f.startsWith(".scaffold"))).toEqual([]);
+      expect(readFileSync(join(dir, "package.json"), "utf8")).toContain("watchpot.git#v0.0.0");
+    } finally {
+      await rm(dirname(dir), { recursive: true, force: true });
     }
   });
 
