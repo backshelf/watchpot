@@ -198,14 +198,13 @@ describe("the game's own actions and the save status", () => {
     expect(typeof store.getState().tick).toBe("function");
   });
 
-  test("saving, unsaved for a non-durable memory store, blocked once another build's save is seen", () => {
-    const { store } = toyStore();
-    expect(saveStatus(store)).toBe("saving");
-    const memory = createIdleStore(toy, {
-      storage: createGameStorage(createMemoryBackend(), { debounceMs: 0, durable: false }),
+  test("saving over a durable backend, unsaved over memory, blocked once another build's save is seen", () => {
+    const store = createIdleStore(toy, {
+      storage: createGameStorage(createMemoryBackend(), { debounceMs: 0, durable: true }),
       now: () => T0,
     });
-    expect(saveStatus(memory)).toBe("unsaved");
+    expect(saveStatus(store)).toBe("saving");
+    expect(saveStatus(toyStore().store)).toBe("unsaved");
     const told = mock(() => {});
     const unwatch = watchSave(store, told);
     expect(told).not.toHaveBeenCalled();

@@ -7,7 +7,7 @@ export type PersistedState = Record<string, Record<string, unknown>>;
  * blocks writes; what a save's version means is the store's call.
  *
  * A backend holds raw strings. `StorageBackend` answers at once (localStorage, memory): the store loads during
- * `createIdleStore`, as WHALE's always has. `AsyncStorageBackend` may answer with a promise (IndexedDB, a native
+ * `createIdleStore`. `AsyncStorageBackend` may answer with a promise (IndexedDB, a native
  * bridge): the store then loads later and says so with `store.hydrated`, and writes go one at a time, each after the
  * last has landed.
  */
@@ -22,7 +22,10 @@ export interface AsyncStorageBackend {
     setItem: (name: string, value: string) => void | Promise<void>;
     removeItem: (name: string) => void | Promise<void>;
 }
-/** A storage backend over a map, answering at once, with `dump()` for tests. */
+/**
+ * A storage backend over a map, answering at once, with `dump()` for tests. Nothing outlives the tab, so
+ * `createGameStorage` over it is not durable unless told otherwise.
+ */
 export declare function createMemoryBackend(): StorageBackend & {
     dump: () => Record<string, string>;
 };
@@ -40,7 +43,7 @@ export interface GameStorage extends PersistStorage<PersistedState> {
     /** Drops any pending write and refuses every later `setItem` and `flush`. Idempotent, safe at any time. */
     block: () => void;
     readonly blocked: boolean;
-    /** False for the memory fallback: nothing outlives the tab. */
+    /** False over a `createMemoryBackend`: nothing outlives the tab. */
     readonly durable: boolean;
     /** True after a write throws, until the next write lands. */
     readonly failing: boolean;
@@ -54,23 +57,27 @@ export interface GameStorage extends PersistStorage<PersistedState> {
         replace?: boolean;
     }) => void | Promise<void>;
 }
-/** Where `keep` puts a save it will not use: WHALE's is `whale.save.kept`. */
+/** Where `keep` puts a save it will not use: a save under `game.save` is kept under `game.save.kept`. */
 export declare const KEPT_SUFFIX = ".kept";
 /** A plain object: not null, an array, a Decimal or a primitive. */
 export declare function isPlainObject(value: unknown): value is Record<string, unknown>;
 /** The saved state when it has the outer shape, or null. */
 export declare function asPersisted(value: unknown): PersistedState | null;
-/** Options for `createGameStorage`: the debounce, the scheduler, an error hook and durability. */
+/** Options for `createGameStorage`: the write window, the scheduler, an error hook and durability. */
 export interface GameStorageOptions {
-    /** Trailing debounce for writes; 0 writes synchronously. */
+    /**
+     * The write window, a fixed-window throttle rather than a trailing debounce: the first change schedules a write
+     * `debounceMs` later carrying the latest state, and changes meanwhile do not push it back, so steady play still
+     * saves once a window. 0 writes synchronously.
+     */
     debounceMs?: number;
     schedule?: (fn: () => void, ms: number) => unknown;
     cancel?: (handle: unknown) => void;
     onError?: (error: unknown) => void;
-    /** Whether the backend outlives the tab. Default true; the memory fallback passes false. */
+    /** Whether the backend outlives the tab. Default false over a `createMemoryBackend`, true over anything else. */
     durable?: boolean;
 }
-/** The default trailing debounce of saves, in milliseconds. */
+/** The default write window of saves (`GameStorageOptions.debounceMs`), in milliseconds. */
 export declare const SAVE_DEBOUNCE_MS = 1000;
 /** Wraps a backend in the game's storage: tagged JSON, debounced writes, `flush`, `block` and `keep`. */
 export declare function createGameStorage(backend: AsyncStorageBackend, options?: GameStorageOptions): GameStorage;
