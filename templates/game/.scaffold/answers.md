@@ -3,7 +3,7 @@
 What a game is scaffolded from: `new.ts` (and `generate.ts` under it) reads one, checks it and lists every problem at
 once. The types are `Answers` in `generate.ts`; the rules below are what `plan()` checks. A complete example is
 `answers.example.json` beside this file; the least one can say is `fixtures/smallest-clicker.json` (a clicker and its
-words, nothing else).
+words, nothing else). Written by hand, or by the `/watchpot-init` interview, which asks for exactly these fields.
 
 | Field | What | Rules |
 | --- | --- | --- |

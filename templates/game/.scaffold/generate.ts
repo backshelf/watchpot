@@ -334,7 +334,7 @@ export const ALL_FLAGS: ReadonlySet<string> = new Set<string>([...FEATURES, ...C
 // ---------------------------------------------------------------------------------------------- the content
 
 const ts = (v: unknown) => JSON.stringify(v);
-const HEAD = "// Written by /watchpot from .claude/specs/answers.json. It is the game's now: edit it freely.";
+const HEAD = "// Written by /watchpot-init from .claude/specs/answers.json. It is the game's now: edit it freely.";
 
 /** Each tier's number for a ladder of `size` rungs, read off five stops (the lowest and the highest always land). */
 const spread = (stops: readonly number[], size: number, i: number) =>
@@ -1056,7 +1056,7 @@ function concept(pl: Plan, tabs: ReturnType<typeof tabsOf>): string {
   const lines = [
     `# ${pl.name}`,
     "",
-    "The game's concept as `/watchpot` took it down. The answers themselves are in `answers.json` beside this file.",
+    "The game's concept as `/watchpot-init` took it down. The answers themselves are in `answers.json` beside this file.",
     "",
     "## Fiction",
     "",
