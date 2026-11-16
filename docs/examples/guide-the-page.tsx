@@ -20,7 +20,7 @@ export const store = createIdleStore(game, { now: Date.now });
 export const { useGameStore, useGameState, useGameView } = createRuntimeHooks<typeof store>();
 type State = StoreState<typeof store>;
 
-/** Bubbles a second, all told: the pot's simmer, plus the stove's own rate (lid included) while it is lit. */
+/** Bubbles a second, all told: the pot's simmer, plus the stove's own rate (heat included) while it is lit. */
 const rateOf = (s: State) => (s.stove.off ? ZERO : s.stove.perSecond).add(SIMMER_PER_SECOND);
 
 /** The balance: a narrow selector that returns a string, so it re-renders only when the text changes. */

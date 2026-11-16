@@ -1,6 +1,6 @@
 /**
  * Chapter 8 of the guide, "Effects": four things that change how hard Simmer's stove works (an upgrade, a timed buff,
- * a medal and a milestone), declared as effects on one stat, `heat`, served by the engine's `stats` feature, with a
+ * a medal and a milestone), declared as effects on the one stat chapter 3 gave it, `heat`, all in its stats feature, with a
  * tooltip that says where the rate comes from, and an effect whose amount reads the state.
  *
  * Run it with `bun docs/examples/guide-effects.ts`: it buys 25 burners and three copper ranks, starts a rolling boil,
@@ -16,27 +16,15 @@ import {
   defineStats,
   defineUpgradeTree,
   type Effect,
-  feature,
   fmtPlus,
   fmtRate,
   fmtTimes,
   type GraphNode,
-  reach,
   type StatCaps,
   type StateOf,
   statIndex,
 } from "watchpot/core";
-import {
-  AWAY_CAP_MS,
-  burnerPrice,
-  flameOf,
-  lid,
-  OFFLINE_RATE,
-  pot,
-  scriptStore,
-  WORDS,
-  wallet,
-} from "./simmer/game-wallet";
+import { LID_HEAT, lid, SIMMER, scriptStore, stove, WORDS, wallet } from "./simmer/game-wallet";
 
 // --- 1. Four sources, each saying what it does to "heat" -----------------------------------------------------------
 
@@ -100,8 +88,11 @@ const NAMES: Record<string, string> = {
 export const heat = defineStats({
   key: "stats",
   vocab: WORDS,
-  reach: () => [stove, kitchen, boosts, medals],
+  reach: () => [lid, stove, kitchen, boosts, medals],
   stats: { heat: { base: 1, ...HEAT } },
+  // Chapter 3's lid, declared here as a source...
+  sources: [LID_HEAT],
+  // ...and the four sources above, handed over as contributions.
   contributions: (s) => [
     ...kitchen.select.contributions(s),
     // Every buff still held: the buffs' own step ends the expired ones at the start of each pass.
@@ -112,62 +103,14 @@ export const heat = defineStats({
   label: (source) => NAMES[source] ?? source,
 });
 
-// --- 3. The one number every source changed ------------------------------------------------------------------------
-
-/**
- * Chapter 4's stove, with one change: its rate reads heat. It reaches the stats by type, because heat's own sources
- * (the medal, the milestone) read the stove: two features that read each other name one side by type.
- */
-export const stove = feature({
-  key: "stove",
-  reach: () => [wallet, lid, reach<{ stats: { heat: Decimal } }>()],
-  initial: () => ({ burners: 0, off: false }),
-  derived: {
-    // Chapter 4's rate, times heat. The stove knows no copper, buff or medal.
-    perSecond: (s) =>
-      flameOf(s.stove.burners)
-        .mul(s.lid.on ? 2 : 1)
-        .mul(s.stats.heat),
-  },
-  actions: (api) => ({
-    buyBurner: () =>
-      api.set((s) => {
-        if (!wallet.draft.debit(s, "bubbles", burnerPrice(s.stove.burners))) return false;
-        s.stove.burners += 1;
-        return true;
-      }),
-    toggle: () =>
-      api.set((s) => {
-        s.stove.off = !s.stove.off;
-      }),
-  }),
-  steps: {
-    guard: { cold: (s) => (s.stove.off ? "stop" : undefined) },
-    produce: {
-      burn: {
-        pass: "tick",
-        run: (s, ctx) => {
-          wallet.draft.credit(s, "bubbles", s.stove.perSecond.mul(ctx.dtMs / 1000));
-        },
-      },
-      away: {
-        pass: "catchUp",
-        run: (s, ctx) => {
-          const credited = Math.min(ctx.dtMs, AWAY_CAP_MS) * OFFLINE_RATE;
-          wallet.draft.credit(s, "bubbles", s.stove.perSecond.mul(credited / 1000));
-        },
-      },
-    },
-  },
-});
-
 export const game = defineGame({
   id: "simmer",
   save: { key: "simmer.save", version: 1 },
   vocab: WORDS,
-  features: [wallet, pot, stove, lid, kitchen, boosts, medals, heat],
+  features: [...SIMMER, kitchen, boosts, medals, heat],
 });
-// --- 4. The tooltip: where the rate comes from ---------------------------------------------------------------------
+
+// --- 3. The tooltip: where the rate comes from ---------------------------------------------------------------------
 
 /** The lines of a tooltip over the stove's rate: one per source, its ranks already counted together. */
 export function whyHeat(s: StateOf<typeof game.features>): string[] {
@@ -177,7 +120,7 @@ export function whyHeat(s: StateOf<typeof game.features>): string[] {
   return lines;
 }
 
-// --- 5. An effect that reads the state -----------------------------------------------------------------------------
+// --- 4. An effect that reads the state -----------------------------------------------------------------------------
 
 /** One graph by hand, over any state: copper counted by its ranks, and a pot whose worth is the log of its bubbles. */
 /** The state a hand-built graph reads: the whole game's. */

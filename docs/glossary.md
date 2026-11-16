@@ -140,7 +140,7 @@ out any shallower reset. It is how a prestige currency survives the reset it pay
 
 ## Derived value
 
-A number a feature works out from the state, declared in its `derived` block: `perSecond: (s) => …`. You read it like
+A number a feature works out from the state, declared in its `derived` block: `nextPrice: (s) => burnerPrice(s.stove.burners)`. You read it like
 any field, but it is never saved and cannot be written. The engine keeps it current, working it out again whenever
 something it reads changes. Taught in [chapter 3](guide/03-the-mental-model.md#derived-values).
 
@@ -527,9 +527,9 @@ Taught in [chapter 6](guide/06-the-first-page.md#surprises-and-timed-boosts-spaw
 
 ## Stat
 
-A named number that many things can change, such as Simmer's `heat` (the stove's rate) or a game's `print`.
-Effects name the stat they change. Taught in [chapter 8](guide/08-effects.md#stats-and-effects); met first in
-[chapter 5](guide/05-a-real-game.md#1-content-the-stations-and-the-supplies). Reference: [the stat graph](stat-graph.md).
+A named number that many things can change, such as Simmer's `heat` (what multiplies the stove's rate) or a game's `print`.
+Effects name the stat they change. Introduced in [chapter 3](guide/03-the-mental-model.md#a-first-stat); taught in
+[chapter 8](guide/08-effects.md#stats-and-effects). Reference: [the stat graph](stat-graph.md).
 
 ## Stat graph
 
@@ -543,8 +543,8 @@ a state that never lives in the store (scoring a loadout being weighed). Referen
 The one place every effect in the game is folded into named stats: `defineStats({ key, vocab, stats, sources,
 contributions })`. Each stat's base is declared once; each stat is a derived value on the state (`s.stats.output`, a
 Decimal), never saved, worked out again only when something it read changes. Adds are summed, multipliers multiplied,
-then the caps. Taught in [chapter 8](guide/08-effects.md); met first in
-[chapter 5](guide/05-a-real-game.md#3-the-stats-where-effects-become-numbers). Reference: [stats](stat-graph.md).
+then the caps. Introduced in [chapter 3](guide/03-the-mental-model.md#a-first-stat); taught in
+[chapter 8](guide/08-effects.md). Reference: [stats](stat-graph.md).
 
 ## Step
 

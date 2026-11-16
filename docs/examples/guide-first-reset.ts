@@ -1,7 +1,7 @@
 /**
  * Chapter 7 of the guide, "The first reset": Simmer with a reset button. Chapter 4's game, with the pot replaced by
  * one that keeps its taps through a reset, steam above it that boils the pot over and says when that is worth doing,
- * a stove whose rate reads the steam, a wall of medals, and the pages opening as the player gets to them.
+ * the steam as a second source of heat, a wall of medals, and the pages opening as the player gets to them.
  *
  * Run it with `bun docs/examples/guide-first-reset.ts`: it taps, buys burners for ten minutes, boils over, and prints
  * what survived.
@@ -10,21 +10,12 @@ import {
   defineAchievements,
   defineGame,
   definePrestige,
+  defineStats,
   feature,
   lifetimeMultiplier,
   powerGain,
 } from "watchpot/core";
-import {
-  AWAY_CAP_MS,
-  burnerPrice,
-  flameOf,
-  lid,
-  OFFLINE_RATE,
-  SIMMER_PER_SECOND,
-  scriptStore,
-  WORDS,
-  wallet,
-} from "./simmer/game-wallet";
+import { LID_HEAT, lid, SIMMER_PER_SECOND, scriptStore, stove, WORDS, wallet } from "./simmer/game-wallet";
 
 // --- The run -------------------------------------------------------------------------------------------------
 
@@ -54,50 +45,6 @@ export const pot = feature({
   },
 });
 
-/** Chapter 4's stove, under the same key, with one change: its rate reads the steam. */
-export const stove = feature({
-  key: "stove",
-  reach: () => [wallet, lid, steam],
-  initial: () => ({ burners: 0, off: false }),
-  derived: {
-    // Chapter 4's rate, times 1 + 0.1 x every steam ever made.
-    perSecond: (s) =>
-      flameOf(s.stove.burners)
-        .mul(s.lid.on ? 2 : 1)
-        .mul(lifetimeMultiplier(s.steam.lifetime, { k: 0.1, exp: 1 })),
-  },
-  actions: (api) => ({
-    buyBurner: () =>
-      api.set((s) => {
-        if (!wallet.draft.debit(s, "bubbles", burnerPrice(s.stove.burners))) return false;
-        s.stove.burners += 1;
-        return true;
-      }),
-    toggle: () =>
-      api.set((s) => {
-        s.stove.off = !s.stove.off;
-      }),
-  }),
-  steps: {
-    guard: { cold: (s) => (s.stove.off ? "stop" : undefined) },
-    produce: {
-      burn: {
-        pass: "tick",
-        run: (s, ctx) => {
-          wallet.draft.credit(s, "bubbles", s.stove.perSecond.mul(ctx.dtMs / 1000));
-        },
-      },
-      away: {
-        pass: "catchUp",
-        run: (s, ctx) => {
-          const credited = Math.min(ctx.dtMs, AWAY_CAP_MS) * OFFLINE_RATE;
-          wallet.draft.credit(s, "bubbles", s.stove.perSecond.mul(credited / 1000));
-        },
-      },
-    },
-  },
-});
-
 // --- The first reset -----------------------------------------------------------------------------------------
 
 export const steam = definePrestige({
@@ -110,6 +57,22 @@ export const steam = definePrestige({
   pace: { past: 0.85, floorS: 10 },
 });
 
+/** The stats, with a second source beside the lid: every steam ever made adds a tenth to the heat. */
+export const stats = defineStats({
+  key: "stats",
+  vocab: WORDS,
+  reach: [lid, steam],
+  stats: { heat: { base: 1 } },
+  sources: [
+    LID_HEAT,
+    {
+      label: "Steam",
+      owner: "steam",
+      // 1 + 0.1 x lifetime steam: exactly 1 before the first boil-over.
+      effects: [{ stat: "heat", mul: (q) => lifetimeMultiplier(q.steam.lifetime, { k: 0.1, exp: 1 }) }],
+    },
+  ],
+});
 // --- Medals and pages ----------------------------------------------------------------------------------------
 
 /** The medal wall: earned once, kept through every boil-over (the default for achievements). */
@@ -151,7 +114,7 @@ export const game = defineGame({
   id: "simmer",
   save: { key: "simmer.save", version: 1 },
   vocab: WORDS,
-  features: [wallet, pot, stove, lid, steam, medals, pages],
+  features: [wallet, pot, stove, lid, steam, stats, medals, pages],
 });
 
 // --- A run, end to end ---------------------------------------------------------------------------------------

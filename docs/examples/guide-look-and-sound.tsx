@@ -42,7 +42,7 @@ export function warmthOf(bubblesPerSecond: number): number {
   return Math.round(Math.min(1, Math.max(0, t)) * 100) / 100;
 }
 
-/** The selector the page hands `useGameState`: the stove's own rate (lid included) as warmth, cold while it is off. */
+/** The selector the page hands `useGameState`: the stove's own rate (heat included) as warmth, cold while it is off. */
 export const potWarmth = (s: State): number => warmthOf(s.stove.off ? 0 : s.stove.perSecond.toNumber());
 
 // -------------------------------------------------------------------------------------------------------------

@@ -35,7 +35,7 @@ import {
   ZERO,
 } from "watchpot/core";
 import type { BuyMode } from "watchpot/ui";
-import { SIMMER, stove, WORDS, wallet } from "./simmer/game-wallet";
+import { SIMMER, stats, stove, WORDS, wallet } from "./simmer/game-wallet";
 
 // ---------------------------------------------------------------------------------------------------------------
 // The kitchen: an upgrade tree used as a shop
@@ -221,7 +221,7 @@ export const game = defineGame({
   id: "simmer",
   save: { key: "simmer.save", version: 1 },
   vocab: WORDS,
-  features: [...SIMMER, kitchen, foam, kettles, spoon, boosts, surface],
+  features: [...SIMMER, stats, kitchen, foam, kettles, spoon, boosts, surface],
 });
 
 // ---------------------------------------------------------------------------------------------------------------

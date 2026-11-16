@@ -87,9 +87,7 @@ export const store = createIdleStore(toy, {
   returning `"stop"` ends its phase and skips every later phase before `commit`; `commit` (the clock's `lastSeen`)
   and `after` always run. A step is `(s, ctx) => …` or `{ pass, run, after?, before? }`, `pass` being `"tick"`,
   `"catchUp"` or `"both"` (the default); a `produce` step must name its pass. In a catch-up `ctx.dtMs` is the gap
-  since `lastSeen`, and the engine's `offlineCredit(elapsed, rate, cap)` turns it into credited time (`catchUp`, its
-  old name, is a deprecated alias; `codemods/0.18.0-offline-credit.ts` renames it; the store's `catchUp` action keeps
-  its name).
+  since `lastSeen`, and the engine's `offlineCredit(elapsed, rate, cap)` turns it into credited time.
 - **Actions.** `actions(api)` returns the feature's actions; `api.set(recipe)` runs one immer recipe over the whole
   state and returns what the recipe returns (`buy: () => api.set((s) => wallet.draft.debit(s, "gold", 10))` reports whether
   it paid), and a recipe that returns a value still changes the state through the draft only. An action called
@@ -163,8 +161,7 @@ export const store = createIdleStore(toy, {
   `value`, `times`, `quiet` and `muted`: a muted group's rows stay listed and stop counting, its flags stay raised).
   Underneath, `statIndex({ base, caps }).add(source, meta)` and `.over(q, { muted, extra })` give one graph over one
   state, for a state that never lives in the store (`docs/stat-graph.md`).
-- **Time away, in steps.** `offlineSteps(elapsedMs, { capMs, rate, maxSteps, minStepMs })` (formerly `catchUpSteps`, a
-  deprecated alias) is `offlineCredit` plus `steps` and `stepMs`, for a game whose growth compounds and must replay its
+- **Time away, in steps.** `offlineSteps(elapsedMs, { capMs, rate, maxSteps, minStepMs })` is `offlineCredit` plus `steps` and `stepMs`, for a game whose growth compounds and must replay its
   own tick rule over an absence (`docs/time-away.md`).
 - **The journal.** Rules that run on plain state tell the page what happened by writing lines: `pushLine(log, line,
   keep = 40)` appends to a capped log (it works on an immer draft), and `linesSince(log, last)` is the lines after a

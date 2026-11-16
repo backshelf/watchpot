@@ -1,6 +1,6 @@
 /**
- * Simmer as it stands at the end of chapter 4: chapter 2's game, with chapter 3's stove and lid, and the bubbles
- * moved into a wallet. This is the Simmer every later chapter builds on: import its features and list them in a
+ * Simmer as it stands at the end of chapter 4: chapter 2's game, with chapter 3's stove, lid and stats, and the
+ * bubbles moved into a wallet. This is the Simmer every later chapter builds on: import its features and list them in a
  * bigger game beside your own.
  *
  * Your own `game.ts` matches this file down to `game`, and then ends with chapter 2's
@@ -15,11 +15,14 @@ import {
   createIdleStore,
   createMemoryBackend,
   D,
+  type Decimal,
   defineCurrencies,
   defineGame,
+  defineStats,
   type FeatureSpec,
   feature,
   type Game,
+  reach,
   type StateOf,
   vocab,
 } from "watchpot/core";
@@ -48,7 +51,7 @@ export const AWAY_CAP_MS = 2 * 60 * 60 * 1000;
 /** The stove's own rate, in bubbles a second, before anything multiplies it. */
 export const flameOf = (burners: number) => D(burners * BURNER_PER_SECOND);
 
-/** The game's words: one currency, and the stat chapter 8 adds up. */
+/** The game's words: one currency, and the one stat every multiplier on the stove goes into. */
 export const WORDS = vocab({ currencies: ["bubbles"], stats: ["heat"] });
 
 export type Currency = CurrencyOf<typeof WORDS>; // "bubbles"
@@ -85,20 +88,22 @@ export const pot = feature({
   },
 });
 
-/** The stove: its burners, a switch, and the rate they burn at. */
+/** The stove: its burners, a switch, the price of the next burner and the rate they burn at. */
 export const stove = feature({
   key: "stove",
-  // A function, so it may name the lid, which is declared further down.
-  reach: () => [wallet, lid],
+  // The stats by their state type, so any game that lists a stats feature with a `heat` stat can hold this stove.
+  reach: () => [wallet, reach<{ stats: { heat: Decimal } }>()],
   initial: () => ({ burners: 0, off: false }),
   derived: {
-    // The burners' flame, doubled while the lid is on. Worked out from the state, never saved.
-    perSecond: (s) => flameOf(s.stove.burners).mul(s.lid.on ? 2 : 1),
+    // The price of the next burner, worked out from how many are lit. Never saved.
+    nextPrice: (s) => burnerPrice(s.stove.burners),
+    // The burners' flame, times heat: the one number every multiplier on the stove goes into.
+    perSecond: (s) => flameOf(s.stove.burners).mul(s.stats.heat),
   },
   actions: (api) => ({
     buyBurner: () =>
       api.set((s) => {
-        if (!wallet.draft.debit(s, "bubbles", burnerPrice(s.stove.burners))) return false;
+        if (!wallet.draft.debit(s, "bubbles", s.stove.nextPrice)) return false;
         s.stove.burners += 1;
         return true;
       }),
@@ -130,7 +135,7 @@ export const stove = feature({
   },
 });
 
-/** The lid: on or off. The stove reads it; the lid itself knows nothing of the stove. */
+/** The lid: on or off. It knows nothing of the stove; the heat counts it. */
 export const lid = feature({
   key: "lid",
   initial: () => ({ on: false }),
@@ -142,23 +147,42 @@ export const lid = feature({
   }),
 });
 
-/** The game: the wallet first, then the pot, the stove and the lid. */
+/** The lid as a source of heat: twice the heat while it is on. */
+export const LID_HEAT = {
+  label: "The lid",
+  owner: "lid",
+  active: (q: { lid: { on: boolean } }) => q.lid.on,
+  effects: [{ stat: "heat", mul: 2 }],
+} as const;
+
+/** The stats: `s.stats.heat`, a base of 1 and every source multiplied in. So far the one source is the lid. */
+export const stats = defineStats({
+  key: "stats",
+  vocab: WORDS,
+  reach: [lid],
+  stats: { heat: { base: 1 } },
+  sources: [LID_HEAT],
+});
+
+/** The game: the wallet first, then the pot, the stove, the lid and the stats. */
 export const game = defineGame({
   id: "simmer",
   save: { key: "simmer.save", version: 1 },
   vocab: WORDS,
-  features: [wallet, pot, stove, lid],
+  features: [wallet, pot, stove, lid, stats],
 });
 
 // ---------------------------------------------------------------------------------------------------------------
 // For the guide's later examples, not part of your own game.ts
 
-/** Simmer's features in their order, for a bigger game to spread into its own list. */
+/**
+ * Simmer's features in their order, the stats aside: a later chapter's game spreads these and lists a stats feature
+ * of its own beside them (`LID_HEAT` and its new sources), or this file's `stats` when it adds none.
+ */
 export const SIMMER = [wallet, pot, stove, lid] as const;
 
 /** The whole state of this game, as a recipe's draft or `store.getState()` sees it, actions aside. */
 export type Simmer = StateOf<typeof game.features>;
-
 /** A store for a script or a test: the clock is yours to move, and the save stays in memory, never on disk. */
 export function scriptStore<F extends readonly FeatureSpec[], R extends object>(
   g: Game<F, R>,

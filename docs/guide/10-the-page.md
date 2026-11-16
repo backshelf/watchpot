@@ -149,7 +149,7 @@ doubling in it) while the stove is lit. It does Decimal arithmetic inside the se
 <!-- example-code: guide-the-page.tsx -->
 
 ```tsx
-/** Bubbles a second, all told: the pot's simmer, plus the stove's own rate (lid included) while it is lit. */
+/** Bubbles a second, all told: the pot's simmer, plus the stove's own rate (heat included) while it is lit. */
 const rateOf = (s: State) => (s.stove.off ? ZERO : s.stove.perSecond).add(SIMMER_PER_SECOND);
 ```
 

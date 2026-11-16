@@ -315,33 +315,34 @@ as Simmer does.
 ### What the prestige currency does
 
 A currency the player cannot use is not a reason to reset. Simmer spends nothing yet: each steam ever made adds a tenth
-to the stove, through the engine's `lifetimeMultiplier(lifetime, { k, exp })`, which is `1 + k × lifetime ^ exp` and
-exactly 1 before the first reset. It works the way chapter 3's lid does: the stove's rate is a derived value, and it
-reads what changes it. So this chapter's stove is chapter 4's with one line more in its `derived`, and a `reach` that
-names the steam:
+to the heat, through the engine's `lifetimeMultiplier(lifetime, { k, exp })`, which is `1 + k × lifetime ^ exp` and
+exactly 1 before the first reset. The stove does not change. Steam is one more source of heat, beside chapter 3's
+lid, so this chapter's game lists a stats feature with both:
 
 <!-- example-code: guide-first-reset.ts -->
 
 ```ts
-export const stove = feature({
-  key: "stove",
-  reach: () => [wallet, lid, steam],
-  initial: () => ({ burners: 0, off: false }),
-  derived: {
-    // Chapter 4's rate, times 1 + 0.1 x every steam ever made.
-    perSecond: (s) =>
-      flameOf(s.stove.burners)
-        .mul(s.lid.on ? 2 : 1)
-        .mul(lifetimeMultiplier(s.steam.lifetime, { k: 0.1, exp: 1 })),
-  },
-  // ...
+export const stats = defineStats({
+  key: "stats",
+  vocab: WORDS,
+  reach: [lid, steam],
+  stats: { heat: { base: 1 } },
+  sources: [
+    LID_HEAT,
+    {
+      label: "Steam",
+      owner: "steam",
+      // 1 + 0.1 x lifetime steam: exactly 1 before the first boil-over.
+      effects: [{ stat: "heat", mul: (q) => lifetimeMultiplier(q.steam.lifetime, { k: 0.1, exp: 1 }) }],
+    },
+  ],
 });
 ```
 
 `docs/examples/guide-first-reset.ts`
 
-The rest of it (the actions and the steps) is chapter 4's, unchanged. The reach is a function because the steam is
-declared below the stove. The game lists its features:
+The source's amount is a function of the state, so it changes as steam is paid; `reach: [lid, steam]` types `q`. The
+stove reads `s.stats.heat` as before and never learns that steam exists. The game lists its features:
 
 <!-- example-code: guide-first-reset.ts -->
 
@@ -350,20 +351,19 @@ export const game = defineGame({
   id: "simmer",
   save: { key: "simmer.save", version: 1 },
   vocab: WORDS,
-  features: [wallet, pot, stove, lid, steam, medals, pages],
+  features: [wallet, pot, stove, lid, steam, stats, medals, pages],
 });
 ```
 
 `docs/examples/guide-first-reset.ts`
 
-The list cannot spread chapter 4's `SIMMER`, because that holds the old pot and stove; listing two features under one
-key is an error.
+The wallet, the stove and the lid are chapter 4's own, imported. The list cannot spread chapter 4's `SIMMER`, because
+that holds the old pot (listing two features under one key is an error), and it lists this chapter's `stats` in place
+of chapter 4's: the stove names the stats by their state type, so it takes whichever stats feature the game lists.
 
-The steam itself reads only the wallet: it knows nothing of the stove. Whatever a layer is worth is written where it
-applies, in the number that reads it, so the layer can be added, tuned or taken out without touching anything it
-does not pay into. When many things raise one number, that number becomes a stat (chapter 8), and the layer is one of
-its sources.
-
+The steam itself reads only the wallet: it knows nothing of the stove. That is the usual way to add a layer: what it
+is worth is a source on the stat it raises, so the layer can be added, tuned or taken out without touching anything
+it pays into.
 The boost reads `lifetime`, not `currency`, so a future shop that spends steam would not take the boost away.
 
 VOID IF REMOVED does both: every core paid raises print by `(1 + cores) ^ 0.6`, and the spindle sells upgrades for them. Its

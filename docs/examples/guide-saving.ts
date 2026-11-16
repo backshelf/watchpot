@@ -29,6 +29,7 @@ import {
   lid,
   OFFLINE_RATE,
   SIMMER_PER_SECOND,
+  stats,
   stove,
   WORDS,
   wallet,
@@ -71,7 +72,7 @@ export const simmerV2 = defineGame({
   id: "simmer",
   save: { key: "simmer.save", version: 2 },
   vocab: WORDS,
-  features: [wallet, pot, stove, lid],
+  features: [wallet, pot, stove, lid, stats],
 });
 
 /** The store a page builds: saved to localStorage, or held in memory (and said so) where there is none. */
