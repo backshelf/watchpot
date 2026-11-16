@@ -1,5 +1,17 @@
 import { describe, expect, test } from "bun:test";
-import { clicker, clickShare, comboAt, currencies, D, type Decimal, defineGame, vocab } from "watchpot/core";
+import {
+  type BuffsState,
+  buffActive,
+  buffs,
+  clicker,
+  clickShare,
+  comboAt,
+  currencies,
+  D,
+  type Decimal,
+  defineGame,
+  vocab,
+} from "watchpot/core";
 import { autoPlayer, createSimWorld, simStore } from "watchpot/sim";
 import { freshStore, T0 } from "watchpot/test";
 
@@ -124,5 +136,29 @@ describe("clicker", () => {
       world.play(2000);
     }
     expect(world.store.getState().tap.clicks).toBe(10);
+  });
+
+  test("power reads a buff at the press's game time", () => {
+    const timers = buffs({ key: "timers", list: [{ id: "rush", durationMs: 10_000, stack: "refresh" }] });
+    const rushed = clicker({
+      key: "rushed",
+      wallet,
+      currency: "gold",
+      power: (s: { timers: BuffsState }, { now }) => (buffActive(s.timers, "rush", now) ? 7 : 1),
+    });
+    const rushGame = defineGame({
+      id: "rush",
+      save: { key: "rush.save", version: 1 },
+      features: [wallet, timers, rushed],
+      vocab: WORDS,
+    });
+    const { store, clock } = freshStore(rushGame);
+    expect(store.getState().rushed.click()?.amount.toNumber()).toBe(1);
+    expect(store.getState().timers.start("rush")).toBe(true);
+    clock.advance(100);
+    expect(store.getState().rushed.click()?.amount.toNumber()).toBe(7);
+    expect(timers.contributions(store.getState().timers, clock.now())).toEqual([]);
+    clock.advance(10_000);
+    expect(store.getState().rushed.click()?.amount.toNumber()).toBe(1);
   });
 });

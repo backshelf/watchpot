@@ -2,6 +2,7 @@ import type { Draft } from "immer";
 import type { CurrenciesFeature, CurrencyDraft } from "./currencies";
 import { D, type Decimal, type DecimalSource, ZERO } from "./decimal";
 import { type Feature, type FeatureApi, feature, type Move, type ResetRule } from "./feature";
+import type { CallbackContext } from "./gauge";
 import { nextFloat, type RngState, seedRng } from "./rng";
 
 /**
@@ -111,10 +112,10 @@ export interface ClickerDef<
   /** The currencies feature a press pays into. */
   readonly wallet: CurrenciesFeature<WK, C, WS, WA>;
   readonly currency: C;
-  /** What one press pays before a crit and the combo, read off the whole game state. */
-  readonly power: (state: G) => DecimalSource;
-  /** The crit, read off the whole game state. None without it. */
-  readonly crit?: (state: G) => ClickCrit;
+  /** What one press pays before a crit and the combo, read off the whole game state at the press's game time. */
+  readonly power: (state: G, ctx: CallbackContext) => DecimalSource;
+  /** The crit, read off the whole game state at the press's game time. None without it. */
+  readonly crit?: (state: G, ctx: CallbackContext) => ClickCrit;
   readonly combo?: ClickCombo;
   /** The most presses paid in one second of game time; the rest are dropped. No cap without it. */
   readonly maxPerSecond?: number;
@@ -154,8 +155,9 @@ export function clicker<
     }
     const combo = comboAt(s, now, def.combo);
     let crit = false;
-    let amount = D(def.power(state)).mul(combo);
-    const rule = def.crit?.(state);
+    const at: CallbackContext = { now };
+    let amount = D(def.power(state, at)).mul(combo);
+    const rule = def.crit?.(state, at);
     if (rule && rule.chance > 0) {
       const [roll, next] = nextFloat(s.rng);
       s.rng = next;
@@ -212,7 +214,8 @@ export function clicker<
       },
     }),
     moves: (s) => {
-      const worth = D(def.power(s as unknown as G)).toNumber();
+      const now = (s as { gameNow?: () => number }).gameNow?.() ?? 0;
+      const worth = D(def.power(s as unknown as G, { now })).toNumber();
       const move: Move<typeof s> = {
         id: `${def.key}:click`,
         value: () => (Number.isFinite(worth) ? worth : Number.MAX_VALUE),
