@@ -22,7 +22,7 @@ import {
 export const WORDS = vocab({ currencies: ["steam"], stats: [], rarities: ["plain"] } as const);
 
 /** Steam, and a total of all of it boiled this run (what the valve reads). */
-export const wallet = currencies({ key: "wallet", vocab: WORDS, earned: { steam: "boiled" } });
+export const wallet = currencies({ key: "wallet", vocab: WORDS, earnedThisRun: { steam: "boiled" } });
 
 /** What venting has earned so far multiplies everything under the pot. */
 export const pressureBonus = (lifetime: Decimal, k = 0.25) => lifetimeMultiplier(lifetime, { k, exp: 0.9 });

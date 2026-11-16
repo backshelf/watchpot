@@ -13,8 +13,9 @@ export const wallet = currencies({
   key: "wallet",
   vocab: TOY,
   start: { gold: 30 }, // every other currency starts at zero
-  earned: { gold: "lifetimeGold" }, // a field totalling every credit of gold
-  spent: { gems: "gemsSpent" }, // a field totalling every debit of gems
+  earnedThisRun: { gold: "goldThisRun" }, // every credit of gold this run: wiped with the gold
+  earnedEver: { gold: "goldEver" }, // every credit of gold ever: no run reset touches it
+  spentEver: { gems: "gemsSpent" }, // every debit of gems ever
   extra: () => ({ dust: D(0) }), // the game's own fields beside the balances
   actions: ({ set }, { draft }) => ({
     // Inside a recipe, use the draft helpers: they change the draft you hold.
@@ -45,7 +46,9 @@ if (import.meta.main) {
   console.log(
     "gold:",
     store.getState().wallet.gold.toString(),
-    "lifetime:",
-    store.getState().wallet.lifetimeGold.toString(),
+    "this run:",
+    store.getState().wallet.goldThisRun.toString(),
+    "ever:",
+    store.getState().wallet.goldEver.toString(),
   );
 }

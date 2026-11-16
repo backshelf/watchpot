@@ -52,8 +52,8 @@ export function printing(): void {
 export const keepingWallet = currencies({
   key: "wallet",
   vocab: WORDS,
-  earned: { bubbles: "lifetime" },
-  reset: { keep: ["lifetime"] },
+  earnedThisRun: { bubbles: "earned" },
+  earnedEver: { bubbles: "earnedEver" },
 });
 
 // ---------------------------------------------------------------------------------------------------------------
@@ -72,7 +72,7 @@ function walletDemo(): void {
 
   store.getState().resetRun();
   const after = store.getState().wallet;
-  console.log(after.bubbles.toString(), after.earned.toString()); // 0 0: the default reset wipes the total too
+  console.log(after.bubbles.toString(), after.earned.toString()); // 0 0: a this-run total goes with its currency
 }
 
 if (import.meta.main) {

@@ -1,13 +1,4 @@
-import {
-  autobuyers,
-  type Decimal,
-  defineGame,
-  feature,
-  generators,
-  powerGain,
-  prestige,
-  resetPace,
-} from "watchpot/core";
+import { autobuyers, type Decimal, defineGame, generators, powerGain, prestige } from "watchpot/core";
 import { wallet } from "./add-a-currency";
 import { TOY } from "./vocab";
 
@@ -20,24 +11,16 @@ const stalls = generators({
 /** What a reset would pay now. */
 const gainOf = (gold: Decimal) => powerGain(gold, { k: 1, exp: 0.5, per: 100 });
 
+/** The layer keeps this run's best reset pace itself, and says when the run is past it (`pastPeak`). */
 export const rebirth = prestige({
   key: "rebirth",
   action: "rebirth",
   reach: [wallet],
   gain: (s) => gainOf(s.wallet.gold),
+  pace: { past: 0.8 },
 });
 
-/** When this run began and the best pace it has reached: a fresh slice every run, since it resets with it. */
-export const pace = feature({
-  key: "pace",
-  initial: (ctx) => ({ since: ctx.now, peak: 0 }),
-});
-
-type State = {
-  wallet: { gold: Decimal };
-  rebirth: { currency: Decimal };
-  pace: { since: number; peak: number };
-};
+type State = { rebirth: { currency: Decimal; pastPeak: boolean } };
 
 export const auto = autobuyers({
   key: "auto",
@@ -49,13 +32,7 @@ export const auto = autobuyers({
       unlocked: (s: State) => s.rebirth.currency.gte(10),
       intervalMs: () => 1000,
       priority: -1, // after every buy in the same tick, so the reset sees what they bought
-      run: (d, ctx) => {
-        const seconds = (ctx.now - d.pace.since) / 1000;
-        const now = resetPace(gainOf(d.wallet.gold), d.rebirth.currency, seconds);
-        if (now > d.pace.peak) d.pace.peak = now;
-        else if (now < d.pace.peak * 0.8 && rebirth.resetDraft(d, ctx)) return 1;
-        return 0;
-      },
+      run: (d: State, ctx) => (d.rebirth.pastPeak && rebirth.draft.rebirth(d, ctx) ? 1 : 0),
     },
   ],
 });
@@ -63,6 +40,6 @@ export const auto = autobuyers({
 export const game = defineGame({
   id: "auto-rebirth",
   save: { key: "auto-rebirth.save", version: 1 },
-  features: [wallet, stalls, rebirth, pace, auto],
+  features: [wallet, stalls, rebirth, auto],
   vocab: TOY,
 });
