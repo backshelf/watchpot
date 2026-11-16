@@ -140,9 +140,10 @@ out any shallower reset. It is how a prestige currency survives the reset it pay
 
 ## Derived value
 
-A number a feature works out from the state, declared in its `derived` block: `nextPrice: (s) => burnerPrice(s.stove.burners)`. You read it like
+A value a feature works out from the state, declared in its `derived` block: `nextPrice: (s) => burnerPrice(s.stove.burners)`. You read it like
 any field, but it is never saved and cannot be written. The engine keeps it current, working it out again whenever
-something it reads changes. Taught in [chapter 3](guide/03-the-mental-model.md#derived-values).
+something it reads changes. A value that reads another of the same feature goes in a later block of a list,
+`derived: [{ nextPrice }, { canBuy }]`. Taught in [chapter 3](guide/03-the-mental-model.md#derived-values).
 
 ## Derive
 

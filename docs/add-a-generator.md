@@ -5,7 +5,8 @@ A generator is a feature whose steps make money: a rate worked out from the stat
 
 Example: [`examples/add-a-generator.ts`](examples/add-a-generator.ts) (`bun docs/examples/add-a-generator.ts`).
 
-- `derived: { perSecond: (s) => … }` is never saved and never written; it is current wherever it is read.
+- `derived: { perSecond: (s) => … }` is never saved and never written; it is current wherever it is read. A value that
+  reads another of the same feature goes in a later layer: `derived: [{ perSecond }, { … reads s.generator.perSecond }]`.
 - A `produce` step is `{ pass: "tick" | "catchUp" | "both", run }`. In a catch-up `ctx.dtMs` is the gap since
   `lastSeen`; `offlineCredit(elapsed, rate, cap)` turns it into credited time (`creditedMs`). A gap of up to
   `awayAfterMs` (5 s by default, a quick tab switch) never reaches the catch-up: the clock pays it as live ticks.

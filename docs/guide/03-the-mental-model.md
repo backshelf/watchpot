@@ -181,9 +181,8 @@ they need no special care.
 ```ts
 buyBurner: () =>
   api.set((s) => {
-    const price = s.stove.nextPrice;
-    if (s.pot.bubbles.lt(price)) return false;
-    s.pot.bubbles = s.pot.bubbles.sub(price);
+    if (!s.stove.canBuy) return false;
+    s.pot.bubbles = s.pot.bubbles.sub(s.stove.nextPrice);
     s.stove.burners += 1;
     return true;
   }),
@@ -191,8 +190,8 @@ buyBurner: () =>
 
 <sub>`docs/examples/guide-mental-model.ts`</sub>
 
-`s.stove.nextPrice` is the price of the next burner, which the stove works out for itself (a derived value: its own
-section is below). The recipe runs straight away, inside `api.set`, so the answer is there when the action returns. Returning early from
+`s.stove.canBuy` and `s.stove.nextPrice` are whether the pot can pay for the next burner and its price, which the
+stove works out for itself (derived values: their own section is below). The recipe runs straight away, inside `api.set`, so the answer is there when the action returns. Returning early from
 a recipe (`return false`) leaves the draft as it was, which is how a refused purchase changes nothing.
 
 A recipe cannot call another action: the engine throws if you try, because the inner change would be lost. When two
@@ -329,20 +328,24 @@ Where `s.stove.perSecond` comes from is the next two sections.
 
 ### Derived values
 
-The stove now has two numbers that no step sets and the save never holds: the price of the next burner, and the rate.
-Each is a [derived value](../glossary.md#derived-value): a number the stove works out from the state, declared once
-beside `initial`:
+The stove now has three values that no step sets and the save never holds: the price of the next burner, the rate,
+and whether the pot can pay for that burner. Each is a [derived value](../glossary.md#derived-value): worked out by
+the stove from the state, declared once beside `initial`:
 
 <!-- example-code: guide-mental-model.ts -->
 
 ```ts
 initial: () => ({ burners: 0, off: false }),
-derived: {
-  // The price of the next burner, worked out from how many are lit. Never saved.
-  nextPrice: (s) => burnerPrice(s.stove.burners),
-  // The burners' flame, times heat: the one number every multiplier on the stove goes into.
-  perSecond: (s) => flameOf(s.stove.burners).mul(s.stats.heat),
-},
+derived: [
+  {
+    // The price of the next burner, worked out from how many are lit. Never saved.
+    nextPrice: (s) => burnerPrice(s.stove.burners),
+    // The burners' flame, times heat: the one number every multiplier on the stove goes into.
+    perSecond: (s) => flameOf(s.stove.burners).mul(s.stats.heat),
+  },
+  // A second layer sees the first: whether the pot holds enough for the next burner.
+  { canBuy: (s) => s.pot.bubbles.gte(s.stove.nextPrice) },
+],
 ```
 
 <sub>`docs/examples/guide-mental-model.ts`</sub>
@@ -360,12 +363,18 @@ function returns, here a Decimal. Four things make it different from a field in 
 - **It reads, and nothing else.** The function sees the feature's saved state and what it reaches. It must not write,
   draw a random number or read the clock.
 
-The example prints the price right after buying the first burner, with no pass in between:
+Then `canBuy`: a boolean, true while the pot holds at least the next price. It reads `nextPrice`, another derived value
+of the same stove, so it sits in a second layer: `derived` may be a list of blocks, and each block sees the values of
+the blocks before it on `s.stove`. (With nothing reading a sibling, one plain block is enough, as in most features.)
+The layers are only how the types are read. You never say what is worked out first: the engine follows what each value
+actually reads, and throws, naming the loop, if two read each other. `buyBurner` asks `canBuy`, and a page could grey
+out its button on it.
 
-<!-- example-prints: guide-mental-model.ts | the next one costs: 12 -->
+The example prints both right after buying the first burner, with no pass in between:
 
-`the next one costs: 12`: ten bubbles times 1.15, rounded up.
+<!-- example-prints: guide-mental-model.ts | the next one costs: 12 | can buy it: false -->
 
+`the next one costs: 12`, ten bubbles times 1.15 rounded up, and `can buy it: false`: the pot spent its ten.
 A number that needs the time (a buff that ends at a given moment) or the pass (a different rate while away) cannot be
 a derived value, because a derived value never reads the clock. That is what the `rates` phase is for: a step there
 works the number out with `ctx` in hand, into a field listed as `transient` (below). The engine's generators do this,
@@ -437,7 +446,7 @@ works a number out before another reads it, make the number a derived value inst
 When you want to see the real order, `resolvedSteps(game, pass)` returns every step id a pass runs, in order. The
 example prints it. For a live tick it reads:
 
-<!-- example-output: guide-mental-model.ts lines=8-8 -->
+<!-- example-output: guide-mental-model.ts lines=9-9 -->
 
 ```text
 tick: stove.guard.cold, clock.guard.dt, pot.produce.simmer, stove.produce.burn, clock.commit.lastSeen
@@ -555,6 +564,7 @@ play().catchUp(); // the first catch-up: no gap yet, so nothing is paid
 for (let i = 0; i < 10; i++) play().pot.tap();
 console.log("bought a burner:", play().stove.buyBurner()); // true: 10 bubbles spent
 console.log("the next one costs:", fmt(play().stove.nextPrice).text); // 12: worked out from one burner lit
+console.log("can buy it:", play().stove.canBuy); // false: the pot is empty
 play().lid.toggle();
 console.log("heat:", fmt(play().stats.heat).text); // 2: the lid doubles it
 console.log("the stove's rate:", fmt(play().stove.perSecond).text); // 2: one burner at double heat
@@ -665,9 +675,9 @@ Open the `game.ts` you wrote in chapter 2 and make five changes. The pot does no
 1. **Add the stove's numbers and its rate helper** below `burnerPrice`: `OFFLINE_RATE` and `AWAY_CAP_MS` (from "Two
    passes") and `flameOf` (from "A first stat"), and the game's words, `WORDS` (below).
 2. **Replace the stove** with this one. Compared with chapter 2's, it reaches the stats too; it has a new field, `off`,
-   and two derived values, `nextPrice` and `perSecond`; a second action, `toggle`; and its one `produce` step, `burn`,
-   has become the guard `cold` and two pass-limited payments, `burn` and `away`. `buyBurner` reads the price off the
-   state.
+   and three derived values, `nextPrice`, `perSecond` and `canBuy`; a second action, `toggle`; and its one `produce` step, `burn`,
+   has become the guard `cold` and two pass-limited payments, `burn` and `away`. `buyBurner` reads `canBuy` and the price off
+   the state.
 
    <!-- example-code: guide-mental-model.ts -->
 
@@ -677,18 +687,21 @@ Open the `game.ts` you wrote in chapter 2 and make five changes. The pot does no
      // A function, so it may name the stats, which are declared further down.
      reach: () => [pot, stats],
      initial: () => ({ burners: 0, off: false }),
-     derived: {
-       // The price of the next burner, worked out from how many are lit. Never saved.
-       nextPrice: (s) => burnerPrice(s.stove.burners),
-       // The burners' flame, times heat: the one number every multiplier on the stove goes into.
-       perSecond: (s) => flameOf(s.stove.burners).mul(s.stats.heat),
-     },
+     derived: [
+       {
+         // The price of the next burner, worked out from how many are lit. Never saved.
+         nextPrice: (s) => burnerPrice(s.stove.burners),
+         // The burners' flame, times heat: the one number every multiplier on the stove goes into.
+         perSecond: (s) => flameOf(s.stove.burners).mul(s.stats.heat),
+       },
+       // A second layer sees the first: whether the pot holds enough for the next burner.
+       { canBuy: (s) => s.pot.bubbles.gte(s.stove.nextPrice) },
+     ],
      actions: (api) => ({
        buyBurner: () =>
          api.set((s) => {
-           const price = s.stove.nextPrice;
-           if (s.pot.bubbles.lt(price)) return false;
-           s.pot.bubbles = s.pot.bubbles.sub(price);
+           if (!s.stove.canBuy) return false;
+           s.pot.bubbles = s.pot.bubbles.sub(s.stove.nextPrice);
            s.stove.burners += 1;
            return true;
          }),
@@ -752,9 +765,9 @@ now; to try them, run the example. [Chapter 6](06-the-first-page.md) builds the 
   tick, and on a catch-up with no gap your `produce` steps run with `dtMs` 0 before the clock stops the pass. Write
   steps that do nothing when `dtMs` is 0 (multiplying by it does that for you) and do not count on a guard of your own
   running after the clock's.
-- **A derived value reads its own feature's other derived values only with help.** The function is typed with the
-  feature's saved state and its reach, so `nextPrice` cannot see `perSecond` without annotating `s`. A value of
-  another feature (`s.stats.heat`) reads plainly.
+- **A value that reads another of the same feature goes in a later layer.** In one block, each function sees the
+  feature's saved state and its reach, not its siblings: `canBuy` sits in a second block to read `nextPrice`. A value
+  of another feature (`s.stats.heat`) reads plainly through `reach`.
 - **The default reset is `"run"`.** A feature that should survive a run reset has to say so.
 - **The key `clock` is taken,** and feature keys cannot contain a dot.
 

@@ -94,12 +94,16 @@ export const stove = feature({
   // The stats by their state type, so any game that lists a stats feature with a `heat` stat can hold this stove.
   reach: () => [wallet, reach<{ stats: { heat: Decimal } }>()],
   initial: () => ({ burners: 0, off: false }),
-  derived: {
-    // The price of the next burner, worked out from how many are lit. Never saved.
-    nextPrice: (s) => burnerPrice(s.stove.burners),
-    // The burners' flame, times heat: the one number every multiplier on the stove goes into.
-    perSecond: (s) => flameOf(s.stove.burners).mul(s.stats.heat),
-  },
+  derived: [
+    {
+      // The price of the next burner, worked out from how many are lit. Never saved.
+      nextPrice: (s) => burnerPrice(s.stove.burners),
+      // The burners' flame, times heat: the one number every multiplier on the stove goes into.
+      perSecond: (s) => flameOf(s.stove.burners).mul(s.stats.heat),
+    },
+    // A second layer sees the first: whether the wallet holds enough for the next burner.
+    { canBuy: (s) => s.wallet.bubbles.gte(s.stove.nextPrice) },
+  ],
   actions: (api) => ({
     buyBurner: () =>
       api.set((s) => {
