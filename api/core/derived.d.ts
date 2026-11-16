@@ -1,0 +1,16 @@
+/** The layers of a `derived` block as one record; throws on a name given in two layers. */
+export declare function flatDerived(given: unknown): Readonly<Record<string, (state: never) => unknown>>;
+/** A feature's `derived` block: each value as a function of the state `In` (its saved slice and its reach). */
+export type DerivedDef<In, Dv> = {
+    readonly [P in keyof Dv]: (state: In) => Dv[P];
+};
+/**
+ * A `derived` block in layers: one block, or up to four in a list, each seeing the values of the blocks before it
+ * on the feature's own slice.
+ */
+export type DerivedLayers<K extends string, S, Reached, D1, D2, D3, D4> = DerivedDef<Record<K, S> & Reached, D1> | readonly [
+    DerivedDef<Record<K, S> & Reached, D1>,
+    DerivedDef<Record<K, S & D1> & Reached, D2>?,
+    DerivedDef<Record<K, S & D1 & D2> & Reached, D3>?,
+    DerivedDef<Record<K, S & D1 & D2 & D3> & Reached, D4>?
+];
