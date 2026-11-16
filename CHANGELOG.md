@@ -2,6 +2,10 @@
 
 Each release is a tag `vX.Y.Z`. A breaking change names its codemod in `codemods/` (policy in `codemods/README.md`).
 
+## 0.17.1
+
+- **`searchLoadout`**: the auto-equip a slice at a time (`step`, `best`, `bestScore`), so a page shows the slots filling instead of freezing; `fillLoadout` is it run to the end, and both now take the first exchange that pays rather than the best of a whole pass.
+
 ## 0.17.0
 
 **Breaking: the package is renamed.** `idleslop` was a codename; the engine is `watchpot`, at

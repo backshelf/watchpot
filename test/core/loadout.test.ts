@@ -9,6 +9,7 @@ import {
   type LoadoutSet,
   loadout,
   loadoutFeature,
+  searchLoadout,
   statTotals,
 } from "watchpot/core";
 import { freshStore } from "watchpot/test";
@@ -126,5 +127,19 @@ describe("fillLoadout", () => {
     expect(Object.keys(best)).toEqual(["a", "b"]);
     expect(Object.values(best)).not.toContain("unowned");
     expect(score(best)).toBe(8);
+  });
+
+  test("a search stepped a scoring at a time only climbs, and settles where the whole run does", () => {
+    const search = searchLoadout(rules, { owns, score });
+    const seen: number[] = [];
+    let steps = 0;
+    while (search.step(1)) {
+      seen.push(search.bestScore());
+      steps++;
+    }
+    expect(steps).toBeGreaterThan(10);
+    for (let i = 1; i < seen.length; i++) expect(seen[i]).toBeGreaterThanOrEqual(seen[i - 1] as number);
+    expect(search.best()).toEqual(fillLoadout(rules, { owns, score }));
+    expect(search.bestScore()).toBe(score(search.best()));
   });
 });

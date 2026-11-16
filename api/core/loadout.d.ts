@@ -76,21 +76,39 @@ export interface Loadout<E> {
 }
 /** A loadout's rules over a slots record the game keeps. Throws on a repeated slot, item or set id. */
 export declare function loadout<E>(def: LoadoutDef<E>): Loadout<E>;
-/**
- * A good loadout for `score` (higher is better, read over a whole slots record): from `start` (default empty), the
- * best exchange of up to `depth` slots at once (default 3) for items the player owns and has not slotted, again and
- * again until none scores higher. A single exchange fills and upgrades; a pair or a triple finds a set that pays only
- * once two or three of it are in. `slots` limits it to the slots that are open (default all). The cost is a scoring
- * per exchange tried, which grows with the depth's power of the items owned: tens of items and a handful of slots
- * take milliseconds, so call it on a press or a change, never every tick.
- */
-export declare function fillLoadout<E>(rules: Loadout<E>, options: {
+/** A loadout search under way, run a slice at a time so a page can show it working. */
+export interface LoadoutSearch {
+    /** Runs up to `count` more scorings. True while the search is not done. */
+    step(count: number): boolean;
+    /** The best loadout found so far. */
+    best(): Record<string, string | null>;
+    /** What `score` gave the best loadout. */
+    bestScore(): number;
+}
+/** What `fillLoadout` and `searchLoadout` take. */
+export interface LoadoutSearchOptions {
     owns: (item: string) => boolean;
     score: (slotted: Slotted) => number;
     slots?: readonly string[];
     start?: Slotted;
     depth?: number;
-}): Record<string, string | null>;
+}
+/**
+ * A good loadout for `score` (higher is better, read over a whole slots record), a slice at a time: from `start`
+ * (default empty), any exchange of up to `depth` slots at once (default 3) for items the player owns and has not
+ * slotted that scores higher is taken, smallest exchanges first, until none does. A single exchange fills and
+ * upgrades; a pair or a triple finds a set that pays only once two or three of it are in. `slots` limits it to the
+ * slots that are open (default all). The cost is a scoring per exchange tried: proving no triple pays costs
+ * (slots choose 3) × (spare items choose 3) of them, so a handful of slots and tens of items is a few hundred
+ * thousand. Run it over frames with `step`, keep `score` cheap (work out what each item is worth once), and never
+ * call it every tick.
+ */
+export declare function searchLoadout<E>(rules: Loadout<E>, options: LoadoutSearchOptions): LoadoutSearch;
+/**
+ * `searchLoadout` run to the end at once: the loadout it settles on. For a sim's player or a test; a page runs
+ * `searchLoadout` over frames instead, since proving a large loadout cannot be bettered takes a while.
+ */
+export declare function fillLoadout<E>(rules: Loadout<E>, options: LoadoutSearchOptions): Record<string, string | null>;
 /** A loadout feature's state: what sits in each slot. */
 export interface LoadoutState {
     slotted: Record<string, string | null>;

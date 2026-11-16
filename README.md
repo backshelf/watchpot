@@ -439,11 +439,14 @@ export const kit = loadoutFeature({
   `equip(slot, item)` and `clear(slot)`, and carries the rules as `.loadout`. `owns(state, item)` is the game's rule
   for what the player holds, read off the whole game state. A prestige reset keeps the slots unless `reset` says
   otherwise.
-- **`fillLoadout(rules, { owns, score, slots?, start?, depth? })`** is an auto-equip: the best exchange of up to
-  `depth` slots at once (default 3) for owned, unslotted items, repeated until none scores higher under the game's
-  `score(slotted)`. A pair or triple exchange finds a set that pays only once two or three are in, which filling a
-  slot at a time never reaches. `slots` keeps it to the open ones. It returns a slots record; equip it slot by slot.
-  Milliseconds for tens of items: call it on a press or a change, never every tick.
+- **`searchLoadout(rules, { owns, score, slots?, start?, depth? })`** is an auto-equip run a slice at a time:
+  exchanges of up to `depth` slots at once (default 3) for owned, unslotted items, smallest first, any that raises
+  the game's `score(slotted)` taken, until none does. A pair or triple exchange finds a set that pays only once two
+  or three are in, which filling a slot at a time never reaches. `slots` keeps it to the open ones. `step(count)` runs
+  that many scorings and says whether it is still going; `best()` and `bestScore()` are the best so far. Proving no
+  triple pays costs (slots choose 3) × (spare items choose 3) scorings, hundreds of thousands for seven slots and
+  forty items: keep `score` cheap and spread the search over frames, equipping each better loadout as it turns up.
+- **`fillLoadout(rules, options)`** is `searchLoadout` run to the end at once, for a sim or a test.
 
 ## Gauges
 
