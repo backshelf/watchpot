@@ -111,6 +111,31 @@ const stove = feature({
 - `eventNodeRow`: the `costGrowth` argument is required when `maxLevel` is above 1.
 - Node prices themselves are unchanged (they floor to whole numbers, as before).
 
+## Factory names: `defineX`
+
+Every feature factory is named `defineX`, beside `defineGame`, so a game can call its own feature `prestige` or
+`settings` without clashing with the import. `feature` keeps its name, and so do the pure kernels (`tree`, `board`,
+`loadout`, `statIndex`, `achievementBoard`, `layerModel`). Rename the import and the call; nothing else changes.
+
+| Old | New | Old | New |
+| --- | --- | --- | --- |
+| `achievements` | `defineAchievements` | `levels` | `defineLevels` |
+| `allocation` | `defineAllocation` | `loadoutFeature` | `defineLoadout` |
+| `autobuyers` | `defineAutobuyers` | `market` | `defineMarket` |
+| `boardFeature` | `defineBoard` | `missions` | `defineMissions` |
+| `buffs` | `defineBuffs` | `prestige` | `definePrestige` |
+| `challenges` | `defineChallenges` | `records` | `defineRecords` |
+| `clicker` | `defineClicker` | `seenOnce` | `defineSeenOnce` |
+| `crafting` | `defineCrafting` | `settings` | `defineSettings` |
+| `currencies` | `defineCurrencies` | `spawns` | `defineSpawns` |
+| `dimensions` | `defineDimensions` | `stages` | `defineStages` |
+| `gacha` | `defineGacha` | `streak` | `defineStreak` |
+| `gauge` | `defineGauge` | `sweep` | `defineSweep` |
+| `generators` | `defineGenerators` | `upgradeTree` | `defineUpgradeTree` |
+| `layers` | `defineLayers` | (new) | `defineStats` |
+
+The tables below name each factory by its old name, since that is what the game being migrated says.
+
 ## The factory convention: `select` / `def` / `draft`
 
 Every factory returns the feature plus exactly three namespaces, and nothing else hangs off the feature:
@@ -193,7 +218,43 @@ Removed types: `MissionRules`, `ChallengeRules`, `LevelRules`, `StageRules`. `Le
 `{ select, def, draft }` bundle. Explicit type arguments on these factories no longer line up (a reach parameter
 sits before `G`): remove them and use `reach`.
 
-<!-- FACTORIES -->
+The economy factories. Draft helpers that read a price or a timer take an optional trailing `now`.
+
+| Factory | Old | New |
+| --- | --- | --- |
+| `generators` | `g.rules.open / owned / price / affordable / boost / cycleMs / automated / cyclePays / rate / untilMilestone / perSecond / away / row` | `g.select.<same>` |
+| | `g.rules.list`, `g.rules.generator(id)` | `g.def.list`, `g.def.generator(id)` |
+| | `g.buy(d, id, count?, now?)`, `g.buyMax(d, id, limit?, now?)` | `g.draft.buy(…)`, `g.draft.buyMax(…)`; new `g.draft.buyNext`, `g.draft.run` |
+| `dimensions` | `d.chain.open / price / affordable / untilSet / setBonus / rate / perSecond` | `d.select.<same>` |
+| | `d.chain.tiers / set / tier(id) / indexOf(id)` | `d.def.<same>` |
+| | `d.buy / buyMax / maxAll / produce(draft, …)` | `d.draft.<same>`; new `d.draft.buySet` |
+| `upgradeTree` | `t.tree` (the kernel) | `t.def.tree`; new `t.def.nodes`, `t.def.node(id)` |
+| | `t.open / check / affordable(s, id, …)` | `t.select.open / check / affordable` |
+| | `t.tree.contributions(s.t.ranks)` | `t.select.contributions(s)`; new `t.select.ranks(s)`, `t.select.rank(s, id)` |
+| | (actions only) | `t.draft.buy(d, id)`, `t.draft.buyMax(d, id, limit?)`, `t.draft.buyAll(d, limit?)` |
+| `autobuyers` | `a.rules.active / nextInMs` | `a.select.active / nextInMs` |
+| | `a.rules.list`, `a.rules.autobuyer(id)` | `a.def.list`, `a.def.autobuyer(id)`; new `a.draft.toggle`, `a.draft.setAll` |
+| `market` | `m.market.price / level / rising / series / position / worth / yieldPerSecond / affordable / fee / trading / open` | `m.select.<same>` |
+| | `m.market.tickers`, `m.market.ticker(id)` | `m.def.tickers`, `m.def.ticker(id)`; new `m.draft.buy / buyMax / sell / sellAll` |
+| `crafting` | `c.rules.open / craftable / job / nextInMs` | `c.select.<same>` |
+| | `c.rules.list`, `c.rules.recipe(id)` | `c.def.list`, `c.def.recipe(id)` |
+| | `c.craftDraft(d, id, times, now)` | `c.draft.craft(d, id, times?, now?)`; new `c.draft.craftMax` |
+| `allocation` | `a.rules.pool / free / cap / perSecond / bar` | `a.select.<same>` |
+| | `a.rules.contributions(s.jobs)` | `a.select.contributions(s)` (the slice-only form is `a.def.contributions(slice)`) |
+| | `a.rules.sinks`, `a.rules.sink(id)` | `a.def.sinks`, `a.def.sink(id)`; new `a.draft.assign / unassign / clear / fill` |
+| `clicker` | `c.combo` | `c.def.combo` |
+| | `c.press(d, now)` | `c.draft.click(d, now)` |
+| | (new) | `c.select.power(s, now?)`, `c.select.comboAt(s, now)`, `c.select.comboShown(s, now)` |
+
+Removed types: `GeneratorRules`, `DimensionRules`, `AutobuyerRules`, `MarketRules`, `CraftingRules`,
+`AllocationRules`, and the old flat `…Helpers` types (each `XHelpers` is now the `{ select, def, draft }` bundle;
+the `def` part is typed `XFixed`).
+
+**Tree moves for the sim.** `upgradeTree` now declares a move per buyable node itself (id `<key>:<node>`, a cost,
+no worth, so the auto-player works it out from its objective). A game that wrapped the tree in
+`withMoves(tree, treeMoves(key, nodes, fn))` can drop the wrapper and pass `worth: (state, node) => number` in the
+tree's definition; keeping the wrapper still works and keeps the old move ids, which matters to a replay.
+`treeMoves`'s worth function changed from `(node, owned) => number` to `(state, node) => number` and is optional.
 
 ## Stats
 
