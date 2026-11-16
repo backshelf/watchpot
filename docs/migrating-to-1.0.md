@@ -183,13 +183,62 @@ export const numbers = stats({
   `:` in the source id.
 - A stat that reads another stat reads it off the state (`q.stats.other`); the engine orders them and throws on a
   loop.
+- A contribution may carry `times` (`{ source, effect, times: owned }`) instead of being listed once per copy.
+  Folding into one row keys on the effect object: content that builds a fresh effect object per copy gets a row per
+  copy unless it says `times`.
+- Content tables are typed `Effect<StatId>`; an untyped `Effect` (stat: `string`) is refused by `contributions`.
+  Code that read `e.mult` as a number reads `e.mul`, which may be a function: `Number(e.mul ?? 1)` for fixed content.
+- `explainStat(…).sources` → `stats.select.explain(s, id).parts`; `statTotals(bus, id)` → `explain(…).add` and
+  `.mult`.
+- Buffs inside `contributions`: pass `Number.NEGATIVE_INFINITY` as `now` (a derived value cannot read the clock,
+  and the buffs' own `sync` step has already ended the expired ones).
+- Weighing stats for a state that does not exist (a loadout being auto-filled):
+  `statIndex({ base }).over(null, { extra: () => contribs.map((c) => ({ effect: c.effect, meta: { label: c.source, owner } })) })`.
+- A feature that reads a stat adds the stats feature to its `reach`.
 - Stat ids `flags` and `feed` are reserved.
 - A game that folded in log10 with plain numbers will see last-digit differences against Decimal products: compare
   the two folds over a sim replay with a tolerance before deleting the old one.
 
 ## Prestige and currency totals
 
-<!-- PRESTIGE -->
+### `currencies`: depth and honest totals
+
+| Old | New |
+| --- | --- |
+| `earned: { gold: "goldEarned" }` | `earnedThisRun: { … }` (wiped with the currency) or `earnedEver: { … }` (never wiped by a run reset) |
+| `spent: { … }` | `spentThisRun: { … }` or `spentEver: { … }` |
+| `reset: { keep: ["gems"] }` to keep a balance | `depth: { gems: "never" }` |
+| a function `reset` that kept balances by depth | `depth: { cores: 2 }` (the shallowest reset that wipes it; default 1) |
+| `reset` over the whole slice | `reset` covers the `extra` fields only; balances and totals follow `depth` |
+
+The old totals were wiped by a run reset: a field a game called "lifetime" and built on `earned` was really a
+this-run total. Pick the kind the game meant. `wallet.def.depth` lists the depths; `currencies` takes `reach`.
+
+### `prestige`: the layer keeps the reset pace
+
+Every layer now keeps its own run start and peak pace and serves the pace as derived values. Delete the game's own.
+
+| Old (in the game) | New (in the layer) |
+| --- | --- |
+| a `startedAt` field set from `initial`'s `now` | `s.<layer>.runStart` (saved; moved by any reset at the layer's depth or deeper) |
+| a `peak` field, a `settle` step raising it, `afterReset` zeroing it | `s.<layer>.peak` (saved), kept by the layer |
+| `resetPace(gain, held, runSeconds, floor)` called by hand | `s.<layer>.pace` (derived), or `layer.select.pace(s, now)` at any instant |
+| `pace < peak * 0.85` | `s.<layer>.pastPeak` (derived), tuned by `pace: { past: 0.85, floorS: 10 }`; `s.<layer>.peakShare` is pace ÷ peak |
+| `layer.resetDraft(d, ctx)` | `layer.draft.<action>(d, ctx)` (`layer.draft.reset` with the default action name) |
+| `withMoves(prestige(…), …)` for the sim | `worth: (s) => number` in the definition; without it the layer declares no move |
+
+- New option `payInto: { wallet, currency }`: the reset credits that wallet currency and the layer keeps no balance
+  of its own (`s.<layer>.currency` does not exist then). Read what is held with `layer.select.held(s)` either way.
+  The factory throws unless that currency's `depth` is deeper than the layer's, or the next reset would take the
+  payout back.
+- The layer's saved state gained `runStart`, `peak` and `paceAt`. Old saves need no migration (the fields fill from
+  `initial`), but a game field named `peak` in the layer's own `initial` now collides with the engine's, and a game
+  `settle` step named `pace` on the layer is refused: delete or rename them.
+- `pace` is as of the end of the last pass (derived values cannot read the clock).
+- Types: `PrestigeFeature` is the feature type; `PrestigeHelpers` is `{ select, def, draft }`; `currency` moved from
+  `PrestigeCore` to `PrestigeHeld`.
+- Stats that read the layer's balance while the layer's `gain` reads a stat is a cycle: the stats feature reaches
+  the layer by type, `reach<{ prestige: { currency: Decimal } }>()`.
 
 ## The sim (`watchpot/sim`)
 
