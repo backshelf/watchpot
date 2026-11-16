@@ -8,6 +8,7 @@
       "scripts/**",
       "codemods/**",
       "docs/examples/**",
+      ".agents/skills/watchpot-init/references/examples/**",
       "examples/**",
       "site/**",
       "*.json",

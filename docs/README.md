@@ -85,7 +85,7 @@ type-checks and, where the page says so, runs with `bun docs/examples/<name>.ts`
 
 ### By system
 
-The systems of the root README's `Systems` section, one page each:
+The engine's systems, one page each:
 
 | System | Page | Example |
 | --- | --- | --- |
@@ -122,8 +122,31 @@ the guide or a reference page and `api/` disagree, `api/` is right. The two buil
 and `watchpot/sound/pack`, are under `api/kit/theme/` and `api/sound/pack/`.
 
 Examples import from `watchpot/core`, `watchpot/sim`, `watchpot/test`, `watchpot/react`, `watchpot/kit`, `watchpot/ui`,
-`watchpot/shader`, `watchpot/sound`, `watchpot/sound/pack` and `watchpot/three` as a consumer would. The long-form
-reference for every entry is the root [README](../README.md).
+`watchpot/shader`, `watchpot/sound`, `watchpot/sound/pack` and `watchpot/three` as a consumer would.
+
+### By entry
+
+The long-form reference for each entry, with the options and rules the topic pages leave to the signatures:
+
+| Entry | Page |
+| --- | --- |
+| `watchpot/core`: features and the store, vocabularies, gacha, events, saves | [core](core.md) |
+| `watchpot/sim` | [sim](sim.md) |
+| `watchpot/test` | [test-kit](test-kit.md) |
+| `watchpot/react` | [react](react.md) |
+| `watchpot/devtools` | [devtools](devtools.md) |
+| `watchpot/ui` | [ui](ui.md) |
+| `watchpot/kit`, with theme, scenes and the reveal | [kit](kit.md) |
+| `watchpot/shader` | [shader](shader.md) |
+| `watchpot/three` | [three](three.md) |
+| `watchpot/sound` | [sound](sound.md) |
+| `watchpot/sound/pack` | [sound-packs](sound-packs.md) |
+
+## Install, imports and migrating
+
+- [**Installing**](installing.md): install, peers, changing the engine and a game together, and the shape of the package.
+- [**What each entry may import**](imports.md): the import rules, generated from `scripts/rules.ts`.
+- [**Migrating to 1.0**](migrating-to-1.0.md): every breaking change from 0.18, old to new.
 
 ## Keeping the guide's examples true
 

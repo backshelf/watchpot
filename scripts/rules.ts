@@ -14,7 +14,8 @@ import { posix } from "node:path";
  * `allow` lists target path prefixes that stay legal and `exceptFrom` importers the rule skips. `names`, when set,
  * narrows the rule to imports that bring in one of those value names (`ImportRef.names` says what escapes it);
  * `exceptNames` exempts an import whose every value name is in the list (a type-only import has none).
- * `source` is where the rule is written down, cited by quoted phrase.
+ * `says` is the rule in one plain sentence, the single source of truth: `bun scripts/rules.ts --doc` renders it into
+ * `docs/imports.md`. Nothing here reads docs prose.
  */
 export interface ImportRule {
   id: string;
@@ -24,7 +25,7 @@ export interface ImportRule {
   exceptFrom?: RegExp[];
   names?: string[];
   exceptNames?: string[];
-  source: string[];
+  says: string;
 }
 
 const CORE = ["pkg:watchpot/core", "src/core/"];
@@ -65,13 +66,13 @@ export const IMPORT_RULES: ImportRule[] = [
       "src/react/",
       "src/kit/",
     ],
-    source: [".claude/CLAUDE.md › Rules: `/core` is pure"],
+    says: "`watchpot/core` is pure: it imports no React, UI, motion, shader, confetti or audio package, and nothing from `/react` or `/kit`.",
   },
   {
     id: "core-no-react",
     from: /^src\/(core|sim)\//,
     forbid: ["pkg:react", "pkg:react-dom", "pkg:motion", "pkg:@paper-design/shaders-react"],
-    source: [".claude/CLAUDE.md › Rules: `/core` and `/sim` never import React"],
+    says: "`watchpot/core` and `watchpot/sim` never import React, React DOM, motion or the shader package.",
   },
   {
     // The kit's effects take props and read no game state: no store, no other entry but `/core` (narrowed by
@@ -87,14 +88,14 @@ export const IMPORT_RULES: ImportRule[] = [
       "src/sim/",
       "src/test/",
     ],
-    source: [".claude/CLAUDE.md › Rules: the kit takes props only"],
+    says: "`watchpot/kit` takes props only: it imports no store and no entry other than `/core` (narrowly).",
   },
   {
     // The kit is effects with no look: no stylesheet, and none of the UI packages a look is drawn with.
     id: "kit-lookless",
     from: /^src\/kit\//,
     forbid: ["ext:.css", "pkg:motion", "pkg:@paper-design/shaders-react"],
-    source: ["README.md › Kit: `watchpot/kit` ships no CSS file and no class name of its own"],
+    says: "`watchpot/kit` ships no look: it imports no stylesheet, motion or shader package.",
   },
   {
     // From `/core` the kit reads only formatting (`fmt`), `decimal` helpers and `world` types.
@@ -102,7 +103,7 @@ export const IMPORT_RULES: ImportRule[] = [
     from: /^src\/kit\//,
     forbid: CORE,
     exceptNames: CORE_FOR_UI,
-    source: [".claude/CLAUDE.md › Rules: the kit reads `/core` only for `fmt`, `decimal` and `world`"],
+    says: "From `/core`, `watchpot/kit` reads only formatting, `decimal` helpers and types.",
   },
   {
     // The headless primitives are behaviour alone: React, their own folder, the page-layout hook and `/core`
@@ -113,9 +114,7 @@ export const IMPORT_RULES: ImportRule[] = [
       /^(?!src\/ui\/|src\/core\/|src\/react\/layout\.tsx$|pkg:react$|pkg:react-dom$|pkg:watchpot\/core$)/,
       "ext:.css",
     ],
-    source: [
-      "docs/ui.md: `watchpot/ui` peers on `react` and `react-dom` alone and reads `/core` for formatting",
-    ],
+    says: "`watchpot/ui` imports React, React DOM, its own folder, the page-layout hook and `/core`, and no stylesheet, kit, motion or store.",
   },
   {
     // From `/core` the primitives read what the kit reads: formatting and `decimal` helpers, and types.
@@ -123,14 +122,14 @@ export const IMPORT_RULES: ImportRule[] = [
     from: /^src\/ui\//,
     forbid: CORE,
     exceptNames: CORE_FOR_UI,
-    source: ["docs/ui.md: from `/core`, formatting and `decimal` helpers only"],
+    says: "From `/core`, `watchpot/ui` reads only formatting, `decimal` helpers and types.",
   },
   {
     // The shader container stands alone: React and its own folder.
     id: "shader-alone",
     from: /^src\/shader\//,
     forbid: [/^(?!src\/shader\/|pkg:react$)/],
-    source: ["docs/shader.md: `watchpot/shader` imports nothing but React and its own folder"],
+    says: "`watchpot/shader` imports nothing but React and its own folder.",
   },
   {
     // The sound engine stands alone so `watchpot/sound` installs none of the kit's UI peers.
@@ -139,14 +138,14 @@ export const IMPORT_RULES: ImportRule[] = [
     forbid: [/^(?!src\/sound\/|pkg:zzfx$)/],
     // The pack pipeline is a build-time entry of its own (`watchpot/sound/pack`): it runs in Bun and reads files.
     exceptFrom: [/^src\/sound\/pack\//],
-    source: ["README.md › Sound: `watchpot/sound` imports nothing but its own folder and `zzfx`"],
+    says: "`watchpot/sound` imports nothing but its own folder and `zzfx` (`watchpot/sound/pack` is exempt).",
   },
   {
     // The pack pipeline never rides into a game's bundle: nothing the sound entry reaches imports it.
     id: "sound-pack-build-time",
     from: /^src\/sound\/(?!pack\/)/,
     forbid: ["src/sound/pack/"],
-    source: ["docs/sound-packs.md: `watchpot/sound/pack` runs in Bun at build time, never in a browser"],
+    says: "`watchpot/sound/pack` runs in Bun at build time: nothing the sound entry reaches imports it.",
   },
   {
     // The 3D entry rides on `/core` and the prefs hook alone, so a game takes it without the kit, the shell or a
@@ -154,7 +153,7 @@ export const IMPORT_RULES: ImportRule[] = [
     id: "three-narrow",
     from: /^src\/three\//,
     forbid: [/^src\/(?!three\/|core\/|react\/prefs\.ts$)/, /^pkg:watchpot\/(?!core$)/, "ext:.css"],
-    source: ["docs/three.md: `watchpot/three` imports from the engine only `/core` and the prefs hook"],
+    says: "`watchpot/three` imports from the engine only `/core` and the prefs hook, and no stylesheet.",
   },
   {
     // The dev panel and the sound desk read the store hooks, `/core`, the sound engine and the headless primitives
@@ -169,22 +168,20 @@ export const IMPORT_RULES: ImportRule[] = [
       "src/shader/",
       /^pkg:watchpot\/(?!core$|sound$|ui$|react$)/,
     ],
-    source: [
-      "docs/dev-panel-workflow.md: `watchpot/devtools` reads the hooks, `/core`, the sound engine and `/ui`",
-    ],
+    says: "`watchpot/devtools` imports the store hooks, `/core`, the sound engine and `/ui`, and no kit, sim, test kit, 3D stage or shader.",
   },
   {
     // `watchpot/devtools` carries stylesheets: only a game imports it, never another entry.
     id: "devtools-alone",
     from: /^src\/(?!devtools\/)/,
     forbid: ["src/devtools/", "pkg:watchpot/devtools"],
-    source: ["docs/dev-panel-workflow.md: no other entry imports `watchpot/devtools`"],
+    says: "No other entry imports `watchpot/devtools`, which carries stylesheets: only a game does.",
   },
   {
     id: "three-alone",
     from: /^src\/(?!three\/)/,
     forbid: ["src/three/", "pkg:watchpot/three"],
-    source: ["docs/three.md: no other entry imports `watchpot/three`"],
+    says: "No other entry imports `watchpot/three`, so no other entry pulls `three` in.",
   },
 ];
 
@@ -353,4 +350,33 @@ export function violations(files: string[], read: (path: string) => string): Vio
     }
   }
   return out;
+}
+
+// ---------------------------------------------------------------------------------------------------------------
+// The docs page
+
+/** The page `bun scripts/rules.ts --doc` writes, and `test/rules/imports-doc.test.ts` keeps fresh. */
+export const IMPORTS_DOC_PATH = "docs/imports.md";
+
+/** The text of `docs/imports.md`, built from `IMPORT_RULES` alone. */
+export function importsDoc(): string {
+  const rows = IMPORT_RULES.map((r) => `| \`${r.id}\` | ${r.says} |`);
+  return `# What each entry may import
+
+<!-- Generated by \`bun scripts/rules.ts --doc\` from the rules in \`scripts/rules.ts\`. Edit a rule's \`says\` there, not this page. -->
+
+Each entry of the package keeps to a small set of imports, so installing one does not drag in the others.
+\`bun run verify\` fails on an import that breaks a rule. A type-only import is free.
+
+| Rule | What it says |
+| --- | --- |
+${rows.join("\n")}
+
+The engine also reads no wall clock (the caller passes \`now\`) and ships no stylesheet or class name outside the dev panel.
+`;
+}
+
+if (import.meta.main && process.argv.includes("--doc")) {
+  await Bun.write(posix.join(import.meta.dir, "..", IMPORTS_DOC_PATH), importsDoc());
+  console.log(`wrote ${IMPORTS_DOC_PATH}`);
 }

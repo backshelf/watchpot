@@ -1,5 +1,5 @@
 // @feature clicker
-// Written by /watchpot from .claude/specs/answers.json. It is the game's now: edit it freely.
+// Written by /watchpot-init from .claude/specs/answers.json. It is the game's now: edit it freely.
 import type { ClickCombo, ClickCrit } from "watchpot/core";
 
 /** The thing pressed, the press's verb, and its line. */

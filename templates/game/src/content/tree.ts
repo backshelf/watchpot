@@ -1,5 +1,5 @@
 // @feature tree
-// Written by /watchpot from .claude/specs/answers.json. It is the game's now: edit it freely.
+// Written by /watchpot-init from .claude/specs/answers.json. It is the game's now: edit it freely.
 import type { Effect, GraphNode } from "watchpot/core";
 import { type Currency, MAIN, type StatId } from "./words";
 
