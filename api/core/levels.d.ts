@@ -89,10 +89,10 @@ export type LevelsFeature<K extends string, T extends TrackDef, E> = Feature<K, 
     readonly rules: LevelRules<T, E>;
 };
 /**
- * Levelled tracks as a feature. It saves `{ xp }` (a total per track) under `key` (the stat bus's source prefix too);
+ * Levelled tracks as a feature. It saves `{ xp }` (a total per track) under `key` (the contributions' source prefix too);
  * levels are read off the totals, never stored. `gain(track, amount)` adds XP (the action, or the draft helper of the
  * same name inside a recipe), stops at the track's `maxLevel`, runs `onLevel(draft, track, from, to)` in the same
- * recipe when the level rises, and returns the levels gained. `effects(track, level)` feeds the stat bus through
+ * recipe when the level rises, and returns the levels gained. `effects(track, level)` feeds the game's stats through
  * `.rules.contributions`. A prestige reset clears the XP unless `reset` says otherwise.
  */
 export declare function levels<const K extends string, T extends TrackDef, E = never, G extends object = object>(def: {

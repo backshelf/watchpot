@@ -24,8 +24,8 @@ wrong, a link to the next chapter, and the reference pages for what it covered.
    generators, a shop, spawns and buffs.
 7. [**The first reset**](guide/07-the-first-reset.md): runs, reset rules, depth, prestige, and achievements that also
    open pages.
-8. [**Effects**](guide/08-effects.md): stats, effects and the stat bus, a tooltip that says where a number comes from,
-   and the live graph.
+8. [**Effects**](guide/08-effects.md): stats, effects and the `stats` feature, a tooltip that says where a number comes
+   from, and an effect that reads the state.
 9. [**Saving and time away**](guide/09-saving-and-time-away.md): what is saved and when, migrations, and paying and
    reporting the time a player was gone.
 10. [**The page**](guide/10-the-page.md): reading the store from React, the runtime hook, headless UI, tokens, feel
@@ -74,7 +74,7 @@ type-checks and, where the page says so, runs with `bun docs/examples/<name>.ts`
 | Sound packs: samples built from downloads | [sound-packs](sound-packs.md) | `sound-pack.ts` |
 | A reveal | [reveal](reveal.md) | `reveal.tsx` |
 | The dev-panel workflow | [dev-panel-workflow](dev-panel-workflow.md) | `dev-panel.tsx` |
-| A live stat graph | [stat-graph](stat-graph.md) | `stat-graph.ts` |
+| Stats | [stat-graph](stat-graph.md) | `stat-graph.ts` |
 | Time away, a journal and a deep fill | [time-away](time-away.md) | `time-away.ts` |
 | Plan and fit | [plan-and-fit](plan-and-fit.md) | `plan-and-fit.ts` |
 | A 3D stage | [three](three.md) | `three-stage.tsx` |

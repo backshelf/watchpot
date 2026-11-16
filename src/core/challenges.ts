@@ -19,7 +19,7 @@ export interface ChallengeDef<G, E = never> {
   readonly goal: (state: G) => boolean;
   /** How many times it can be completed (default 1). */
   readonly maxCompletions?: number;
-  /** The permanent reward for `completions` so far, for the stat bus. */
+  /** The permanent reward for `completions` so far, for the game's stats. */
   readonly effects?: (completions: number) => readonly E[];
   /** The restriction's named flags, which the game's rules check with `challengeRule` while it is active. */
   readonly rules?: readonly string[];
@@ -73,7 +73,7 @@ export type ChallengesFeature<K extends string, G, E> = Feature<K, ChallengesSta
 };
 
 /**
- * Challenges as a feature. It saves `{ active, startedAt, rules, completions, bestMs }` under `key` (the stat bus's
+ * Challenges as a feature. It saves `{ active, startedAt, rules, completions, bestMs }` under `key` (the contributions'
  * source prefix too) and never resets with the run. `enter(id)` resets the run inside its recipe and marks the
  * challenge active; the step `<key>.settle.goal` completes it when its goal holds: counted, the best time kept, the
  * run reset, the flags cleared, then `onComplete(draft, id, completions)`. `exit()` resets the run and pays nothing.

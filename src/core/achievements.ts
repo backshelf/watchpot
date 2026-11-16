@@ -6,7 +6,7 @@ import { pushLine } from "./journal";
 /**
  * Achievements: a wall of things a player can do once, laid in rows of a fixed width. Each is earned at most once and
  * kept for good; the count earned and the rows completed make a global multiplier (`power`), and each one, and each
- * completed row, may carry effects for the stat bus. Most are checked by the feature at the end of every pass
+ * completed row, may carry effects for the game's stats. Most are checked by the feature at the end of every pass
  * (`when`), some must hold for a while first (`forMs`), some are only true at a moment and are checked when the game
  * says that moment came (`on` with `notify`), and the rest the game awards itself (`award`).
  *
@@ -22,7 +22,7 @@ export interface Achievement<G = never, E = never> {
   readonly line: string;
   /** What it gives, in the game's words. */
   readonly reward?: string;
-  /** Active while it is earned. With the stat bus's `Effect`, `contributions` feeds `busOf`. */
+  /** Active while it is earned. With the engine's `Effect`, `contributions` feeds a `stats` feature. */
   readonly effects?: readonly E[];
   /** Hidden (name, line and reward) until earned. */
   readonly secret?: boolean;
@@ -62,7 +62,7 @@ export interface AchievementPower {
 
 /** The definition `achievementBoard` takes. */
 export interface AchievementBoardDef<G, E> {
-  /** The source prefix on the stat bus: `<id>:<achievement>`, and `<id>:row:<index>` for a row. */
+  /** The contributions' source prefix: `<id>:<achievement>`, and `<id>:row:<index>` for a row. */
   readonly id: string;
   readonly list: readonly Achievement<G, E>[];
   /** How many achievements one row holds. */
@@ -173,7 +173,7 @@ export type AchievementsFeature<K extends string, G, E> = Feature<
 
 /** The definition `achievements` takes. */
 export interface AchievementsDef<K extends string, G, E> extends Omit<AchievementBoardDef<G, E>, "id"> {
-  /** The saved key, and the source prefix on the stat bus. */
+  /** The saved key, and the contributions' source prefix. */
   readonly key: K;
   /** How many unacknowledged ids `fresh` keeps (default 20); the oldest drop first. */
   readonly keepFresh?: number;

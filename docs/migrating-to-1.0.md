@@ -134,7 +134,58 @@ named like the actions). Actions on the state (`s.wallet.credit(c, n)`) are unch
 
 ## Stats
 
-<!-- STATS -->
+There is one stat system. The plain number bus is gone and the live graph is the model: values may read the
+state, everything is a Decimal, a stat's base is declared once.
+
+| Old | New |
+| --- | --- |
+| `busOf`, `statValue`, `statTotals`, `explainStat`, `StatBus`, `StatTotals`, the bus's `StatBreakdown` | removed; declare a `stats(...)` feature and read `s.stats.<id>` |
+| `Effect { stat, add?, mult? }` (numbers) | `Effect<S, Q>`: `{ stat, add }` or `{ stat, mul }`, the amount a number or `(q) => number` |
+| `{ stat, mult: 2 }` in content tables | `{ stat, mul: 2 }` |
+| `LiveEffect { stat, op: "mul", value }` | `{ stat, mul: value }` (and `op: "add"` → `{ stat, add: value }`) |
+| `liveIndex(options?)`, `LiveIndex` | `statIndex({ base, caps? })`, `StatIndex`; `base` is required (no default of 1) |
+| `LiveSource`, `LiveMeta`, `LiveBreakdown`, `LiveIndexOptions` | `StatSource`, `SourceMeta`, `StatBreakdown`, `StatIndexOptions` |
+| `softcapDecimal(value, cap)` and the number `applySoftcap` | `applySoftcap(value: Decimal, cap)` |
+| `StatDef { softcap?, hardcap? }` | `StatCaps`; `StatDef` is now `StatCaps & { base }`, what `stats()` takes per stat |
+| `statValue(bus, id, base)` with the base at each call site (default 0; the live graph's was 1) | the base once, in `stats({ stats: { id: { base } } })` |
+| `graph/live.ts` | merged into `graph/stats.ts` |
+
+What changed in behaviour:
+
+- `SourceMeta.active` is optional (default: counts). New `SourceMeta.times(q)`: how many times over a source
+  counts (ranks held, copies owned). An add counts `times` times its amount, a mul its amount to that power, as
+  **one** row of the breakdown; `StatPart` gained `times`.
+- A muted group's effects no longer vanish from the breakdown: its rows are listed with `muted` set (the group's
+  name, or the reason when `muted` returns a string) and do not count. `StatPart.muted` is `string | null`. A screen
+  that listed `parts` should skip or style the muted ones.
+- `over(q, { extra })` hands a graph effects for that graph only.
+
+The `stats` feature replaces a game's own fold:
+
+```ts
+// Old: a hand-folded bus, a transient slice, a `rates` step, and readers with the base at each call.
+export const outputOf = (bus: StatBus) => statValue(bus, "output", 1);
+
+// New: declared once; every stat is a derived value, never saved, current wherever it is read.
+export const numbers = stats({
+  key: "stats",
+  vocab: WORDS,                       // stat ids come from vocab({ stats })
+  reach: () => [upgrades, boosts],
+  stats: { output: { base: 1 }, offline: { base: 0.25, hardcap: 1 }, gain: { base: 1 } },
+  contributions: (s) => [...upgrades.select.contributions(s), ...boosts.select.contributions(s, now)],
+  sources: [{ label: "Prestige", owner: "prestige", effects: [{ stat: "output", mul: (q) => … }] }],
+});
+// s.stats.output is a Decimal; stats.select.explain(s, "output") is the breakdown.
+```
+
+- `contributions` takes what the factories' contribution helpers return (`{ source, effect }[]`); the same effect
+  object given several times by one source becomes one row counted that many times. Its group is the text before
+  `:` in the source id.
+- A stat that reads another stat reads it off the state (`q.stats.other`); the engine orders them and throws on a
+  loop.
+- Stat ids `flags` and `feed` are reserved.
+- A game that folded in log10 with plain numbers will see last-digit differences against Decimal products: compare
+  the two folds over a sim replay with a tolerance before deleting the old one.
 
 ## Prestige and currency totals
 

@@ -4,17 +4,18 @@ A loadout is a few slots, the items a player holds, and what the slotted items d
 of its `kind`, each slotted item gives its own effects, and a set gives more once enough slotted items carry its tag:
 the equipment screen of a gear game, a team of three, the tools on a bench.
 
-The effects are your game's own type. With the stat bus's `Effect`, the loadout's `contributions` go straight into
-`busOf`, the same way a tree's do, so a slotted item is one more source on the number it changes.
+The effects are your game's own type. With the engine's `Effect`, the loadout's `contributions` go straight into a
+`stats` feature's `contributions`, the same way a tree's do, so a slotted item is one more source on the number it
+changes. A loadout that is only being weighed is scored on a graph of its own (`statIndex`), as below.
 
 Example: [`examples/loadouts.ts`](examples/loadouts.ts) (`bun docs/examples/loadouts.ts`). Simmer's stove gets a kit
 of utensils:
 
 ```ts
 /** Simmer's stove kit: three slots, and the pans and spoons a player has found. */
-export const UTENSILS: LoadoutItem<Effect>[] = [
+export const UTENSILS: LoadoutItem<Effect<"simmer">>[] = [
   { id: "glass-lid", kind: "lid", tags: ["glass"], effects: [{ stat: "simmer", add: 1 }] },
-  { id: "copper-lid", kind: "lid", tags: ["copper"], effects: [{ stat: "simmer", mult: 1.5 }] },
+  { id: "copper-lid", kind: "lid", tags: ["copper"], effects: [{ stat: "simmer", mul: 1.5 }] },
   { id: "wooden-spoon", kind: "spoon", effects: [{ stat: "simmer", add: 2 }] },
   { id: "copper-ladle", kind: "spoon", tags: ["copper"], effects: [{ stat: "simmer", add: 1 }] },
   { id: "copper-trivet", tags: ["copper"], effects: [] },
@@ -38,8 +39,8 @@ export const kit = loadoutFeature({
       id: "copperware",
       tag: "copper",
       tiers: [
-        { count: 2, effects: [{ stat: "simmer", mult: 1.2 }] },
-        { count: 3, effects: [{ stat: "simmer", mult: 2 }] },
+        { count: 2, effects: [{ stat: "simmer", mul: 1.2 }] },
+        { count: 3, effects: [{ stat: "simmer", mul: 2 }] },
       ],
     },
   ],
@@ -52,9 +53,22 @@ export const game = defineGame({
   features: [cupboard, kit],
 });
 
-/** Bubbles a second from the pot's base of 1, with everything slotted. */
+/** The pot's one stat on the engine's stat graph: a base of 1 bubble a second. */
+const POT = statIndex<"simmer", never, null>({ base: () => 1 });
+
+/**
+ * Bubbles a second with `slotted` in the kit: its contributions handed to one graph. A loadout that is only being
+ * weighed (the auto-fill below tries many) never lives in the state, so it is read off the graph, not a stats feature.
+ */
 export const simmerRate = (slotted: Slotted) =>
-  statValue(busOf(kit.loadout.contributions(slotted)), "simmer", 1);
+  POT.over(null, {
+    extra: () =>
+      kit.loadout
+        .contributions(slotted)
+        .map(({ source, effect }) => ({ effect, meta: { label: source, owner: "kit" } })),
+  })
+    .stat("simmer")
+    .toNumber();
 ```
 
 Running it equips by hand, then lets `fillLoadout` find the best kit for `simmerRate`:
@@ -75,7 +89,7 @@ taking the two-piece copper tier (×1.2) over the three-piece one (×2), which w
 The loadout comes in two layers, so a game that already keeps its own slots record can use the rules alone:
 
 - **`loadout({ id, slots, items, sets? })`** is the rules, pure, over a slots record the game keeps wherever it
-  likes. `id` is the source prefix on the stat bus.
+  likes. `id` is the contributions' source prefix.
 - **`loadoutFeature({ key, slots, items, sets?, owns, reset? })`** is a feature that owns the record: it saves
   `{ slotted }` under `key`, carries the rules as `.loadout`, and uses `key` as the source prefix.
 
@@ -111,7 +125,8 @@ On `kit.loadout` (or whatever `loadout()` returned):
   none; `next` is the count the next tier needs, null at the last. This is what a set's line on the screen prints
   ("2 of 3 copper").
 - **`contributions(slotted)`**: every effect in play, each slotted item's (source `<id>:<item>`), then each reached
-  set tier's (source `<id>:set:<set>`). Feed it to `busOf`; the sources are what a tooltip's breakdown names.
+  set tier's (source `<id>:set:<set>`). Hand it to a `stats` feature's `contributions` (or a graph's `extra`); the
+  sources are what a tooltip's breakdown names.
 - **`item(id)`**, **`slots`**, **`items`**, **`sets`**: the definition, for drawing the screen.
 
 ## The auto-equip
@@ -148,9 +163,9 @@ set's tier is too generous.
 
 ## Things that bite
 
-- **Type the item list.** Write `UTENSILS: LoadoutItem<Effect>[]` (or `loadoutFeature<…>` with its type arguments).
-  Left to inference, TypeScript reads the effect type off the first item alone, `{ stat, add }`, and refuses the
-  next item's `mult`.
+- **Type the item list.** Write `UTENSILS: LoadoutItem<Effect<"simmer">>[]` (or `loadoutFeature<…>` with its type
+  arguments). Left to inference, TypeScript reads the effect type off the first item alone, `{ stat, add }`, and
+  refuses the next item's `mul`.
 - **Owning is checked when equipping, never after.** `owns` runs inside `equip`. An item the player loses later
   stays slotted and keeps paying. When your game takes an item away, clear the slot that holds it in the same recipe.
 - **A set pays one tier.** The tiers are not added up: three copper pieces pay the ×2 tier and not ×1.2 as well.
@@ -164,6 +179,6 @@ set's tier is too generous.
 
 ## Where the guide teaches it
 
-- [Chapter 8, Effects](guide/08-effects.md): the stat bus that `contributions` feeds, and the tooltip that reads its
-  sources.
+- [Chapter 8, Effects](guide/08-effects.md): the stats feature that `contributions` feeds, and the tooltip that reads
+  its breakdown.
 - API: [`api/core/loadout.d.ts`](../api/core/loadout.d.ts).

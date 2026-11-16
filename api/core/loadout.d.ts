@@ -4,7 +4,7 @@ import { type Feature, type ResetRule } from "./feature";
  * of its `kind`; every slotted item gives its own effects, and a `LoadoutSet` gives more once enough slotted items
  * carry its tag. `loadout({ id, slots, items, sets })` is the rules over a slots record the game keeps wherever it
  * saves it; `loadoutFeature({ key, …, owns })` is a feature that owns the record. The effects are the game's own
- * type: with the stat bus's `Effect`, `contributions` feeds `busOf` as a tree's do.
+ * type: with the engine's `Effect`, `contributions` feeds a `stats` feature as a tree's do.
  */
 /** One slot. With a `kind` it takes only items of that kind; without one it takes anything. */
 export interface LoadoutSlot {
@@ -43,7 +43,7 @@ export interface SetStanding<E> {
 }
 /** The definition `loadout` takes. */
 export interface LoadoutDef<E> {
-    /** The source prefix on the stat bus: `<id>:<item>` for an item, `<id>:set:<set>` for a set. */
+    /** The contributions' source prefix: `<id>:<item>` for an item, `<id>:set:<set>` for a set. */
     readonly id: string;
     readonly slots: readonly LoadoutSlot[];
     readonly items: readonly LoadoutItem<E>[];
@@ -107,7 +107,7 @@ export type LoadoutFeature<K extends string, E> = Feature<K, LoadoutState, Loado
     readonly loadout: Loadout<E>;
 };
 /**
- * A loadout as a feature: it saves `{ slotted }` under `key` (the stat bus's source prefix too). `owns(state, item)`
+ * A loadout as a feature: it saves `{ slotted }` under `key` (the contributions' source prefix too). `owns(state, item)`
  * is the game's rule for what the player holds, read off the whole game state. A prestige reset keeps the slots
  * unless `reset` says otherwise.
  */

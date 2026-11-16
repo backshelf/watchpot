@@ -22,7 +22,7 @@ import {
 
 /**
  * Upgrade trees: ranks bought one at a time over `GraphNode`s, paid from a `Purse`, and every rank held as a
- * contribution to the stat bus (`busOf`). `tree({ id, nodes })` is the rules over a ranks record the game keeps
+ * contribution for the game's `stats` feature. `tree({ id, nodes })` is the rules over a ranks record the game keeps
  * wherever it saves it; `upgradeTree({ key, nodes, wallet })` is a feature that owns its ranks and pays from a
  * currencies feature.
  */
@@ -51,7 +51,7 @@ export type BuyResult<C extends string = string> =
 
 /** The definition `tree` takes: an id, the nodes and an optional milestone. */
 export interface TreeDef<N extends GraphNode<unknown, string>> {
-  /** The source prefix on the stat bus: a rank's contribution is sourced `<id>:<node>`. */
+  /** The contributions' source prefix: a rank's contribution is sourced `<id>:<node>`. */
   readonly id: string;
   readonly nodes: readonly N[];
   readonly milestone?: RankMilestone<EffectOf<N>>;
@@ -301,7 +301,7 @@ export type UpgradeTreeFeature<
 };
 
 /**
- * A tree as a feature: it saves its ranks under `key` (the stat bus's source prefix too) and buys from `wallet`, a
+ * A tree as a feature: it saves its ranks under `key` (the contributions' source prefix too) and buys from `wallet`, a
  * currencies feature whose currencies price every node. `open(state, node)` may hold a node back until the game
  * says it is on offer; the feature's own `open`, `check` and `affordable` read it, `.tree`'s do not. A run reset
  * clears the ranks unless `reset` says not.

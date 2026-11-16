@@ -21,7 +21,7 @@ interface SinkBase<G, E> {
     readonly id: string;
     /** The most it can hold, read off the whole game state (default: no cap). */
     readonly cap?: (state: G) => number;
-    /** What its level gives, for the stat bus (a bar's level; a counting sink stays at level 0). */
+    /** What its level gives, for the game's stats (a bar's level; a counting sink stays at level 0). */
     readonly effects?: (level: number) => readonly E[];
 }
 /**
@@ -92,7 +92,7 @@ export type AllocationFeature<K extends string, G, E> = Feature<K, AllocationSta
     readonly rules: AllocationRules<G, E>;
 };
 /**
- * A pool split between sinks, as a feature. It saves `{ assigned, order, progress, level }` under `key` (the stat bus's
+ * A pool split between sinks, as a feature. It saves `{ assigned, order, progress, level }` under `key` (the contributions'
  * source prefix too). `<key>.sync.pool` trims the record when the pool or a cap shrinks; `<key>.produce.fill` fills the
  * bars over a tick, and over an absence through `away` (default: all of it), several levels in one step when the work
  * covers them. A run reset clears it unless `reset` says otherwise. The callbacks read the whole game state, so

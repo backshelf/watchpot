@@ -145,8 +145,8 @@ The end of that file prices the lid at 50, rewrites the table, and prices it aga
 **The use:** a [buff](glossary.md#buff) used as a bare named timer; the game asks "is it running?" by id and decides for
 itself what that means.
 
-**Why it works.** A buff's `effects` are one way to read it: feed `.contributions(state, now)` to the
-[stat bus](glossary.md#stat-bus) and the running buffs' effects arrive there. But the feature does its real work
+**Why it works.** A buff's `effects` are one way to read it: hand `.contributions(state, now)` to the game's
+[stats feature](glossary.md#stats-feature) and the running buffs' effects arrive there. But the feature does its real work
 without them. It starts a buff by its stacking rule, ends it on game time (during an absence too), and keeps the window
 it covered. `buffActive(state, id, now)` and `buffLeftMs(state, id, now)` read that clock directly.
 
@@ -158,7 +158,9 @@ a hot run or a double feed. Both are buffs that declare no effect, and the game'
 
 Why bother? Because the strength depends on another stat (`misfeed.power`, raised by supplies). A buff's `effects` is a
 function of its stack count and strength only, so it cannot read another stat. The game's fold can, so the fold does the
-work and the buff only keeps time.
+work and the buff only keeps time. On the engine's `stats` the same split is a source whose `active` asks the buff and
+whose amount reads the other stat: `{ active: (q) => buffActive(q.boosts, "hot-run", Number.NEGATIVE_INFINITY), effects:
+[{ stat: "print", mul: (q) => HOT_RUN * q.stats["misfeed.power"] }] }`.
 
 The chain into the buff is one string long. The misfeed is a `spawns` kind whose outcomes are `"hot-run"`, `"box"` and
 `"double-feed"`. Its `onCatch` credits a box of labels for `"box"`, and for the other two calls
@@ -313,9 +315,11 @@ a term from a page the player has not opened stays plain text.
 "no tools this run" is one line of content and no rule code at all.
 
 **Why it works.** A challenge's `rules` are plain strings, and `challengeRule(state, rule)` is true only while a
-challenge carrying that string is active. Separately, the engine's live [stat graph](glossary.md#live-graph)
-(`liveIndex`) puts each source in an optional `group`, and `over(q, { muted })` silences the effects of any group the
-`muted` function names. Name the rule after the group and the two systems join with no code in between.
+challenge carrying that string is active. Separately, the engine's [stat graph](glossary.md#stat-graph) (`statIndex`,
+and the `stats` feature built on it) puts each source in an optional `group`, and `muted` silences the effects of any
+group it names: the rows stay in the breakdown, marked with the reason, and stop counting. Name the rule after the
+group and the two systems join with no code in between. (A `stats` feature takes the same function as its own
+``muted: (s, group) => challengeRule(s.trials, `mute:${group}`)``.)
 
 ```ts
 export const trials = challenges({
@@ -358,7 +362,7 @@ export const fame = levels({
   key: "fame",
   tracks: DISHES.map((id) => ({ id, curve: SLOW })),
   maxLevel: 10,
-  effects: (_track, level): Effect[] => [{ stat: "price", mult: 1 + 0.1 * level }],
+  effects: (_track, level): Effect[] => [{ stat: "price", mul: 1 + 0.1 * level }],
 });
 
 /** The window: two dishes on show at a time, picked by the player. */
@@ -391,37 +395,50 @@ tab is closed. If time away should not count, write the step as `{ pass: "tick",
 
 ## 9. The prestige currency as one more source
 
-**The use:** the prestige currency's bonus, the gacha's duplicate copies and the upgrade ranks all fed to the stat bus
+**The use:** the prestige currency's bonus, the gacha's duplicate copies and the upgrade ranks all fed to the stats
 the same way, so one breakdown explains every multiplier.
 
-**Why it works.** The [stat bus](glossary.md#stat-bus) takes a flat list of contributions, each a `source` string and an
-`effect`. It does not care which system made one. The reference game builds its whole bus in one function:
+**Why it works.** The [stats feature](glossary.md#stats-feature) takes declared sources and a flat list of
+contributions, each a `source` string and an `effect`. It does not care which system made one. The reference game
+declares its whole set of stats in one place:
 
 ```ts
-/** Every contribution the game's features make to the stats, as one bus. */
-export function statBus(src: StatSources): StatBus {
-  const all: Contribution[] = [];
-  if (src.upgrades) all.push(...rankContributions("upgrades", NODES, src.upgrades.ranks));
-  if (src.collection)
-    for (const item of ITEMS)
-      for (let i = 0; i < (src.collection.owned[item.id] ?? 0); i++)
-        all.push({ source: `collection:${item.id}`, effect: item.effect });
-  if (src.prestige)
-    all.push({
-      source: "prestige",
-      effect: { stat: "output", mult: 1 + BONUS_PER_UNIT * src.prestige.currency.toNumber() },
-    });
-  return busOf(all);
-}
+export const stats = statsFeature({
+  key: "stats",
+  vocab: WORDS,
+  reach: () => [upgrades, collection, reach<{ prestige: { currency: Decimal } }>()],
+  stats: {
+    output: { base: 1 },
+    offline: { base: OFFLINE_BASE, hardcap: 1 },
+    gain: { base: 1 },
+  },
+  sources: [
+    {
+      label: "Orbits",
+      owner: "prestige",
+      effects: [{ stat: "output", mul: (q) => 1 + BONUS_PER_UNIT * q.prestige.currency.toNumber() }],
+    },
+  ],
+  contributions: (s) => [
+    ...rankContributions("upgrades", NODES, s.upgrades.ranks),
+    ...ITEMS.flatMap((item) =>
+      Array.from({ length: s.collection.owned[item.id] ?? 0 }, () => ({
+        source: `collection:${item.id}`,
+        effect: item.effect,
+      })),
+    ),
+  ],
+  label: (source) => NAMES.get(source) ?? source,
+});
 ```
 
 orbital-orchard, `examples/orbital-orchard/src/game/stats.ts`
 
-Two small decisions are worth seeing. Each owned copy of a collection item pushes its own contribution, so a duplicate
-is one more line in the breakdown, with no "stack count" logic. And the prestige currency, which many games apply
-as a separate multiplier off to the side (the engine's `lifetimeMultiplier` exists for that), is one more source
-named `"prestige"`. `explainStat(bus, "output")` would list it beside the upgrades, so a breakdown screen
-can show exactly what the prestige currency in hand is worth.
+Two small decisions are worth seeing. Each owned copy of a collection item hands over the same effect again, and the
+feature counts the copies as one row with `times`, so a duplicate needs no "stack count" logic of its own. And the
+prestige currency, which many games apply as a separate multiplier off to the side (the engine's `lifetimeMultiplier`
+exists for that), is one more source, "Orbits". `stats.select.explain(state, "output")` lists it beside the upgrades,
+so a breakdown screen can show exactly what the prestige currency in hand is worth.
 
 ## How to find your own
 
@@ -458,8 +475,8 @@ Every showcase above came from asking a factory the same few questions. Ask them
   but `awayRate`, which by default drains at `max` an hour, so give a thermostat an `awayRate` that suits it.
 - **An annotator's scope must cover everything `allow` reads.** The memory hands back the same segments for the same
   text and scope. If `allow` depends on something the scope string leaves out, the marks go stale.
-- **A mute silences effects, never flags.** A muted source in the live stat graph still raises its flags. If a
-  restriction should also take away what a source unlocks, the rule has to say so where the flag is read.
+- **A mute silences effects, never flags.** A muted source in the stat graph still raises its flags. If a
+  restriction should also take away what a source unlocks, the source's `active` has to read the mute too.
 
 ## Next
 
@@ -477,9 +494,9 @@ That is the end of the guide. The [glossary](glossary.md) defines every term it 
 - Shaders: [shader.md](shader.md), `api/shader/canvas.d.ts`
 - Achievements and marked text: [achievements.md](achievements.md), `api/core/achievements.d.ts`,
   `api/core/annotate.d.ts`
-- Challenges and the live stat graph: [challenges.md](challenges.md), [stat-graph.md](stat-graph.md),
-  `api/core/challenges.d.ts`, `api/core/graph/live.d.ts`
+- Challenges and the stat graph: [challenges.md](challenges.md), [stat-graph.md](stat-graph.md),
+  `api/core/challenges.d.ts`, `api/core/graph/stats.d.ts`
 - Levels: [levels.md](levels.md), `api/core/levels.d.ts`
-- The stat bus: [stat-graph.md](stat-graph.md), `api/core/graph/stats.d.ts`
+- The stats feature: [stat-graph.md](stat-graph.md), `api/core/stats.d.ts`
 - The examples on this page: `docs/examples/showcase-autoreset.ts`, `showcase-reprice.ts`, `showcase-glow.tsx`,
   `showcase-latch.ts`, `showcase-glossary.ts`, `showcase-mute.ts`, `showcase-on-display.ts`

@@ -295,7 +295,7 @@ Two things in `nodeOf` deserve a note. The price is a getter, read each time the
 
 ### 3. The stats: where effects become numbers
 
-Buying Darkness +1 sets `state.supplies.ranks["darkness-1"]` to 1. Nothing else happens yet. Something has to walk every held item, collect its effects and turn them into the number `stationMult` reads. In a watchpot game that something is the [stat bus](../glossary.md#stat-bus): one place that folds every effect in the game into named stats, once a pass.
+Buying Darkness +1 sets `state.supplies.ranks["darkness-1"]` to 1. Nothing else happens yet. Something has to walk every held item, collect its effects and turn them into the number `stationMult` reads. In a watchpot game that something is the [stats feature](../glossary.md#stats-feature): one place that folds every effect in the game into named stats. VOID IF REMOVED, written before it, keeps its own fold, its "stat bus", folded once a pass.
 
 The stats are a feature with no actions, only a step:
 
@@ -548,7 +548,7 @@ You have now been through every layer once. When you open a game you have not se
 
 - [Generators](../generators.md) and [Add a generator](../add-a-generator.md): `generators`, its rules, milestones and away; `api/core/generators.d.ts`
 - [Upgrade tree](../upgrade-tree.md): `upgradeTree`, nodes, ranks and `rankCost`; `api/core/tree.d.ts`, `api/core/graph/nodes.d.ts`
-- [Stat graph](../stat-graph.md): the engine's own bus, `busOf`, `statValue`, `liveIndex`; `api/core/graph/stats.d.ts`, `api/core/graph/live.d.ts`
+- [Stats](../stat-graph.md): the engine's own fold, the `stats` feature and `statIndex`; `api/core/stats.d.ts`, `api/core/graph/stats.d.ts`
 - [Start a game](../start-a-game.md): `defineGame`, the store and the save; `api/core/game.d.ts`, `api/core/store.d.ts`
 - Features, phases and steps: `api/core/feature.d.ts`
 - The store hooks, `createRuntimeHooks` and `mountGame`: `api/react/store.d.ts`

@@ -1,6 +1,6 @@
 # An upgrade tree
 
-Ranks bought one at a time over `GraphNode`s, each rank's effects landing on the stat bus.
+Ranks bought one at a time over `GraphNode`s, each rank's effects handed to the game's `stats`.
 
 Example: [`examples/upgrade-tree.ts`](examples/upgrade-tree.ts) (`bun docs/examples/upgrade-tree.ts`).
 
@@ -24,7 +24,9 @@ Example: [`examples/upgrade-tree.ts`](examples/upgrade-tree.ts) (`bun docs/examp
   nothing more, and returns how many. Cheapest is by the first line of each rank's price, ties in node order, so it
   suits a tree priced in one currency. A free node with no last rank is skipped unless you give a `limit`. The rules
   carry it as `tree.buyCheapest(ranks, purse, { open, limit })`.
-- Read the effects with `statTotals(busOf(mine.tree.contributions(ranks)), "toy.speed")`, which gives `{ add, mult }`.
+- Read the effects through a `stats` feature fed `contributions: (s) => mine.tree.contributions(s.mine.ranks)`:
+  `s.stats["toy.speed"]` is the value, `speed.select.explain(state, "toy.speed")` the base, `add`, `mult` and one row
+  per node, its ranks counted as `times`.
 - To draw it, hand the nodes to `TreeGraph` (`watchpot/ui`), or to the template's `Tree` wrapper over it
   (`templates/game/src/ui/Tree.tsx`).
 - For a tree you keep elsewhere in your state, use `tree({ id, nodes })` for the rules alone.
