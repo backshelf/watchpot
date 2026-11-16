@@ -1,0 +1,16 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32" fill="none">
+  <title>watchpot</title>
+  <style>
+    .line { stroke: #1d2a6b; }
+    .live { fill: #6fc3e0; }
+    @media (prefers-color-scheme: dark) {
+      .line { stroke: #e3edf7; }
+      .live { fill: #7fe0e6; }
+    }
+  </style>
+  <!-- A pot in plan view, as a drawing would show it: the rim, the two handles, the centre lines. -->
+  <circle class="live" cx="16" cy="16" r="5" />
+  <circle class="line" cx="16" cy="16" r="9.25" stroke-width="2" />
+  <path class="line" d="M3 13.5v5M29 13.5v5" stroke-width="2" stroke-linecap="square" />
+  <path class="line" d="M16 1.5v5M16 25.5v5M1.5 16h3M27.5 16h3" stroke-width="1" />
+</svg>

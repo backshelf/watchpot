@@ -1,0 +1,44 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+    <meta name="color-scheme" content="light dark" />
+    <title>watchpot: the mechanism of an idle game, and none of its look</title>
+    <meta
+      name="description"
+      content="watchpot is a framework-light idle-game engine for Bun, TypeScript and React 19. This page runs it: a live store, a sim that plays days in milliseconds, headless UI, a shader container and a sound core."
+    />
+    <link rel="icon" href="../assets/mark.svg" type="image/svg+xml" />
+    <script>
+      // The scheme before the first paint: the reader's choice, else the system's.
+      (() => {
+        let scheme = null;
+        try {
+          scheme = localStorage.getItem("watchpot.site.scheme");
+        } catch {}
+        if (scheme !== "light" && scheme !== "dark") scheme = matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light";
+        document.documentElement.dataset.scheme = scheme;
+      })();
+    </script>
+    <link rel="stylesheet" href="../src/styles/site.css" />
+  </head>
+  <body>
+    <a class="skip" href="#content">Skip to the page</a>
+    <div id="root"></div>
+    <noscript>
+      <div class="noscript">
+        <h1>watchpot</h1>
+        <p>
+          A framework-light idle-game engine for Bun, TypeScript and React 19. This page runs the engine itself, so it
+          needs JavaScript. The docs do not: <a href="./docs/index.html">read the docs</a>.
+        </p>
+        <p>
+          Most of the code was written by an AI model (Anthropic's Claude), working with a person who set the direction,
+          built games on it, reviewed what came back and decided what stayed.
+        </p>
+      </div>
+    </noscript>
+    <script type="module" src="../src/main.tsx"></script>
+  </body>
+</html>

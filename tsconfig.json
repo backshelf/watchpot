@@ -13,5 +13,16 @@
     "allowImportingTsExtensions": true,
     "types": ["bun"]
   },
-  "include": ["env.d.ts", "src", "test", "scripts", "codemods", "docs/examples", "examples", "templates"]
+  "include": [
+    "env.d.ts",
+    "src",
+    "test",
+    "scripts",
+    "codemods",
+    "docs/examples",
+    "examples",
+    "templates",
+    "site"
+  ],
+  "exclude": ["site/dist"]
 }

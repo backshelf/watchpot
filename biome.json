@@ -9,10 +9,13 @@
       "codemods/**",
       "docs/examples/**",
       "examples/**",
+      "site/**",
       "*.json",
       "!api",
       "!src/sound/core.gen.ts",
-      "!templates"
+      "!templates",
+      "!site/dist*",
+      "!site/.impeccable"
     ]
   },
   "formatter": { "indentStyle": "space", "indentWidth": 2, "lineWidth": 110 },

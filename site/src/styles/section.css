@@ -1,0 +1,232 @@
+/*
+ * What every sheet after the first is built from. One vocabulary, so every figure sits on the same stock at the
+ * same line weights:
+ *   .section, .section__head, .section__lede, .section__body   a sheet's frame
+ *   .tb                                                         the title-block strip that closes a sheet
+ *   .plate, .plate__head, .plate__body                          a ruled panel (a working figure)
+ *   .field                                                      a caption over a value
+ *   .readout                                                    a large figure in the mono face
+ *   .seg                                                        a row of joined options (radios, tabs)
+ *   .button, .button--primary, .button--small                   controls (site.css)
+ *   .bar                                                        a meter: `--value` 0..1 fills it in the live tone
+ *   .hatched                                                    tone as hatching: empty, locked, not yet
+ *   .is-live                                                    the one mid-tone: this is running now
+ */
+
+.section {
+  padding-block: clamp(3rem, 6vw, 5.5rem) clamp(2rem, 4vw, 3.5rem);
+  scroll-margin-top: 3.5rem;
+}
+
+.section__head {
+  display: grid;
+  grid-template-columns: minmax(0, 5fr) minmax(0, 7fr);
+  gap: clamp(1rem, 2.5vw, 2.5rem);
+  align-items: end;
+  margin-bottom: clamp(1.75rem, 3vw, 2.75rem);
+}
+
+.section__head h2 {
+  font-size: var(--step-3);
+  letter-spacing: -0.024em;
+  max-width: 16ch;
+}
+
+.section__lede {
+  max-width: 62ch;
+  color: var(--ink-soft);
+  font-size: clamp(1.0625rem, 1rem + 0.2vw, 1.1875rem);
+  line-height: 1.5;
+}
+
+.section__lede code,
+.section__body p code {
+  color: var(--ink);
+}
+
+@media (max-width: 62rem) {
+  .section__head {
+    grid-template-columns: minmax(0, 1fr);
+    align-items: start;
+  }
+}
+
+/* The strip that closes a sheet: which entry this was, and where its recipe is. */
+.tb {
+  display: flex;
+  flex-wrap: wrap;
+  margin: clamp(1.75rem, 3vw, 2.5rem) 0 0;
+  border: var(--hair) solid var(--rule-strong);
+  font-size: var(--step--1);
+}
+
+.tb > div {
+  flex: 1 1 11rem;
+  padding: 0.5rem 0.8rem 0.6rem;
+  margin: 0 -1px -1px 0;
+  border-right: var(--hair) solid var(--rule-strong);
+  border-bottom: var(--hair) solid var(--rule-strong);
+  min-width: 0;
+}
+
+.tb dt {
+  margin-bottom: 0.15rem;
+  color: var(--ink-soft);
+  font-size: 0.625rem;
+}
+
+.tb dd {
+  margin: 0;
+  overflow-wrap: anywhere;
+}
+
+/* A working figure: a ruled panel on the sheet. One line all round, a strip of lettering for its name. */
+.plate {
+  position: relative;
+  min-width: 0;
+  background: var(--paper-lift);
+  border: var(--hair) solid var(--ink);
+  border-radius: 2px;
+}
+
+.plate__head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem 1rem;
+  min-height: 2.5rem;
+  padding: 0.5rem 0.9rem;
+  border-bottom: var(--hair) solid var(--ink);
+}
+
+.plate__head h3 {
+  font-stretch: 125%;
+  font-weight: 600;
+  font-size: 0.75rem;
+  letter-spacing: 0.09em;
+  text-transform: uppercase;
+}
+
+.plate__body {
+  padding: 0.9rem;
+}
+
+.field {
+  display: grid;
+  gap: 0.15rem;
+  min-width: 0;
+}
+
+.field > :first-child {
+  color: var(--ink-soft);
+  font-stretch: 125%;
+  font-weight: 560;
+  font-size: 0.625rem;
+  letter-spacing: 0.09em;
+  text-transform: uppercase;
+}
+
+.readout {
+  font-family: var(--font-mono);
+  font-variant-numeric: tabular-nums;
+  font-feature-settings: "zero" 1;
+  font-size: clamp(2rem, 1.5rem + 2.2vw, 3.25rem);
+  font-weight: 500;
+  line-height: 1;
+  letter-spacing: -0.03em;
+}
+
+/* Joined options: a radio group or a tab list. The chosen one is inked solid. */
+.seg {
+  display: inline-flex;
+  border: var(--hair) solid var(--ink);
+  border-radius: 2px;
+}
+
+.seg > * {
+  min-height: 2rem;
+  min-width: 2.5rem;
+  padding: 0 0.7rem;
+  background: transparent;
+  border: 0;
+  border-right: var(--hair) solid var(--ink);
+  font-family: var(--font-mono);
+  font-size: 0.8125rem;
+  transition:
+    background-color 140ms var(--ease-out),
+    color 140ms var(--ease-out);
+}
+
+.seg > :last-child {
+  border-right: 0;
+}
+
+.seg > :hover {
+  background: var(--paper-sunk);
+}
+
+.seg > [data-state="checked"],
+.seg > [data-state="active"],
+.seg > [aria-selected="true"],
+.seg > [aria-pressed="true"] {
+  background: var(--ink);
+  color: var(--paper);
+}
+
+.button--small {
+  min-height: 2rem;
+  padding: 0 0.7rem;
+  font-size: var(--step--1);
+}
+
+/* A meter: the engine's Progress and Meter write `--value` (0..1); this draws it. */
+.bar {
+  position: relative;
+  height: 0.5rem;
+  border: var(--hair) solid var(--ink);
+  background: var(--paper);
+}
+
+.bar::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: var(--ink);
+  transform-origin: left;
+  transform: scaleX(var(--value, 0));
+  transition: transform 200ms var(--ease-out);
+}
+
+/* Tone is hatching, never a grey: what is empty, locked or not affordable yet is ruled through. */
+.hatched {
+  background-image: repeating-linear-gradient(-45deg, var(--hatch) 0 1px, transparent 1px 5px);
+}
+
+.is-live {
+  background: var(--live);
+  color: var(--on-live);
+}
+
+/* Text set small under a figure: what it shows and that it is real. */
+.caption {
+  margin-top: 0.75rem;
+  max-width: 68ch;
+  color: var(--ink-soft);
+  font-size: var(--step--1);
+}
+
+.figure-grid {
+  display: grid;
+  gap: clamp(1rem, 2vw, 1.5rem);
+}
+
+@media (pointer: coarse) {
+  .seg > * {
+    min-height: 2.75rem;
+  }
+
+  .button--small {
+    min-height: 2.75rem;
+  }
+}

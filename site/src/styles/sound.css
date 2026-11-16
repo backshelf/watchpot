@@ -1,0 +1,489 @@
+/* The sound sheet: the gate across the top, the sequencer and the single cues on the left, the tap and the mix on
+   the right. The step grid is a ruled strip: a beat's first step is ruled heavier, a step that is on is inked, the
+   one sounding now is the live tone, and a change waiting for the bar line is dashed. */
+
+.sound__gate {
+  display: grid;
+  grid-template-columns: auto auto minmax(0, 1fr);
+  align-items: center;
+  gap: 1rem clamp(1.25rem, 3vw, 2.5rem);
+  padding: 1rem clamp(0.9rem, 2vw, 1.4rem);
+  margin-bottom: clamp(1rem, 2vw, 1.5rem);
+}
+
+.sound__power {
+  min-height: 3.25rem;
+  min-width: 14.5rem;
+  padding-inline: 1.6rem;
+  font-size: var(--step-1);
+}
+
+.sound__power[aria-disabled="true"] {
+  cursor: progress;
+}
+
+.sound__reads {
+  display: flex;
+  gap: clamp(1.25rem, 3vw, 2.25rem);
+}
+
+.sound__read {
+  justify-self: start;
+  padding: 0.1rem 0.35rem;
+  margin-left: -0.35rem;
+  font-size: 1.5rem;
+  line-height: 1.15;
+}
+
+.sound__read[data-live] {
+  background: var(--live);
+  color: var(--on-live);
+}
+
+.sound__call,
+.sound__count,
+.sound__pos,
+.knob__call {
+  color: var(--ink-soft);
+  font-family: var(--font-mono);
+  font-size: 0.6875rem;
+  overflow-wrap: anywhere;
+}
+
+.sound__gatenote {
+  max-width: 52ch;
+  color: var(--ink-soft);
+  font-size: var(--step--1);
+}
+
+.sound__gatenote code,
+.sound .caption code {
+  color: var(--ink);
+}
+
+.sound {
+  display: grid;
+  grid-template-columns: minmax(0, 7fr) minmax(0, 5fr);
+  gap: clamp(1rem, 2vw, 1.5rem);
+  align-items: start;
+}
+
+.sound__main,
+.sound__side {
+  display: grid;
+  gap: clamp(1rem, 2vw, 1.5rem);
+  min-width: 0;
+}
+
+.sound__pos {
+  font-variant-numeric: tabular-nums;
+}
+
+.sound__fallback {
+  margin-bottom: 0.9rem;
+  padding: 0.6rem 0.75rem;
+  border: var(--hair) dashed var(--ink);
+  font-size: var(--step--1);
+}
+
+/* The step grid. */
+
+.steps__ruler,
+.steps__row {
+  display: grid;
+  grid-template-columns: 8.75rem repeat(16, minmax(0, 1fr));
+}
+
+.steps__ruler {
+  height: 1.2rem;
+}
+
+.steps__ruler > span {
+  position: relative;
+  padding-left: 0.25rem;
+  color: var(--ink-soft);
+  font-family: var(--font-mono);
+  font-size: 0.625rem;
+  line-height: 1.2rem;
+}
+
+.steps__ruler > [data-beat] {
+  border-left: var(--hair) solid var(--ink);
+}
+
+.steps__ruler[data-running] > [data-head]::after {
+  content: "";
+  position: absolute;
+  inset: auto 0 0;
+  height: 3px;
+  background: var(--ink);
+}
+
+.steps {
+  border: var(--hair) solid var(--ink);
+}
+
+.steps__row + .steps__row {
+  border-top: var(--hair) solid var(--rule-strong);
+}
+
+.steps [data-row-aside] {
+  display: grid;
+  align-content: center;
+  gap: 0.05rem;
+  padding: 0.3rem 0.7rem;
+  border-right: var(--hair) solid var(--ink);
+  min-width: 0;
+}
+
+.steps__cue {
+  font-size: 0.875rem;
+  font-weight: 500;
+}
+
+.steps__line {
+  color: var(--ink-soft);
+  font-size: 0.6875rem;
+  line-height: 1.3;
+}
+
+.step {
+  position: relative;
+  min-height: 2.75rem;
+  border-left: var(--hair) solid var(--rule);
+  cursor: pointer;
+  transition: background-color 120ms var(--ease-out);
+}
+
+.step[data-beat] {
+  border-left-color: var(--rule-strong);
+}
+
+.steps__row > .step:first-child,
+.steps [data-row-aside] + .step {
+  border-left: 0;
+}
+
+.step:hover {
+  background: var(--paper-sunk);
+}
+
+.step:focus-visible {
+  outline-offset: -4px;
+}
+
+/* The mark: inked when the step is on. */
+.step::before {
+  content: "";
+  position: absolute;
+  inset: 26% 20%;
+  border: var(--hair) solid transparent;
+  border-radius: 1px;
+}
+
+.step[data-on]::before {
+  background: var(--ink);
+}
+
+.steps[data-running] .step[data-head] {
+  background: var(--paper-sunk);
+}
+
+/* The step sounding now: the live tone. */
+.steps[data-running] .step[data-head][data-on]:not([data-queued])::before {
+  background: var(--live);
+  border-color: var(--ink);
+}
+
+/* Waiting for the bar line: dashed, and ruled through where it is about to go off. */
+.step[data-queued]::before {
+  background: transparent;
+  border: var(--hair) dashed var(--ink);
+}
+
+.step[data-queued]:not([data-on])::before {
+  background-image: repeating-linear-gradient(-45deg, var(--hatch) 0 1px, transparent 1px 4px);
+}
+
+.step__deg {
+  position: absolute;
+  inset: 0;
+  z-index: 1;
+  display: grid;
+  place-items: center;
+  color: var(--paper-lift);
+  font-size: 0.6875rem;
+  font-weight: 500;
+}
+
+.step[data-queued] .step__deg {
+  color: var(--ink);
+}
+
+.steps[data-running] .step[data-head][data-on]:not([data-queued]) .step__deg {
+  color: var(--on-live);
+}
+
+/* Controls: a name, a value in the mono, the slider, and the engine call it moves. */
+
+.sound__clock {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  gap: 1rem 2rem;
+  margin-top: 1rem;
+  padding-top: 1rem;
+  border-top: var(--hair) solid var(--rule);
+}
+
+.knob {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: baseline;
+  gap: 0.2rem 1rem;
+  min-width: 0;
+}
+
+fieldset.knob {
+  margin: 0;
+  padding: 0;
+  border: 0;
+}
+
+legend.knob__name {
+  padding: 0;
+  margin-bottom: 0.35rem;
+}
+
+.knob__name {
+  color: var(--ink-soft);
+  font-stretch: 125%;
+  font-weight: 560;
+  font-size: 0.625rem;
+  letter-spacing: 0.09em;
+  text-transform: uppercase;
+}
+
+.knob__value {
+  font-size: 0.875rem;
+}
+
+.slide,
+.knob > .seg,
+.knob__call {
+  grid-column: 1 / -1;
+}
+
+.sound__scales {
+  justify-self: start;
+  flex-wrap: wrap;
+}
+
+.slide {
+  width: 100%;
+  height: 2.75rem;
+  margin: 0;
+  background: transparent;
+  appearance: none;
+  cursor: pointer;
+}
+
+.slide::-webkit-slider-runnable-track {
+  height: 0.5rem;
+  border: var(--hair) solid var(--ink);
+  background: linear-gradient(
+    to right,
+    var(--ink) calc(var(--value, 0) * 100%),
+    var(--paper) calc(var(--value, 0) * 100%)
+  );
+}
+
+.slide::-webkit-slider-thumb {
+  width: 0.75rem;
+  height: 1.6rem;
+  margin-top: calc(-0.8rem + 0.25rem - 1px);
+  background: var(--paper-lift);
+  border: 1.5px solid var(--ink);
+  border-radius: 1px;
+  appearance: none;
+}
+
+.slide::-moz-range-track {
+  height: 0.5rem;
+  border: var(--hair) solid var(--ink);
+  background: var(--paper);
+}
+
+.slide::-moz-range-progress {
+  height: 0.5rem;
+  background: var(--ink);
+}
+
+.slide::-moz-range-thumb {
+  width: 0.75rem;
+  height: 1.6rem;
+  background: var(--paper-lift);
+  border: 1.5px solid var(--ink);
+  border-radius: 1px;
+}
+
+.slide:hover::-webkit-slider-thumb {
+  background: var(--ink);
+}
+
+.slide:hover::-moz-range-thumb {
+  background: var(--ink);
+}
+
+/* The single cues. */
+
+.sound__padrow {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+}
+
+.sound__padrow .button {
+  min-width: 5.5rem;
+}
+
+.sound__padrow .button[aria-disabled="true"] {
+  border-style: dashed;
+  border-color: var(--rule-strong);
+  color: var(--ink-faint);
+  cursor: default;
+}
+
+.sound__padrow .num {
+  color: inherit;
+  font-size: 0.75rem;
+}
+
+.sound__line {
+  margin-top: 0.9rem;
+  color: var(--ink-soft);
+  font-size: var(--step-1);
+  font-stretch: 108%;
+}
+
+.sound__said {
+  color: var(--ink);
+  text-decoration: underline;
+  text-decoration-color: var(--ink);
+  text-decoration-thickness: 2px;
+  text-underline-offset: 0.25em;
+}
+
+/* The tap: an axis, the canvas (or its still) and the five names under the columns. */
+
+.tap {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  gap: 0.6rem;
+}
+
+.tap__axis {
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  height: 10rem;
+  color: var(--ink-soft);
+  font-size: 0.625rem;
+  line-height: 1;
+  text-align: right;
+}
+
+.tap__canvas,
+.tap__still {
+  display: block;
+  width: 100%;
+  height: 10rem;
+}
+
+.tap__still {
+  display: grid;
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+  gap: 12px;
+}
+
+.tap__still > span {
+  border: var(--hair) solid var(--ink);
+}
+
+.tap__names {
+  display: grid;
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+  gap: 12px;
+  margin-top: 0.45rem;
+  color: var(--ink-soft);
+  text-align: center;
+}
+
+.tap__names .lettering {
+  font-size: 0.625rem;
+}
+
+.sound__mix {
+  display: grid;
+  gap: 0.6rem;
+}
+
+#sound .tb__wide {
+  flex-basis: 24rem;
+}
+
+@media (max-width: 62rem) {
+  .sound {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+
+@media (max-width: 40rem) {
+  .sound__gate {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .sound__power {
+    width: 100%;
+  }
+
+  .steps__ruler {
+    display: none;
+  }
+
+  /* Eight steps a row, the full width of the plate, so each is at least 44px. */
+  .steps {
+    margin: -0.9rem -0.9rem 0;
+    border-inline: 0;
+    border-top: 0;
+  }
+
+  .steps__row {
+    grid-template-columns: repeat(8, minmax(0, 1fr));
+  }
+
+  .steps [data-row-aside] {
+    grid-column: 1 / -1;
+    display: flex;
+    align-items: baseline;
+    gap: 0.6rem;
+    padding: 0.35rem 0.9rem;
+    border-right: 0;
+    border-bottom: var(--hair) solid var(--rule);
+  }
+
+  .steps__row + .steps__row[data-second] {
+    border-top-color: var(--rule);
+  }
+
+  .steps__row + .steps__row:not([data-second]) {
+    border-top-color: var(--ink);
+  }
+
+  .sound__clock {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .sound__scales > button {
+    min-height: 2.75rem;
+  }
+}

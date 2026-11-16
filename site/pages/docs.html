@@ -1,0 +1,84 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+    <meta name="color-scheme" content="light dark" />
+    <title>%TITLE%</title>
+    <meta name="description" content="%DESCRIPTION%" />
+    <link rel="icon" href="../assets/mark.svg" type="image/svg+xml" />
+    <script>
+      // The scheme before the first paint: the reader's choice, else the system's.
+      (() => {
+        let scheme = null;
+        try {
+          scheme = localStorage.getItem("watchpot.site.scheme");
+        } catch {}
+        if (scheme !== "light" && scheme !== "dark") scheme = matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light";
+        document.documentElement.dataset.scheme = scheme;
+        // Script runs: the contents become a drawer on a phone (without script they sit inline below the page).
+        document.documentElement.dataset.js = "";
+      })();
+    </script>
+    <link rel="stylesheet" href="../src/styles/docs.css" />
+  </head>
+  <body class="docs">
+    <a class="skip" href="#content">Skip to the page</a>
+    <header class="mast">
+      <a class="mast__home" href="%BASE%index.html" aria-label="watchpot, home">
+        <svg class="mark" viewBox="0 0 32 32" aria-hidden="true">
+          <circle class="mark__live" cx="16" cy="16" r="5" />
+          <circle cx="16" cy="16" r="9.25" stroke-width="2" />
+          <path d="M3 13.5v5M29 13.5v5" stroke-width="2" stroke-linecap="square" />
+          <path d="M16 1.5v5M16 25.5v5M1.5 16h3M27.5 16h3" stroke-width="1" />
+        </svg>
+        <span class="mast__name">watchpot</span>
+      </a>
+      <span class="mast__where">Docs</span>
+      <div class="mast__tools">
+        <a class="mast__link" href="%BASE%index.html">Home</a>
+        <button class="scheme" type="button" data-scheme-toggle aria-label="Switch between the blueline and the blueprint">
+          <span data-scheme-label></span>
+        </button>
+        <button class="mast__menu" type="button" aria-expanded="false" aria-controls="doc-nav" data-nav-toggle>Contents</button>
+      </div>
+    </header>
+    <div class="docs__body">
+      <aside class="docs__rail" id="doc-nav" aria-label="Contents" data-nav>
+        <div class="docs__railhead">
+          <span class="lettering">Contents</span>
+          <button class="docs__close" type="button" data-nav-close>Close</button>
+        </div>
+        <search class="doc-find">
+          <label class="doc-find__label" for="doc-find">Find a page</label>
+          <span class="doc-find__field">
+            <input id="doc-find" type="search" autocomplete="off" spellcheck="false" data-nav-filter placeholder="generators, prestige, save…" />
+            <kbd class="doc-find__key" aria-hidden="true">/</kbd>
+          </span>
+          <p class="visually-hidden" aria-live="polite" data-nav-status></p>
+        </search>
+        %NAV%
+        <div class="doc-find__results" data-nav-results hidden></div>
+      </aside>
+      <div class="docs__scrim" data-nav-scrim hidden></div>
+      <aside class="docs__toc">
+        <details class="toc-fold" data-toc-fold>
+          <summary class="toc-fold__summary">On this page</summary>
+          %TOC%
+        </details>
+      </aside>
+      <main class="docs__main" id="content" tabindex="-1">
+        %CONTENT%
+        %PAGER%
+        <footer class="docs__foot">
+          <p>
+            Most of the code and these pages were written by an AI model (Anthropic's Claude), working with a person who
+            set the direction, built games on it, reviewed what came back and decided what stayed.
+          </p>
+        </footer>
+      </main>
+    </div>
+    <p class="visually-hidden" aria-live="polite" data-announce></p>
+    <script type="module" src="../src/docs-client.ts"></script>
+  </body>
+</html>
