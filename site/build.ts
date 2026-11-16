@@ -4,6 +4,10 @@ import { cp, mkdir, rm } from "node:fs/promises";
 import { dirname, join, resolve } from "node:path";
 import { SITE } from "./site.config";
 import { buildDocs } from "./src/docs";
+import { relativeUrl } from "./src/docs/links";
+import { renderNav } from "./src/docs/nav";
+import { fillShell } from "./src/docs/shell";
+import { buildGuide, guideLinks } from "./src/guide/build";
 
 const here = import.meta.dir;
 const repoRoot = join(here, "..");
@@ -49,15 +53,42 @@ const NOT_FOUND = `<!doctype html>
 </html>
 `;
 
+/**
+ * `watchpot/sim` imports `pathToFileURL` from `node:url` at its top (the fit kit's proof, which runs only in Bun), and
+ * Bun's browser polyfill of `node:url` has no such export, so the landing page (whose sim lab imports the sim) fails
+ * to bundle. The page never calls it: this hands the bundle a `node:url` whose two path helpers say so if they are
+ * ever called. The fix belongs in the engine (import it where the proof runs); remove this when it lands there.
+ */
+const nodeUrlForBrowser: import("bun").BunPlugin = {
+  name: "node-url-for-browser",
+  setup(build) {
+    build.onResolve({ filter: /^node:url$/ }, () => ({ path: "node-url", namespace: "site-shim" }));
+    build.onLoad({ filter: /.*/, namespace: "site-shim" }, () => ({
+      loader: "js",
+      contents: [
+        'const no = (name) => () => { throw new Error(name + " is not available in a browser"); };',
+        'export const pathToFileURL = no("pathToFileURL");',
+        'export const fileURLToPath = no("fileURLToPath");',
+        "export const URL = globalThis.URL;",
+        "export const URLSearchParams = globalThis.URLSearchParams;",
+      ].join("\n"),
+    }));
+  },
+};
+
 export interface BuildResult {
   ok: boolean;
   ms: number;
   pages: number;
   warnings: string[];
+  /** Each getting-started page's script and what it loads up front, in bytes. */
+  weights?: Record<string, number>;
 }
 
-/** The guide's first page (as its built address under docs/) once `docs/guide/` has an index; else nothing. */
+/** The guide's first page, as its built address under docs/: the getting-started pages when there are any. */
 async function guideEntry(): Promise<string> {
+  const first = guideLinks()[0];
+  if (first) return first.out;
   for (const name of ["README.md", "index.md"]) {
     if (await Bun.file(join(repoRoot, "docs/guide", name)).exists()) return "guide/index.html";
   }
@@ -78,6 +109,7 @@ export async function build({ dev = false, out = join(here, "dist") } = {}): Pro
     splitting: true,
     sourcemap: dev ? "linked" : "none",
     external: ["*.woff2"],
+    plugins: [nodeUrlForBrowser],
     naming: {
       entry: "[name].[ext]",
       chunk: "assets/[name]-[hash].[ext]",
@@ -106,12 +138,25 @@ export async function build({ dev = false, out = join(here, "dist") } = {}): Pro
   const shellPath = join(out, "docs.html");
   const shell = await Bun.file(shellPath).text();
   await rm(shellPath);
+  // The guide's getting-started pages: built from TSX, drawn into the same shell, listed first in the contents.
+  const guide = await buildGuide({ repoRoot, out, dev });
+  if (!guide.ok) return { ok: false, ms: performance.now() - started, pages: 0, warnings: guide.warnings };
   const docs = await buildDocs({
     repoRoot,
     outDir: join(out, "docs"),
     shell,
     repo: { url: SITE.repoUrl, branch: SITE.repoBranch, public: SITE.repoPublic },
+    start: {
+      links: guide.links,
+      // The markdown chapters the getting-started pages are rewriting stay, tagged as the older read.
+      replaces: (path) => /^guide\/0[1-6]-/.test(path),
+      search: guide.search,
+    },
   });
+  guide.write(
+    (page, slots) => fillShell(shell, page, slots),
+    (page) => renderNav(docs.nav, page, (to) => relativeUrl(page, to)),
+  );
 
   // What Pages serves for a missing path. It can be asked for at any depth, so it carries its own few styles and
   // finds the site's root from the address (a project site lives under its first path segment).
@@ -123,8 +168,9 @@ export async function build({ dev = false, out = join(here, "dist") } = {}): Pro
   return {
     ok: true,
     ms: performance.now() - started,
-    pages: docs.pages + docs.examples + 1,
-    warnings: docs.warnings,
+    pages: docs.pages + docs.examples + guide.links.length + 1,
+    warnings: [...guide.warnings, ...docs.warnings],
+    weights: guide.weights,
   };
 }
 
@@ -137,4 +183,7 @@ if (import.meta.main) {
   for (const warning of result.warnings) console.warn(`docs: ${warning}`);
   if (!result.ok) process.exit(1);
   console.log(`site: ${result.pages} pages in ${Math.round(result.ms)} ms → site/dist`);
+  for (const [page, bytes] of Object.entries(result.weights ?? {})) {
+    console.log(`  guide ${page}: ${(bytes / 1024).toFixed(0)} KB of script up front`);
+  }
 }

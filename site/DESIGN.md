@@ -65,6 +65,29 @@ The frame carries the world (masthead, contents rail, the page's ruled header, l
 lettering bar, tables as parts lists, the pager as two ruled cells); the column stays plain: Archivo at 17px, about
 67 characters, nothing behind the text. Code is highlighted at build time in the one ink at several strengths.
 
+## Getting started (a working machine beside the words)
+
+The first steps of the guide are docs pages with the engine running beside the column (`src/styles/guide.css`). The
+frame and the column are the docs'; three things are added, and they are where the live tone lives on a docs page.
+
+- **The panel** is a plate: one ink line, a lettering strip naming the game, and a lamp in the strip that is lit with
+  `--live` while the engine's clock ticks the game (ruled through when stopped). Inside, readouts are lettering over mono
+  figures (the headline figure large), buttons are the site's controls, and parts are parted by hairlines. A press the
+  game would take now is lit with `--live`, as the landing page lights a buy the balance covers; the clock switch's
+  "Ticking" cell is lit while it ticks. From 1100px it sits beside the column and stays in view; narrower, it comes
+  first, before the words.
+- **A control is a token in the code.** Each one sets a value written in a listing; the token is boxed with a dashed
+  hairline like an adjustable dimension, and while it differs from the file it is filled with `--live` (the value the
+  game is running now is the reader's), as is the control's own value. Sliders are a hairline scale with a square
+  slider; steppers and choices are ruled cells, the chosen one inked.
+- **The code box** is a listing the reader types in: the same sunk stock, line numbers in the margin, its state on a
+  line under it (a lit dot while the reader's version runs), a mistake set off by a heavy ink rule with its line
+  hatched and its number inked in the margin.
+- **A glossary word** carries a dotted underline; its tip is a small plate (lettering name, one sentence).
+- **The way through.** Under the title, a strip of cells: done inked, this step inked and ringed, ahead ruled, not
+  written yet dashed. In the contents, "Getting started" is tagged new (inked) and the chapters it replaces older
+  (dashed).
+
 ## A phone
 
 Its own order, not a squeezed desktop: the pitch, then the drawing with names only on its leaders, then the notes and

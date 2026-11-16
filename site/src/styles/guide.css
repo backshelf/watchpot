@@ -1,0 +1,1207 @@
+/*
+ * The getting-started pages: a docs page with a working machine beside its words. The column stays the docs'
+ * reading column; the panel is a plate (one ink line, a lettering strip) and it is the one place on the page the
+ * live tone appears, because it is the one place something is running.
+ *
+ *   .docs__body--guide   the ground without the on-page contents
+ *   .step__head          where the step sits (.steps), its title, its one idea
+ *   .step__grid          the words and, beside them from 1100px, the panel (sticky); below, the panel first
+ *   .panel               the live game: .readouts, .actions, .panel__row, .away, .savetext, .statetree
+ *   .controls            the page's controls, each a token in a listing (.guide-code__param)
+ *   .codebox             the editable code box
+ *   .term                a glossary word and its tip
+ *   .guide-try, .guide-note, .guide-snippet
+ */
+
+/* ---------------------------------------------------------------- the ground */
+
+/* Wider than 860px: the contents and the page, no on-page contents column (the docs' own rules come later in the
+ * cascade, hence the doubled class). Narrower, the docs' one-column ground holds as it is. */
+@media (min-width: 53.75em) {
+  .docs__body.docs__body--guide {
+    grid-template-columns: var(--rail-w) minmax(0, 1fr);
+    grid-template-rows: auto;
+    grid-template-areas: "rail main";
+  }
+
+  .docs__body--guide .docs__rail {
+    grid-row: auto;
+  }
+}
+
+.docs__body--guide .docs__toc {
+  display: none;
+}
+
+/* ---------------------------------------------------------------- the head: where, what, why */
+
+.step__head {
+  margin-bottom: 2.25rem;
+}
+
+.step__idea {
+  max-width: 40rem;
+  margin-top: 1rem;
+  color: var(--ink-soft);
+  font-size: var(--step-1);
+  line-height: 1.45;
+  text-wrap: pretty;
+}
+
+/* The sequence as a strip of cells: done inked, this one inked and raised, ahead ruled, unwritten dashed. */
+.steps {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.5rem 1rem;
+  margin-bottom: 1.1rem;
+}
+
+.steps__where {
+  color: var(--ink-soft);
+  font-stretch: 125%;
+  font-weight: 560;
+  font-size: 0.6875rem;
+  letter-spacing: 0.09em;
+  text-transform: uppercase;
+}
+
+.steps__where .num {
+  color: var(--ink);
+  font-size: 0.8125rem;
+  letter-spacing: 0;
+}
+
+.steps__of {
+  text-transform: none;
+  letter-spacing: 0.02em;
+}
+
+.steps__list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 3px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.steps__cell {
+  position: relative;
+  display: block;
+  width: 1rem;
+  height: 0.625rem;
+  border: var(--hair) solid var(--ink);
+  border-radius: 1px;
+}
+
+/* A finger-sized target around a small cell. */
+a.steps__cell::after {
+  content: "";
+  position: absolute;
+  inset: -0.5rem -2px;
+}
+
+a.steps__cell:hover {
+  background: var(--hatch);
+}
+
+.steps__cell[data-state="done"] {
+  background: var(--ink);
+}
+
+.steps__cell[data-state="here"] {
+  height: 1rem;
+  margin-top: -0.1875rem;
+  background: var(--ink);
+  outline: var(--hair) solid var(--ink);
+  outline-offset: 2px;
+}
+
+.steps__cell[data-state="unwritten"] {
+  border-style: dashed;
+  border-color: var(--rule-strong);
+}
+
+/* ---------------------------------------------------------------- the words beside the machine */
+
+.step__grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 2rem;
+}
+
+@media (min-width: 68.75em) {
+  .step__grid {
+    grid-template-columns: minmax(0, 38rem) minmax(21rem, 1fr);
+    gap: clamp(2rem, 4vw, 4.5rem);
+    align-items: start;
+  }
+
+  .step__body {
+    grid-column: 1;
+    grid-row: 1;
+  }
+
+  .step__panel {
+    grid-column: 2;
+    grid-row: 1;
+    position: sticky;
+    top: calc(var(--mast-h) + 1.25rem);
+    max-height: calc(100dvh - var(--mast-h) - 2.5rem);
+    overflow-y: auto;
+    overscroll-behavior: contain;
+    scrollbar-width: thin;
+  }
+}
+
+.step__body > * {
+  max-width: 38rem;
+}
+
+/* A listing in the column: the docs' figure, with lines that can carry a control's token. */
+.guide-code .line {
+  display: inline;
+}
+
+/* A control's token: boxed like an adjustable dimension; filled with the live tone while it differs from the file
+ * (what is running now is the reader's value). */
+.guide-code__param {
+  padding: 0 0.15em;
+  margin: 0 -0.15em;
+  border: var(--hair) dashed var(--ink-soft);
+  border-radius: 1px;
+  color: var(--ink);
+  transition:
+    background-color 140ms var(--ease-out),
+    color 140ms var(--ease-out);
+}
+
+.guide-code__param[data-changed] {
+  border-style: solid;
+  border-color: var(--ink);
+  background: var(--live);
+  color: var(--on-live);
+}
+
+.guide-snippet {
+  margin: 0.75rem 0 0;
+  padding: 0.85rem 1rem;
+  overflow-x: auto;
+  background: var(--paper-sunk);
+  border: var(--hair) solid var(--rule-strong);
+  border-radius: 2px;
+  font-size: 0.8125rem;
+  line-height: 1.7;
+}
+
+.guide-snippet code {
+  font-size: inherit;
+}
+
+/* ---------------------------------------------------------------- try this, notes */
+
+.guide-try {
+  margin-top: 1.75rem;
+  padding: 0.9rem 1.1rem 1.1rem;
+  border: var(--hair) solid var(--ink);
+  border-radius: 2px;
+}
+
+.guide-try + * {
+  margin-top: 1.75rem;
+}
+
+.guide-try__title,
+.guide-note__title,
+.controls__title {
+  margin: 0 0 0.6rem;
+  color: var(--ink-soft);
+  font-stretch: 125%;
+  font-weight: 560;
+  font-size: 0.6875rem;
+  line-height: 1.3;
+  letter-spacing: 0.09em;
+  text-transform: uppercase;
+}
+
+.doc__body .guide-try ol {
+  display: grid;
+  gap: 0.6rem;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  counter-reset: try;
+}
+
+/* Each step a run of words beside its number: the number hangs in the margin, so code inside the words stays inline. */
+.doc__body .guide-try li {
+  position: relative;
+  min-height: 1.6rem;
+  padding-left: 2.35rem;
+  counter-increment: try;
+}
+
+.guide-try li::before {
+  content: counter(try);
+  position: absolute;
+  top: 0.05rem;
+  left: 0;
+  display: grid;
+  place-items: center;
+  width: 1.6rem;
+  height: 1.6rem;
+  border: var(--hair) solid var(--ink);
+  font-family: var(--font-mono);
+  font-size: 0.75rem;
+}
+
+.guide-note {
+  padding: 0.9rem 1.1rem 1rem 1.4rem;
+  background:
+    repeating-linear-gradient(-45deg, var(--rule-strong) 0 1px, transparent 1px 4px) left / 0.4rem 100%
+    no-repeat,
+    var(--paper-sunk);
+  border: var(--hair) solid var(--rule-strong);
+  border-radius: 2px;
+}
+
+/* ---------------------------------------------------------------- the panel */
+
+.panel {
+  background: var(--paper-lift);
+  border: var(--hair) solid var(--ink);
+  border-radius: 2px;
+}
+
+.panel__bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  min-height: 2.5rem;
+  padding: 0 0.9rem;
+  border-bottom: var(--hair) solid var(--ink);
+}
+
+.panel__title,
+.panel__state,
+.panel__label,
+.readout__label {
+  font-stretch: 125%;
+  font-weight: 560;
+  font-size: 0.6875rem;
+  line-height: 1.3;
+  letter-spacing: 0.09em;
+  text-transform: uppercase;
+}
+
+.panel__state {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.45rem;
+  color: var(--ink-soft);
+}
+
+/* The lamp: lit with the live tone while the engine's clock is ticking the game, ruled through when it is not. */
+.panel__lamp {
+  width: 0.625rem;
+  height: 0.625rem;
+  border: var(--hair) solid var(--ink);
+  border-radius: 50%;
+  background-image: repeating-linear-gradient(-45deg, var(--ink-soft) 0 1px, transparent 1px 3px);
+}
+
+.panel__state[data-running] {
+  color: var(--ink);
+}
+
+.panel__state[data-running] .panel__lamp {
+  background: var(--live);
+}
+
+.panel__body {
+  display: grid;
+  gap: 1rem;
+  padding: 1rem 0.9rem 1.1rem;
+}
+
+.panel__body > * + * {
+  padding-top: 1rem;
+  border-top: var(--hair) solid var(--rule);
+}
+
+.panel__foot {
+  padding: 0.6rem 0.9rem 0.7rem;
+  border-top: var(--hair) solid var(--rule);
+  color: var(--ink-soft);
+  font-size: var(--step--1);
+  line-height: 1.4;
+}
+
+.panel__foot a {
+  font-family: var(--font-mono);
+  font-size: 0.92em;
+}
+
+.panel__label {
+  color: var(--ink-soft);
+}
+
+.readouts {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(7.5rem, 1fr));
+  gap: 0.9rem 1rem;
+}
+
+.readout {
+  display: grid;
+  gap: 0.2rem;
+  min-width: 0;
+}
+
+.readout__label {
+  color: var(--ink-soft);
+}
+
+.readout__value {
+  font-size: 1.0625rem;
+  line-height: 1.25;
+  overflow-wrap: anywhere;
+}
+
+.readout[data-big] {
+  grid-column: 1 / -1;
+}
+
+.readout[data-big] .readout__value {
+  font-size: clamp(2.25rem, 1.6rem + 2vw, 3rem);
+  font-weight: 450;
+  letter-spacing: -0.03em;
+  line-height: 1.05;
+}
+
+.readout__unit {
+  color: var(--ink-soft);
+  font-family: var(--font-sans);
+  font-size: 0.6em;
+  letter-spacing: 0;
+}
+
+.actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+}
+
+.actions .button {
+  flex: 1 1 auto;
+}
+
+/* A press the game would take now: lit, as the landing page lights a buy the balance covers. */
+.button.act[data-ready] {
+  background: var(--live);
+  border-color: var(--ink);
+  color: var(--on-live);
+}
+
+.button.act[data-ready]:hover {
+  background: var(--ink);
+  color: var(--paper);
+}
+
+.button--small {
+  min-height: 2rem;
+  padding: 0 0.7rem;
+  font-size: var(--step--1);
+}
+
+.panel__body > .button--small {
+  justify-self: start;
+}
+
+.panel__row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.6rem 0.9rem;
+}
+
+.panel__passes {
+  margin-left: auto;
+  color: var(--ink-soft);
+  font-size: var(--step--1);
+}
+
+/* A switch of two ruled cells: the one that holds is inked. */
+.control__switch {
+  display: inline-flex;
+  padding: 0;
+  background: transparent;
+  border: var(--hair) solid var(--ink);
+  border-radius: 2px;
+  font-size: var(--step--1);
+}
+
+.control__switch > span {
+  display: inline-grid;
+  place-items: center;
+  min-height: 2rem;
+  padding: 0 0.7rem;
+  transition:
+    background-color 140ms var(--ease-out),
+    color 140ms var(--ease-out);
+}
+
+.control__switch > span + span {
+  border-left: var(--hair) solid var(--ink);
+}
+
+.control__switch[aria-checked="true"] > .control__switch-on,
+.control__switch[aria-checked="false"] > .control__switch-off {
+  background: var(--ink);
+  color: var(--paper);
+}
+
+.control__switch:hover
+  > span:not(
+    :is([aria-checked="true"] > .control__switch-on, [aria-checked="false"] > .control__switch-off)
+  ) {
+  background: var(--hatch);
+}
+
+.control__switch:active {
+  translate: 0 1px;
+}
+
+/* The clock's switch: ticking is the engine running, so its cell takes the live tone. */
+.panel__row .control__switch[aria-checked="true"] > .control__switch-on {
+  background: var(--live);
+  color: var(--on-live);
+}
+
+.away {
+  display: grid;
+  gap: 0.6rem;
+}
+
+.away__row {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  align-items: center;
+  gap: 0.5rem 0.9rem;
+}
+
+.away__ms {
+  justify-self: end;
+}
+
+.away__note {
+  padding: 0.55rem 0.75rem;
+  background: var(--paper-sunk);
+  border: var(--hair) solid var(--rule-strong);
+  font-size: var(--step--1);
+}
+
+.savetext summary,
+.statetree > .panel__label {
+  min-height: 1.75rem;
+  cursor: pointer;
+}
+
+.savetext summary {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  list-style: none;
+}
+
+.savetext summary::-webkit-details-marker {
+  display: none;
+}
+
+.savetext summary::before {
+  content: "+";
+  width: 1ch;
+  font-family: var(--font-mono);
+  font-size: 0.9rem;
+  letter-spacing: 0;
+}
+
+.savetext[open] summary::before {
+  content: "−";
+}
+
+.savetext summary:hover {
+  color: var(--ink);
+}
+
+.savetext__body {
+  max-height: 14rem;
+  margin: 0.5rem 0 0;
+  padding: 0.6rem 0.75rem;
+  overflow: auto;
+  background: var(--paper-sunk);
+  border: var(--hair) solid var(--rule);
+  font-size: 0.75rem;
+  line-height: 1.5;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+
+.statetree > .panel__label {
+  cursor: default;
+  margin-bottom: 0.4rem;
+}
+
+.statetree__list,
+.statetree__list ul {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  font-size: 0.8125rem;
+  line-height: 1.6;
+}
+
+.statetree__list ul {
+  margin-left: 0.35rem;
+  padding-left: 0.85rem;
+  border-left: var(--hair) solid var(--rule-strong);
+}
+
+.statetree__key {
+  color: var(--ink-soft);
+}
+
+.statetree__key::after {
+  content: ":";
+}
+
+.statetree__value {
+  color: var(--ink);
+}
+
+.statetree__type {
+  color: var(--text-faint);
+  font-family: var(--font-sans);
+  font-size: 0.75rem;
+}
+
+/* Inline code in the column stays on one line: `{ bubbles }` broken in two reads as two things. */
+.step__body :not(pre) > code {
+  white-space: nowrap;
+}
+
+/* ---------------------------------------------------------------- the controls */
+
+.controls {
+  display: grid;
+  gap: 0.9rem;
+  margin-top: 1.25rem;
+  padding: 0.9rem 1.1rem 1.1rem;
+  border: var(--hair) solid var(--ink);
+  border-top-width: 3px;
+  border-radius: 2px;
+}
+
+.controls + * {
+  margin-top: 1.5rem;
+}
+
+.controls__title {
+  margin: 0;
+}
+
+.control {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 0.4rem 1rem;
+  min-width: 0;
+  margin: 0;
+  padding: 0;
+  border: 0;
+}
+
+.control__label {
+  padding: 0;
+  font-weight: 560;
+}
+
+.control__value {
+  justify-self: end;
+  padding: 0 0.35rem;
+  border: var(--hair) dashed var(--ink-soft);
+  transition:
+    background-color 140ms var(--ease-out),
+    color 140ms var(--ease-out);
+}
+
+.control[data-changed] .control__value {
+  border-style: solid;
+  border-color: var(--ink);
+  background: var(--live);
+  color: var(--on-live);
+}
+
+.control__unit {
+  font-family: var(--font-sans);
+}
+
+.control__slider,
+.control__stepper,
+.control__choices {
+  grid-column: 1 / -1;
+}
+
+.control__back {
+  grid-column: 1 / -1;
+  justify-self: start;
+  padding: 0.15rem 0;
+  background: none;
+  border: 0;
+  color: var(--ink-soft);
+  font-size: var(--step--1);
+  text-decoration: underline;
+  text-decoration-color: var(--rule-strong);
+  text-underline-offset: 0.2em;
+}
+
+.control__back:hover {
+  color: var(--ink);
+  text-decoration-color: currentColor;
+}
+
+/* A slider drawn as a scale: a hairline track and a square slider. */
+.control__slider {
+  width: 100%;
+  height: 2rem;
+  margin: 0;
+  background: transparent;
+  appearance: none;
+  cursor: pointer;
+}
+
+.control__slider::-webkit-slider-runnable-track {
+  height: 0.375rem;
+  border: var(--hair) solid var(--ink);
+  background: repeating-linear-gradient(90deg, var(--rule-strong) 0 1px, transparent 1px 10%) var(--paper);
+}
+
+.control__slider::-moz-range-track {
+  height: 0.375rem;
+  border: var(--hair) solid var(--ink);
+  background: repeating-linear-gradient(90deg, var(--rule-strong) 0 1px, transparent 1px 10%) var(--paper);
+}
+
+.control__slider::-webkit-slider-thumb {
+  width: 1rem;
+  height: 1.25rem;
+  margin-top: calc(-0.625rem + 0.1875rem - 1px);
+  appearance: none;
+  background: var(--ink);
+  border: 2px solid var(--paper);
+  border-radius: 1px;
+  outline: var(--hair) solid var(--ink);
+}
+
+.control__slider::-moz-range-thumb {
+  width: 1rem;
+  height: 1.25rem;
+  background: var(--ink);
+  border: 2px solid var(--paper);
+  border-radius: 1px;
+  outline: var(--hair) solid var(--ink);
+}
+
+.control__slider:focus-visible {
+  outline-offset: 2px;
+}
+
+.control__stepper {
+  display: flex;
+  max-width: 14rem;
+}
+
+.control__step,
+.control__field {
+  min-height: 2.25rem;
+  background: transparent;
+  border: var(--hair) solid var(--ink);
+}
+
+.control__step {
+  width: 2.5rem;
+  font-family: var(--font-mono);
+}
+
+.control__step:hover:not(:disabled) {
+  background: var(--ink);
+  color: var(--paper);
+}
+
+.control__step:disabled {
+  border-style: dashed;
+  color: var(--ink-faint);
+  cursor: default;
+}
+
+.control__field {
+  width: 0;
+  flex: 1;
+  border-inline: 0;
+  text-align: center;
+  appearance: textfield;
+}
+
+.control__field::-webkit-inner-spin-button {
+  appearance: none;
+}
+
+.control__choices {
+  display: flex;
+  flex-wrap: wrap;
+}
+
+.control__choice {
+  position: relative;
+  display: inline-grid;
+}
+
+.control__choice input {
+  position: absolute;
+  inset: 0;
+  margin: 0;
+  opacity: 0;
+  cursor: pointer;
+}
+
+.control__face {
+  display: grid;
+  place-items: center;
+  min-width: 3.25rem;
+  min-height: 2.25rem;
+  padding: 0 0.8rem;
+  border: var(--hair) solid var(--ink);
+  font-family: var(--font-mono);
+  font-size: 0.875rem;
+  transition:
+    background-color 140ms var(--ease-out),
+    color 140ms var(--ease-out);
+}
+
+.control__choice + .control__face {
+  border-left: 0;
+}
+
+.control__choice input:checked + .control__face {
+  background: var(--ink);
+  color: var(--paper);
+}
+
+.control__choice input:focus-visible + .control__face {
+  outline: 2px solid var(--focus);
+  outline-offset: 2px;
+}
+
+.control__choice:hover input:not(:checked) + .control__face {
+  background: var(--hatch);
+}
+
+/* ---------------------------------------------------------------- the code box */
+
+.codebox {
+  margin-top: 1.5rem;
+  background: var(--paper-sunk);
+  border: var(--hair) solid var(--ink);
+  border-radius: 2px;
+}
+
+.codebox + * {
+  margin-top: 1.5rem;
+}
+
+.codebox__tools {
+  display: flex;
+  gap: 0.35rem;
+}
+
+.codebox__button {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.3rem;
+  min-height: 1.9rem;
+  padding: 0 0.6rem;
+  background: transparent;
+  border: var(--hair) solid var(--rule-strong);
+  border-radius: 2px;
+  font-stretch: 125%;
+  font-weight: 560;
+  font-size: 0.6875rem;
+  letter-spacing: 0.09em;
+  text-transform: uppercase;
+}
+
+.codebox__button:hover:not(:disabled) {
+  background: var(--ink);
+  border-color: var(--ink);
+  color: var(--paper);
+}
+
+.codebox__button:disabled {
+  border-style: dashed;
+  color: var(--ink-faint);
+  cursor: default;
+}
+
+.codebox__button kbd {
+  font-size: 0.625rem;
+  letter-spacing: 0;
+  text-transform: none;
+  color: inherit;
+  opacity: 0.8;
+}
+
+.codebox__field {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  border-bottom: var(--hair) solid var(--rule);
+}
+
+.codebox__gutter {
+  display: grid;
+  align-content: start;
+  padding: 1rem 0.55rem 1.1rem 0.75rem;
+  border-right: var(--hair) solid var(--rule);
+  color: var(--text-faint);
+  font-size: 0.75rem;
+  line-height: calc(0.8125rem * 1.7);
+  text-align: right;
+  user-select: none;
+}
+
+.codebox__gutter [data-bad] {
+  background: var(--ink);
+  color: var(--paper);
+  margin-inline: -0.3rem;
+  padding-inline: 0.3rem;
+}
+
+/* The field scrolls sideways as one: the coloured copy sets its size and the textarea lies over it exactly. */
+.codebox__edit {
+  position: relative;
+  overflow-x: auto;
+  scrollbar-width: thin;
+}
+
+.codebox__edit:focus-within {
+  outline: 2px solid var(--focus);
+  outline-offset: -2px;
+}
+
+.codebox__paint,
+.codebox__text {
+  margin: 0;
+  padding: 1rem 1.25rem 1.1rem 0.85rem;
+  font-family: var(--font-mono);
+  font-size: 0.8125rem;
+  font-variant-ligatures: none;
+  line-height: 1.7;
+  letter-spacing: 0;
+  tab-size: 2;
+  white-space: pre;
+  border: 0;
+}
+
+.codebox__paint {
+  min-width: max-content;
+  color: var(--hl-foreground);
+}
+
+.codebox__line {
+  display: block;
+  min-height: calc(0.8125rem * 1.7);
+  margin-inline: -0.85rem -1.25rem;
+  padding-inline: 0.85rem 1.25rem;
+}
+
+.codebox__line[data-bad] {
+  background-image: repeating-linear-gradient(-45deg, var(--hatch) 0 1px, transparent 1px 5px);
+}
+
+.codebox__paint [data-k="comment"] {
+  color: var(--hl-token-comment);
+}
+
+.codebox__paint [data-k="string"] {
+  color: var(--hl-token-string);
+}
+
+.codebox__paint [data-k="number"] {
+  color: var(--hl-token-constant);
+}
+
+.codebox__paint [data-k="keyword"] {
+  color: var(--hl-token-keyword);
+}
+
+.codebox__paint [data-k="function"] {
+  color: var(--hl-token-function);
+}
+
+.codebox__paint [data-k="punct"] {
+  color: var(--hl-token-punctuation);
+}
+
+.codebox__text {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  min-width: max-content;
+  height: 100%;
+  overflow: hidden;
+  resize: none;
+  background: transparent;
+  color: transparent;
+  caret-color: var(--ink);
+  outline: none;
+}
+
+.codebox__text::selection {
+  background: color-mix(in oklch, var(--ink) 22%, transparent);
+  color: transparent;
+}
+
+.codebox__status {
+  padding: 0.7rem 0.95rem 0.8rem;
+  font-size: var(--step--1);
+  line-height: 1.5;
+}
+
+.codebox__status > p {
+  display: flex;
+  align-items: baseline;
+  gap: 0.55rem;
+  color: var(--ink-soft);
+}
+
+.codebox__status > p::before {
+  content: "";
+  flex: none;
+  width: 0.55rem;
+  height: 0.55rem;
+  border: var(--hair) solid var(--ink-soft);
+  border-radius: 50%;
+}
+
+.codebox__status > p[data-live] {
+  color: var(--ink);
+}
+
+.codebox__status > p[data-live]::before {
+  background: var(--live);
+  border-color: var(--ink);
+}
+
+.codebox[data-state="checking"] .codebox__status > p::before {
+  border-style: dashed;
+}
+
+.codebox__problem {
+  display: grid;
+  gap: 0.35rem;
+  padding: 0.25rem 0 0.1rem 0.9rem;
+  border-left: 3px solid var(--ink);
+}
+
+.codebox__title {
+  font-weight: 620;
+  font-size: var(--step-0);
+  color: var(--ink);
+}
+
+.codebox__kept {
+  color: var(--ink-soft);
+}
+
+.codebox__problem details summary {
+  color: var(--ink-soft);
+  cursor: pointer;
+}
+
+.codebox__problem details code {
+  display: block;
+  margin-top: 0.35rem;
+  overflow-wrap: anywhere;
+}
+
+.codebox__hint {
+  padding: 0 0.95rem 0.7rem;
+  color: var(--text-faint);
+  font-size: 0.75rem;
+}
+
+/* ---------------------------------------------------------------- a glossary word */
+
+.term__word {
+  text-decoration-line: underline;
+  text-decoration-style: dotted;
+  text-decoration-thickness: 1.5px;
+  text-decoration-color: var(--ink-soft);
+  text-underline-offset: 0.22em;
+  cursor: help;
+}
+
+.doc__body .term__word:hover,
+.term__word[data-state="open"] {
+  text-decoration-style: solid;
+  text-decoration-color: var(--ink);
+}
+
+.term__tip {
+  position: fixed;
+  z-index: 60;
+  display: grid;
+  gap: 0.3rem;
+  width: max-content;
+  max-width: min(20rem, calc(100vw - 1.5rem));
+  padding: 0.7rem 0.85rem 0.75rem;
+  background: var(--paper-lift);
+  border: var(--hair) solid var(--ink);
+  border-radius: 2px;
+  color: var(--ink);
+  font-size: 0.9375rem;
+  font-weight: 400;
+  line-height: 1.45;
+  text-align: left;
+}
+
+.term__tip[hidden] {
+  display: none;
+}
+
+.term__name {
+  font-stretch: 125%;
+  font-weight: 600;
+  font-size: 0.6875rem;
+  letter-spacing: 0.09em;
+  text-transform: uppercase;
+}
+
+.term__more {
+  color: var(--text-faint);
+  font-size: 0.8125rem;
+}
+
+/* ---------------------------------------------------------------- the contents: the new path and the older one */
+
+.doc-nav__tag {
+  flex: none;
+  margin-left: auto;
+  padding: 0.05rem 0.3rem;
+  border: var(--hair) solid currentColor;
+  border-radius: 1px;
+  font-stretch: 125%;
+  font-weight: 560;
+  font-size: 0.5625rem;
+  letter-spacing: 0.09em;
+  line-height: 1.3;
+  text-transform: uppercase;
+}
+
+.doc-nav__label .doc-nav__tag {
+  margin-left: 0;
+  background: var(--ink);
+  border-color: var(--ink);
+  color: var(--paper);
+}
+
+.doc-nav li:has(> a > .doc-nav__tag) a {
+  color: var(--text-faint);
+}
+
+.doc-nav a .doc-nav__tag {
+  border-style: dashed;
+  color: var(--text-faint);
+}
+
+.doc-nav__note {
+  margin: 0 0 0.4rem;
+  padding: 0 0.55rem;
+  color: var(--ink-soft);
+  font-size: 0.8125rem;
+  line-height: 1.4;
+}
+
+/* ---------------------------------------------------------------- a phone */
+
+@media (max-width: 40em) {
+  .step__idea {
+    font-size: var(--step-0);
+  }
+
+  .panel__bar,
+  .panel__body,
+  .panel__foot {
+    padding-inline: 0.75rem;
+  }
+
+  .guide-try,
+  .controls {
+    padding-inline: 0.85rem;
+  }
+
+  .codebox__gutter {
+    padding-inline: 0.5rem 0.4rem;
+  }
+
+  .codebox__paint,
+  .codebox__text {
+    padding-left: 0.6rem;
+  }
+
+  .codebox__hint,
+  .codebox__button kbd {
+    display: none;
+  }
+}
+
+@media (pointer: coarse) {
+  .control__switch > span,
+  .control__step,
+  .control__field,
+  .control__choice span,
+  .codebox__button {
+    min-height: 2.75rem;
+  }
+
+  .button--small {
+    min-height: 2.75rem;
+  }
+}
+
+/* ---------------------------------------------------------------- order-sensitive: after what they refine */
+
+.guide-note > p + p {
+  margin-top: 0.6rem;
+}
+
+.panel__body > .actions,
+.panel__body > .readouts + .actions {
+  padding-top: 0;
+  border-top: 0;
+}
+
+.away__row .control__slider,
+.away__row .button {
+  grid-column: 1 / -1;
+}
+
+.step__body > .code,
+.step__body > .codebox {
+  max-width: none;
+}
+
+.docs__body--guide .docs__main > * {
+  max-width: 76rem;
+}
