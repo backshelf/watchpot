@@ -44,7 +44,7 @@ export const STAT: Record<StatId, string> = {
 /** The tabs' names, one per screen. */
 export const TAB_NAMES = {"make":"Garden","tree":"Trellis","gacha":"Spore bank","prestige":"Repot","achievements":"Herbarium"};
 
-/** The starter backdrop this game was scaffolded with (`src/shaders/`); the build writes its own. */
-export const SURFACE = "weather";
+/** The starter backdrop this game was scaffolded with (`src/shaders/`), or none; the build writes its own. */
+export const SURFACE: string | null = "weather";
 /** The sentence every shader in the game answers to. */
 export const SURFACE_LINE = "Breath on the glass: condensation drifting over green, thickening and beading as the garden grows.";

@@ -1,7 +1,7 @@
 import type { Decimal } from "watchpot/core";
-import { useGameRuntime } from "watchpot/react";
+import { DevPanel, useGameRuntime } from "watchpot/react";
 import type { SheetRegistry } from "watchpot/ui";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { LATE_RATE } from "../content/economy";
 import { NAME } from "../content/words";
 import { incomeOf } from "../game/income";
@@ -32,9 +32,25 @@ const SHEETS: SheetRegistry<Sheet> = {
 const heatOf = (income: Decimal) =>
   Math.round(Math.min(1, income.add(1).log10().toNumber() / Math.log10(LATE_RATE)) * 100) / 100;
 
-/** The game page: the shell over the game's tabs, the header, the backdrop and the sheets. */
+/** The page's hash, kept current as it changes: `#dev` opens the developer's panel. */
+function useHash() {
+  const [hash, setHash] = useState(() => location.hash);
+  useEffect(() => {
+    const read = () => setHash(location.hash);
+    addEventListener("hashchange", read);
+    return () => removeEventListener("hashchange", read);
+  }, []);
+  return hash;
+}
+
+/**
+ * The game page: the shell over the game's tabs, the header, the backdrop and the sheets. In a development build
+ * `#dev` opens the engine's dev panel (time warp, each feature's state, the save); `DevPanel` draws nothing in a
+ * production one.
+ */
 export function App() {
   const store = useGameStore();
+  const hash = useHash();
   const [tab, setTab] = useState<Tab>("make");
   const [sheet, setSheet] = useState<Sheet | null>(null);
   const motion = useGameState((st) => st.settings.motion);
@@ -56,12 +72,14 @@ export function App() {
       onCloseSheet={() => setSheet(null)}
       header={() => <Header onAbout={() => setSheet({ kind: "about" })} />}
       backdrop={
-        <Backdrop
-          fragment={BACKDROP.fragment}
-          still={BACKDROP.still}
-          reducedTime={BACKDROP.reducedTime}
-          heat={heat}
-        />
+        BACKDROP && (
+          <Backdrop
+            fragment={BACKDROP.fragment}
+            still={BACKDROP.still}
+            reducedTime={BACKDROP.reducedTime}
+            heat={heat}
+          />
+        )
       }
     >
       {/* @if visitor */}
@@ -70,6 +88,13 @@ export function App() {
       {/* @if achievements */}
       <EarnedToasts />
       {/* @end */}
+      {hash === "#dev" && (
+        <DevPanel
+          onClose={() => {
+            location.hash = "";
+          }}
+        />
+      )}
       {taken && (
         <div role="alert" className={s.taken}>
           {NAME} is open in another tab. Play there, or close it and reload this one.

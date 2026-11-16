@@ -29,5 +29,8 @@ export const STARTERS = {
   // @end
 } satisfies Record<string, Surface>;
 
-/** The page's backdrop: the starter the game was scaffolded with. The shader pass replaces it with the game's own. */
-export const BACKDROP: Surface = STARTERS[SURFACE];
+/**
+ * The page's backdrop: the starter the game was scaffolded with, or null for a page with none. The shader pass
+ * replaces it with the game's own.
+ */
+export const BACKDROP: Surface | null = SURFACE === null ? null : ((STARTERS as Record<string, Surface>)[SURFACE] ?? null);

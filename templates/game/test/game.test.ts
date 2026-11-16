@@ -1,10 +1,13 @@
 import { describe, expect, test } from "bun:test";
-import { type Decimal, ZERO } from "watchpot/core";
-import { autoPlayer, createSimWorld, simStore } from "watchpot/sim";
 import { freshStore } from "watchpot/test";
 import { MAIN } from "../src/content/words";
-import { type GameState, game } from "../src/game/game";
+import { game } from "../src/game/game";
+// @if generators|dimensions
+import { type Decimal, ZERO } from "watchpot/core";
+import { autoPlayer, createSimWorld, simStore } from "watchpot/sim";
+import type { GameState } from "../src/game/game";
 import { incomeOf } from "../src/game/income";
+// @end
 // @if generators
 import { GENERATORS } from "../src/content/generators";
 import { producers } from "../src/game/generators";
@@ -38,6 +41,7 @@ type Clock = ReturnType<typeof fresh>["clock"];
 const tick = (store: Store, clock: Clock, ms: number) => store.getState().tick(ms, clock.advance(ms));
 
 describe("the game", () => {
+  // @if generators|dimensions
   test("a new profile earns while it ticks", () => {
     const { store, clock } = freshStore(game);
     // @if dimensions
@@ -49,6 +53,7 @@ describe("the game", () => {
     expect(incomeOf(store.getState()).gt(0)).toBe(true);
     expect(store.getState().wallet[MAIN].gt(before)).toBe(true);
   });
+  // @end
 
   // @if generators
   test("a new profile owns the first generator", () => {
@@ -228,6 +233,7 @@ describe("the game", () => {
     // @end
   });
 
+  // @if generators|dimensions
   test("the auto-player plays an hour and buys", () => {
     const START = Date.UTC(2026, 0, 5, 8);
     const world = createSimWorld((now) => simStore(game, now, "test"), START);
@@ -242,4 +248,5 @@ describe("the game", () => {
     expect(bought).toBeGreaterThan(0);
     expect(incomeOf(world.store.getState() as unknown as GameState).gt(0)).toBe(true);
   });
+  // @end
 });

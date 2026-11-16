@@ -114,8 +114,10 @@ cannot compile GLSL: a shader counts only once it has drawn in the browser with 
 - `bun run verify`: typecheck, lint, the tests the change touches. Green before every commit.
 - `bun run gates`: typecheck, lint, every fast test, the build. `bun run gates:full` adds the slow tier and the
   pacing contract.
-- `bun run sim -- --player=auto [--days=7] [--seed=sim] [--contract]`: one run for a ballpark, never a loop.
-- `bun run sim -- --straight=<hours> [--seed=sim]`: one unbroken sitting with the tab open, the same table.
+- `bun run sim -- [--hours=4] [--seed=sim] [--contract]`: played hours on `activeSchedule`, the contract judged at
+  its hours. One run for a ballpark, never a loop.
+- `bun run sim -- --sessions [--days=7] [--seed=sim]`: the session schedule, days of coming and going, never judged.
+- `#dev` on the dev server opens the engine's dev panel (time warp, each feature's state, the save).
 - `bun run tokens` after editing `design/tokens.json`. `bun run lint:fix` formats.
 - Never name a package script `check` (Bun 1.4.3+ typechecks with `bun check`).
 
