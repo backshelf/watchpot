@@ -66,8 +66,9 @@ const stove = feature({
   reach. The engine orders derived values by who reads whom and throws, naming the loop, when they go round.
 - A derived value is current as of the start of the step or recipe that reads it: a step sees what earlier steps
   did, not its own writes. It is recomputed only when a slice it read was taken hold of by a step or recipe since.
-- A derived function sees the feature's saved state and its reach, not the feature's own other derived values
-  (annotate the parameter if one must read a sibling).
+- A derived value that reads another of the same feature goes in a later layer: `derived` takes one block or a
+  list of up to four, and each layer sees the ones before it with no annotation:
+  `derived: [{ price: (s) => … }, { canBuy: (s) => s.pot.bubbles.gte(s.stove.price) }]`.
 - Write `derived` after `initial` and `reach` and before `actions` and `steps`.
 - `feature<…>` called with explicit type arguments has a new fifth parameter (the derived values) before `G`:
   `feature<K, S, A, R, Record<never, never>, G>`.
