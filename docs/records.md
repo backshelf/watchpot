@@ -5,8 +5,10 @@ whole life of the profile), with the best of every finished run and a short list
 pushes the ending run onto that list with its length in game time and starts the run scope over; the life scope never
 clears. The game notes what it counts where it happens, from a recipe, a step or an action.
 
+<!-- example-code: records.ts -->
+
 ```ts
-import { defineRecords } from "watchpot/core";
+import { defineGame, defineRecords, feature, fmtPlayed, type RecordsState } from "watchpot/core";
 
 export const stats = defineRecords({
   key: "stats",
@@ -17,8 +19,6 @@ export const stats = defineRecords({
     gemsHeld: { kind: "last", scope: ["life"] },
   },
 });
-// in a step or recipe: stats.draft.add(draft, "gold", earned); from outside: store.getState().stats.add("presses", 1)
-// reads: s.stats.run("gold"), s.stats.life("presses"), s.stats.best("richest"), s.stats.runs, s.stats.bestRunMs
 ```
 
 Example: [`examples/records.ts`](examples/records.ts).

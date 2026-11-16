@@ -14,8 +14,8 @@ wrong, a link to the next chapter, and the reference pages for what it covered.
    twelve entries, and what you need installed.
 2. [**Your first game**](guide/02-your-first-game.md): Simmer, from an empty folder to a page that ticks, saves and
    pays for time away.
-3. [**The mental model**](guide/03-the-mental-model.md): features and slices, the store, the tick and its eight
-   phases, game time and the clock.
+3. [**The mental model**](guide/03-the-mental-model.md): features and slices, reach, derived values, the store, the
+   tick and its eight phases, game time and the clock.
 4. [**Words and numbers**](guide/04-words-and-numbers.md): Decimals, printing numbers for a player, the vocabulary and
    the wallet.
 5. [**A real game**](guide/05-a-real-game.md): how VOID IF REMOVED is laid out, and one purchase followed from content
@@ -24,15 +24,15 @@ wrong, a link to the next chapter, and the reference pages for what it covered.
    generators, a shop, spawns and buffs.
 7. [**The first reset**](guide/07-the-first-reset.md): runs, reset rules, depth, prestige, and achievements that also
    open pages.
-8. [**Effects**](guide/08-effects.md): stats, effects and the `stats` feature, a tooltip that says where a number comes
+8. [**Effects**](guide/08-effects.md): stats, effects and the stats feature (`defineStats`), a tooltip that says where a number comes
    from, and an effect that reads the state.
 9. [**Saving and time away**](guide/09-saving-and-time-away.md): what is saved and when, migrations, and paying and
    reporting the time a player was gone.
 10. [**The page**](guide/10-the-page.md): reading the store from React, the runtime hook, headless UI, tokens, feel
     and the dev panel.
 11. [**Look and sound**](guide/11-look-and-sound.md): a shader backdrop driven by the game, and a first sound table.
-12. [**Proving the pacing**](guide/12-proving-the-pacing.md): the sim lab, pacing contracts, the test kit, and plan
-    and fit for a large game.
+12. [**Proving the pacing**](guide/12-proving-the-pacing.md): the sim lab, the auto-player's objective, pacing
+    contracts, the test kit, and plan and fit with the fit kit for a large game.
 13. [**From the template**](guide/13-from-the-template.md): starting a real project from the game template in one
     command, the daily loop, and changing the engine and a game together.
 

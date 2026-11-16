@@ -5,13 +5,15 @@ mission's cost is taken at the start through the game's `pay` hook, and its rewa
 feature's own saved rng, and stored with the entry: a reload cannot reroll it, and a screen can show it before it
 lands. Missions run on game time, so they finish during an absence.
 
+<!-- example-code: missions.ts -->
+
 ```ts
 import {
   type Decimal,
   defineGame,
+  defineMissions,
   HOUR_MS,
   MINUTE_MS,
-  defineMissions,
   pickWeighted,
   type RngState,
 } from "watchpot/core";

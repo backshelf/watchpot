@@ -7,9 +7,9 @@ import {
   type Effect,
   feature,
   fillLoadout,
+  foldContributions,
   type LoadoutItem,
   type Slotted,
-  statIndex,
 } from "watchpot/core";
 
 /** Simmer's stove kit: three slots, and the pans and spoons a player has found. */
@@ -52,20 +52,13 @@ export const game = defineGame({
   features: [cupboard, kit],
 });
 
-/** The pot's one stat on the engine's stat graph: a base of 1 bubble a second. */
-const POT = statIndex<"simmer", never, null>({ base: () => 1 });
-
 /**
- * Bubbles a second with `slotted` in the kit: its contributions handed to one graph. A loadout that is only being
- * weighed (the auto-fill below tries many) never lives in the state, so it is read off the graph, not a stats feature.
+ * Bubbles a second with `slotted` in the kit, from a base of 1: its contributions folded with no game around them. A
+ * loadout that is only being weighed (the auto-fill below tries many) never lives in the state, so it is folded here,
+ * not read off a stats feature.
  */
 export const simmerRate = (slotted: Slotted) =>
-  POT.over(null, {
-    extra: () =>
-      kit.def.loadout
-        .contributions(slotted)
-        .map(({ source, effect }) => ({ effect, meta: { label: source, owner: "kit" } })),
-  })
+  foldContributions(kit.def.loadout.contributions(slotted), { base: () => 1 })
     .stat("simmer")
     .toNumber();
 

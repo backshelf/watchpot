@@ -5,8 +5,19 @@ cost curve (`cost.ts`, so bulk buys are closed-form). A generator pays a steady 
 `cycle` that pays `cycle.pays × owned` each time it completes: started by hand with `run(id)`, or restarting itself
 once the game's `automated` says so. Milestones on the owned count multiply the output or speed the cycle.
 
+<!-- example-code: generators.ts -->
+
 ```ts
-import { type BuffsState, buffActive, defineCurrencies, type Decimal, defineGame, defineGenerators, HOUR_MS } from "watchpot/core";
+import {
+  type BuffsState,
+  buffActive,
+  createIdleStore,
+  type Decimal,
+  defineCurrencies,
+  defineGame,
+  defineGenerators,
+  HOUR_MS,
+} from "watchpot/core";
 import { boosts } from "./buffs";
 import { TOY } from "./vocab";
 
@@ -55,8 +66,6 @@ export const game = defineGame({
   features: [wallet, boosts, buildings],
   vocab: TOY,
 });
-// store.getState().buildings.buy("stall", 10) · .buyMax("press") · .buyNext("stall") · .run("press")
-// buildings.select.perSecond(state).gold · buildings.select.untilMilestone(state, "stall")
 ```
 
 Example: [`examples/generators.ts`](examples/generators.ts) (`bun docs/examples/generators.ts` prints a buy row per

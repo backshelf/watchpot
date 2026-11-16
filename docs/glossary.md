@@ -32,8 +32,8 @@ truth for every name and type the guide uses. Introduced in
 ## Auto-player
 
 The sim lab's stand-in for a person: at each look it buys the best-value move it can afford, again and again, then
-takes every free move. It is greedy and never bored. In a game with one wallet it reads the balance by itself;
-otherwise you pass it a `balance` reader. Taught in
+takes every free move. It judges value by an [objective](#objective). It is greedy and never bored. In a game with
+one wallet it reads the balance by itself; otherwise you pass it a `balance` reader. Taught in
 [chapter 12](guide/12-proving-the-pacing.md#teaching-simmer-to-be-played). Reference: [the auto-player](persona.md).
 
 ## Autobuyer
@@ -103,7 +103,7 @@ change and applies it only with `--write`. Taught in
 ## Contribution
 
 An effect together with where it came from: `{ source, effect }`, the source `<feature key>:<id>`. Upgrade trees,
-buffs, achievements, loadouts, levels and challenges all hand back contributions, which a `stats` feature takes in its
+buffs, achievements, loadouts, levels and challenges all hand back contributions, which a stats feature takes in its
 `contributions`; one effect given several times by one source is one breakdown row with `times`. Taught in [chapter 8](guide/08-effects.md#stats-and-effects). Reference:
 [the stat graph](stat-graph.md).
 
@@ -138,12 +138,15 @@ out any shallower reset. It is how a prestige currency survives the reset it pay
 [chapter 7](guide/07-the-first-reset.md#depth-what-survives-which-reset). Reference:
 [a prestige layer](prestige-layer.md), [layers](layers.md).
 
+## Derived value
+
+A number a feature works out from the state, declared in its `derived` block: `perSecond: (s) => …`. You read it like
+any field, but it is never saved and cannot be written. The engine keeps it current, working it out again whenever
+something it reads changes. Taught in [chapter 3](guide/03-the-mental-model.md#derived-values).
+
 ## Derive
 
-A feature's function that works its transient fields out again whenever the state is made fresh: a new store, a load,
-an import, a reset. It must be pure. Taught in
-[chapter 3](guide/03-the-mental-model.md#state-that-does-not-save-transient-and-derive). Reference:
-[the stat graph](stat-graph.md), "The first pass after a load".
+The older engine's way to fill an unsaved field after a load. It is gone; see [derived value](#derived-value).
 
 ## Dev panel
 
@@ -179,8 +182,9 @@ achievements carry effects; the game's `stats` feature folds them. Taught in
 
 ## Factory
 
-An engine function that builds a ready-made feature from a description: `currencies`, `generators`, `upgradeTree`,
-`clicker`, `prestige`, `achievements` and the rest. Introduced in
+An engine function that builds a ready-made feature from a description: `defineCurrencies`, `defineGenerators`,
+`defineUpgradeTree`, `defineClicker`, `definePrestige`, `defineAchievements` and the rest. Each hands back the feature
+with three helper groups: `select` (questions), `def` (its fixed setup) and `draft` (changes inside a recipe). Introduced in
 [chapter 5](guide/05-a-real-game.md#2-features-the-content-on-engine-factories); [chapter 6](guide/06-the-first-page.md)
 takes five in turn.
 
@@ -190,6 +194,12 @@ One part of a game, declared in one place: the state it saves (its slice), the a
 the steps it runs as time passes. A game is a list of features. Taught in
 [chapter 2](guide/02-your-first-game.md#step-1-a-pot-you-can-tap) and
 [chapter 3](guide/03-the-mental-model.md#features-and-slices). Reference: [start a game](start-a-game.md).
+
+## Fit table
+
+The one table a game reads its fitted prices from and a fit writes them into: `fitTable<Key>()`. `get(key)` is the
+price as a Decimal, shut until the fit has priced it. Taught in
+[chapter 12](guide/12-proving-the-pacing.md#what-a-large-game-does-plan-and-fit). Reference: [the fit kit](fit-kit.md).
 
 ## Fixture play
 
@@ -294,8 +304,8 @@ milestones apply to every generator once the lowest count reaches them. Taught i
 
 ## Move
 
-Something the sim's auto-player could do right now, as a feature describes it: an `id`, a `cost`, a `value` and an
-`apply` that plays it through the store. Taught in
+Something the sim's auto-player could do right now, as a feature describes it: an `id`, a `cost`, an `apply` that
+plays it through the store, and, when the [objective](#objective) cannot see what it does, a `worth`. Taught in
 [chapter 12](guide/12-proving-the-pacing.md#teaching-simmer-to-be-played). Reference: [the auto-player](persona.md).
 
 ## Notation
@@ -336,6 +346,12 @@ React, immer, zustand and break_eternity.js. Some are optional, needed only by t
 `watchpot/sound`, three and @react-three/fiber for `watchpot/three`. Taught in
 [chapter 2](guide/02-your-first-game.md#packagejson).
 
+## Objective
+
+The one number the sim's auto-player tries to grow, usually income a second: `autoPlayer(game, { objective })`. A
+move with no `worth` is worth how far it raises the objective. Taught in
+[chapter 12](guide/12-proving-the-pacing.md#teaching-simmer-to-be-played). Reference: [the auto-player](persona.md).
+
 ## Persona
 
 A player, as the reference shelf's [persona](persona.md) page uses the word: either the sim's auto-player or a fixture
@@ -347,6 +363,12 @@ play. The code names each kind on its own (`autoPlayer`, `FixturePlay`). See [au
 A named stage of a pass. There are eight, always in this order: `guard`, `sync`, `rates`, `produce`, `automate`,
 `settle`, `commit`, `after`. Every step in one phase runs before any step in the next. Taught in
 [chapter 3](guide/03-the-mental-model.md#the-eight-phases).
+
+## Plain store
+
+The store the sim plays on: the same features, steps and derived values, on plain data, with no save. It is
+much faster than the real store. `simStore(game, now, seed)` makes one. Taught in
+[chapter 12](guide/12-proving-the-pacing.md#a-run). Reference: [watchpot/sim](sim.md).
 
 ## Plan and fit
 
@@ -363,8 +385,8 @@ planned and judged in played hours. Taught in [chapter 12](guide/12-proving-the-
 
 ## Prestige
 
-A reset that pays: the player gives up the run for a currency that lasts and makes the next run faster. The `prestige`
-factory pays and resets in one update. Taught in
+A reset that pays: the player gives up the run for a currency that lasts and makes the next run faster.
+`definePrestige` pays and resets in one update. Taught in
 [chapter 7](guide/07-the-first-reset.md#prestige-a-reset-that-pays). Reference: [a prestige layer](prestige-layer.md).
 
 ## Primitive
@@ -379,10 +401,17 @@ the "delete my save" button, not a game mechanic. Taught in
 [chapter 3](guide/03-the-mental-model.md#two-kinds-of-reset) and
 [chapter 7](guide/07-the-first-reset.md#resetprofile-starting-over-for-real).
 
+## Proof
+
+The check that a fitted price table is right: the finished table is played again between the fit's snapshots, and
+each stretch must end exactly where the fit's own run stood. Taught in
+[chapter 12](guide/12-proving-the-pacing.md#what-a-large-game-does-plan-and-fit). Reference: [the fit kit](fit-kit.md).
+
 ## Reach
 
 A feature's list of the other features it touches. It types the draft (`s.pot` exists in the stove's steps) and is
-checked when the game is defined. It is not transitive. Taught in
+checked when the game is defined. Written as a function, `reach: () => [pot, lid]`, it may name a feature further
+down the file. It is not transitive. See also [type reach](#type-reach). Taught in
 [chapter 3](guide/03-the-mental-model.md#reach-one-feature-touching-another).
 
 ## Recipe
@@ -412,7 +441,7 @@ Short for a run reset: the run ends, and each feature follows its reset rule. Se
 ## Reset pace
 
 `resetPace(gain, kept, seconds)`: how fast a reset now would grow what the player keeps, in orders of magnitude a
-second. It rises, peaks and falls over a run, and "past its peak" is the moment to reset. Every `prestige` keeps its
+second. It rises, peaks and falls over a run, and "past its peak" is the moment to reset. Every prestige layer keeps its
 run's best and serves `pace` and `pastPeak` on its slice. Taught in
 [chapter 7](guide/07-the-first-reset.md#is-it-worth-pressing). Reference: [a prestige layer](prestige-layer.md).
 
@@ -479,6 +508,12 @@ Reference: [the auto-player](persona.md), [a pacing contract](pacing-contract.md
 The state one feature holds, under its key: the stove's slice is `{ burners, off, perSecond }` at `s.stove`. Taught in
 [chapter 3](guide/03-the-mental-model.md#features-and-slices).
 
+## Snapshot
+
+The whole sim at one moment of play, saved as plain data: the store, the clock and the auto-player's memory. A fit
+leaves one every so often, and a later fit can carry on from it instead of starting over. Taught in
+[chapter 12](guide/12-proving-the-pacing.md#what-a-large-game-does-plan-and-fit). Reference: [the fit kit](fit-kit.md).
+
 ## Softcap
 
 A point past which a stat grows more slowly: above `start`, the value is bent by `power`. A hardcap is a ceiling it
@@ -498,7 +533,7 @@ Effects name the stat they change. Taught in [chapter 8](guide/08-effects.md#sta
 
 ## Stat graph
 
-What the `stats` feature is built on (`statIndex`): sources indexed once, read over one state, each stat worked out in
+What the stats feature is built on (`statIndex`): sources indexed once, read over one state, each stat worked out in
 Decimals on first read, with flags, mute groups, `times` and stats that read other stats. A game uses it directly for
 a state that never lives in the store (scoring a loadout being weighed). Reference:
 [stats](stat-graph.md#one-graph-by-hand-statindex).
@@ -556,10 +591,17 @@ CSS, and every styled component and shader reads tokens rather than hard-coded c
 
 ## Transient
 
-A key of a feature's state that is never saved, because it can be worked out from what is. It comes back from
-`initial` after a load until `derive` or a step fills it in. Taught in
-[chapter 3](guide/03-the-mental-model.md#state-that-does-not-save-transient-and-derive) and
+A field in a feature's `initial` that is never saved: a sheet that is open, or a rate a step works out from the clock.
+After a load it starts from `initial` again. A number worked out from the state alone is a
+[derived value](#derived-value) instead. Taught in
+[chapter 3](guide/03-the-mental-model.md#state-that-does-not-save-transient) and
 [chapter 9](guide/09-saving-and-time-away.md#what-is-saved-and-when).
+
+## Type reach
+
+Naming another feature in `reach` by its state type, `reach<{ stove: { burners: number } }>()`, instead of by the
+feature itself. Two features that read each other need it on one side. Taught in
+[chapter 3](guide/03-the-mental-model.md#reach-one-feature-touching-another) and [chapter 8](guide/08-effects.md#reading-the-stat-where-it-applies).
 
 ## Uniform
 
@@ -580,8 +622,8 @@ names a currency reads it from there. Taught in [chapter 4](guide/04-words-and-n
 
 ## Wallet
 
-The feature `currencies` makes: one balance per currency in a vocabulary, with `credit` and `debit` as actions and as
-draft helpers, and optional running totals. Taught in [chapter 4](guide/04-words-and-numbers.md#the-wallet).
+The feature `defineCurrencies` makes: one balance per currency in a vocabulary, with `credit` and `debit` as actions
+and as draft helpers (`wallet.draft`), questions under `wallet.select`, and optional running totals. Taught in [chapter 4](guide/04-words-and-numbers.md#the-wallet).
 Reference: [add a currency](add-a-currency.md).
 
 ## zzfx voice

@@ -25,9 +25,8 @@ Example: [`examples/time-away.ts`](examples/time-away.ts) (`bun docs/examples/ti
   `change(patch)`.
 - `fmt` takes `notation: "scientific"`, `plainBelow` and `decimalsBelow`; `formatter(options)` binds `num`, `times`,
   `plus`, `rate` and `counted` to one set of them.
-- A catch-up is the first pass after a load, and its `guard` and `sync` steps run before `rates`: derived values kept
-  in `transient` fields are empty there unless the feature declares `derive` (`docs/stat-graph.md` › The first pass
-  after a load).
+- A catch-up is the first pass after a load. A derived value (`derived: { … }`) is already current in its `guard` and
+  `sync` steps; a field a `rates` step fills into `transient` is not, until that step has run.
 
 ## Telling the player
 

@@ -34,6 +34,8 @@ export const chain = defineDimensions({
   open: (s: State, _tier, index) => index < 2 + s.boost.runs,
   away: () => ({ rate: 1, capMs: 8 * HOUR_MS }),
 });
+// store.getState().chain.buy("first"), .buySet("first"), .buyMax("second"), .maxAll()
+// chain.select.perSecond(state, "first"), .price(state, "second", 10), .untilSet(state, "first")
 
 /** The reset above the chain: it needs twenty of the highest open tier, pays one boost and starts the chain over. */
 export const boost = definePrestige({

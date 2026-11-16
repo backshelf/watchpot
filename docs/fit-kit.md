@@ -147,6 +147,8 @@ handed a function, so the game names a module that exports its proof:
 ```ts
 // sim/proof.ts
 export const fitProof: FitProofModule<Extra> = { table: PRICES, replay: (from) => gameRun(from).run };
+<!-- example-output: fit-kit.ts lines=5-5 -->
+
 ```
 
 ```ts

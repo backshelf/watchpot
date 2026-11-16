@@ -77,9 +77,8 @@ export const numbers = defineStats({
 - **`muted(state, group)`** silences a group's effects (`true`, or the reason as a string). The rows stay in the
   breakdown, marked with the reason, and stop counting. A mute takes effects, never flags: a source a game means to
   switch off whole reads the mute in its own `active` as well.
-- A stat reads its state, never the clock. A buff's `contributions(state, now)` wants a time: pass
-  `Number.NEGATIVE_INFINITY`, since the buffs' own step ends every buff whose time is up at the start of each pass and
-  every buff still listed is running.
+- A stat reads its state, never the clock. Hand the buffs over as `boosts.select.contributions(state)`, with no time:
+  the buffs' own step ends every buff whose time is up at the start of each pass, so every buff still held is running.
 
 ### Reading the breakdown
 

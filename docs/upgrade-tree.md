@@ -46,11 +46,20 @@ A node that does not move the objective at once (an unlock, an offline cap) work
 For those, say a `worth(state, node)` in the tree's definition, in the same unit as the game's other moves in that
 currency:
 
+<!-- example-code: upgrade-tree.ts -->
+
 ```ts
+/**
+ * A tree as a feature: it saves `{ ranks }` and buys through the wallet. `open` holds the laser back until the
+ * player has swept up some dust: a closed node refuses with `closed`, and the feature's own readers say so too.
+ */
 export const mine = defineUpgradeTree({
   key: "mine",
   nodes: NODES,
   wallet,
+  open: (s, node) => node.id !== "laser" || s.wallet.goldEver.gte(100),
+  // The sim's auto-player gets a move per buyable node for free. Say a worth only for a node that does not raise
+  // its objective at once; the rest are worked out.
   worth: (_s, node) => (node.id === "laser" ? 3 : 1),
 });
 ```

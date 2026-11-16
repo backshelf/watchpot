@@ -84,14 +84,18 @@ judge(rows.rows, CONTRACT); // a verdict per band the run reached
   is written from seeds; `formatVerdicts` prints them.
 - **The gate.** `runGate(checks, { key, run })` runs every job the checks name once, all at once, and tallies each
   check; `spawnJob(script, args)` runs one in its own Bun process and parses its JSON; `formatGate` prints the result.
-- **The auto-player.** `autoPlayer(game, { balance?, maxMoves? })` reads every feature's `moves` (`movesOf`).
-  Without `balance` it reads the game's one `currencies` feature (`state[key][currency]`, zero for a currency it
-  lacks), and throws asking for `balance` when the game has none or more than one. A free move that keeps going
-  through is taken again up to `maxMoves`, so a free move should refuse once taken. A look
-  buys the affordable move of the best `value` per share of its currency held (`amount / balance`), again until none
-  is affordable, then takes every free move (no cost) best first, and goes round again while either did anything. A
+- **The auto-player.** `autoPlayer(game, { objective?, balance?, maxMoves?, worthLooks?, quiet?, memory? })` reads
+  every feature's `moves` (`movesOf`). `objective(state)` is what the player is trying to grow (usually income a
+  second); a move with no `worth` is worth the objective after it less the objective before, tried on the state and
+  put back, and without an objective such a move throws, naming it. Without `balance` it reads the game's one wallet
+  (`state[key][currency]`, zero for a currency it lacks), and throws asking for `balance` when the game has none or
+  more than one. A look buys the affordable move of the best worth per share of its currency held
+  (`amount / balance`), again until none is affordable, then takes every free move (no cost) worth anything once
+  (`repeat: true` lets one go again while it keeps going through), and goes round again while either did anything. A
   move that refuses is not tried again in the look; one worth 0 or less is never taken; nothing is bought that the
-  balance does not cover. `look(store)` returns `{ bought, free }`.
+  balance does not cover. `look(store)` returns `{ bought, free }`; `blind()` lists the moves whose worked-out worth
+  never came above nothing (an unlock or a cap that needs a hand-written `worth`). It warns once about a feature with
+  a `buy…` action and no moves (`quiet: true` silences it).
 - **Bare rules.** A game whose rules are pure functions over plain state needs no store: `bareSimStore(now, { tick,
   away })` is a `SimStore` for `createSimWorld` that calls them (the world's opening catch-up credits nothing).
   `playStraight({ world, ms, lookEveryMs, look, afterLook, until, tickMs })` is one unbroken sitting with the tab

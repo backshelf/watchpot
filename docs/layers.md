@@ -9,9 +9,15 @@ those stats, so content is data and the rules never name a layer. The rules are 
 
 Example: [`examples/layers.ts`](examples/layers.ts) (`bun docs/examples/layers.ts`).
 
-```ts
-import { addStat, damp, type LayerDef, defineLayers, mulStat } from "watchpot/core";
+<!-- example-code: layers.ts -->
 
+```ts
+import { addStat, damp, defineLayers, fmt, type LayerDef, mulStat } from "watchpot/core";
+
+/**
+ * The toy's words: three layers over a base resource, and the stats their effects land on. Typed once, every effect
+ * callback below reads its query (`LayerQuery<Id, Stat, "points">`) without an annotation.
+ */
 type Id = "a" | "b" | "c";
 type Stat = "speed" | "gain" | "cost" | "passive";
 type Layer = LayerDef<Id, Stat, "points">;
@@ -25,6 +31,7 @@ const A: Layer = {
   requires: 10,
   gain: "gain",
   passive: "passive",
+  // Holding `a` speeds points up, damped: an effect that reads an unbounded resource goes through `damp`.
   holding: { effects: [mulStat("speed", (q) => damp(q.units("a")))] },
   upgrades: [
     { id: "a1", cost: 1, effects: [mulStat("speed", () => 2)] },
@@ -44,6 +51,7 @@ const A: Layer = {
     {
       id: "a.trial",
       goal: 1000,
+      // Inside: points rise a tenth as fast, and a's upgrades do nothing.
       penalties: [mulStat("speed", () => 0.1)],
       mutes: ["a.upgrades"],
       effects: [mulStat("gain", () => 2)],
@@ -63,7 +71,9 @@ const B: Layer = {
   parents: ["a"],
   holding: { effects: [mulStat("speed", (q) => 2 ** q.units("b").toNumber())] },
   milestones: [
+    // Never lost: from the second unit, a's upgrades and buyables survive b's resets.
     { id: "b2", at: 2, flags: ["keep:a"] },
+    // A tenth of a's reset gain a second, without resetting.
     { id: "b3", at: 3, effects: [addStat("passive", () => 0.1)] },
   ],
 };
@@ -81,7 +91,13 @@ const C: Layer = {
   milestones: [{ id: "c1", at: 1, flags: ["auto:b", "quiet:b", "bulk:b"] }],
 };
 
-export const climb = defineLayers({ key: "climb", base: { id: "points", rate: "speed" }, layers: [A, B, C] });
+/** The feature: saves under `climb`, steps every tick and over an absence. */
+export const climb = defineLayers({
+  key: "climb",
+  base: { id: "points", rate: "speed" },
+  layers: [A, B, C],
+  // Every stat starts at 1, a layer's passive stat at 0.
+});
 ```
 
 - **The base** rises at `stat(rate) ^ stat(exponent)` a second and is wiped by every reset. `baseTotal` never is.

@@ -5,8 +5,10 @@ player says how much goes where. A sink either counts what is assigned to it (th
 fills a bar: each assigned unit does `speed` work a second, and a full bar levels the sink up on a cost curve. When
 the pool shrinks, the most recently assigned sink gives way first.
 
+<!-- example-code: allocation.ts -->
+
 ```ts
-import { defineAllocation, defineGame, type Effect, feature, defineStats } from "watchpot/core";
+import { defineAllocation, defineGame, defineStats, type Effect, feature } from "watchpot/core";
 import { TOY } from "./vocab";
 
 const crew = feature({ key: "crew", initial: () => ({ size: 12 }) });

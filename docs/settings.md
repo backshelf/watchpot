@@ -13,6 +13,8 @@ a player who has read a tip does not need it again after a prestige.
 
 Example: [`examples/settings.ts`](examples/settings.ts) (`bun docs/examples/settings.ts`).
 
+<!-- example-code: settings.ts -->
+
 ```ts
 /** The player's choices, saved with the profile: they travel in an export and come back on another machine. */
 export interface Choices {
@@ -32,6 +34,8 @@ export const TIPS = { stove: "tip.stove", shop: "tab.shop" } as const;
 ```
 
 The run turns the sound off, shows the stove's tip once, resets the run, and checks what survived:
+
+<!-- example-output: settings.ts -->
 
 ```
 first stove tip new? true | again? false

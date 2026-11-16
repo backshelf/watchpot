@@ -15,6 +15,8 @@ clock and never sees it.
 
 Example: [`examples/prefs.ts`](examples/prefs.ts) (`bun docs/examples/prefs.ts`).
 
+<!-- example-code: prefs.ts -->
+
 ```ts
 /** Simmer's device choices: they belong to this browser, not to the save. */
 export interface View {
@@ -56,6 +58,8 @@ On a screen, `usePrefs(view, (v) => v.quality)` reads one choice and re-renders 
 sheet calls `view.set({ quality: "low" })`. The run in the example loads an older build's bare `"low"`, clamps a
 volume of 3, and lays an address override over the stored value:
 
+<!-- example-output: prefs.ts lines=1-4 -->
+
 ```
 from the old word: {"quality":"low","volume":0.8}
 volume 3 is clamped: {"quality":"low","volume":1} | stored: {"quality":"low","volume":1}
@@ -94,6 +98,8 @@ It returns a `Prefs<T>`:
 
 ## The pace clock
 
+<!-- example-code: prefs.ts -->
+
 ```ts
   // The pace clock, over a fake real clock so the numbers are exact.
   let real = 0;
@@ -118,6 +124,8 @@ the engine reads no clock itself) and returns a `PaceClock`:
 In the run above, two real seconds pass at full speed, then a one-second ramp to a stop adds half a second of pace
 time, and the clock then holds until it is released:
 
+<!-- example-output: prefs.ts lines=5-7 -->
+
 ```
 pace after 2 s, then a 1 s ramp to a hold: 2.5 | real 3 | scale 0
 held: pace still 2.5
@@ -127,6 +135,8 @@ released: pace 3.5
 **`createRamp(value)`** eases one number toward a target: `set(to, now, seconds?)` starts a smoothstep from the value
 at `now` (it leaves and arrives at rest), `at(now)` reads it, and `target` is where it is heading. Feed it pace time
 to slow with the scene, or real time to ignore it.
+
+<!-- example-output: prefs.ts lines=8-8 -->
 
 ```
 ramp 0 → 1 over 0.5 s, halfway: 0.5 | target 1

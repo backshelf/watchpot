@@ -5,15 +5,10 @@ flags, which the game's own rules read with `select.rule`; when its goal holds i
 kept, the run reset again, the flags off), and what the completions give feeds the game's `stats`. The feature holds
 the record, so it never resets with the run and survives the very reset it triggers.
 
+<!-- example-code: challenges.ts -->
+
 ```ts
-import {
-  defineChallenges,
-  type Decimal,
-  defineGame,
-  type Effect,
-  feature,
-  defineStats,
-} from "watchpot/core";
+import { type Decimal, defineChallenges, defineGame, defineStats, type Effect, feature } from "watchpot/core";
 import { wallet } from "./add-a-currency";
 import { TOY } from "./vocab";
 

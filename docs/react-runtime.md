@@ -11,6 +11,8 @@ clock, not React, moves time.
 Example: [`examples/react-runtime.tsx`](examples/react-runtime.tsx). It typechecks with the rest of the docs; it is a
 browser module, so it has no output to run in a terminal. Simmer's page, with a title screen before play:
 
+<!-- example-code: react-runtime.tsx -->
+
 ```tsx
 /** The one place the page reads the wall clock. */
 export const store = createIdleStore(game, {
@@ -96,6 +98,8 @@ halves you can call together or apart:
 A game with a title screen calls them apart, so the motion and scheme are right while the title is up but time does
 not run until the player starts:
 
+<!-- example-code: react-runtime.tsx -->
+
 ```tsx
 /** Always mounted: the motion, the scheme (on <html>) and the boot phase. No clock yet. */
 export function App() {
@@ -153,6 +157,8 @@ The page never reads `Date.now()` for anything the game decides. Two hooks give 
 - **`useClockNow(intervalMs?, override?)`**: the store's `gameNow()` (the wall plus the clock's offset, what actions
   check), re-read every `intervalMs` on one timer shared by every reader of that store and interval, and at once when
   the offset moves. Countdowns read this:
+
+<!-- example-code: react-runtime.tsx -->
 
 ```tsx
 /** A countdown reads game time on a shared timer: `useClockNow`, never `Date.now()`. */
