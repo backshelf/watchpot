@@ -196,3 +196,53 @@ describe("the plain store works a derived value out only when a field it read is
     expect(runs).toBe(1);
   });
 });
+
+describe("a plain store's memo", () => {
+  const make = () => {
+    const store = createPlainStore(game, { now: () => 0, seed: "s" });
+    let runs = 0;
+    const read = store.memo((s) => {
+      runs += 1;
+      return s.log.runs * 10 + s.wallet.bubbles.toNumber();
+    });
+    return { store, read, computed: () => runs };
+  };
+
+  test("is worked out once, then again after a write to a field it read", () => {
+    const { store, read, computed } = make();
+    expect(read()).toBe(15);
+    expect(read()).toBe(15);
+    expect(computed()).toBe(1);
+    store.getState().log.again();
+    expect(read()).toBe(25);
+    expect(computed()).toBe(2);
+  });
+
+  test("is left alone by a write to a field it did not read", () => {
+    const { store, read, computed } = make();
+    read();
+    store.getState().log.note("x");
+    expect(read()).toBe(15);
+    expect(computed()).toBe(1);
+  });
+
+  test("is stale after a trial that changed a field it read, and right either way", () => {
+    const { store, read, computed } = make();
+    expect(read()).toBe(15);
+    const inside = store.trial(() => {
+      store.getState().kettles.buy("kettle");
+      return read();
+    });
+    expect(inside).toBe(5);
+    expect(read()).toBe(15);
+    expect(computed()).toBe(3);
+  });
+
+  test("is stale after a profile reset", () => {
+    const { store, read } = make();
+    store.getState().log.again();
+    expect(read()).toBe(25);
+    store.getState().resetProfile();
+    expect(read()).toBe(15);
+  });
+});

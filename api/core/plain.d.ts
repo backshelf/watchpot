@@ -30,6 +30,12 @@ export interface PlainStore<S extends object> {
     snapshot(): PlainData;
     /** Puts the state to what `snapshot` gave (this store's or another's over the same game); derived values follow. */
     restore(data: PlainData): void;
+    /**
+     * A value worked out from the state and kept: `fn` is read through the same tracking a derived value gets, and the
+     * reader returns the kept value until a field or cell it read may have changed (a write, a `trial`, a reset, a
+     * restore). `fn` must be a pure read of the state; what it returns is shared between reads, so do not change it.
+     */
+    memo<T>(fn: (state: S) => T): () => T;
     /** Present so the plain store stands in where a store is expected; it never calls back. */
     subscribe(listener: () => void): () => void;
     /** Settled already: there is no save to load. */

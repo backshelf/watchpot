@@ -66,6 +66,11 @@ export interface LookResult {
 export interface AutoStore<S> {
     getState(): S;
     trial?<T>(run: () => T): T;
+    /**
+     * A value worked out from the state and kept until what it read changes (the plain store has one). The
+     * auto-player keeps each feature's move list this way; without it, every look lists them afresh.
+     */
+    memo?<T>(fn: (state: S) => T): () => T;
 }
 /** The auto-player `autoPlayer` makes. */
 export interface AutoPlayer<S> {

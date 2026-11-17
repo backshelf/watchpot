@@ -53,6 +53,14 @@ export interface Cells {
     touchAll(): void;
     /** Works out every cell that is not current and writes it into its slice of `root`. */
     settle(root: object): void;
+    /**
+     * An ad-hoc cell, tied to no slice and never written into the state: `fn` is worked out from the state and its
+     * value kept, with the same tracking as a derived value (the fields and slices it read, the cells it read). The
+     * returned reader gives the cached value while none of those may have changed, and works it out again when one
+     * has. `root` is the plain state (not a view); `fn` is handed it under the same read-tracking a derived recipe
+     * gets. `fn` must be a pure read of the state.
+     */
+    memo<T>(fn: (state: never) => T): (root: object) => T;
 }
 /** The cells of a game's features: one set per store (or per sim run), since it remembers what it has seen. */
 export declare function createCells(features: readonly FeatureSpec[]): Cells;

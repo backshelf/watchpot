@@ -94,6 +94,11 @@ export interface LookResult {
 export interface AutoStore<S> {
   getState(): S;
   trial?<T>(run: () => T): T;
+  /**
+   * A value worked out from the state and kept until what it read changes (the plain store has one). The
+   * auto-player keeps each feature's move list this way; without it, every look lists them afresh.
+   */
+  memo?<T>(fn: (state: S) => T): () => T;
 }
 
 /** The auto-player `autoPlayer` makes. */
@@ -158,6 +163,26 @@ export function autoPlayer<S extends object>(
       );
   };
 
+  /** Each feature's move list, kept per store when it has `memo`; else listed afresh. In the game's feature order. */
+  const listers = new WeakMap<AutoStore<S>, ((state: S) => readonly Move<S>[])[]>();
+  const memoOf = (memo: NonNullable<AutoStore<S>["memo"]>, read: (state: S) => readonly Move<S>[]) => {
+    const kept = memo(read);
+    return () => kept();
+  };
+  const movesFor = (store: AutoStore<S>, state: S): Move<S>[] => {
+    let mine = listers.get(store);
+    if (!mine) {
+      mine = [];
+      for (const f of game.features) {
+        const read = f.moves as ((state: S) => readonly Move<S>[]) | undefined;
+        if (!read) continue;
+        mine.push(store.memo ? memoOf(store.memo, read) : read);
+      }
+      listers.set(store, mine);
+    }
+    return mine.flatMap((list) => list(state));
+  };
+
   const trial = <T>(store: AutoStore<S>, run: () => T): T => {
     if (store.trial) return store.trial(run);
     const before = store.getState();
@@ -212,7 +237,7 @@ export function autoPlayer<S extends object>(
         while (total() < maxMoves) {
           const state: S = store.getState();
           let best: { move: Move<S>; score: number } | null = null;
-          for (const move of movesOf(game, state)) {
+          for (const move of movesFor(store, state)) {
             if (isFree(move) || !move.cost || refused.has(move.id)) continue;
             const held = balance(state, move.cost.currency);
             if (held.lt(move.cost.amount)) continue;
@@ -230,7 +255,7 @@ export function autoPlayer<S extends object>(
         // Free moves: each one worth taking, best first, once a look unless it repeats.
         while (total() < maxMoves) {
           const state: S = store.getState();
-          const free = movesOf(game, state)
+          const free = movesFor(store, state)
             .filter((m) => isFree(m) && !refused.has(m.id) && (m.repeat || !taken.has(m.id)))
             .map((move) => ({ move, worth: worthOf(store, move, state) }))
             .filter((m) => m.worth > 0)
