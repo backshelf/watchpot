@@ -218,7 +218,7 @@ describe("reset depths", () => {
     expect(store.getState().shop.ranks).toBe(0);
     const bad = defineFeature({ key: "bad", initial: () => ({ n: 0 }), reset: { depth: 0 } });
     expect(() => defineGame({ id: "bad", save: { key: "bad", version: 1 }, features: [bad] })).toThrow(
-      "a reset depth is 1 or more",
+      "a reset depth must be 1 or more",
     );
   });
 });

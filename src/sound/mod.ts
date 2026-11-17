@@ -73,7 +73,9 @@ export function createMod<B extends string>(
     const key = mixer.target(route.to);
     const [a, b] = route.range;
     if (!Number.isFinite(a) || !Number.isFinite(b))
-      throw new Error(`watchpot/sound: a mod route from "${route.from}" has a range that is not two numbers`);
+      throw new Error(
+        `watchpot/sound: a mod route from "${route.from}" has a range that is not two numbers: set \`range\` to [a, b], what the source's 0 and 1 map to`,
+      );
     const live = { route, key };
     routes.push(live);
     refresh(key, slewOf(route));

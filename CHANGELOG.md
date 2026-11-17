@@ -38,6 +38,7 @@ across with its numbers unchanged.
 - `saveSetAside` reports `"unreadable"` for a save that is not JSON; the game clock stands the store's own hide
   flush down, so one hide writes once; the dev panel has a Clear save button.
 - **`searchLoadout`**: the auto-equip a slice at a time (`step`, `best`, `bestScore`), so a page shows the slots filling instead of freezing; `fillLoadout` is it run to the end, and both now take the first exchange that pays rather than the best of a whole pass.
+- `defineGame`, `defineFeature` and `createSound` errors say what is wrong, where, and how to fix it.
 
 ## 0.18.0
 

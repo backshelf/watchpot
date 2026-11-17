@@ -82,7 +82,7 @@ export function orderPhase(steps: readonly StepRef[]): StepRef[] {
     const i = left.findIndex((s) => [...(waits.get(s) ?? [])].every((w) => out.includes(w)));
     if (i < 0)
       throw new Error(
-        `steps wait on each other in a loop (after / before): ${left.map((s) => s.id).join(", ")}`,
+        `steps wait on each other in a loop (after / before): ${left.map((s) => s.id).join(", ")}. Break the loop: change or drop one of the \`after\` / \`before\` entries`,
       );
     out.push(...left.splice(i, 1));
   }

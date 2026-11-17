@@ -129,43 +129,71 @@ function validate(
   };
   const seen = new Set<string>();
   for (const f of features) {
-    if (seen.has(f.key)) fail(`two features share the key "${f.key}"`);
+    if (seen.has(f.key))
+      fail(
+        `two features share the key \`${f.key}\`: rename one in its \`defineFeature\`, or drop one from \`features\``,
+      );
     if (f.vocab && f.vocab !== vocab)
       fail(
-        `feature "${f.key}" speaks a vocabulary the game does not declare: the game's \`vocab\` must be the very object the feature was built over (an equal copy is refused too)`,
+        `feature "${f.key}" speaks a vocabulary the game does not declare: pass the very object the feature was built over to \`defineGame\`'s \`vocab\` (an equal copy is refused too)`,
       );
     seen.add(f.key);
     for (const r of f.reach())
-      if (!features.includes(r)) fail(`feature "${f.key}" reaches "${r.key}", which the game does not list`);
+      if (!features.includes(r))
+        fail(
+          `feature "${f.key}" reaches \`${r.key}\`, which the game does not list: list it in \`defineGame\`'s \`features\``,
+        );
     const keys = Object.keys(f.initial(PROBE_CONTEXT));
     // The slice is `{ ...initial, ...actions }`: an action named like a field would replace it without a word.
     for (const k of Object.keys(f.actions(PROBE_API as never)))
       if (keys.includes(k))
-        fail(`feature "${f.key}": the action "${k}" is named like a key of its initial state; rename one`);
+        fail(
+          `feature "${f.key}": the action \`${k}\` is named like a key of its \`initial\` state: rename the action or the key in \`initial\``,
+        );
     const acts = Object.keys(f.actions(PROBE_API as never));
     for (const k of Object.keys(f.derived)) {
       if (keys.includes(k))
         fail(
-          `feature "${f.key}": the derived value "${k}" is named like a key of its initial state; drop one`,
+          `feature "${f.key}": the derived value \`${k}\` is named like a key of its \`initial\` state: rename the derived value or the key in \`initial\``,
         );
       if (acts.includes(k))
-        fail(`feature "${f.key}": the derived value "${k}" is named like an action; rename one`);
+        fail(
+          `feature "${f.key}": the derived value \`${k}\` is named like an action: rename the derived value or the action`,
+        );
     }
     for (const k of f.transient)
-      if (!keys.includes(k)) fail(`feature "${f.key}": transient key "${k}" is not in its initial state`);
+      if (!keys.includes(k))
+        fail(
+          `feature "${f.key}": the transient key \`${k}\` is not in its \`initial\` state: add \`${k}\` to \`initial\` or drop it from \`transient\``,
+        );
     const { depth, rule } = resetRuleOf(f.reset);
-    if (!(depth >= 1)) fail(`feature "${f.key}": a reset depth is 1 or more`);
+    if (!(depth >= 1))
+      fail(
+        `feature "${f.key}": a reset depth must be 1 or more, but \`reset\` says ${depth}: set \`depth\` to 1 or more, or give \`reset\` the rule alone to reset on every run`,
+      );
     if (typeof rule === "object")
       for (const k of rule.keep)
-        if (!keys.includes(k)) fail(`feature "${f.key}": kept key "${k}" is not in its initial state`);
+        if (!keys.includes(k))
+          fail(
+            `feature "${f.key}": the kept key \`${k}\` is not in its \`initial\` state: add \`${k}\` to \`initial\` or drop it from \`reset.keep\``,
+          );
     for (const phase of PHASES)
       for (const name of Object.keys(f.steps[phase] ?? {}))
-        if (name.includes(".")) fail(`feature "${f.key}": step name "${name}" cannot contain "."`);
+        if (name.includes("."))
+          fail(
+            `feature "${f.key}": the step name \`${name}\` cannot contain ".": rename the step, as its id is \`${f.key}.${phase}.${name}\``,
+          );
   }
-  if (!seen.has(clock.feature)) fail(`the clock names the feature "${clock.feature}", which the game lacks`);
+  if (!seen.has(clock.feature))
+    fail(
+      `the clock names the feature \`${clock.feature}\`, which the game lacks: add it to \`features\`, or set \`clock\` to the feature that holds the clock's fields`,
+    );
   // The game's actions sit at the root beside the slices: one named like a feature's key would replace its slice.
   for (const k of Object.keys(actions(PROBE_API as never)))
-    if (seen.has(k)) fail(`the game action "${k}" is named like the feature "${k}"; rename one`);
+    if (seen.has(k))
+      fail(
+        `the game action \`${k}\` is named like the feature \`${k}\`: rename the action in \`actions\`, as the feature's slice sits under that key`,
+      );
   const declared = declaredSteps(features, clock);
   for (const phase of PHASES) {
     const inPhase = declared.filter((s) => s.phase === phase);
@@ -178,11 +206,17 @@ function validate(
           if (seen.has(name) || name === "clock") continue;
           const [key = "", stepPhase] = name.split(".");
           if (!seen.has(key) && key !== "clock")
-            fail(`step "${step.id}" runs ${word} "${name}", but the game has no feature "${key}"`);
+            fail(
+              `step "${step.id}" runs ${word} \`${name}\`, but the game has no feature \`${key}\`: fix the \`${word}\` target, or name \`${key}\` in \`features\``,
+            );
           if (stepPhase !== phase)
-            fail(`step "${step.id}" runs ${word} "${name}", which is not a step of the ${phase} phase`);
+            fail(
+              `step "${step.id}" runs ${word} \`${name}\`, which is not a step of the ${phase} phase: name a \`${phase}\` step, as \`${key}.${phase}.<name>\``,
+            );
           if (!inPhase.some((s) => s.id === name))
-            fail(`step "${step.id}" runs ${word} "${name}": feature "${key}" declares no such step`);
+            fail(
+              `step "${step.id}" runs ${word} \`${name}\`, which feature \`${key}\` does not declare in ${phase}: name a step its \`steps\` declares there`,
+            );
         }
     for (const pass of ["tick", "catchUp"] as const)
       try {

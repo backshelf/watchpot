@@ -97,14 +97,14 @@ describe("defineGame refuses a name that would replace another", () => {
       }),
     });
     expect(() => defineGame({ id: "shadow", save, features: [shadow] })).toThrow(
-      /feature "shadow": the action "open"/,
+      /feature "shadow": the action `open`/,
     );
   });
 
   test("a game action named like a feature", () => {
     expect(() =>
       defineGame({ id: "shadow", save, features: [wallet], actions: () => ({ wallet: () => {} }) }),
-    ).toThrow(/game action "wallet"/);
+    ).toThrow(/game action `wallet`/);
   });
 
   test("a before target, naming the feature it points at", () => {
@@ -115,10 +115,10 @@ describe("defineGame refuses a name that would replace another", () => {
         steps: { sync: { x: { before: target, run: () => {} } } },
       });
     expect(() => defineGame({ id: "o", save, features: [step("nobody.sync.x")] })).toThrow(
-      /no feature "nobody"/,
+      /no feature `nobody`/,
     );
     expect(() => defineGame({ id: "o", save, features: [step("counter.sync.z")] })).toThrow(
-      /feature "counter" declares no such step/,
+      /feature `counter` does not declare in sync/,
     );
   });
 });
