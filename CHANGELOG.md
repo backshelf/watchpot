@@ -2,7 +2,9 @@
 
 Each release is a tag `vX.Y.Z`. A breaking change names its codemod in `codemods/` (policy in `codemods/README.md`).
 
-## Unreleased
+## 1.0.0-rc.7
+
+The sim desk: `bunx watchpot sim` serves a game's pacing as graphs and tables with knobs and gate pins that rerun from the snapshot cache and save to `sim.tuning.json`; the developer tools wear one token sheet (grey in a dark system).
 
 - Orbital Orchard is on the sim desk: `bun run desk` in the example opens `watchpot sim` on five tuning knobs (price growth, offline rate, pull price, drip interval, prestige bonus), declared in `src/content/knobs.ts` and read where used, with a straight 24 h auto-player run drawn as pace graphs; Save writes `sim.tuning.json`, which the game imports.
 - `watchpot sim` saves what is set by hand to `sim.tuning.json` beside the desk file (`POST /api/tuning`: only knobs that differ from the code, and the pins; `GET /api/desk` gains `code`, `pins` and `tuningFile`), and a rerun that resumes from a cached snapshot replays the windows before it (`cached: true`) from `.watchpot/sim-cache/<key>/win-<fromMs>.json`. A game's `source` globs must not match `sim.tuning.json`, or every save clears the cache.
