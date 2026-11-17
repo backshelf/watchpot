@@ -288,9 +288,9 @@ There is no `test/` folder. The engine's own checks prove the template builds, t
 a new game starts with nothing to keep green but its own code. When you want tests of your own, `watchpot/test` is
 the kit for them ([chapter 12](12-proving-the-pacing.md)).
 
-One folder is not for you. `.claude/` holds the concept as the command took it down and notes written for an AI
-coding agent, which assume the game is being built that way. Read them if you are curious, delete them if you are
-not. The header comment of each content file names the agent's command, `/watchpot`, for the same reason.
+There are no notes for an AI coding agent unless you ask for them. Run the command with `--agents` and it also
+writes a short `AGENTS.md` (where the engine's docs are, the commands, the engine's rules that are easy to break) and
+puts the concept and your answers in `design/`.
 
 The template is a floor. VOID IF REMOVED started from it, kept most of its scripts and its install line, and has
 since renamed, restyled or replaced most of the components in its `src/ui/`. Its `package.json` still reads much

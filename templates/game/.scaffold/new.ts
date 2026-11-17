@@ -1,7 +1,7 @@
 /**
  * Makes a new game from an answers file, start to finish: the whole scaffold, with nothing outside this repository.
  *
- *   bun templates/game/.scaffold/new.ts <answers.json> <out-dir> [--engine <tag>] [--no-install]
+ *   bun templates/game/.scaffold/new.ts <answers.json> <out-dir> [--engine <tag>] [--no-install] [--agents]
  *
  * From a checkout of the engine, or from an install of it (`bun node_modules/watchpot/templates/game/.scaffold/new.ts`).
  * `answers.md` beside this file is the answers' reference; `fixtures/smallest-clicker.json` is the least one says.
@@ -9,7 +9,8 @@
  * Steps: copy the template into `<out-dir>` (missing or empty), write the game from the answers (`generate.ts`: the
  * content, the gating, the `*.tmpl` files, `src/tokens.css`), then `bun install` (the engine at `--engine`, by default
  * this engine's own version) and `bun run lint:fix`. Stops at the first failing step and says which. `--no-install`
- * stops after the files are written.
+ * stops after the files are written. `--agents` also writes a generic `AGENTS.md` and the concept in `design/`
+ * (`concept.md`, the answers in `answers.json`); without it a new game ships no agent docs.
  */
 import { readdir } from "node:fs/promises";
 import { resolve } from "node:path";
@@ -30,9 +31,10 @@ const has = (name: string): boolean => {
 
 const engine = flag("engine") ?? (await engineTag());
 const install = !has("no-install");
+const agents = has("agents");
 const [answersArg, outArg] = argv;
 if (!answersArg || !outArg) {
-  console.error("usage: bun .scaffold/new.ts <answers.json> <out-dir> [--engine <tag>] [--no-install]");
+  console.error("usage: bun .scaffold/new.ts <answers.json> <out-dir> [--engine <tag>] [--no-install] [--agents]");
   process.exit(2);
 }
 const answers = resolve(answersArg);
@@ -59,7 +61,7 @@ function run(cmd: string[]) {
 }
 
 console.log(`== generate (watchpot ${engine})`);
-const plan = await generate({ answers, out, engine, mode: "full" });
+const plan = await generate({ answers, out, engine, mode: "full", agents });
 for (const w of lookWarnings(plan)) console.warn(`look: ${w}`);
 
 if (install) {

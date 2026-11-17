@@ -1,5 +1,5 @@
 // @feature generators
-// Written by /watchpot-init from .claude/specs/answers.json. It is the game's now: edit it freely.
+// Written by the scaffold from the game's answers. It is the game's now: edit it freely.
 import type { CostCurve } from "watchpot/core";
 
 export interface GeneratorDef {

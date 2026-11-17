@@ -16,6 +16,9 @@ bun templates/game/.scaffold/new.ts my-answers.json ../my-game        # in a che
 bun node_modules/watchpot/templates/game/.scaffold/new.ts my-answers.json my-game   # from an install
 ```
 
+Add `--agents` to either to also write a generic `AGENTS.md` (from `templates/agents/AGENTS.md`) and the concept
+and answers in `design/` (`concept.md`, `answers.json`). Without it a new game ships no agent docs.
+
 `new.ts` copies the template into the folder (missing or empty), writes the game from the answers, compiles
 `src/tokens.css`, runs `bun install` and `bun run lint:fix`, then prints the next steps: `git init -b main`, the
 first commit, `bun run verify`, `bun run dev`. `--no-install` stops after the files are written. Nothing else is
@@ -34,12 +37,12 @@ engine only through the `watchpot/*` imports.
 ## The parts
 
 - **`new.ts`** the whole sequence above.
-- **`generate.ts`** the generation alone: `--answers <file> --out <dir> [--engine <tag>] [--mode full|content]`. In
-  `full` mode (the default) it copies the template into an empty `--out`, writes `src/content/*`,
-  `design/tokens.json` and `.claude/specs/`, drops the files and blocks of the flags not chosen, renders each
-  `*.tmpl` (the files whose name would clash with the engine's own: `package.json`, `biome.json`, `index.html`, the
-  README and the game's `.claude/CLAUDE.md`), compiles `src/tokens.css` and formats the result with Biome. It
-  refuses the template folder itself and a non-empty folder with no `*.tmpl` in it.
+- **`generate.ts`** the generation alone: `--answers <file> --out <dir> [--engine <tag>] [--mode full|content] [--agents]`. In
+  `full` mode (the default) it copies the template into an empty `--out`, writes `src/content/*` and
+  `design/tokens.json`, drops the files and blocks of the flags not chosen, renders each `*.tmpl` (the files whose
+  name would clash with the engine's own: `package.json`, `biome.json`, `index.html`, the README), compiles
+  `src/tokens.css` and formats the result with Biome. `--agents` also writes `AGENTS.md` and `design/concept.md`
+  and `design/answers.json`. It refuses the template folder itself and a non-empty folder with no `*.tmpl` in it.
 - **What it wires.** The wallet (`defineCurrencies`), the `stats` feature (`defineStats`: every contribution to
   output, the offline share and the prestige gain, each a derived value on the state) and the core:
   `defineGenerators` (3 to 8; none beside a clicker) or `defineDimensions` (4 to 8 tiers). Then any of `clicker`

@@ -1,5 +1,5 @@
 // @feature visitor
-// Written by /watchpot-init from .claude/specs/answers.json. It is the game's now: edit it freely.
+// Written by the scaffold from the game's answers. It is the game's now: edit it freely.
 import { MINUTE_MS, type SpawnWait } from "watchpot/core";
 
 /** What turns up, and its line. */

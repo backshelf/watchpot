@@ -38,6 +38,7 @@ across with its numbers unchanged.
   a game's sim and its real store agree. The guide's examples are run against what the chapters quote.
 - **Template.** A new game ships no tests (the engine's gates prove the template); `verify` is typecheck and lint,
   `gates` adds the build.
+- **Agent docs are opt-in.** A new game ships no `.claude/`; `--agents` adds a generic `AGENTS.md` and the concept in `design/`.
 - `saveSetAside` reports `"unreadable"` for a save that is not JSON; the game clock stands the store's own hide
   flush down, so one hide writes once; the dev panel has a Clear save button.
 - **`searchLoadout`**: the auto-equip a slice at a time (`step`, `best`, `bestScore`), so a page shows the slots filling instead of freezing; `fillLoadout` is it run to the end, and both now take the first exchange that pays rather than the best of a whole pass.

@@ -1,4 +1,4 @@
-// Written by /watchpot-init from .claude/specs/answers.json. It is the game's now: edit it freely.
+// Written by the scaffold from the game's answers. It is the game's now: edit it freely.
 import { activeSchedule, type BandRow, type SessionSchedule } from "watchpot/sim";
 
 /** The session the game is built for: short sessions: a handful a day, about ten minutes each. */

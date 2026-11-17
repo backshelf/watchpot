@@ -1,4 +1,4 @@
-// Written by /watchpot-init from .claude/specs/answers.json. It is the game's now: edit it freely.
+// Written by the scaffold from the game's answers. It is the game's now: edit it freely.
 import { type CurrencyOf, type RarityOf, vocab } from "watchpot/core";
 import type { GlyphId } from "../app/icons";
 

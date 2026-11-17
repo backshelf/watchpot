@@ -3,9 +3,11 @@
  * content it writes always matches the code it writes into, at whatever engine tag the template came from. `new.ts`
  * runs it and then the install; this is the step on its own.
  *
- *   bun .scaffold/generate.ts --answers <answers.json> --out <dir> [--engine <tag>] [--mode full|content]
+ *   bun .scaffold/generate.ts --answers <answers.json> --out <dir> [--engine <tag>] [--mode full|content] [--agents]
  *
- * `--engine` defaults to this engine's own version (`v` and its `package.json` version). `full` (default) copies the
+ * `--engine` defaults to this engine's own version (`v` and its `package.json` version). `--agents` also writes a
+ * generic `AGENTS.md` (copied from `templates/agents/AGENTS.md`) and the concept in `design/` (`concept.md`, the
+ * answers in `answers.json`); without it a game ships no agent docs. `full` (default) copies the
  * template into `--out` when that is empty or missing (a folder holding a copy already is generated in place; the
  * template itself is refused), writes the content, drops the files and blocks of the flags not chosen, renders every
  * `*.tmpl` into its file, compiles `src/tokens.css` and formats the result with Biome. `content` only rewrites the
@@ -334,7 +336,7 @@ export const ALL_FLAGS: ReadonlySet<string> = new Set<string>([...FEATURES, ...C
 // ---------------------------------------------------------------------------------------------- the content
 
 const ts = (v: unknown) => JSON.stringify(v);
-const HEAD = "// Written by /watchpot-init from .claude/specs/answers.json. It is the game's now: edit it freely.";
+const HEAD = "// Written by the scaffold from the game's answers. It is the game's now: edit it freely.";
 
 /** Each tier's number for a ladder of `size` rungs, read off five stops (the lowest and the highest always land). */
 const spread = (stops: readonly number[], size: number, i: number) =>
@@ -402,9 +404,10 @@ function tabsOf(pl: Plan) {
 
 /**
  * The content files. `union` writes every core's and every feature's file (the template's own example): the files
- * of what was not chosen are dropped by the gating afterwards anyway.
+ * of what was not chosen are dropped by the gating afterwards anyway. `agents` also writes the concept and the
+ * answers in `design/` (beside `AGENTS.md`, which `generate` copies in).
  */
-export function contentFiles(pl: Plan, union = false): Record<string, string> {
+export function contentFiles(pl: Plan, union = false, agents = false): Record<string, string> {
   const a = pl.answers;
   const n = pl.generators.length;
   // A core with no producers (a clicker alone) writes no file of its own.
@@ -840,8 +843,10 @@ export function contentFiles(pl: Plan, union = false): Record<string, string> {
   ].join("\n");
 
   out["design/tokens.json"] = `${JSON.stringify(tokens(pl, rarities), null, 2)}\n`;
-  out[".claude/specs/answers.json"] = `${JSON.stringify(a, null, 2)}\n`;
-  out[".claude/specs/concept.md"] = concept(pl, tabs);
+  if (agents) {
+    out["design/answers.json"] = `${JSON.stringify(a, null, 2)}\n`;
+    out["design/concept.md"] = concept(pl, tabs);
+  }
   return out;
 }
 
@@ -1056,7 +1061,7 @@ function concept(pl: Plan, tabs: ReturnType<typeof tabsOf>): string {
   const lines = [
     `# ${pl.name}`,
     "",
-    "The game's concept as `/watchpot-init` took it down. The answers themselves are in `answers.json` beside this file.",
+    "The game's concept as the scaffold took it down. The answers themselves are in `answers.json` beside this file.",
     "",
     "## Fiction",
     "",
@@ -1181,17 +1186,6 @@ function arg(name: string): string | undefined {
 /** The words the `*.tmpl` files take, by placeholder. */
 export function templateVars(pl: Plan, engine: string): Record<string, string> {
   const f = pl.features;
-  const owes = [
-    "1. **Shape.** Add the systems the scaffold does not wire (`node_modules/watchpot/docs/`), take out what the game does not want, build the invention, re-pace with `bun run sim -- --player=auto --contract`. Done when the loop in the concept is the loop the sim plays and nothing in `src/game/` re-implements an engine export.",
-    "2. **Content.** Depth, in the voice, all in `src/content/`: eight to twelve producers, upgrades with a reason to pick an order" +
-      (f.has("achievements") ? ", an achievement wall of four full rows or more with a few secret ones" : "") +
-      ", flavour that changes as the game goes on. Done when `src/content/` alone says what the game is about and the late game has things the first ten minutes do not hint at.",
-    "3. **Identity.** Restyle every component in `src/ui/` (tokens first, then each module), compose the main screen around the hero surface and the moment, draw the game's own icons and glyphs, phone and desktop as two compositions. Done when no screenshot could be mistaken for the template or another watchpot game.",
-    "4. **Shaders.** The floor below, each surface with a `still`, a reduced-motion frame and a budget, each fed by the game's numbers. Done when no `still` shows in a normal browser, the console is free of shader logs, the palette follows a scheme change, and turning the shaders off would make this a worse game.",
-    "5. **Feel.** A sound for every deliberate action (retune the zzfx voices, or build packs of recordings with `buildPack` and give each cue `takes`, the voice kept as the fallback; `node_modules/watchpot/docs/sound-packs.md`), every press and buy answered where it happened (a `placed` cue played `at` the element), the mix on buses with a reverb send, big events bigger, time away reported, reduced motion honoured. Done when two minutes of play with the sound on is pleasant and nothing is met with silence.",
-    "6. **The moment.** Build it for real (mechanics, shader, sound, words) with a way to replay it in development, and watch it play. Done when it is better than the sentence that described it.",
-    "7. **Proof.** `bun run gates:full`; every screen in the Browser pane at desktop and phone width with a clean console, the save surviving a reload, the main loop by keyboard alone; the engine sweep (anything generic moves to the engine, released as a tag).",
-  ].join("\n");
   // The features alone: the core has its own placeholder, so it is never listed twice.
   const features = [...f].map((x) => (x === "visitor" ? "visitor (spawns + buffs)" : x === "tree" ? "tree (upgradeTree)" : x));
   return {
@@ -1199,14 +1193,9 @@ export function templateVars(pl: Plan, engine: string): Record<string, string> {
     slug: pl.slug,
     engine,
     premise: pl.answers.premise,
-    voice: pl.answers.voice,
-    moment: pl.look.moment ?? "None chosen yet.",
     session: PACING[pl.session].label,
     core: pl.generators.length ? pl.core : "none (the clicker alone)",
     features: features.length ? features.join(", ") : "no other features",
-    surface: pl.surface ?? "backdrop",
-    surfaceLine: pl.look.surface?.line ?? "None chosen yet: the page has no backdrop.",
-    owes,
     fontLinks: fontLinks(pl),
   };
 }
@@ -1268,12 +1257,15 @@ function lintFix(out: string): boolean {
  * Writes a game from an answers file. In `full` mode `out` is the game: an empty or missing folder gets a copy of this
  * template first; a folder that already holds one (its `*.tmpl` files) is generated in place. Then the content, the
  * gating, the `*.tmpl` files, `src/tokens.css` and a Biome pass. `content` mode writes the content files only.
+ * `agents` also writes `AGENTS.md` (from `templates/agents/`) and the concept in `design/`, in either mode.
  */
 export async function generate(opts: {
   answers: string;
   out: string;
   engine: string;
   mode: "full" | "content";
+  /** Also write the agent docs: `AGENTS.md` and the concept in `design/` (default off). */
+  agents?: boolean;
   /** The closing Biome pass (default on). */
   lint?: boolean;
 }) {
@@ -1287,8 +1279,9 @@ export async function generate(opts: {
     else if (!(await walk(opts.out)).some((rel) => rel.endsWith(".tmpl")))
       throw new Error(`${opts.out} holds no *.tmpl files: give an empty folder, or a fresh copy of the template`);
   }
-  const files = contentFiles(pl, opts.mode === "content");
+  const files = contentFiles(pl, opts.mode === "content", opts.agents);
   for (const [rel, text] of Object.entries(files)) await write(join(opts.out, rel), text);
+  if (opts.agents) await write(join(opts.out, "AGENTS.md"), await Bun.file(join(TEMPLATE, "..", "agents", "AGENTS.md")).text());
   if (opts.mode === "content") return pl;
   const chosen = flagsOf(pl);
   const vars = templateVars(pl, opts.engine);
@@ -1322,12 +1315,13 @@ if (import.meta.main) {
   const out = arg("out");
   if (!answers || !out) {
     console.error(
-      "usage: bun .scaffold/generate.ts --answers <file> --out <dir> [--engine <tag, default this engine's>] [--mode full|content]",
+      "usage: bun .scaffold/generate.ts --answers <file> --out <dir> [--engine <tag, default this engine's>] [--mode full|content] [--agents]",
     );
     process.exit(2);
   }
   const mode = arg("mode") === "content" ? "content" : "full";
-  const pl = await generate({ answers, out, engine: arg("engine") ?? (await engineTag()), mode });
+  const agents = process.argv.includes("--agents");
+  const pl = await generate({ answers, out, engine: arg("engine") ?? (await engineTag()), mode, agents });
   for (const w of lookWarnings(pl)) console.warn(`look: ${w}`);
   console.log(`generated ${pl.name} (${mode}): ${pl.core}${[...pl.features].map((f) => `, ${f}`).join("")}, ${pl.surface} backdrop`);
 }
