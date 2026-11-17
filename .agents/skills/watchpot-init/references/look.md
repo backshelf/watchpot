@@ -56,5 +56,5 @@ right direction:
 | `signal` | scanlines, a bloom, a slow roll | electronic, broadcast, instrument, night |
 | `cells` | Voronoi cells with lit seams | mineral, organic, crafted, crystalline |
 
-The starter is replaced in the build; the sentence (`line`) is what stays, in the game's `.claude/CLAUDE.md`, as the
+The starter is replaced in the build; the sentence (`line`) is what stays, in the game's `design/concept.md`, as the
 brief every shader is written against.

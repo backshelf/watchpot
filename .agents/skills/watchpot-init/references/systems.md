@@ -116,17 +116,10 @@ thirty lines each, and it is where a game stops being the template.
 
 ## When the engine lacks it
 
-Every game is expected to invent at least one mechanic. Sort it before writing it:
+Every game is expected to invent at least one mechanic. First make sure the engine really lacks it (the README,
+`docs/`, the table above). Then build it in the game, as a `defineFeature()` on the engine's primitives, with
+`derived`, `reach`, `defineStats` sources and `moves` as above, so the sim can play it. Keep its words in
+`src/content/` like everything else.
 
-- **Specific to this game's fiction** (it only makes sense with these nouns): it lives in the game, as a `defineFeature()`
-  built on the engine's primitives, with `derived`, `reach`, `defineStats` sources and `moves` as above.
-- **Generic** (another game could use it with different words; a rule, a factory, a hook, an effect, a headless
-  component, a GLSL chunk): it is built **in the engine**, not the game: named for no game, words as data, with tests,
-  a `docs/<name>.md` recipe and example, a README line, a `CHANGELOG.md` line and a refreshed API report (`bun run
-  api`), then released and installed in the game. The engine's own `AGENTS.md` and `.claude/CLAUDE.md` hold its rules
-  and its release steps; the game's `.claude/CLAUDE.md` says where the engine's checkout is and who releases. The
-  game then holds only its content for it.
-
-When unsure, it is generic. The test: strip the game's nouns from the function names; if what is left still reads as a
-thing, it belongs in the engine. Before the session ends, sweep the game's `src/` for anything that passes that
-test and move it. Never copy engine source into a game, and never edit `node_modules/watchpot`.
+Never copy engine source into a game, and never edit `node_modules/watchpot`: both are lost on the next engine
+update.

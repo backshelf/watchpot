@@ -2,13 +2,12 @@
 
 The scaffold produces a game that runs, saves, paces and passes its gates in a few minutes. It is not the game: it is
 a skeleton with the right words on it, and it looks and plays like every other scaffold. The build is where the game
-gets made, and it is most of the work. The new game's own `.claude/CLAUDE.md` lists the seven passes with a "done
-when" for each; this file is how to do each one well. Do them in order, commit after each (`feat(<area>): …`,
+gets made, and it is most of the work. This file is the seven passes and how to do each one well. Do them in order, commit after each (`feat(<area>): …`,
 `bun run verify` green), and keep going until every "done when" holds. The engine is what makes this affordable:
 mechanism, behaviour, saving, pacing and the shader container are already written, so the hours go into what only
 this game has.
 
-Before the first pass, add four short sections to the game's `.claude/specs/concept.md` (the scaffold wrote the
+Before the first pass, add four short sections to the game's `design/concept.md` (the scaffold wrote the
 fiction, the loop, the look and the moment from the interview) so every later decision has something to answer to:
 **the shape** (the loop in one paragraph: what the player does in a minute, in ten, in a day), **the surface** (the
 shader language, `shaders.md`), **the invention** (the one mechanic no other game on the engine has), and **the
@@ -25,18 +24,16 @@ pacing plan** (played hours the game should last, and what the player is doing i
   and peak are the layer's). `src/game/` holding a hand-written fold, a copied price loop, a second copy of a number
   that a step keeps in step, or a whole-game state type is the sign the engine's own was missed.
 - Take out what the game does not want. A template tab nobody chose is clutter.
-- **Build the invention.** Decide whether it is generic (then it is built in the engine and released before the game
-  uses it: `systems.md` › When the engine lacks it) or the game's own, a `defineFeature()` shaped like
-  `examples/invention.ts`: derived values, a `produce` step that names its pass, moves for the sim.
+- **Build the invention** in the game (`systems.md` › When the engine lacks it): a `defineFeature()` shaped like
+  `examples/invention.ts`, with derived values, a `produce` step that names its pass, and moves for the sim.
 - Re-pace: `bun run sim -- --contract`. Move a band only on purpose, and say why in the commit. For a move that does
   not pay at once (an unlock, a cap), state its `worth`; `autoPlayer`'s `objective` is income a second unless the
   game's loop wants something else (`examples/sim-and-tests.ts`).
-- **Tests earn their place.** Test what can break in the game's own logic (an ordering, an invariant, a boundary) and
-  one failing test per bug fix. No tests for content, strings, shader text or a retune: happy-dom cannot judge a look,
-  the sim judges pacing, and every test runs at every gate. The scaffold already runs two checks worth keeping green:
-  `test/decimals.test.ts` (no two Decimals compared with `<` or `===`; use `.lt()`, `.gte()`, `.eq()`) and
-  `test/parity.test.ts` (`plainParity`: the sim's plain store and the page's real store play one seed identically).
-  A feature that fails parity usually keeps something outside the state; fix the feature, not the test.
+- **Tests are the user's call.** The template ships none. If the user wants them, `watchpot/test` is the kit: test
+  what can break in the game's own logic (an ordering, an invariant, a boundary), never content, strings, shader
+  text or a retune. Two of its checks are worth having in any game that has tests: `decimalComparisons` (no two
+  Decimals compared with `<` or `===`) and `plainParity` (the sim's plain store and the page's real store play one
+  seed identically; a feature that fails it usually keeps something outside the state).
 
 ## 2. Content: depth, in the voice
 
@@ -117,18 +114,14 @@ It is the thing the player will describe to someone else.
 
 ## 7. Proof
 
-- `bun run gates:full` once (typecheck, lint, every test, the build, the slow tier, the pacing contract).
+- `bun run gates:full` once (typecheck, lint, the build, the pacing contract).
 - In a browser (`bun run dev`; one tab, closed when done): every screen at desktop and at phone width, a clean
   console, the save surviving a reload, the main loop playable by keyboard alone, the OS reduced-motion setting
   honoured, a light and a dark scheme if the game has both. The checks do not run a browser: a shader that fails to
   compile and a blank page both pass them.
-- **The engine sweep.** Read the game's `src/` for anything generic (the test in `systems.md`) and move it to the
-  engine, released, before calling the game done.
-- The game's `.claude/CLAUDE.md` describes the code as it now is: its map, its rules, its commands.
+- The game's `AGENTS.md` still matches the code: its commands and where things go.
 
 ## The report
 
-A few lines, under the game's spoiler rule (the player has not played it yet: describe by area and count, never by
-content): where it is, what shape it has, what was invented and whether it went into the engine (and in which
-release), the sim's day-7 row (`bun run sim -- --sessions`), the commands. Then one question: create the GitHub
+A few lines: where it is, what shape it has, what was invented, the sim's day-7 row (`bun run sim -- --sessions`), the commands. Then one question: create the GitHub
 repository and push, or play first.
