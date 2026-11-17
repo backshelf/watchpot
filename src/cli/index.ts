@@ -19,6 +19,7 @@ const USAGE = [
   "",
   "  watchpot doctor                             check this game's setup: Bun, the engine, tsconfig, agent skills",
   "  watchpot skills add|update [--to <dir>[,<dir>]]   install the engine's agent skills, or refresh the ones held",
+  "  watchpot sim [--port <n>] [--no-open] [--desk <file>]   serve the sim desk for this game on localhost",
 ];
 
 const defaults = (): CliIo => ({
@@ -43,6 +44,14 @@ export async function main(
   try {
     if (cmd === "doctor") return await doctor(cwd, all.env, all.fetch, all.out);
     if (cmd === "skills") return skills(rest, cwd, all.env, all.out);
+    if (cmd === "sim") {
+      if (process.versions.bun === undefined) {
+        all.err("watchpot: sim needs Bun (the desk runs the game's TypeScript): run bunx watchpot sim");
+        return 1;
+      }
+      const { sim } = await import("./sim");
+      return await sim(rest, cwd, all);
+    }
     all.err(`watchpot: unknown command "${cmd}"`);
     for (const line of USAGE) all.err(line);
     return 1;

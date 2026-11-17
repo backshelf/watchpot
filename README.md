@@ -34,6 +34,7 @@ Run inside a game, as `bunx watchpot <cmd>` or `npx watchpot <cmd>`:
 
 - `doctor` checks the game's setup (Bun, the engine and whether it is behind, `tsconfig.json`, the agent skills) and exits 1 on a problem.
 - `skills add|update` copies the engine's agent skills into the game (`--to` picks the folders), or refreshes the ones it already holds.
+- `sim [--port <n>] [--no-open] [--desk <file>]` serves the game's sim desk (`sim.desk.ts`) on localhost and opens it in the browser. Bun only.
 
 ## The smallest game
 
