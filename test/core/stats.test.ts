@@ -91,6 +91,15 @@ describe("the stats feature", () => {
     expect(numbers.select.explain(store.getState(), "reach").softcapped).toBe("thin air");
   });
 
+  test("a feed that has been replaced is not kept alive by the one after it", () => {
+    const store = createIdleStore(game, at());
+    store.getState().stove.set({ copper: 1 });
+    const first = new WeakRef(store.getState().numbers.feed);
+    for (let copper = 2; copper < 6; copper++) store.getState().stove.set({ copper });
+    Bun.gc(true);
+    expect(first.deref()).toBeUndefined();
+  });
+
   test("ranks held are one row of the breakdown, counted that many times", () => {
     const store = createIdleStore(game, at());
     store.getState().stove.set({ copper: 3 });

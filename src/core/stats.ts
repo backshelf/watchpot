@@ -72,6 +72,13 @@ export function foldContributions<S extends string, Q = null>(
   return statIndex<S, never, Q>(options).over(options.q as Q, { extra: (stat) => byStat.get(stat) ?? [] });
 }
 
+/**
+ * A function that always gives `n`. Made out here, not inline in `feed`: a closure made inside `feed` keeps `feed`'s
+ * whole scope alive, `was` (the last feed) included, so every feed ever made stayed reachable through the next one
+ * and a long sim grew without bound.
+ */
+const always = (n: number) => (): number => n;
+
 /** The names a stat cannot take: the feature's own derived values beside the stats. */
 export const RESERVED_STAT_IDS: readonly string[] = ["flags", "feed"];
 
@@ -234,7 +241,7 @@ export function defineStats<
       const times = r.times;
       const list = fed[r.effect.stat] ?? [];
       fed[r.effect.stat] = list;
-      list.push({ effect: r.effect, meta: { label, owner, group: owner as G, times: () => times } });
+      list.push({ effect: r.effect, meta: { label, owner, group: owner as G, times: always(times) } });
     }
     last = { rows, fed };
     return fed;
