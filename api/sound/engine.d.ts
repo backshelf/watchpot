@@ -22,6 +22,6 @@ export interface CoreBoot {
 /** A game's sound over its cue table, its 0.6 clips and its packs. Nothing loads or plays until `unlock()`. */
 export declare function createSound<K extends string, F extends string = string, B extends string = never>(options: SoundOptions<K, F, B>): Sound<K, B>;
 /** `createSound` with its core boot (and, for a test of the wiring, its governor) swapped: what the tests drive. */
-export declare function createSoundWith<K extends string, F extends string = string, B extends string = never>({ cues, samples: urls, packs, volume, voices, buses, scenes, routes, presence, seed, mix, }: SoundOptions<K, F, B>, core: CoreBoot, parts?: {
+export declare function createSoundWith<K extends string, F extends string = string, B extends string = never>({ cues: given, samples: urls, packs, volume, voices, buses, scenes, routes, presence, seed, mix, }: SoundOptions<K, F, B>, core: CoreBoot, parts?: {
     governor?: Governor;
 }): Sound<K, B>;

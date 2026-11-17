@@ -28,7 +28,6 @@ across with its numbers unchanged.
   state `costGrowth`.
 - **The sim.** It runs on plain data (`createPlainStore`): no immer, no zustand, no save, and several times faster.
   The auto-player works a purchase's worth out from one `objective`, takes a free move once a look, and steps a
-- `feature` is renamed `defineFeature`, beside `defineGame` and the other `defineX` factories.
   second by default, with a named quality (`exact`, `quick`, `rough`). `upgradeTree` declares its own moves. The fit
   kit ships: `fitTable`, snapshots and resuming, `proveFit` (and on workers), a profiler.
 - **Packages.** The dev panel and sound desk are `watchpot/devtools`; `watchpot/hooks` and `watchpot/env` are gone.
@@ -39,6 +38,9 @@ across with its numbers unchanged.
   flush down, so one hide writes once; the dev panel has a Clear save button.
 - **`searchLoadout`**: the auto-equip a slice at a time (`step`, `best`, `bestScore`), so a page shows the slots filling instead of freezing; `fillLoadout` is it run to the end, and both now take the first exchange that pays rather than the best of a whole pass.
 - `defineGame`, `defineFeature` and `createSound` errors say what is wrong, where, and how to fix it.
+- `feature` is renamed `defineFeature`, beside `defineGame` and the other `defineX` factories.
+- **Sound quick path.** A cue may be a string: a preset voice name (`"sfx.coin"`) or a sample key. The 18 preset
+  voices (`PRESET_VOICE_NAMES`) are a default bank of UI and game sounds; `mixPresets` gives three starting mixes.
 
 ## 0.18.0
 

@@ -3,6 +3,7 @@
  * `Sound` a game holds. Types only; `createSound` is in `engine.ts`.
  */
 import type { Desk, MixFile, MixFileV1 } from "./desk";
+import type { PresetVoiceName } from "./presets";
 import type { Layer } from "./voice";
 
 /** The buses every sound has when a game declares none. Each sums into the master. */
@@ -97,6 +98,12 @@ export interface Cue<B extends string = string, F extends string = string> {
  */
 export type SoundCue<F extends string = string> = Cue<never, F>;
 
+/**
+ * A cue as a string, in `SoundOptions.cues`: a preset voice name plays that default zzfx voice on its bus (`ui` or
+ * `sfx`); `"<pack>/<sample>"` plays that one recording on `sfx`.
+ */
+export type CueShorthand = PresetVoiceName | `${string}/${string}`;
+
 /** What a single play may say. `B` names the buses it may go to. */
 export interface PlayOptions<B extends string = string> {
   /** The bus this play goes to, in place of the cue's own. */
@@ -178,8 +185,8 @@ export type PackSource = PackManifest | (() => Promise<PackManifest>);
 export interface SoundOptions<K extends string, F extends string = string, B extends string = never> {
   /** What was saved from the mix desk: laid over everything declared here, in development and in production. */
   mix?: MixFile | MixFileV1;
-  /** Every cue by key. */
-  cues: Readonly<Record<K, Cue<DefaultBus | NoInfer<B>, F>>>;
+  /** Every cue by key: a `Cue`, or a shorthand string (a preset voice name, or a `"<pack>/<sample>"` key). */
+  cues: Readonly<Record<K, Cue<DefaultBus | NoInfer<B>, F> | CueShorthand>>;
   /**
    * The 0.6 clip registry: every clip by name, to its URL.
    * @deprecated Still read; a new game ships `packs`.

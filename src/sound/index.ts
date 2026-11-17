@@ -30,6 +30,7 @@ export {
 } from "./desk";
 export { createSound } from "./engine";
 export { type SoundPrefs, soundPrefs } from "./prefs";
+export { mixPresets, PRESET_VOICE_NAMES, type PresetVoiceName, presetVoices } from "./presets";
 export type {
   Babble,
   BabbleDef,
@@ -38,6 +39,7 @@ export type {
   BusName,
   ClipLayer,
   Cue,
+  CueShorthand,
   DefaultBus,
   FxDef,
   FxHandle,

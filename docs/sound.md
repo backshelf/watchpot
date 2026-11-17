@@ -2,6 +2,14 @@
 
 The sound engine. The topic pages ([sound-table](sound-table.md), [sound-mix](sound-mix.md), [sound-music](sound-music.md), [sound-dsp](sound-dsp.md), [sound-packs](sound-packs.md)) have worked examples, and `api/sound/` has every signature.
 
+## Shorthand cues and mix presets
+
+```ts
+createSound({ cues: { buy: "sfx.buy", tap: "ui.click", door: "doors/creak" }, mix: mixPresets.balanced })
+```
+
+A cue in the table may be a string instead of a `Cue`: a preset voice name (`"sfx.buy"`, one of `PRESET_VOICE_NAMES`) plays that default zzfx voice on its own bus (`ui.*` on `ui`, the rest on `sfx`), and a `"<pack>/<sample>"` key (`"doors/creak"`) plays that one recording on `sfx`. `mixPresets` (`balanced`, `quietMusic`, `softUi`) are starting mixes to pass as `mix`, each setting a few bus levels in dB — a place to begin, not a tuned mix.
+
 ## Sound
 
 `createSound({ cues, packs?, volume?, voices?, buses?, scenes?, routes?, presence?, seed?, mix? })` is a game's sound: `cues`

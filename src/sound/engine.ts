@@ -32,6 +32,7 @@ import { createHarmony } from "./music/harmony";
 import { createSequence } from "./music/sequence";
 import { createTransport } from "./music/transport";
 import type { CorePort, CueVoice, SoundHost } from "./port";
+import { resolveCue } from "./presets";
 import { concat, encode, gridId, LIMITS, MASTER_PARAM, type SoundEvent, VOICE_PARAM } from "./protocol";
 import {
   channelsOf,
@@ -48,6 +49,7 @@ import { createSpace } from "./space";
 import { createTap } from "./tap";
 import type {
   Cue,
+  CueShorthand,
   DefaultBus,
   PackManifest,
   PlayOptions,
@@ -152,7 +154,7 @@ export function createSound<K extends string, F extends string = string, B exten
 /** `createSound` with its core boot (and, for a test of the wiring, its governor) swapped: what the tests drive. */
 export function createSoundWith<K extends string, F extends string = string, B extends string = never>(
   {
-    cues,
+    cues: given,
     samples: urls = {} as Readonly<Record<F, string>>,
     packs = {},
     volume,
@@ -167,6 +169,12 @@ export function createSoundWith<K extends string, F extends string = string, B e
   core: CoreBoot,
   parts: { governor?: Governor } = {},
 ): Sound<K, B> {
+  // Shorthand cues resolved up front, so everything below sees full cues.
+  const cues = Object.fromEntries(
+    Object.entries(given as Readonly<Record<string, Cue<DefaultBus | B, F> | CueShorthand>>).map(
+      ([key, cue]) => [key, resolveCue(cue, key)],
+    ),
+  ) as Readonly<Record<K, Cue<DefaultBus | B, F>>>;
   const clips = createClipCache<F>(urls);
   let engine: Zzfx | null = null;
   let state: "locked" | "booting" | "core" | "fallback" = "locked";
