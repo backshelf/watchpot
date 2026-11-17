@@ -4,7 +4,7 @@ export const SITE = {
   /** The repository. Links into it are drawn only when `repoPublic` is true: a private link is a dead link. */
   repoUrl: "https://github.com/backshelf/watchpot",
   repoBranch: "main",
-  repoPublic: false,
+  repoPublic: true,
   /** The game shown as "made with it". */
   game: { name: "VOID IF REMOVED" },
 } as const;
