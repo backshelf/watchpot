@@ -424,6 +424,25 @@ it, so it is not worth a graphics context.
 
 Reach for `useSteppedFrame` when a surface works its uniforms out a frame at a time. The pot does not need it.
 
+## Sound in three lines
+
+Before writing any sound of your own, the engine has eighteen it can play: short, quiet interface sounds (`ui.click`,
+`ui.open`, `ui.error` and the rest) and game sounds (`sfx.coin`, `sfx.buy`, `sfx.levelup`, `sfx.prestige` and
+others). A cue can be just the name of one:
+
+```ts
+import { createSound, mixPresets } from "watchpot/sound";
+
+export const sound = createSound({ cues: { tap: "ui.click", burner: "sfx.buy" }, mix: mixPresets.balanced });
+```
+
+That is a working sound for a game: `sound.play("tap")` plays the click. The names are listed in
+`PRESET_VOICE_NAMES`, and the site's sound section plays every one of them. `mix` is a starting balance between the
+channels (`balanced`, `quietMusic` or `softUi`). A cue can also be a recording you added, as `"<pack>/<sample>"`.
+
+The presets are a place to start. The moment one does not sound like your game, write that cue out in full, which is
+the rest of this section.
+
 ## Sound, the smallest correct form
 
 A sound is a [cue](../glossary.md#cue): a name you play, and what it sounds like. `createSound` takes a table of cues

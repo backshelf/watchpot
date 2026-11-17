@@ -145,6 +145,7 @@ The long-form reference for each entry, with the options and rules the topic pag
 ## Install, imports and migrating
 
 - [**Installing**](installing.md): install, peers, changing the engine and a game together, and the shape of the package.
+- [**How the page boots**](how-the-page-boots.md): `index.html` to the first frame, and what a game has none of (routes, a server, SSR).
 - [**What each entry may import**](imports.md): the import rules, generated from `scripts/rules.ts`.
 - [**Migrating to 1.0**](migrating-to-1.0.md): every breaking change from 0.18, old to new.
 

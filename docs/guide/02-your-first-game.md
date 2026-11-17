@@ -7,6 +7,10 @@ the tab was closed. You will write five small files by hand, and every line in t
 Simmer is deliberately tiny. It is the cookie-clicker shape every idle game starts from, and it is enough to show the
 four things the engine does for you: it holds the state, ticks it forward, saves it, and pays for time away.
 
+Coming from Next.js, Gatsby or another framework with routes and a server? A watchpot game has neither: it is one
+page that runs entirely in the browser. [How the page boots](../how-the-page-boots.md) walks through it from
+`index.html` to the first frame, and is worth two minutes before you start.
+
 ## Before you start
 
 You need three things. [Chapter 1](01-what-watchpot-is.md#what-you-need) explains each one.
@@ -147,7 +151,7 @@ and its peers in it.
 Create `game.ts`:
 
 ```ts
-import { createIdleStore, defineGame, feature, ZERO } from "watchpot/core";
+import { createIdleStore, defineGame, defineFeature, ZERO } from "watchpot/core";
 
 export const pot = defineFeature({
   key: "pot",
@@ -606,7 +610,7 @@ engine's own typecheck and linter cover.
 <!-- example-code: simmer/game.ts -->
 
 ```ts
-import { costAt, createIdleStore, D, defineGame, feature, ZERO } from "watchpot/core";
+import { costAt, createIdleStore, D, defineFeature, defineGame, ZERO } from "watchpot/core";
 
 /** Bubbles a second the pot makes on its own, and each burner adds. */
 export const SIMMER_PER_SECOND = 1;

@@ -22,7 +22,7 @@ on its own.
 <!-- example-code: simmer/game.ts -->
 
 ```ts
-import { costAt, createIdleStore, D, defineGame, feature, ZERO } from "watchpot/core";
+import { costAt, createIdleStore, D, defineFeature, defineGame, ZERO } from "watchpot/core";
 
 // ...
 

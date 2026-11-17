@@ -8,7 +8,7 @@ clears. The game notes what it counts where it happens, from a recipe, a step or
 <!-- example-code: records.ts -->
 
 ```ts
-import { defineGame, defineRecords, feature, fmtPlayed, type RecordsState } from "watchpot/core";
+import { defineFeature, defineGame, defineRecords, fmtPlayed, type RecordsState } from "watchpot/core";
 
 export const stats = defineRecords({
   key: "stats",

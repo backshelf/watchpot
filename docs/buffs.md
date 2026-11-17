@@ -8,7 +8,7 @@ covered.
 <!-- example-code: buffs.ts -->
 
 ```ts
-import { defineBuffs, defineGame, defineStats, type Effect, feature, vocab } from "watchpot/core";
+import { defineBuffs, defineFeature, defineGame, defineStats, type Effect, vocab } from "watchpot/core";
 
 const WORDS = vocab({ currencies: ["gold"], stats: ["speed"] });
 

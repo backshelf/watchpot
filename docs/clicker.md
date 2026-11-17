@@ -14,8 +14,8 @@ import {
   type Decimal,
   defineClicker,
   defineCurrencies,
+  defineFeature,
   defineGame,
-  feature,
   fmt,
 } from "watchpot/core";
 import { TOY } from "./vocab";

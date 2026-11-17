@@ -4,7 +4,7 @@ The kernel reference: features and the store, the vocabularies, gacha, the event
 
 ## Core
 
-A game is features. Each `feature` brings its saved state, its actions, its tick steps by phase, its prestige
+A game is features. Each feature (`defineFeature`) brings its saved state, its actions, its tick steps by phase, its prestige
 reset rule and the keys that never save; `defineGame` lists them; `createIdleStore` runs them. The store's type
 is read off the tuple, and a feature that touches another names it in `reach`, so nothing is typed by hand:
 
@@ -15,7 +15,7 @@ import {
   createMemoryBackend,
   D,
   defineGame,
-  feature,
+  defineFeature,
   localStorageBackend,
   offlineCredit,
   ZERO,

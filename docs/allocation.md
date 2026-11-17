@@ -8,7 +8,7 @@ the pool shrinks, the most recently assigned sink gives way first.
 <!-- example-code: allocation.ts -->
 
 ```ts
-import { defineAllocation, defineGame, defineStats, type Effect, feature } from "watchpot/core";
+import { defineAllocation, defineFeature, defineGame, defineStats, type Effect } from "watchpot/core";
 import { TOY } from "./vocab";
 
 const crew = defineFeature({ key: "crew", initial: () => ({ size: 12 }) });

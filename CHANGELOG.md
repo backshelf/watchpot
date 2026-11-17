@@ -36,6 +36,7 @@ across with its numbers unchanged.
   packed or published `package.json` points each entry at `dist/`; the repository and a git install read the source.
 - **Site.** `llms.txt` at the site root maps every docs page for language models, from the same entries as the docs search.
 - **Generators pay faster.** A pass works out the fewest owned once, and each generator's boost once, not once a read: about twice as fast a tick with many generators. The site's sim lab plays at a minute a tick again.
+- **Agent skills.** The engine ships `watchpot-sound`, `watchpot-features` and `watchpot-save` beside `watchpot-init`; the guide gains a three-line sound start and a page on how the page boots.
 - **Tests.** `decimalComparisons` fails a game's tests on Decimals compared with `<` or `===`. `plainParity` proves
   a game's sim and its real store agree. The guide's examples are run against what the chapters quote.
 - **Template.** A new game ships no tests (the engine's gates prove the template); `verify` is typecheck and lint,

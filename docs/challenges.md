@@ -8,7 +8,14 @@ the record, so it never resets with the run and survives the very reset it trigg
 <!-- example-code: challenges.ts -->
 
 ```ts
-import { type Decimal, defineChallenges, defineGame, defineStats, type Effect, feature } from "watchpot/core";
+import {
+  type Decimal,
+  defineChallenges,
+  defineFeature,
+  defineGame,
+  defineStats,
+  type Effect,
+} from "watchpot/core";
 import { wallet } from "./add-a-currency";
 import { TOY } from "./vocab";
 
