@@ -6,9 +6,8 @@ away, the systems idle games share (currencies, generators, upgrade trees, prest
 that proves the pacing. It is for developers who want to build an idle game and keep the look, the words and the
 rules their own: the engine ships mechanism and behaviour, never a stylesheet.
 
-**How this was made.** Most of the code here was written by an AI model (Anthropic's Claude), working with a person
-who set the direction, built games on it, reviewed what came back and decided what stayed. That goes for the tests
-and the docs too. It is said here so nobody has to guess: read it, use it and judge it knowing that.
+**How this was made.** This engine is more or less completely vibe-coded, prompted closely by somebody
+who has spent far too much time playing idle games.
 
 ## Install
 
