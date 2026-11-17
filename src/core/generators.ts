@@ -295,8 +295,13 @@ export function defineGenerators<
   type At = GeneratorsCallbackContext;
   const own = (state: unknown): GeneratorsState => (state as Record<K, GeneratorsState>)[def.key];
   const ownedOf = (state: unknown, g: T): number => own(state).owned[g.id] ?? 0;
-  const lowest = (state: unknown): number =>
-    list.length === 0 ? 0 : Math.min(...list.map((g) => ownedOf(state, g)));
+  const lowest = (state: unknown): number => {
+    if (list.length === 0) return 0;
+    const owned = own(state).owned;
+    let low = Number.POSITIVE_INFINITY;
+    for (const g of list) low = Math.min(low, owned[g.id] ?? 0);
+    return low;
+  };
   /** The callbacks' context: `now` as given, else the state's own game clock, else 0. */
   const at = (state: unknown, now?: number): At => ({
     now: now ?? (state as { gameNow?: () => number }).gameNow?.() ?? 0,
@@ -305,43 +310,49 @@ export function defineGenerators<
   const open = (state: G, g: T, c: At): boolean => def.open?.(state, g, c) ?? true;
   const automated = (state: G, g: T, c: At): boolean =>
     g.cycle !== undefined && (def.automated?.(state, g, c) ?? false);
-  const boost = (state: G, g: T, c: At): { mult: number; speed: number } => {
+  type Boost = { mult: number; speed: number };
+  /**
+   * The milestone boosts of `g`, given the fewest owned of any generator (`low`). A loop over every generator works
+   * `low` out once and passes it: owned does not change while it pays, and `lowest` reads every generator.
+   */
+  const boostAt = (state: G, g: T, c: At, low: number): Boost => {
     let mult = 1;
     let speed = 1;
     if (def.milestones && !def.milestones(state, g, c)) return { mult, speed };
-    const gives = [
-      ...reached(g.milestones ?? [], ownedOf(state, g)),
-      ...reached(def.global ?? [], lowest(state)),
-    ];
+    const gives = [...reached(g.milestones ?? [], ownedOf(state, g)), ...reached(def.global ?? [], low)];
     for (const b of gives) {
       mult *= b.mult ?? 1;
       speed *= b.speed ?? 1;
     }
     return { mult, speed };
   };
+  const boost = (state: G, g: T, c: At): Boost => boostAt(state, g, c, lowest(state));
+  // Each takes the boost already worked out, so a caller that has it does not work it out again.
   /** The output multiplier: milestones and the game's own. */
-  const multOf = (state: G, g: T, c: At): Decimal =>
-    D(def.mult?.(state, g, c) ?? 1).mul(boost(state, g, c).mult);
-  const cycleMs = (state: G, g: T, c: At): number | null =>
-    g.cycle ? g.cycle.ms / Math.max(Number.MIN_VALUE, boost(state, g, c).speed) : null;
+  const multOf = (state: G, g: T, c: At, b: Boost = boost(state, g, c)): Decimal =>
+    D(def.mult?.(state, g, c) ?? 1).mul(b.mult);
+  const cycleMs = (state: G, g: T, c: At, b: Boost = boost(state, g, c)): number | null =>
+    g.cycle ? g.cycle.ms / Math.max(Number.MIN_VALUE, b.speed) : null;
   /** What one owned makes a second, or pays a cycle. */
-  const unit = (state: G, g: T, c: At): Decimal =>
+  const unit = (state: G, g: T, c: At, b: Boost = boost(state, g, c)): Decimal =>
     g.cycle
-      ? D(g.cycle.pays).mul(multOf(state, g, c))
+      ? D(g.cycle.pays).mul(multOf(state, g, c, b))
       : D(g.rate ?? 0)
-          .mul(multOf(state, g, c))
-          .mul(boost(state, g, c).speed);
+          .mul(multOf(state, g, c, b))
+          .mul(b.speed);
   /** What one owned makes a second, a cycle by its average. */
-  const unitRate = (state: G, g: T, c: At): Decimal => {
-    const ms = cycleMs(state, g, c);
-    return ms === null ? unit(state, g, c) : unit(state, g, c).mul(1000 / ms);
+  const unitRate = (state: G, g: T, c: At, b: Boost = boost(state, g, c)): Decimal => {
+    const ms = cycleMs(state, g, c, b);
+    return ms === null ? unit(state, g, c, b) : unit(state, g, c, b).mul(1000 / ms);
   };
-  const rate = (state: G, g: T, c: At): Decimal => unitRate(state, g, c).mul(ownedOf(state, g));
+  const rate = (state: G, g: T, c: At, b: Boost = boost(state, g, c)): Decimal =>
+    unitRate(state, g, c, b).mul(ownedOf(state, g));
   const perSecond = (state: G, c: At): Record<string, Decimal> => {
     const out: Record<string, Decimal> = {};
+    const low = lowest(state);
     for (const g of list) {
       if (g.cycle && !automated(state, g, c)) continue;
-      out[g.makes] = (out[g.makes] ?? ZERO).add(rate(state, g, c));
+      out[g.makes] = (out[g.makes] ?? ZERO).add(rate(state, g, c, boostAt(state, g, c, low)));
     }
     return out;
   };
@@ -451,12 +462,14 @@ export function defineGenerators<
     const state = draft as unknown as G;
     const purse = draft as unknown as CurrencyDraft<WK>;
     const s = own(draft);
+    const low = lowest(draft);
     for (const g of list) {
       const owned = ownedOf(draft, g);
       if (owned <= 0) continue;
-      const length = cycleMs(state, g, c);
+      const b = boostAt(state, g, c, low);
+      const length = cycleMs(state, g, c, b);
       if (length === null) {
-        wallet.draft.credit(purse, g.makes, rate(state, g, c).mul(ms / 1000));
+        wallet.draft.credit(purse, g.makes, rate(state, g, c, b).mul(ms / 1000));
         continue;
       }
       const auto = automated(state, g, c);
@@ -464,7 +477,7 @@ export function defineGenerators<
       const step = cyclesIn(s.progress[g.id] ?? 0, ms, length, !auto);
       s.progress[g.id] = step.progress;
       if (step.completed > 0) {
-        wallet.draft.credit(purse, g.makes, unit(state, g, c).mul(owned).mul(step.completed));
+        wallet.draft.credit(purse, g.makes, unit(state, g, c, b).mul(owned).mul(step.completed));
         if (!auto) s.running[g.id] = false;
       }
     }

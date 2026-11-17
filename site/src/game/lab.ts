@@ -81,7 +81,9 @@ const CONTRACT = table(
 export function runLab(seed: string, tuning: Tuning = {}): LabRun {
   const wallStart = performance.now();
   const game = tunedToy(tuning);
-  const world = createSimWorld((now) => simStore(game, now, seed), START);
+  // A minute a tick: the lab plots three days on a log axis, where a finer tick draws the same lines 60 times slower
+  // (the sim's own default is a second, for a contract that must be exact).
+  const world = createSimWorld((now) => simStore(game, now, seed), START, { quality: "rough" });
   const player = autoPlayer(game, { balance: (s: ToyState) => s.wallet.steam });
   // `boiled` starts over with each run: carry the sum of the runs before this one.
   let total = 0;

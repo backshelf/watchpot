@@ -35,6 +35,7 @@ across with its numbers unchanged.
 - **npm.** Published with compiled JS and declarations: the runtime entries work on Node bundlers. A
   packed or published `package.json` points each entry at `dist/`; the repository and a git install read the source.
 - **Site.** `llms.txt` at the site root maps every docs page for language models, from the same entries as the docs search.
+- **Generators pay faster.** A pass works out the fewest owned once, and each generator's boost once, not once a read: about twice as fast a tick with many generators. The site's sim lab plays at a minute a tick again.
 - **Tests.** `decimalComparisons` fails a game's tests on Decimals compared with `<` or `===`. `plainParity` proves
   a game's sim and its real store agree. The guide's examples are run against what the chapters quote.
 - **Template.** A new game ships no tests (the engine's gates prove the template); `verify` is typecheck and lint,
