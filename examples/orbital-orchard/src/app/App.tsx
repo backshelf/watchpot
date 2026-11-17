@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import { dueMilestones, ZERO } from "watchpot/core";
-import { DevPanel } from "watchpot/devtools";
+import { DevPanel, openSoundDesk } from "watchpot/devtools";
 import { useGameRuntime } from "watchpot/react";
 import type { SheetRegistry } from "watchpot/ui";
 import { NETS, SHOWER } from "../content/shower";
@@ -78,6 +78,21 @@ export function App() {
         )}
         {process.env.NODE_ENV !== "production" && route === "#dev" && (
           <DevPanel onClose={() => (location.hash = "")} />
+        )}
+        {process.env.NODE_ENV !== "production" && route === "#mix" && (
+          // The sound desk opens in a window of its own, so it needs a press (a popup from a hash change is blocked).
+          <button
+            type="button"
+            onClick={() =>
+              openSoundDesk({
+                desk: sound.desk,
+                title: `${NAME} mix`,
+                onSave: (file) => console.log("mix file", JSON.stringify(file, null, 2)),
+              })
+            }
+          >
+            Open the mix desk
+          </button>
         )}
       </Shell>
     </OpenSheetContext.Provider>
