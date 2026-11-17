@@ -48,7 +48,9 @@ async function fetchDesk(): Promise<DeskInfo> {
   return (await res.json()) as DeskInfo;
 }
 
-const DASHES = 6;
+/** The six slots a series can take: each is a dash pattern and a `--dp-series-N` colour, by index in the filter column. */
+const SLOTS = 6;
+const slotOf = (index: number) => index % SLOTS;
 /** How long after the last change to a knob or a pin the pacing reruns. */
 const RERUN_MS = 500;
 const cid = (name: string) => `cur:${name}`;
@@ -239,21 +241,22 @@ export function App({ connect = connectSocket, load = fetchDesk }: AppProps = {}
     const eachSeed = seedNumbers(data);
     const shown = currencies.filter((c) => selected.has(cid(c)));
     const shownNext = keys.filter((k) => selected.has(nid(k)));
+    const nextSlot = (k: string) => slotOf(currencies.length + keys.indexOf(k));
     const yOf = (d: Decimal) => (log ? log10(d) : toNumber(d));
-    const line = (id: string, dash: number, weight: GraphLine["weight"], pts: readonly Pt[]) =>
-      ({ id, dash, weight, pts: pts.map(([h, v]): Xy => [h, yOf(v)]) }) satisfies GraphLine;
+    const line = (id: string, slot: number, weight: GraphLine["weight"], pts: readonly Pt[]) =>
+      ({ id, slot, weight, pts: pts.map(([h, v]): Xy => [h, yOf(v)]) }) satisfies GraphLine;
 
     const medians = new Map<string, Pt[]>(shown.map((c) => [c, medianCurrency(data, c)]));
     const befores = new Map<string, Pt[]>(shown.map((c) => [c, before ? medianCurrency(before, c) : []]));
     const lines1: GraphLine[] = shown.flatMap((c) => {
       const pts = befores.get(c) ?? [];
-      return pts.length > 0 ? [line(`before:${c}`, 0, "before", pts)] : [];
+      return pts.length > 0 ? [line(`before:${c}`, slotOf(currencies.indexOf(c)), "before", pts)] : [];
     });
     for (const c of shown) {
-      const dash = currencies.indexOf(c) % DASHES;
+      const slot = slotOf(currencies.indexOf(c));
       if (many)
-        for (const s of eachSeed) lines1.push(line(`${c}#${s}`, dash, "hair", currencySeries(data, s, c)));
-      lines1.push(line(c, dash, "strong", medians.get(c) ?? []));
+        for (const s of eachSeed) lines1.push(line(`${c}#${s}`, slot, "hair", currencySeries(data, s, c)));
+      lines1.push(line(c, slot, "strong", medians.get(c) ?? []));
     }
     const axis1 = yAxis(
       lines1.flatMap((l) => l.pts.map((p) => p[1])),
@@ -272,14 +275,15 @@ export function App({ connect = connectSocket, load = fetchDesk }: AppProps = {}
     );
     const lines2: GraphLine[] = shownNext.flatMap((k) => {
       const b = beforeNexts.get(k);
+      const slot = nextSlot(k);
       return [
-        ...(b && b.held.length > 0 ? [line(`before:${k}:held`, 0, "before", b.held)] : []),
-        ...(b && b.cost.length > 0 ? [line(`before:${k}:cost`, 0, "before", b.cost)] : []),
+        ...(b && b.held.length > 0 ? [line(`before:${k}:held`, slot, "before", b.held)] : []),
+        ...(b && b.cost.length > 0 ? [line(`before:${k}:cost`, slot, "before", b.cost)] : []),
       ];
     });
     const held: Pt[][] = [];
     for (const k of shownNext) {
-      const dash = (currencies.length + keys.indexOf(k)) % DASHES;
+      const slot = nextSlot(k);
       const med = nexts.get(k) ?? [];
       if (many)
         for (const s of eachSeed) {
@@ -287,7 +291,7 @@ export function App({ connect = connectSocket, load = fetchDesk }: AppProps = {}
           lines2.push(
             line(
               `${k}#${s}:held`,
-              dash,
+              slot,
               "hair",
               own.map((p): Pt => [p.hours, p.held]),
             ),
@@ -295,7 +299,7 @@ export function App({ connect = connectSocket, load = fetchDesk }: AppProps = {}
           lines2.push(
             line(
               `${k}#${s}:cost`,
-              dash,
+              slot,
               "hair",
               own.map((p): Pt => [p.hours, p.cost]),
             ),
@@ -303,11 +307,11 @@ export function App({ connect = connectSocket, load = fetchDesk }: AppProps = {}
         }
       const heldPts = med.map((p): Pt => [p.hours, p.held]);
       held.push(heldPts);
-      lines2.push(line(`${k}:held`, dash, "mid", heldPts));
+      lines2.push(line(`${k}:held`, slot, "mid", heldPts));
       lines2.push(
         line(
           `${k}:cost`,
-          dash,
+          slot,
           "strong",
           med.map((p): Pt => [p.hours, p.cost]),
         ),
@@ -387,7 +391,7 @@ export function App({ connect = connectSocket, load = fetchDesk }: AppProps = {}
     {
       id: "currencies",
       heading: "Currencies",
-      items: currencies.map((c, i) => ({ id: cid(c), label: c, dash: i % DASHES })),
+      items: currencies.map((c, i) => ({ id: cid(c), label: c, slot: slotOf(i) })),
     },
     {
       id: "next",
@@ -396,7 +400,7 @@ export function App({ connect = connectSocket, load = fetchDesk }: AppProps = {}
         id: nid(k),
         label: k,
         name: `Next cost of ${k}`,
-        dash: (currencies.length + i) % DASHES,
+        slot: slotOf(currencies.length + i),
       })),
     },
   ];
@@ -425,22 +429,28 @@ export function App({ connect = connectSocket, load = fetchDesk }: AppProps = {}
   };
 
   /** A readout row: now, and against the run before when there is one. */
-  const row = (label: string, now: Decimal | undefined, then: Decimal | undefined) => ({
+  const row = (label: string, slot: number, now: Decimal | undefined, then: Decimal | undefined) => ({
     label,
+    slot,
     text: figure(now),
     ...(before ? { before: figure(then), delta: signedOrders(orders(now, then)) } : {}),
   });
   const readout1 = (h: number) =>
     (view?.shown ?? []).map((c) =>
-      row(c, valueAt(view?.medians.get(c) ?? [], h), beforeAt(view?.befores.get(c), h)),
+      row(
+        c,
+        slotOf(currencies.indexOf(c)),
+        valueAt(view?.medians.get(c) ?? [], h),
+        beforeAt(view?.befores.get(c), h),
+      ),
     );
   const readout2 = (h: number) =>
     (view?.shownNext ?? []).flatMap((k) => {
       const p = nextAt(view?.nexts.get(k) ?? [], h);
       const b = view?.beforeNexts.get(k);
       return [
-        row(`${k} held`, p?.held, beforeAt(b?.held, h)),
-        row(`${k} cost`, p?.cost, beforeAt(b?.cost, h)),
+        row(`${k} held`, slotOf(currencies.length + keys.indexOf(k)), p?.held, beforeAt(b?.held, h)),
+        row(`${k} cost`, slotOf(currencies.length + keys.indexOf(k)), p?.cost, beforeAt(b?.cost, h)),
       ];
     });
 
@@ -455,7 +465,7 @@ export function App({ connect = connectSocket, load = fetchDesk }: AppProps = {}
   const against = before ? " The dashed hairline beneath each line is the run before." : "";
 
   return (
-    <div className="desk" data-dp-tool="sim" data-run={run.phase}>
+    <div className="desk" data-run={run.phase}>
       <header className="mast">
         <h1 className="mast__name lettering">watchpot sim</h1>
         <p className="mast__currency">

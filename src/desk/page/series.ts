@@ -247,6 +247,8 @@ export function percentChange(now: Decimal | undefined, before: Decimal | undefi
   if (!now || now.isNan() || !before.gt(0)) return "–";
   const pct = now.sub(before).div(before).mul(100);
   const abs = pct.abs();
+  // Past +1000% a percentage stops reading (`+15.92K%`): say it as a multiple of the value before (`×160`).
+  if (pct.gte(1000)) return `×${figure(now.div(before))}`;
   const body = abs.lt(100) ? abs.toNumber().toFixed(1) : figure(abs);
   if (body === "0.0") return "0.0%";
   return `${pct.lt(0) ? "\u2212" : "+"}${body}%`;

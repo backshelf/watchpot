@@ -48,8 +48,6 @@
   display: flex;
   flex-direction: column;
   min-height: 100vh;
-  max-width: 3200px;
-  margin-inline: auto;
   box-sizing: border-box;
   background: var(--dp-paper);
   color: var(--dp-ink);
@@ -64,9 +62,35 @@
   box-sizing: border-box;
 }
 
+/* The tokens live on <html> (index.html), so the page, the canvas and the scrollbars are the tool's edge to edge. */
 body {
   margin: 0;
   background: var(--dp-paper);
+}
+
+/* A series' colour: its slot (index in the filter column, cycling after six) sets `--dp-ser` for everything it draws. */
+.series-0 {
+  --dp-ser: var(--dp-series-1);
+}
+
+.series-1 {
+  --dp-ser: var(--dp-series-2);
+}
+
+.series-2 {
+  --dp-ser: var(--dp-series-3);
+}
+
+.series-3 {
+  --dp-ser: var(--dp-series-4);
+}
+
+.series-4 {
+  --dp-ser: var(--dp-series-5);
+}
+
+.series-5 {
+  --dp-ser: var(--dp-series-6);
 }
 
 .num {
@@ -321,7 +345,7 @@ legend {
 }
 
 .filter__swatchline {
-  stroke: var(--dp-ink);
+  stroke: var(--dp-ser);
   stroke-width: var(--dp-line-mid);
 }
 
@@ -437,15 +461,36 @@ legend {
   font-weight: 700;
 }
 
+.graph__rowkey {
+  width: 1.75rem;
+  height: 0.5rem;
+  margin-inline-end: 0.35rem;
+  vertical-align: middle;
+}
+
+.graph__rowline {
+  stroke: var(--dp-ser);
+  stroke-width: var(--dp-line-strong);
+}
+
+/* The plot's box: the svg inside it is drawn at the pixels this box has (Graph.tsx measures it). */
+.graph {
+  display: flex;
+  flex-direction: column;
+}
+
 .graph__frame {
-  padding: 0.5rem 0.5rem 0.25rem;
+  position: relative;
+  height: var(--dp-plot-height);
   touch-action: pan-y;
 }
 
 .graph__svg {
-  display: block;
-  width: 100%;
-  height: var(--dp-plot-height);
+  position: absolute;
+  top: 0.5rem;
+  left: 0.5rem;
+  width: calc(100% - 1rem);
+  height: calc(100% - 0.75rem);
   overflow: visible;
 }
 
@@ -481,31 +526,34 @@ legend {
   stroke-linejoin: round;
 }
 
+/* One colour to a series, seeds and median alike: a seed is a faint hairline, the median strong. */
 .graph__line--hair {
-  stroke: var(--dp-ink-faint);
+  stroke: var(--dp-ser);
+  stroke-opacity: 0.4;
   stroke-width: var(--dp-hair);
 }
 
 .graph__line--mid {
-  stroke: var(--dp-ink);
+  stroke: var(--dp-ser);
   stroke-width: var(--dp-hair);
 }
 
 .graph__line--strong {
-  stroke: var(--dp-ink);
-  stroke-width: var(--dp-line-mid);
+  stroke: var(--dp-ser);
+  stroke-width: var(--dp-line-strong);
 }
 
-/* The run before: a dashed hairline, drawn under the live lines. */
+/* The run before: a dashed hairline in its series' colour, drawn under the live lines. */
 .graph__line--before {
-  stroke: var(--dp-ink-faint);
+  stroke: var(--dp-ser);
+  stroke-opacity: 0.6;
   stroke-width: var(--dp-hair);
   stroke-dasharray: 5 4;
 }
 
 /* The range each pixel column spans, behind the line that follows its highs. */
 .graph__band {
-  fill: color-mix(in oklch, var(--dp-ink) 18%, transparent);
+  fill: color-mix(in oklch, var(--dp-ser) 20%, transparent);
   stroke: none;
 }
 
@@ -562,7 +610,7 @@ legend {
 
 .graph__cross circle {
   fill: var(--dp-paper-lift);
-  stroke: var(--dp-ink);
+  stroke: var(--dp-ser);
   stroke-width: var(--dp-line-mid);
 }
 
@@ -767,11 +815,99 @@ legend {
   min-width: 0;
 }
 
+/*
+ * The slider: a 2px track whose part left of the thumb is filled (`--dp-fill`, the value as a percentage, set inline: it is
+ * data), a square 12px thumb. The fill ends somewhere under the thumb, which is 12px wide, so it never shows a gap. The
+ * input is 24px tall to be a hit target. At the code's value the fill is the soft ink; set by hand it is the ink and the
+ * thumb is filled. The pointer inverts the thumb, a press grows it, the keyboard rings it.
+ */
 .knob__slider {
+  --dp-fill: 0%;
+  --dp-fill-ink: var(--dp-ink-soft);
+  --dp-thumb: 0.75rem;
+  --dp-thumb-fill: var(--dp-paper);
+
   flex: 1 1 0;
   min-width: 0;
+  height: 1.5rem;
   margin: 0;
-  accent-color: var(--dp-ink);
+  padding: 0;
+  appearance: none;
+  background: transparent;
+  cursor: pointer;
+}
+
+.knob__slider[data-hand="true"] {
+  --dp-fill-ink: var(--dp-ink);
+  --dp-thumb-fill: var(--dp-ink);
+}
+
+.knob__slider:hover {
+  --dp-thumb-fill: var(--dp-ink);
+}
+
+.knob__slider[data-hand="true"]:hover {
+  --dp-thumb-fill: var(--dp-paper);
+}
+
+.knob__slider:active {
+  --dp-thumb: 0.875rem;
+}
+
+.knob__slider:focus-visible {
+  outline: none;
+}
+
+.knob__slider::-webkit-slider-runnable-track {
+  height: 2px;
+  border: 0;
+  border-radius: 0;
+  background: linear-gradient(
+    to right,
+    var(--dp-fill-ink) var(--dp-fill),
+    var(--dp-rule-strong) var(--dp-fill)
+  );
+}
+
+.knob__slider::-moz-range-track {
+  height: 2px;
+  border: 0;
+  border-radius: 0;
+  background: linear-gradient(
+    to right,
+    var(--dp-fill-ink) var(--dp-fill),
+    var(--dp-rule-strong) var(--dp-fill)
+  );
+}
+
+.knob__slider::-webkit-slider-thumb {
+  width: var(--dp-thumb);
+  height: var(--dp-thumb);
+  margin-top: calc((2px - var(--dp-thumb)) / 2);
+  border: var(--dp-line-mid) solid var(--dp-ink);
+  border-radius: 2px;
+  appearance: none;
+  background: var(--dp-thumb-fill);
+  box-sizing: border-box;
+}
+
+.knob__slider::-moz-range-thumb {
+  width: var(--dp-thumb);
+  height: var(--dp-thumb);
+  border: var(--dp-line-mid) solid var(--dp-ink);
+  border-radius: 2px;
+  background: var(--dp-thumb-fill);
+  box-sizing: border-box;
+}
+
+.knob__slider:focus-visible::-webkit-slider-thumb {
+  outline: 2px solid var(--dp-focus);
+  outline-offset: 2px;
+}
+
+.knob__slider:focus-visible::-moz-range-thumb {
+  outline: 2px solid var(--dp-focus);
+  outline-offset: 2px;
 }
 
 /* The number and its unit in one ruled box: a multiplier leads with ×, a share ends with %. */
@@ -921,6 +1057,22 @@ legend {
     min-height: 0;
     padding: var(--dp-gap);
     overflow-y: auto;
+  }
+
+  /*
+   * The graphs fill the column's height under the masthead: the scale row is its own height, each plate takes an equal
+   * share of the rest (the one alone takes it all). A plate never has less than its head and an 18rem plot, so the
+   * column scrolls when they would not fit.
+   */
+  .main__graphs {
+    grid-template-rows: auto;
+    grid-auto-rows: minmax(min-content, 1fr);
+  }
+
+  .graph__frame {
+    flex: 1 1 18rem;
+    height: auto;
+    min-height: 18rem;
   }
 
   .main__tables {

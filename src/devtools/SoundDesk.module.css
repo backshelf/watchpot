@@ -1,6 +1,6 @@
 /*
  * The mix desk's window: a session mixer for hours at a second monitor, so dense and quiet. It wears the site's look
- * through `tokens.css` (`data-dp-tool` on the root: the blueline in a light system, the blueprint in a dark one). A top
+ * through `tokens.css` (`data-dp-tool` on the root: the site's blueline in a light system, the tools' neutral grey in a dark one). A top
  * bar; the sources in a pane on the left; the tracks as columns with the master pinned at their end; the detail of
  * what is selected along the bottom; a foot that says in full whatever the pointer or the focus is on.
  *

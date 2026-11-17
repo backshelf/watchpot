@@ -1,6 +1,6 @@
 // The knob panel: the game's knobs in groups, a slider and a number field each, what is set by hand marked and one
 // click from being put back; Save writes the lot to the game's tuning file. Pins live in the gates table (Tables.tsx).
-import { type KeyboardEvent, useState } from "react";
+import { type CSSProperties, type KeyboardEvent, useState } from "react";
 import type { DeskInfo, DeskKnob } from "../protocol";
 import { clock, knobText, parseClock } from "./series";
 
@@ -48,6 +48,8 @@ function KnobRow({
   const step = finite(knob.step);
   const ranged = min !== undefined && max !== undefined && max > min;
   const hand = value !== knob.code;
+  // How far along the track the thumb is, for the fill left of it (drawn by `--dp-fill`: it is data).
+  const filled = ranged ? Math.min(100, Math.max(0, ((value - min) / (max - min)) * 100)) : 0;
   const text = knobText(value, unit);
   const shown = clocked ? clock(value) : String(clean(value * scale));
   const typed = draft ?? shown;
@@ -89,6 +91,8 @@ function KnobRow({
         {ranged && (
           <input
             className="knob__slider"
+            data-hand={hand ? "true" : undefined}
+            style={{ "--dp-fill": `${filled}%` } as CSSProperties}
             type="range"
             aria-label={label}
             aria-valuetext={text}

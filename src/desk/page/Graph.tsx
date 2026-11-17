@@ -25,8 +25,8 @@ const FALLBACK = { w: 960, h: 400 };
 
 export interface GraphLine {
   id: string;
-  /** Which of the dash patterns, so a series is the same line everywhere. */
-  dash: number;
+  /** Which of the six slots (by the series' index in the filter column): the dash pattern and the colour, so a series is the same line everywhere. */
+  slot: number;
   /**
    * A seed's own line is a hairline; the median (or the only seed) is `strong`; a wallet is `mid`; the run before is a
    * dashed hairline, listed first so it is drawn under the live lines. `mid` and `strong` carry a faint band: the range
@@ -50,6 +50,8 @@ export interface GateMark {
 
 export interface ReadoutRow {
   label: string;
+  /** The series' slot: its colour and dash, drawn as a key before the name. */
+  slot: number;
   /** The value now. */
   text: string;
   /** The value in the run before at the same hour, and the signed difference in orders of magnitude. */
@@ -216,7 +218,10 @@ export function Graph(props: GraphProps) {
             <>
               <span className="graph__at">{cursorH.toFixed(2)} h</span>
               {rows.map((r) => (
-                <span key={r.label} className="graph__row">
+                <span key={r.label} className={`graph__row series-${r.slot}`}>
+                  <svg className="graph__rowkey" viewBox="0 0 28 8" aria-hidden="true">
+                    <line className={`graph__rowline dash-${r.slot}`} x1="0" x2="28" y1="4" y2="4" />
+                  </svg>
                   <span className="graph__rowname">{r.label}</span>
                   {r.before === undefined ? (
                     ` ${r.text}`
@@ -291,7 +296,7 @@ export function Graph(props: GraphProps) {
             ))}
             {lines.map((l, i) =>
               drawn[i]?.band ? (
-                <path key={`${l.id}:band`} className="graph__band" d={drawn[i]?.band} />
+                <path key={`${l.id}:band`} className={`graph__band series-${l.slot}`} d={drawn[i]?.band} />
               ) : null,
             )}
             {lines.map((l, i) => (
@@ -299,8 +304,8 @@ export function Graph(props: GraphProps) {
                 key={l.id}
                 className={
                   l.weight === "before"
-                    ? "graph__line graph__line--before"
-                    : `graph__line graph__line--${l.weight} dash-${l.dash}`
+                    ? `graph__line graph__line--before series-${l.slot}`
+                    : `graph__line graph__line--${l.weight} series-${l.slot} dash-${l.slot}`
                 }
                 d={drawn[i]?.line}
               />
@@ -360,7 +365,9 @@ export function Graph(props: GraphProps) {
                       break;
                     }
                   }
-                  return p ? <circle key={l.id} cx={xOf(p[0])} cy={yOf(p[1])} r="3.5" /> : null;
+                  return p ? (
+                    <circle key={l.id} className={`series-${l.slot}`} cx={xOf(p[0])} cy={yOf(p[1])} r="3.5" />
+                  ) : null;
                 })}
             </g>
           )}

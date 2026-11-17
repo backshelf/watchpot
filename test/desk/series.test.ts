@@ -471,6 +471,7 @@ describe("figures", () => {
   test("a change against the run before is a signed percentage; blank with no run before", () => {
     expect(percentChange(D(112.4), D(100))).toBe("+12.4%");
     expect(percentChange(D(96.9), D(100))).toBe("−3.1%");
+    expect(percentChange(D(16_000), D(100))).toBe("×160");
     expect(percentChange(D(1000), D(100))).toBe("+900%");
     expect(percentChange(D(100), D(100))).toBe("0.0%");
     expect(percentChange(D(5), undefined)).toBe("");

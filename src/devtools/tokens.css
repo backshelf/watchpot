@@ -1,11 +1,12 @@
 /*
- * The developer tools' one look (the dev panel, the sound desk and the sim desk): the site's reprographic duotone, so
- * the tools read as the same drawing as the engine's own page. Light is the blueline (diazo-blue line on cool white
- * stock), dark is the blueprint (pale line on Prussian blue), picked by the system. One ink for every line and word;
- * one mid-tone, `--dp-live`, only for what is running or can be done now; tone is hatching, never a grey.
+ * The developer tools' one look (the dev panel, the sound desk and the sim desk), picked by the system. Light is the
+ * site's blueline (diazo-blue line on cool white stock), mirrored value for value. Dark is the tools' own neutral grey
+ * with the faintest cool cast (the site's Prussian blue is tiring to sit in all day), pale ink on it. One ink for every
+ * line and word; one mid-tone, `--dp-live`, only for what is running or can be done now; tone is hatching.
  *
- * Mirrors `site/src/styles/base.css` value for value (`test/rules/tool-tokens.test.ts` keeps them in step). Scoped to
- * `[data-dp-tool]` so nothing leaks into the game the tools sit on; every property is `--dp-*`.
+ * `test/rules/tool-tokens.test.ts` keeps the light block, `--dp-live`, `--dp-live-deep` and the fonts in step with
+ * `site/src/styles/base.css`. `--dp-series-*` are the desk's own: one colour per plotted series, never the only cue.
+ * Scoped to `[data-dp-tool]` so nothing leaks into the game the tools sit on; every property is `--dp-*`.
  */
 [data-dp-tool] {
   color-scheme: light;
@@ -22,6 +23,12 @@
   --dp-live-deep: oklch(0.47 0.115 238);
   --dp-on-live: oklch(0.25 0.1 266);
   --dp-hatch: oklch(0.29 0.105 266 / 0.16);
+  --dp-series-1: oklch(0.5 0.15 255);
+  --dp-series-2: oklch(0.52 0.14 150);
+  --dp-series-3: oklch(0.58 0.14 70);
+  --dp-series-4: oklch(0.55 0.18 28);
+  --dp-series-5: oklch(0.5 0.16 310);
+  --dp-series-6: oklch(0.52 0.1 200);
   --dp-focus: var(--dp-ink);
   --dp-text-faint: color-mix(in oklch, var(--dp-ink-soft) 45%, var(--dp-ink-faint));
 
@@ -35,17 +42,23 @@
   [data-dp-tool] {
     color-scheme: dark;
 
-    --dp-paper: oklch(0.235 0.078 264);
-    --dp-paper-sunk: oklch(0.2 0.072 264);
-    --dp-paper-lift: oklch(0.275 0.085 264);
-    --dp-ink: oklch(0.93 0.028 235);
-    --dp-ink-soft: oklch(0.81 0.05 242);
-    --dp-ink-faint: oklch(0.66 0.07 250);
-    --dp-rule: oklch(0.36 0.085 262);
-    --dp-rule-strong: oklch(0.48 0.095 260);
+    --dp-paper: oklch(0.21 0.006 255);
+    --dp-paper-sunk: oklch(0.185 0.005 255);
+    --dp-paper-lift: oklch(0.25 0.007 255);
+    --dp-ink: oklch(0.93 0.008 250);
+    --dp-ink-soft: oklch(0.8 0.012 250);
+    --dp-ink-faint: oklch(0.64 0.014 250);
+    --dp-rule: oklch(0.32 0.008 255);
+    --dp-rule-strong: oklch(0.44 0.01 255);
     --dp-live: oklch(0.86 0.12 200);
     --dp-live-deep: oklch(0.86 0.12 200);
     --dp-on-live: oklch(0.2 0.075 264);
-    --dp-hatch: oklch(0.93 0.028 235 / 0.16);
+    --dp-hatch: oklch(0.93 0.008 250 / 0.12);
+    --dp-series-1: oklch(0.78 0.12 240);
+    --dp-series-2: oklch(0.8 0.14 150);
+    --dp-series-3: oklch(0.84 0.13 80);
+    --dp-series-4: oklch(0.74 0.15 25);
+    --dp-series-5: oklch(0.76 0.13 310);
+    --dp-series-6: oklch(0.8 0.1 195);
   }
 }

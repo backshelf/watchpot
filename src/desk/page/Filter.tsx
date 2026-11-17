@@ -6,7 +6,8 @@ export interface FilterItem {
   label: string;
   /** The checkbox's accessible name when the label alone is not unique. */
   name?: string;
-  dash: number;
+  /** Which of the six slots: a dash pattern and a series colour. */
+  slot: number;
 }
 
 export interface FilterGroup {
@@ -92,9 +93,13 @@ export function Filter(props: {
                           checked={selected.has(i.id)}
                           onChange={(e) => onSet([i.id], e.target.checked)}
                         />
-                        <svg className="filter__swatch" viewBox="0 0 28 8" aria-hidden="true">
+                        <svg
+                          className={`filter__swatch series-${i.slot}`}
+                          viewBox="0 0 28 8"
+                          aria-hidden="true"
+                        >
                           <line
-                            className={`filter__swatchline dash-${i.dash}`}
+                            className={`filter__swatchline dash-${i.slot}`}
                             x1="0"
                             x2="28"
                             y1="4"
