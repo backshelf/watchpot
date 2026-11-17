@@ -2,12 +2,12 @@
 /**
  * Makes a new idle game on the watchpot engine: `bun create watchpot` or `npm create watchpot`.
  *
- * It asks for a name, a template (Bun or Vite), a 3D stage and agent skills, then writes the game from the engine's
- * template (the engine is the installed `watchpot` package, whose `templates/game` the files are read from at run
- * time), copies the skills in, and installs. The Vite template converts the written game (`./vite.ts`). Runs on Node
- * 20+ and on Bun.
+ * It asks for a name, a template (Bun or Vite), Tailwind for the UI, a 3D stage and agent skills, then writes the game
+ * from the engine's template (the engine is the installed `watchpot` package, whose `templates/game` the files are read
+ * from at run time), copies the skills in, and installs. The Vite template converts the written game (`./vite.ts`), and
+ * the Tailwind one swaps the UI registry for Tailwind's copies (`./tailwind.ts`). Runs on Node 20+ and on Bun.
  *
- * Non-interactive (tests, scripts): `--name <n> --vite --three --skills=.claude/skills,.agents/skills --no-install --yes`.
+ * Non-interactive (tests, scripts): `--name <n> --vite --tailwind --three --skills=.claude/skills,.agents/skills --no-install --yes`.
  * Any answer given as a flag skips its prompt; `--yes` takes the default for every answer not given.
  */
 import { spawnSync } from "node:child_process";
@@ -27,6 +27,7 @@ import { tmpdir } from "node:os";
 import { dirname, join, resolve } from "node:path";
 import * as p from "@clack/prompts";
 import { generate, slugify } from "../../../templates/game/.scaffold/generate";
+import { toTailwind } from "./tailwind";
 import { toVite } from "./vite";
 
 const DEFAULT_NAME = "My Idle Game";
@@ -41,6 +42,7 @@ const TARGETS: readonly { value: string; label: string }[] = [
 interface Flags {
   name?: string;
   vite?: boolean;
+  tailwind?: boolean;
   three?: boolean;
   skills?: string[];
   install: boolean;
@@ -50,6 +52,7 @@ interface Flags {
 interface Choices {
   name: string;
   vite: boolean;
+  tailwind: boolean;
   three: boolean;
   skills: string[];
 }
@@ -57,7 +60,7 @@ interface Choices {
 class UsageError extends Error {}
 
 const USAGE =
-  "usage: create-watchpot [--name <name>] [--vite] [--three] [--skills=<dir,dir>] [--no-install] [--yes]\n" +
+  "usage: create-watchpot [--name <name>] [--vite] [--tailwind] [--three] [--skills=<dir,dir>] [--no-install] [--yes]\n" +
   `  --skills takes any of: ${TARGETS.map((t) => t.value).join(", ")}`;
 
 function parseFlags(argv: readonly string[]): Flags {
@@ -77,6 +80,9 @@ function parseFlags(argv: readonly string[]): Flags {
         break;
       case "--vite":
         flags.vite = true;
+        break;
+      case "--tailwind":
+        flags.tailwind = true;
         break;
       case "--three":
         flags.three = true;
@@ -163,6 +169,17 @@ async function choose(flags: Flags): Promise<Choices> {
           }),
         ) === "vite");
 
+  const tailwind =
+    flags.tailwind ??
+    (flags.yes
+      ? false
+      : answered(
+          await p.confirm({
+            message: "Tailwind CSS?",
+            initialValue: false,
+          }),
+        ));
+
   const three =
     flags.three ??
     (flags.yes
@@ -191,7 +208,7 @@ async function choose(flags: Flags): Promise<Choices> {
         }),
       );
   }
-  return { name: name.trim(), vite, three, skills };
+  return { name: name.trim(), vite, tailwind, three, skills };
 }
 
 /** The engine: the installed `watchpot` package (or `WATCHPOT_ENGINE_DIR`, for the tests against a checkout). */
@@ -300,6 +317,7 @@ async function main() {
   fixManifest(out, choice, pkg);
   copySkills(engine, out, choice.skills);
   if (choice.vite) toVite(out, engine);
+  if (choice.tailwind) toTailwind(out, engine, choice.vite ? "vite" : "bun");
   step.stop(`Wrote ${slug}/`);
 
   const pm = choice.vite ? "npm" : process.versions.bun !== undefined ? "bun" : "npm";

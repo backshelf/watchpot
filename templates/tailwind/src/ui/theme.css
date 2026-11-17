@@ -1,0 +1,169 @@
+@import "tailwindcss";
+
+/*
+ * The registry's token contract, on Tailwind v4: every colour, face, radius and duration the components in src/ui read.
+ * The values here map the generated design tokens (src/tokens.css, from design/tokens.json) onto the contract; the
+ * `@theme` block at the end turns each token into a utility (`bg-ui-surface`, `text-ui-ink`, `rounded-ui`,
+ * `font-ui-display`). README.md beside this file lists every token and what reads it.
+ */
+
+:root {
+  /* Colour */
+  --ui-ground: var(--ground);
+  --ui-surface: var(--ground-raised);
+  --ui-sunken: var(--paper);
+  --ui-ink: var(--ink);
+  --ui-ink-muted: var(--ink-muted);
+  --ui-line: var(--edge);
+  --ui-accent: var(--signal);
+  --ui-on-accent: var(--on-signal);
+  --ui-focus: var(--focus);
+  --ui-scrim: var(--overlay);
+  --ui-danger: var(--danger);
+
+  /* Type */
+  --ui-font: var(--font-ui);
+  --ui-font-display: var(--font-display);
+  --ui-font-num: var(--font-num);
+
+  /* Shape and time */
+  --ui-radius: var(--radius-md);
+  --ui-duration: 160ms;
+}
+
+/*
+ * The page's base styles sit in the `base` layer, so a utility on an element always wins over them. The focus ring is
+ * one of them: a sheet's `outline-none` is a utility, and an unlayered ring would win over it.
+ */
+@layer base {
+  html {
+    background: var(--ui-ground);
+    color: var(--ui-ink);
+    -webkit-font-smoothing: antialiased;
+  }
+  body {
+    margin: 0;
+    font-family: var(--ui-font);
+    font-size: 15px;
+    line-height: 1.4;
+  }
+  #root {
+    height: 100dvh;
+  }
+  p {
+    margin: 0;
+  }
+  button,
+  input,
+  select,
+  textarea {
+    font: inherit;
+    color: inherit;
+  }
+  :focus-visible {
+    outline: 2px solid var(--ui-focus);
+    outline-offset: 2px;
+  }
+}
+
+/*
+ * Reduced motion, from the OS or the in-game setting (`data-motion` on <html>): every transition and loop ends at
+ * once. Unlayered on purpose: it must beat the `animate-*` and `transition-*` utilities, which are layered.
+ */
+:root[data-motion="reduced"][data-motion][data-motion][data-motion] *,
+:root[data-motion="reduced"][data-motion][data-motion][data-motion] *::before,
+:root[data-motion="reduced"][data-motion][data-motion][data-motion] *::after {
+  animation-duration: 0.01ms;
+  animation-iteration-count: 1;
+  transition-duration: 0.01ms;
+  scroll-behavior: auto;
+}
+@media (prefers-reduced-motion: reduce) {
+  :root[data-theme][data-theme][data-theme][data-theme] *,
+  :root[data-theme][data-theme][data-theme][data-theme] *::before,
+  :root[data-theme][data-theme][data-theme][data-theme] *::after {
+    animation-duration: 0.01ms;
+    animation-iteration-count: 1;
+    transition-duration: 0.01ms;
+    scroll-behavior: auto;
+  }
+}
+
+/* The keyframes the components animate with (a component's `animate-*` names one of these in `@theme` below). */
+@keyframes arrive {
+  from {
+    opacity: 0;
+    scale: 0.6;
+  }
+}
+@keyframes bob {
+  50% {
+    translate: 0 -6px;
+  }
+}
+@keyframes float {
+  to {
+    opacity: 0;
+    transform: translateY(-48px);
+  }
+}
+@keyframes bump {
+  35% {
+    scale: 1.1;
+  }
+}
+@keyframes fade {
+  from {
+    opacity: 0;
+  }
+}
+@keyframes rise {
+  from {
+    opacity: 0;
+    transform: translateY(12px);
+  }
+}
+@keyframes enter {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+}
+@keyframes appear {
+  from {
+    opacity: 0;
+  }
+}
+
+/* The tokens as utilities: `bg-ui-surface`, `text-ui-ink-muted`, `border-ui-line`, `font-ui-num`, `rounded-ui`. */
+@theme inline {
+  --color-ui-ground: var(--ui-ground);
+  --color-ui-surface: var(--ui-surface);
+  --color-ui-sunken: var(--ui-sunken);
+  --color-ui-ink: var(--ui-ink);
+  --color-ui-ink-muted: var(--ui-ink-muted);
+  --color-ui-line: var(--ui-line);
+  --color-ui-accent: var(--ui-accent);
+  --color-ui-on-accent: var(--ui-on-accent);
+  --color-ui-focus: var(--ui-focus);
+  --color-ui-scrim: var(--ui-scrim);
+  --color-ui-danger: var(--ui-danger);
+
+  --font-ui: var(--ui-font);
+  --font-ui-display: var(--ui-font-display);
+  --font-ui-num: var(--ui-font-num);
+
+  --radius-ui: var(--ui-radius);
+  --duration-ui: var(--ui-duration);
+}
+
+/* The animations: a component's `animate-*` is one of these, on the element the keyframes move (never a utility). */
+@theme {
+  --animate-arrival: arrive var(--ui-duration) ease-out, bob 2.4s ease-in-out infinite;
+  --animate-float: float 900ms ease-out forwards;
+  --animate-bump: bump 160ms ease-out;
+  --animate-fade: fade var(--ui-duration) ease-out;
+  --animate-rise: rise calc(var(--ui-duration) * 1.5) ease-out;
+  --animate-enter: enter var(--ui-duration) ease-out;
+  --animate-appear: appear var(--ui-duration) ease-out;
+}

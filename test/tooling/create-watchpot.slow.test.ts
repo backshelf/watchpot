@@ -1,7 +1,7 @@
 // `create-watchpot` (`bun create watchpot`): the package is built, then its bundle runs under plain node in a temp
 // folder, pointed at this checkout as the engine, and the game it writes is checked. `--no-install`: no network.
 import { afterAll, beforeAll, expect, test } from "bun:test";
-import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync } from "node:fs";
+import { existsSync, mkdirSync, mkdtempSync, readdirSync, readFileSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 
@@ -122,4 +122,78 @@ test("create-watchpot --vite writes a game that Vite builds", async () => {
   const built = await run(["node", vite, "build"], game);
   expect(built.code, built.output).toBe(0);
   expect(existsSync(join(game, "dist", "index.html")), built.output).toBe(true);
+}, 180_000);
+
+/** The CSS a build wrote into `dist/` (Vite puts it under `assets/`), all of it, as one string. */
+const builtCss = (dist: string) =>
+  readdirSync(dist, { recursive: true })
+    .map(String)
+    .filter((f) => f.endsWith(".css"))
+    .map((f) => readFileSync(join(dist, f), "utf8"))
+    .join("\n");
+
+test("create-watchpot --tailwind writes a Bun game whose registry is Tailwind and whose build runs", async () => {
+  if (!Bun.which("node")) return;
+  mkdirSync(TEST_OUT, { recursive: true });
+  const dir = mkdtempSync(join(TEST_OUT, "tailwind-"));
+  dirs.push(dir);
+  const ran = await run(
+    ["node", BUNDLE, "--name", "Tailwind Jar", "--tailwind", "--yes", "--no-install"],
+    dir,
+    {
+      WATCHPOT_ENGINE_DIR: ROOT,
+    },
+  );
+  expect(ran.code, ran.output).toBe(0);
+
+  const game = join(dir, "tailwind-jar");
+  const manifest = JSON.parse(readFileSync(join(game, "package.json"), "utf8")) as {
+    scripts: Record<string, string>;
+    devDependencies: Record<string, string>;
+  };
+  expect(manifest.scripts.build).toBe("bun build.ts");
+  expect(manifest.devDependencies.tailwindcss).toBeDefined();
+  expect(manifest.devDependencies["bun-plugin-tailwind"]).toBeDefined();
+  expect(manifest.devDependencies["@tailwindcss/vite"]).toBeUndefined();
+  expect(readFileSync(join(game, "bunfig.toml"), "utf8")).toContain('plugins = ["bun-plugin-tailwind"]');
+  expect(existsSync(join(game, "src", "ui", "Button.module.css"))).toBe(false);
+  expect(readFileSync(join(game, "src", "ui", "Button.tsx"), "utf8")).not.toContain("module.css");
+
+  // The game has no node_modules of its own: Bun, Tailwind and watchpot resolve from the package's, up the tree.
+  const built = await run([process.execPath, "build.ts"], game);
+  expect(built.code, built.output).toBe(0);
+  expect(existsSync(join(game, "dist", "index.html")), built.output).toBe(true);
+  expect(builtCss(join(game, "dist"))).toContain(".bg-ui-surface");
+}, 180_000);
+
+test("create-watchpot --vite --tailwind writes a Vite game whose registry is Tailwind and whose build runs", async () => {
+  if (!Bun.which("node")) return;
+  mkdirSync(TEST_OUT, { recursive: true });
+  const dir = mkdtempSync(join(TEST_OUT, "vite-tailwind-"));
+  dirs.push(dir);
+  const ran = await run(
+    ["node", BUNDLE, "--name", "Vite Tailwind", "--vite", "--tailwind", "--yes", "--no-install"],
+    dir,
+    {
+      WATCHPOT_ENGINE_DIR: ROOT,
+    },
+  );
+  expect(ran.code, ran.output).toBe(0);
+
+  const game = join(dir, "vite-tailwind");
+  const manifest = JSON.parse(readFileSync(join(game, "package.json"), "utf8")) as {
+    scripts: Record<string, string>;
+    devDependencies: Record<string, string>;
+  };
+  expect(manifest.scripts.build).toBe("vite build");
+  expect(manifest.devDependencies["@tailwindcss/vite"]).toBeDefined();
+  expect(manifest.devDependencies["bun-plugin-tailwind"]).toBeUndefined();
+  expect(readFileSync(join(game, "vite.config.ts"), "utf8")).toContain("plugins: [react(), tailwindcss()]");
+  expect(existsSync(join(game, "bunfig.toml"))).toBe(false);
+
+  const vite = join(PACKAGE, "node_modules", "vite", "bin", "vite.js");
+  const built = await run(["node", vite, "build"], game);
+  expect(built.code, built.output).toBe(0);
+  expect(existsSync(join(game, "dist", "index.html")), built.output).toBe(true);
+  expect(builtCss(join(game, "dist"))).toContain(".bg-ui-surface");
 }, 180_000);

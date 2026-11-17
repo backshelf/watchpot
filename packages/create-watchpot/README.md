@@ -12,9 +12,11 @@ It asks a few questions, writes the game into a new folder named after it, and i
 
 1. **Name.** The game's title (default `My Idle Game`). Its folder is the name's slug, in the current folder; a folder
    that already holds files is refused.
-2. **3D stage?** No by default. Yes adds `three` and `@react-three/fiber` to the game, at the same versions the engine
+2. **Tailwind CSS?** No by default. Yes styles the game's UI components (`src/ui/`) with Tailwind v4 utilities over the
+   `--ui-*` tokens, instead of CSS modules. The screens outside `src/ui/` keep their CSS modules.
+3. **3D stage?** No by default. Yes adds `three` and `@react-three/fiber` to the game, at the same versions the engine
    itself uses.
-3. **AI agent skills?** No by default. Yes adds `AGENTS.md` and the engine's `watchpot-init` skill, then asks where:
+4. **AI agent skills?** No by default. Yes adds `AGENTS.md` and the engine's `watchpot-init` skill, then asks where:
    `.claude/skills` (Claude Code), `.agents/skills` (Codex and others), `.cursor/skills` (Cursor). At least one.
 
 Ctrl-C at any prompt cancels and exits 0.
@@ -22,10 +24,10 @@ Ctrl-C at any prompt cancels and exits 0.
 ## Flags
 
 ```sh
-bun create watchpot --name "Tap Jar" --three --skills=.claude/skills,.agents/skills --no-install --yes
+bun create watchpot --name "Tap Jar" --tailwind --three --skills=.claude/skills,.agents/skills --no-install --yes
 ```
 
-- `--name <name>`, `--three`, `--skills=<dir,dir>`: answer that prompt with the flag, so it is not asked.
+- `--name <name>`, `--tailwind`, `--three`, `--skills=<dir,dir>`: answer that prompt with the flag, so it is not asked.
 - `--yes`: take the default for every prompt that has no flag.
 - `--no-install`: write the game and stop, without `bun install` (or `npm install`).
 

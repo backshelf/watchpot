@@ -296,3 +296,39 @@ describe("gating", () => {
     expect(unknown).toEqual([]);
   });
 });
+
+// The Tailwind registry (templates/tailwind/src/ui) copies the game's CSS-module one, component for component.
+describe("the Tailwind registry", () => {
+  const GAME_UI = join(TEMPLATE, "src", "ui");
+  const TAILWIND_UI = join(TEMPLATE, "..", "tailwind", "src", "ui");
+  const components = (dir: string) =>
+    readdirSync(dir)
+      .filter((f) => f.endsWith(".tsx"))
+      .sort();
+  const firstLine = (file: string) => readFileSync(file, "utf8").split("\n")[0] ?? "";
+
+  test("every component has a Tailwind copy, and every copy a component", () => {
+    expect(components(TAILWIND_UI)).toEqual(components(GAME_UI));
+  });
+
+  test("a gated component keeps its @feature gate on the first line", () => {
+    for (const f of components(GAME_UI)) {
+      const gate = firstLine(join(GAME_UI, f));
+      if (/^\s*\/\/\s*@feature\s+\w+/.test(gate)) expect(firstLine(join(TAILWIND_UI, f))).toBe(gate);
+    }
+  });
+
+  test("no Tailwind copy imports a CSS module", () => {
+    for (const f of components(TAILWIND_UI))
+      expect(readFileSync(join(TAILWIND_UI, f), "utf8"), f).not.toContain(".module.css");
+  });
+
+  test("the theme maps every --ui-* token the game's theme declares into its @theme block", () => {
+    const theme = readFileSync(join(TAILWIND_UI, "theme.css"), "utf8");
+    expect(theme.startsWith('@import "tailwindcss";')).toBe(true);
+    const inline = theme.slice(theme.indexOf("@theme inline {"));
+    const declared = [...readFileSync(join(GAME_UI, "theme.css"), "utf8").matchAll(/^\s+(--ui-[\w-]+):/gm)];
+    expect(declared.length).toBeGreaterThan(0);
+    for (const [, name] of declared) expect(inline, name).toContain(`var(${name})`);
+  });
+});

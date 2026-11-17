@@ -3,10 +3,9 @@
  * (`src/`, `sim/`, `design/`, `index.html`) are untouched; this swaps the dev server, the build and the manifest's
  * scripts and types, and reads no engine file that the scaffold did not already read.
  */
-import { spawnSync } from "node:child_process";
 import { readFileSync, rmSync, writeFileSync } from "node:fs";
-import { createRequire } from "node:module";
 import { join } from "node:path";
+import { formatWithBiome } from "./biome";
 
 /** The Vite flavour's own dependencies: the latest majors, as caret ranges. */
 const VITE_DEV_DEPENDENCIES: Record<string, string> = {
@@ -91,27 +90,4 @@ function convertReadme(out: string) {
     .replace(/\bbun (install|run )/g, "npm $1");
   text = `${text.slice(0, start)}${commands}\n${README_BUN_NOTE}\n${text.slice(end)}`;
   writeFileSync(file, text);
-}
-
-/**
- * Formats the files it changed with the game's Biome (its own `biome.json`), as the scaffold's own pass does: the
- * game's install when it has one, else the engine's. Without Biome the files are left as written, and the game's
- * `lint:fix` after the install formats them.
- */
-function formatWithBiome(out: string, engine: string, files: string[]) {
-  let bin: string;
-  try {
-    bin = createRequire(join(out, "package.json")).resolve("@biomejs/biome/bin/biome");
-  } catch {
-    try {
-      bin = createRequire(join(engine, "package.json")).resolve("@biomejs/biome/bin/biome");
-    } catch {
-      console.warn(
-        "create-watchpot: no Biome to format the Vite files with; run `npm run lint:fix` after the install",
-      );
-      return;
-    }
-  }
-  const p = spawnSync(process.execPath, [bin, "check", "--write", ...files], { cwd: out, encoding: "utf8" });
-  if (p.status !== 0) throw new Error(`biome check --write failed in ${out}:\n${p.stdout}${p.stderr}`);
 }
