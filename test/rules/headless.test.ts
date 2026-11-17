@@ -74,11 +74,11 @@ describe("the headless entries", () => {
     expect(hits).toEqual([]);
   });
 
-  test("nothing in src/ ships CSS but the dev panel, a developer's tool with self-contained colours", () => {
+  test("nothing in src/ ships CSS but the developer tools (dev panel, sound desk, sim desk), self-contained", () => {
     const css = [...files].filter((f) => f.startsWith("src/") && f.endsWith(".css"));
     expect(css.length).toBeGreaterThan(0);
-    expect(css.filter((f) => !f.startsWith("src/devtools/"))).toEqual([]);
-    // Self-contained: the panel's stylesheet reads only its own `--dp-*` properties, no game token.
+    expect(css.filter((f) => !f.startsWith("src/devtools/") && !f.startsWith("src/desk/"))).toEqual([]);
+    // Self-contained: a tool's stylesheet reads only the tools' own `--dp-*` properties, no game token.
     for (const f of css) {
       const vars = [...readFileSync(join(ROOT, f), "utf8").matchAll(/var\(\s*(--[\w-]+)/g)].map((m) => m[1]);
       expect(vars.filter((v) => !v?.startsWith("--dp-"))).toEqual([]);

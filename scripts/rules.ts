@@ -171,19 +171,21 @@ export const IMPORT_RULES: ImportRule[] = [
     says: "`watchpot/devtools` imports the store hooks, `/core`, the sound engine and `/ui`, and no kit, sim, test kit, 3D stage or shader.",
   },
   {
-    // `watchpot/devtools` carries stylesheets: only a game imports it, never another entry.
+    // `watchpot/devtools` carries stylesheets: only a game imports it, never another entry. The sim desk shares its
+    // tokens (`desk-narrow` keeps it to that one file).
     id: "devtools-alone",
-    from: /^src\/(?!devtools\/)/,
+    from: /^src\/(?!devtools\/|desk\/)/,
     forbid: ["src/devtools/", "pkg:watchpot/devtools"],
     says: "No other entry imports `watchpot/devtools`, which carries stylesheets: only a game does.",
   },
   {
     // The sim desk (`watchpot sim`): a Bun-only server, its per-seed workers and its page. It plays the sim, so it
-    // reads `/sim` and `/core`, and the command's own types; the CLI reaches it only by a dynamic import under Bun.
+    // reads `/sim` and `/core`, the command's own types and the tools' tokens; the CLI reaches it only by a dynamic
+    // import under Bun.
     id: "desk-narrow",
     from: /^src\/desk\//,
-    forbid: [/^src\/(?!desk\/|sim\/|core\/|cli\/)/],
-    says: "The sim desk (`src/desk/`) imports `/sim`, `/core` and the command's types, and no other engine entry.",
+    forbid: [/^src\/(?!desk\/|sim\/|core\/|cli\/|devtools\/tokens\.css$)/],
+    says: "The sim desk (`src/desk/`) imports `/sim`, `/core`, the command's types and the tools' tokens, and no other engine entry.",
   },
   {
     // The desk carries its own page and styles: only the `sim` command reaches it, by a dynamic import under Bun.

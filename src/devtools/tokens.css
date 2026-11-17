@@ -1,0 +1,51 @@
+/*
+ * The developer tools' one look (the dev panel, the sound desk and the sim desk): the site's reprographic duotone, so
+ * the tools read as the same drawing as the engine's own page. Light is the blueline (diazo-blue line on cool white
+ * stock), dark is the blueprint (pale line on Prussian blue), picked by the system. One ink for every line and word;
+ * one mid-tone, `--dp-live`, only for what is running or can be done now; tone is hatching, never a grey.
+ *
+ * Mirrors `site/src/styles/base.css` value for value (`test/rules/tool-tokens.test.ts` keeps them in step). Scoped to
+ * `[data-dp-tool]` so nothing leaks into the game the tools sit on; every property is `--dp-*`.
+ */
+[data-dp-tool] {
+  color-scheme: light;
+
+  --dp-paper: oklch(0.975 0.006 240);
+  --dp-paper-sunk: oklch(0.948 0.012 248);
+  --dp-paper-lift: oklch(0.995 0.003 240);
+  --dp-ink: oklch(0.29 0.105 266);
+  --dp-ink-soft: oklch(0.43 0.09 263);
+  --dp-ink-faint: oklch(0.6 0.065 258);
+  --dp-rule: oklch(0.86 0.028 255);
+  --dp-rule-strong: oklch(0.72 0.05 258);
+  --dp-live: oklch(0.82 0.105 212);
+  --dp-live-deep: oklch(0.47 0.115 238);
+  --dp-on-live: oklch(0.25 0.1 266);
+  --dp-hatch: oklch(0.29 0.105 266 / 0.16);
+  --dp-focus: var(--dp-ink);
+  --dp-text-faint: color-mix(in oklch, var(--dp-ink-soft) 45%, var(--dp-ink-faint));
+
+  --dp-font-sans: "Archivo", "Helvetica Neue", Arial, sans-serif;
+  --dp-font-mono: "Chivo Mono", ui-monospace, "Cascadia Mono", Consolas, monospace;
+  --dp-hair: 1px;
+  --dp-ease-out: cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+@media (prefers-color-scheme: dark) {
+  [data-dp-tool] {
+    color-scheme: dark;
+
+    --dp-paper: oklch(0.235 0.078 264);
+    --dp-paper-sunk: oklch(0.2 0.072 264);
+    --dp-paper-lift: oklch(0.275 0.085 264);
+    --dp-ink: oklch(0.93 0.028 235);
+    --dp-ink-soft: oklch(0.81 0.05 242);
+    --dp-ink-faint: oklch(0.66 0.07 250);
+    --dp-rule: oklch(0.36 0.085 262);
+    --dp-rule-strong: oklch(0.48 0.095 260);
+    --dp-live: oklch(0.86 0.12 200);
+    --dp-live-deep: oklch(0.86 0.12 200);
+    --dp-on-live: oklch(0.2 0.075 264);
+    --dp-hatch: oklch(0.93 0.028 235 / 0.16);
+  }
+}

@@ -20,7 +20,7 @@ Each entry of the package keeps to a small set of imports, so installing one doe
 | `three-narrow` | `watchpot/three` imports from the engine only `/core` and the prefs hook, and no stylesheet. |
 | `devtools-narrow` | `watchpot/devtools` imports the store hooks, `/core`, the sound engine and `/ui`, and no kit, sim, test kit, 3D stage or shader. |
 | `devtools-alone` | No other entry imports `watchpot/devtools`, which carries stylesheets: only a game does. |
-| `desk-narrow` | The sim desk (`src/desk/`) imports `/sim`, `/core` and the command's types, and no other engine entry. |
+| `desk-narrow` | The sim desk (`src/desk/`) imports `/sim`, `/core`, the command's types and the tools' tokens, and no other engine entry. |
 | `desk-alone` | No engine entry imports the sim desk (`src/desk/`); the `sim` command loads it with a dynamic import. |
 | `three-alone` | No other entry imports `watchpot/three`, so no other entry pulls `three` in. |
 | `cli-alone` | The `watchpot` command (`src/cli/`) imports Node's built-ins and its own folder (and, under Bun only, the desk server): no engine entry, no React. |
