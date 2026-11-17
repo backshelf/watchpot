@@ -1,4 +1,3 @@
-import { availableParallelism } from "node:os";
 import { failing, p10p90, type Tally, tally, type Verdict } from "./contract";
 
 /**
@@ -61,13 +60,13 @@ export async function runSeeds<Res>({
   script,
   seeds,
   args = [],
-  workers = Math.max(1, availableParallelism() - 1),
+  workers = Math.max(1, (globalThis.navigator?.hardwareConcurrency ?? 2) - 1),
 }: {
   script: string;
   seeds: readonly string[];
   /** Extra args after `--seed=<seed>`. */
   args?: readonly string[];
-  /** Processes at once. Default: os.availableParallelism() - 1, at least 1. */
+  /** Processes at once. Default: the cores (`navigator.hardwareConcurrency`) less one, at least 1. */
   workers?: number;
 }): Promise<Res[]> {
   if (workers < 1) throw new RangeError(`runSeeds needs at least 1 worker, got ${workers}`);
