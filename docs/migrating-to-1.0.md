@@ -18,6 +18,9 @@ before changing anything: several defaults changed, and each has an explicit spe
 | `watchpot/hooks` (any import) | `watchpot/react` (every symbol is there) |
 | `"watchpot/env"` in `tsconfig.json` `types` | remove it; `"types": ["bun"]` is enough |
 
+- **npm.** The runtime entries ship compiled JS and declarations (`dist/`), so they work on Node bundlers. A game
+  changes nothing: the published manifest points at `dist/`, and Bun reads it like any other package.
+
 `watchpot/react` no longer reaches a stylesheet. The dev panel's CSS-module declarations come with
 `watchpot/devtools` itself.
 

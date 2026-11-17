@@ -1,13 +1,14 @@
 {
   "name": "watchpot",
   "version": "0.18.0",
-  "private": true,
+  "private": false,
   "type": "module",
   "engines": {
     "bun": ">=1.4.3"
   },
   "files": [
     "src",
+    "dist",
     "api",
     "docs",
     "templates",
@@ -28,6 +29,9 @@
     "test": "bun test",
     "test:changed": "bun test --changed=main --pass-with-no-tests",
     "test:slow": "bun test --pass-with-no-tests --path-ignore-patterns=\"**/node_modules/**\" .slow.test",
+    "build": "bun scripts/build.ts",
+    "prepack": "bun scripts/build.ts && bun scripts/pack-manifest.ts write",
+    "postpack": "bun scripts/pack-manifest.ts restore",
     "api": "bun scripts/api-report.ts",
     "api:check": "bun scripts/api-report.ts check",
     "dsp": "bun scripts/dsp.ts",

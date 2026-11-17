@@ -14,3 +14,5 @@ dsp/target/
 site/dist-*/
 site/.impeccable/
 site/tools/out/
+# The source manifest, set aside while `prepack` packs the published one.
+package.json.source

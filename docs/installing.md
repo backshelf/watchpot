@@ -7,7 +7,10 @@ How to install watchpot, how to change the engine and a game together, and what 
 **Requirements:** Bun 1.4.3 or later (`engines.bun`; every typecheck script runs `bun check`, which older Bun does
 not know).
 
-watchpot 1.0 is meant to be published on npm as `watchpot` under the MIT licence: `bun add watchpot`. A release that
+watchpot 1.0 is meant to be published on npm as `watchpot` under the MIT licence: `bun add watchpot`. On npm, the
+runtime entries (`core`, `sim`, `test`, `react`, `devtools`, `kit`, `sound`, `three`, `ui`, `shader`) work on Node
+bundlers (Vite) too: the package ships compiled JS and declarations in `dist/`. Bun-only, stated plainly: the
+template's dev server (`dev.ts`), `watchpot/sound/pack`, `watchpot/kit/theme`, and the sim's gate CLI. A release that
 is not on npm yet installs by git tag. Each release is an annotated tag `vX.Y.Z` (see `CHANGELOG.md`). In a game's
 `package.json`:
 
@@ -22,8 +25,9 @@ tarball endpoint and 404 on a private repo (oven-sh/bun#19618), so do not use th
 as the username, and `gh auth git-credential` answers only for its own login. Once per machine: `gh auth login`,
 then `gh auth setup-git`.
 
-`package.json`'s `files` names what a consumer or the scaffold needs (`src/`, `api/`, `docs/`, `templates/`,
-`codemods/`, the env declarations, the README and the changelog), and a packed tarball carries only those; Bun's git
+`package.json`'s `files` names what a consumer or the scaffold needs (`src/`, `dist/`, `api/`, `docs/`,
+`templates/`, `codemods/`, the env declarations, the README and the changelog), and a packed tarball carries only
+those; Bun's git
 install ignores `files` and checks out the whole tree. A game's typecheck needs no engine declarations: `watchpot/devtools`, the one entry with CSS modules, carries its own
 references.
 

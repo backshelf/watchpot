@@ -18,6 +18,10 @@ Needs Bun 1.4.3 or later. watchpot 1.0 is meant to be public on npm as `watchpot
 bun add watchpot
 ```
 
+On npm, the runtime entries (`core`, `sim`, `test`, `react`, `devtools`, `kit`, `sound`, `three`, `ui`, `shader`)
+work on Node bundlers (Vite) too: the package ships compiled JS and declarations in `dist/`. Bun-only, stated
+plainly: the template's dev server (`dev.ts`), `watchpot/sound/pack`, `watchpot/kit/theme`, and the sim's gate CLI.
+
 A release that is not on npm yet installs by git tag instead, with `"watchpot": "git+ssh://github.com/backshelf/watchpot.git#vX.Y.Z"`
 in `package.json`. [Installing](docs/installing.md) has the details and the peers each entry needs.
 

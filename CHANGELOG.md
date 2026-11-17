@@ -32,6 +32,8 @@ across with its numbers unchanged.
   kit ships: `fitTable`, snapshots and resuming, `proveFit` (and on workers), a profiler.
 - **Packages.** The dev panel and sound desk are `watchpot/devtools`; `watchpot/hooks` and `watchpot/env` are gone.
   The engine is MIT licensed.
+- **npm.** Published with compiled JS and declarations: the runtime entries work on Node bundlers. A
+  packed or published `package.json` points each entry at `dist/`; the repository and a git install read the source.
 - **Tests.** `decimalComparisons` fails a game's tests on Decimals compared with `<` or `===`. `plainParity` proves
   a game's sim and its real store agree. The guide's examples are run against what the chapters quote.
 - `saveSetAside` reports `"unreadable"` for a save that is not JSON; the game clock stands the store's own hide
