@@ -81,13 +81,13 @@
     },
     "packages/create-watchpot": {
       "name": "create-watchpot",
-      "version": "0.18.0",
+      "version": "1.0.0-rc.1",
       "bin": {
         "create-watchpot": "dist/index.js",
       },
       "dependencies": {
         "@clack/prompts": "^1.9.0",
-        "watchpot": "workspace:^0.18.0",
+        "watchpot": "workspace:^1.0.0-rc.1",
       },
       "devDependencies": {
         "@tailwindcss/vite": "^4.3.5",

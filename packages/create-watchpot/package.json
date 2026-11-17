@@ -1,6 +1,6 @@
 {
   "name": "create-watchpot",
-  "version": "0.18.0",
+  "version": "1.0.0-rc.1",
   "description": "Make a new idle game on the watchpot engine: bun create watchpot, or npm create watchpot.",
   "type": "module",
   "bin": {
@@ -10,11 +10,12 @@
     "dist"
   ],
   "scripts": {
-    "build": "bun build src/index.ts --target=node --outfile dist/index.js"
+    "build": "bun build src/index.ts --target=node --outfile dist/index.js",
+    "prepack": "bun run build"
   },
   "dependencies": {
     "@clack/prompts": "^1.9.0",
-    "watchpot": "workspace:^0.18.0"
+    "watchpot": "workspace:^1.0.0-rc.1"
   },
   "devDependencies": {
     "@tailwindcss/vite": "^4.3.5",
@@ -22,5 +23,8 @@
     "bun-plugin-tailwind": "^0.1.2",
     "tailwindcss": "^4.3.5",
     "vite": "^8.3.8"
+  },
+  "publishConfig": {
+    "access": "public"
   }
 }

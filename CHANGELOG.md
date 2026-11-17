@@ -2,7 +2,7 @@
 
 Each release is a tag `vX.Y.Z`. A breaking change names its codemod in `codemods/` (policy in `codemods/README.md`).
 
-## 1.0.0 (unreleased)
+## 1.0.0-rc.1
 
 A clean break: the API a game is written against, redone in one release, with no deprecated aliases and no codemods.
 [docs/migrating-to-1.0.md](docs/migrating-to-1.0.md) lists every change as old → new, and how to bring a fitted game
