@@ -2,6 +2,11 @@
 
 Each release is a tag `vX.Y.Z`. A breaking change names its codemod in `codemods/` (policy in `codemods/README.md`).
 
+## Unreleased
+
+- The auto-player keeps each feature's move list in a cell of the sim store and lists it again only when something it read changed, or a fit table did. A cell checked since the last write skips its walk, and a stats feature's unchanged flags keep their object. Exact: a heavy game's 40 h fit is 23% faster with an identical report.
+- `tunables`, `sourceKey` and `simCache`: a snapshot cache that knows which knobs each snapshot read, so a fit resumes from the latest snapshot still valid after a change to code, plan or a knob.
+
 ## 1.0.0-rc.5
 
 rc.4 was tagged but never published: `runSeeds` imported `node:os`, which broke every browser bundle of `watchpot/sim` (the site's sim lab among them). It reads `navigator.hardwareConcurrency` now, and a rule test keeps `node:` imports out of `/core` and `/sim`. Everything below ships here.
