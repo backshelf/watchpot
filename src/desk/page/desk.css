@@ -478,7 +478,8 @@ legend {
   stroke-width: var(--dp-line-strong);
 }
 
-/* The plot's box: the svg inside it is drawn at the pixels this box has (Graph.tsx measures it). */
+/* The plot's box: the two sheets inside it — the plot and the crosshair's overlay — are drawn at the pixels this box
+   has (Graph.tsx measures it), the same box and view, so the hairline's x is the plot's x. */
 .graph {
   display: flex;
   flex-direction: column;
@@ -492,13 +493,19 @@ legend {
   cursor: crosshair;
 }
 
-.graph__svg {
+.graph__svg,
+.graph__overlay {
   position: absolute;
   top: 0.5rem;
   left: 0.5rem;
   width: calc(100% - 1rem);
   height: calc(100% - 0.75rem);
   overflow: visible;
+}
+
+/* The overlay paints nothing but the crosshair: the pointer stays on the plot beneath it. */
+.graph__overlay {
+  pointer-events: none;
 }
 
 .graph__grid {
@@ -564,6 +571,18 @@ legend {
   stroke: none;
 }
 
+/* A trend window on: the smoothed line is the line, and the raw one a faint hairline in the series' colour under
+   it; the band is not drawn. */
+.graph__line--trend {
+  stroke: var(--dp-ser);
+  stroke-width: calc(var(--dp-hair) * 2);
+}
+
+.graph__line--raw {
+  stroke: color-mix(in oklch, var(--dp-ser) 35%, transparent);
+  stroke-width: var(--dp-hair);
+}
+
 /* The dash patterns: a series is the same line in the graph, the filter and the readout. */
 .dash-0 {
   stroke-dasharray: none;
@@ -610,9 +629,15 @@ legend {
   stroke-dasharray: 6 2 1 2;
 }
 
-.graph__cross line {
+/*
+ * The crosshair's hairline: hidden until a pointer or a key seats it — Graph.tsx sets its `transform` straight on
+ * the node, so it keeps up with the cursor — and on its own compositing layer, so moving it paints nothing else.
+ */
+.graph__hairline {
+  visibility: hidden;
   stroke: var(--dp-ink);
   stroke-width: var(--dp-hair);
+  will-change: transform;
 }
 
 .graph__cross circle {

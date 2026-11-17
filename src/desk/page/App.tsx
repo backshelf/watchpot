@@ -53,6 +53,15 @@ async function fetchDesk(): Promise<DeskInfo> {
 /** The six slots a series can take: each is a dash pattern and a `--dp-series-N` colour, by index in the filter column. */
 const SLOTS = 6;
 const slotOf = (index: number) => index % SLOTS;
+/** The trend windows the toolbar offers: the label is also what is kept in `localStorage`. */
+const TRENDS = [
+  { label: "off", hours: 0 },
+  { label: "15m", hours: 0.25 },
+  { label: "1h", hours: 1 },
+  { label: "3h", hours: 3 },
+] as const;
+/** Where the viewer's trend choice is kept. */
+const TREND_KEY = "watchpot-desk-trend";
 /** How long after the last change to a knob or a pin the pacing reruns. */
 const RERUN_MS = 500;
 const cid = (name: string) => `cur:${name}`;
@@ -72,6 +81,22 @@ export function App({ connect = connectSocket, load = fetchDesk, onSeriesRender 
   const [selected, setSelected] = useState<ReadonlySet<string>>(new Set());
   const [search, setSearch] = useState("");
   const [log, setLog] = useState(true);
+  // The trend window the lines are smoothed over: 0 is off. Kept where the next visit finds it, if it can be.
+  const [trend, setTrend] = useState<number>(() => {
+    try {
+      return TRENDS.find((t) => t.label === globalThis.localStorage?.getItem(TREND_KEY))?.hours ?? 0;
+    } catch {
+      return 0; // No storage to read, or none allowed: the trend starts off.
+    }
+  });
+  const chooseTrend = (t: (typeof TRENDS)[number]) => {
+    setTrend(t.hours);
+    try {
+      globalThis.localStorage?.setItem(TREND_KEY, t.label);
+    } catch {
+      // The choice holds for this session; nothing is kept.
+    }
+  };
   const [online, setOnline] = useState(false);
   const link = useRef<DeskLink>(undefined);
   const lastId = useRef(0);
@@ -468,6 +493,9 @@ export function App({ connect = connectSocket, load = fetchDesk, onSeriesRender 
       : ` Resumed from the cache at ${(run.resumedFromMs / HOUR_MS).toFixed(1)} h: the hours before it were not replayed.`;
   const basis = many ? `median of ${seeds.length} seeds` : "seed 1";
   const scale = log ? "log₁₀" : "linear";
+  const trendLabel = TRENDS.find((t) => t.hours === trend)?.label;
+  /** The caption's word for the trend window: `· trend 1h`, or nothing when it is off. */
+  const trendNote = trend > 0 && trendLabel !== undefined ? ` · trend ${trendLabel}` : "";
   const dashed = before ? " · dashed: the run before" : "";
   const against = before ? " The dashed hairline beneath each line is the run before." : "";
 
@@ -525,6 +553,21 @@ export function App({ connect = connectSocket, load = fetchDesk, onSeriesRender 
                   linear
                 </button>
               </div>
+              {/* The trend window: each strong line is drawn smoothed over it, the sawtooth taken out of the trend. */}
+              <span className="lettering">Trend</span>
+              <div className="seg">
+                {TRENDS.map((t) => (
+                  <button
+                    key={t.label}
+                    type="button"
+                    className="control"
+                    aria-pressed={trend === t.hours}
+                    onClick={() => chooseTrend(t)}
+                  >
+                    {t.label}
+                  </button>
+                ))}
+              </div>
               {before && (
                 <button type="button" className="control" onClick={() => dispatch({ type: "clearBefore" })}>
                   Clear before
@@ -533,7 +576,7 @@ export function App({ connect = connectSocket, load = fetchDesk, onSeriesRender 
             </div>
             <Graph
               title="Currencies over time"
-              caption={`${scale}, ${basis}${dashed}`}
+              caption={`${scale}, ${basis}${dashed}${trendNote}`}
               note={`Played hours along the bottom, ${log ? "log10 of the value" : "the value"} up the side; ${many ? `the median of ${seeds.length} seeds, each seed a hairline` : "seed 1"}. The line is the highest value in each pixel column and the faint band its range. A hairline down the plot is where a gate opened; the chain-line tick at the foot is where it was planned.${resumed}${against}`}
               endHours={end || 1}
               axis={view?.axis1 ?? { lo: 0, hi: 1, ticks: [0, 1] }}
@@ -541,6 +584,7 @@ export function App({ connect = connectSocket, load = fetchDesk, onSeriesRender 
               lines={view?.lines1 ?? []}
               gates={marks}
               stops={view?.stops1 ?? []}
+              trend={trend}
               readout={readout1}
               onSeriesRender={onSeriesRender}
               empty={emptyFor(view && view.shown.length === 0 ? "Tick a currency in the left column" : "")}
@@ -548,7 +592,7 @@ export function App({ connect = connectSocket, load = fetchDesk, onSeriesRender 
             {view && view.shownNext.length > 0 && (
               <Graph
                 title="Wallet against next cost"
-                caption={`${scale}, ${basis} · hatched: price above balance${dashed}`}
+                caption={`${scale}, ${basis} · hatched: price above balance${dashed}${trendNote}`}
                 note={`The balance that pays for each ticked buyable, and its price. Hatched where the price is above the balance: a long hatched plateau is a stall.${against}`}
                 endHours={end || 1}
                 axis={view.axis2}
@@ -556,6 +600,7 @@ export function App({ connect = connectSocket, load = fetchDesk, onSeriesRender 
                 lines={view.lines2}
                 gaps={view.gaps2}
                 stops={view.stops2}
+                trend={trend}
                 readout={readout2}
                 onSeriesRender={onSeriesRender}
                 empty={emptyFor("")}

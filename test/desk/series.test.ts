@@ -31,6 +31,7 @@ import {
   percentChange,
   short,
   signedOrders,
+  smooth,
   valueAt,
   yAxis,
 } from "../../src/desk/page/series";
@@ -454,6 +455,86 @@ describe("downsampling to pixel columns", () => {
       ),
     ).toEqual([{ x: 1.0005, min: 4, max: 6 }]);
     expect(downsample([], 0, 4, 4)).toEqual([]);
+  });
+});
+
+describe("smoothing to a trend", () => {
+  test("a constant stays that constant, whatever the window", () => {
+    const pts: [number, number][] = Array.from({ length: 20 }, (_, i) => [i * 0.3, 7]);
+    expect(smooth(pts, 1)).toEqual(pts);
+  });
+
+  test("a sawtooth whose period sits well inside the window comes out nearly flat at its mean", () => {
+    // A purchase dip every tenth of an hour on a line of value 100: the noise the trend is for.
+    const saw: [number, number][] = Array.from({ length: 2000 }, (_, i) => {
+      const x = (i / 2000) * 20;
+      return [x, i % 10 === 0 ? 90 : 100];
+    });
+    const out = smooth(saw, 1);
+    // Away from the ends, every window holds whole periods, so the mean is (90 + 9×100) / 10.
+    for (const [x, y] of out.slice(20, -20)) {
+      expect(x).toBeGreaterThanOrEqual(0);
+      expect(Math.abs(y - 99)).toBeLessThan(1);
+    }
+    expect(out).toHaveLength(saw.length);
+  });
+
+  test("a ramp stays a ramp: a centred mean of a line is the line itself", () => {
+    const ramp: [number, number][] = Array.from({ length: 101 }, (_, i) => [i * 0.1, i * 0.1]);
+    const out = smooth(ramp, 1);
+    for (let i = 6; i < 95; i++) expect(out[i]?.[1]).toBeCloseTo(ramp[i]?.[1] ?? 0, 10);
+    // At the ends the window is one-sided, so the ramp leans toward its own mean, not to nothing.
+    expect(out[0]?.[1]).toBeCloseTo(0.25, 10);
+    expect(Number.isFinite(out[100]?.[1] ?? Number.NaN)).toBe(true);
+  });
+
+  test("a window of zero returns the input unchanged", () => {
+    const pts: [number, number][] = [
+      [0, 5],
+      [1, Number.NEGATIVE_INFINITY],
+      [2, 9],
+    ];
+    expect(smooth(pts, 0)).toEqual(pts);
+  });
+
+  test("hours, not points: uneven spacing averages the points the window holds", () => {
+    const pts: [number, number][] = [
+      [0, 0],
+      [1, 10],
+      [2, 20],
+      [10, 100],
+    ];
+    expect(smooth(pts, 2)).toEqual([
+      [0, 5],
+      [1, 10],
+      [2, 15],
+      [10, 100],
+    ]);
+  });
+
+  test("non-finite y is ignored: the mean is of the finite points near it, and a lone floor value stays the floor", () => {
+    const pts: [number, number][] = [
+      [0, Number.NEGATIVE_INFINITY],
+      [1, 10],
+      [2, 20],
+    ];
+    expect(smooth(pts, 2)).toEqual([
+      [0, 10],
+      [1, 15],
+      [2, 15],
+    ]);
+    expect(
+      smooth(
+        [
+          [0, Number.NEGATIVE_INFINITY],
+          [5, 7],
+        ],
+        1,
+      ),
+    ).toEqual([
+      [0, Number.NEGATIVE_INFINITY],
+      [5, 7],
+    ]);
   });
 });
 

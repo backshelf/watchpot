@@ -301,6 +301,43 @@ export function downsample(
   return out;
 }
 
+/**
+ * A series smoothed by a centred moving average over a window of `windowHours` — hours, not points, for the points are
+ * not evenly spaced: each point's y becomes the mean of the finite y of every point within half the window either
+ * side of it. Two pointers and running sums, O(n) whatever the window; points are in ascending x. A window of zero or
+ * less returns the series unchanged, and a point with nothing finite in its window keeps its own y (a lone axis-floor
+ * `-Infinity` stays the floor). It is a drawing aid only: the readout and the tables keep the raw values.
+ */
+export function smooth(pts: readonly (readonly [number, number])[], windowHours: number): [number, number][] {
+  if (!(windowHours > 0)) return pts.map(([x, y]) => [x, y]);
+  const half = windowHours / 2;
+  const out: [number, number][] = [];
+  let lo = 0;
+  let hi = 0;
+  let n = 0;
+  let sum = 0;
+  for (const [x, y] of pts) {
+    while (hi < pts.length && (pts[hi]?.[0] ?? Infinity) <= x + half + 1e-9) {
+      const v = pts[hi]?.[1];
+      if (v !== undefined && Number.isFinite(v)) {
+        n++;
+        sum += v;
+      }
+      hi++;
+    }
+    while (lo < hi && (pts[lo]?.[0] ?? -Infinity) < x - half - 1e-9) {
+      const v = pts[lo]?.[1];
+      if (v !== undefined && Number.isFinite(v)) {
+        n--;
+        sum -= v;
+      }
+      lo++;
+    }
+    out.push([x, n > 0 ? sum / n : y]);
+  }
+  return out;
+}
+
 /** Hours as `h:mm`, signed when `signed`: `+0:12`, `-1:05`. Rounded to the minute. */
 export function hoursMinutes(hours: number, signed = false): string {
   const minutes = Math.round(Math.abs(hours) * 60);

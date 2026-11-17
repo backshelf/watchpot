@@ -3,9 +3,10 @@
 // The svg is drawn in the pixels it is shown in (CSS sets its height, a ResizeObserver reports its box), so a series is
 // cut to one slice per pixel column (`downsample`) and a stroke is the weight it says on any screen.
 //
-// The crosshair's position is a small store, not state of this component: a pointer move re-renders only the crosshair
-// line and the readout, the two pieces that subscribe to it — never the series paths, the axes, the gate marks or
-// anything outside the graph — and pointer moves are coalesced to one update a frame.
+// The crosshair is a small store, not state of this component — and its hairline is not even that: the pointer sets
+// it straight on its DOM node, in its own overlay svg over the plot, so it keeps up with the cursor and repaints
+// nothing beneath it. What the store moves is the dots and the readout, the two pieces that subscribe to it, and
+// pointer moves are coalesced to one update a frame.
 import {
   type KeyboardEvent,
   memo,
@@ -19,7 +20,7 @@ import {
   useSyncExternalStore,
 } from "react";
 import { D } from "../../core";
-import { compact, downsample, hourTicks, lastAtOrBefore, type YAxis } from "./series";
+import { compact, downsample, hourTicks, lastAtOrBefore, smooth, type YAxis } from "./series";
 
 // The plot's margins, in px: the left grows with the widest y label, the top with the rows of gate keys above the plot.
 const M = { r: 16, b: 26, t: 10 };
@@ -81,6 +82,8 @@ export interface GraphProps {
   gates?: readonly GateMark[];
   /** The hours a crosshair can sit at, ascending. */
   stops: readonly number[];
+  /** The trend window in hours: 0 (the default) draws the lines as they are. */
+  trend?: number;
   readout: (hours: number) => ReadoutRow[];
   /** A drawn empty state: what is coming. The axes are still drawn. */
   empty?: string;
@@ -188,29 +191,25 @@ function Readout({
   );
 }
 
-/** The crosshair itself: a hairline at the hour and a dot on every strong line, found by binary search. */
+/** The crosshair's dots: one on every strong line at the hour, found by binary search. The hairline itself is not
+ * drawn here — it is placed straight on its own node by the pointer, outside React's frames. */
 function Cross({
   crosshair,
   stops,
   lines,
   xOf,
   yOf,
-  top,
-  bottom,
 }: {
   crosshair: Crosshair;
   stops: readonly number[];
   lines: readonly GraphLine[];
   xOf: (h: number) => number;
   yOf: (v: number) => number;
-  top: number;
-  bottom: number;
 }) {
   const h = hourAt(useAt(crosshair), stops);
   if (h === undefined) return null;
   return (
     <g className="graph__cross">
-      <line x1={xOf(h)} x2={xOf(h)} y1={top} y2={bottom} />
       {lines
         .filter((l) => l.weight !== "hair" && l.weight !== "before")
         .map((l) => {
@@ -224,16 +223,18 @@ function Cross({
   );
 }
 
-/** One line's drawn shapes: the path of its highs, and the band of each pixel column's range behind it. */
+/** One line's drawn shapes: the path of its highs, the band of each pixel column's range behind it, and, when a trend
+ * window is on, the path of the unsmoothed line under the smoothed one. */
 interface Shapes {
   line: string;
   band: string;
+  raw: string;
 }
 
 /**
  * The plot's data layer: hatched gaps, the bands and the series paths, cut to the pixels they are drawn in. The d
- * strings are built once per data, size or scale change, and the crosshair is not a prop, so a move renders none of
- * this; memoised, an unrelated change above (a pin typed, a note set) leaves it alone too.
+ * strings are built once per data, size, scale or trend-window change, and the crosshair is not a prop, so a move renders
+ * none of this; memoised, an unrelated change above (a pin typed, a note set) leaves it alone too.
  */
 const Series = memo(function Series({
   uid,
@@ -241,6 +242,7 @@ const Series = memo(function Series({
   gaps,
   endHours,
   plotW,
+  trend,
   xOf,
   yOf,
   onRender,
@@ -250,6 +252,8 @@ const Series = memo(function Series({
   gaps?: readonly (readonly (readonly [number, number])[])[];
   endHours: number;
   plotW: number;
+  /** The trend window in hours: above zero each strong line is drawn smoothed over its own raw line. */
+  trend: number;
   xOf: (h: number) => number;
   yOf: (v: number) => number;
   onRender?: () => void;
@@ -259,20 +263,36 @@ const Series = memo(function Series({
       pts.map(([h, v], i) => `${i === 0 ? "M" : "L"}${xOf(h).toFixed(1)} ${yOf(v).toFixed(1)}`).join("");
     const gapDs = gaps?.map((poly) => `${d(poly)}Z`);
     const shapes: Shapes[] = lines.map((l) => {
-      const bands = downsample(l.pts, 0, endHours, Math.round(plotW));
+      // A trend window smooths every line but a seed's own hairline (the run before is smoothed too, on the plotted y:
+      // log10 on the log scale, the raw value on linear). The smoothing runs here, inside the memo, keyed on the
+      // data, the size, the scale and the window — never on hover.
+      const source = trend > 0 && l.weight !== "hair" ? smooth(l.pts, trend) : l.pts;
+      const bands = downsample(source, 0, endHours, Math.round(plotW));
       const line = bands.map(
         (b, i) => `${i === 0 ? "M" : "L"}${xOf(b.x).toFixed(1)} ${yOf(b.max).toFixed(1)}`,
       );
       let band = "";
-      if (l.weight !== "hair" && l.weight !== "before" && bands.some((b) => yOf(b.min) - yOf(b.max) >= 0.5)) {
+      if (
+        trend <= 0 &&
+        l.weight !== "hair" &&
+        l.weight !== "before" &&
+        bands.some((b) => yOf(b.min) - yOf(b.max) >= 0.5)
+      ) {
         const hi = bands.map((b) => `${xOf(b.x).toFixed(1)} ${yOf(b.max).toFixed(1)}`);
         const lo = bands.map((b) => `${xOf(b.x).toFixed(1)} ${yOf(b.min).toFixed(1)}`).reverse();
         band = `M${[...hi, ...lo].join("L")}Z`;
       }
-      return { line: line.join(""), band };
+      // The raw line a strong line drops to under a trend: the noise the smoothed one leaves out, faint underneath.
+      const raw =
+        trend > 0 && l.weight !== "hair" && l.weight !== "before"
+          ? downsample(l.pts, 0, endHours, Math.round(plotW))
+              .map((b, i) => `${i === 0 ? "M" : "L"}${xOf(b.x).toFixed(1)} ${yOf(b.max).toFixed(1)}`)
+              .join("")
+          : "";
+      return { line: line.join(""), band, raw };
     });
     return { gapDs, shapes };
-  }, [lines, gaps, endHours, plotW, xOf, yOf]);
+  }, [lines, gaps, endHours, plotW, trend, xOf, yOf]);
   onRender?.();
   return (
     <>
@@ -284,13 +304,26 @@ const Series = memo(function Series({
           <path key={`${l.id}:band`} className={`graph__band series-${l.slot}`} d={drawn.shapes[i]?.band} />
         ) : null,
       )}
+      {lines.map((l, i) =>
+        drawn.shapes[i]?.raw ? (
+          <path
+            key={`${l.id}:raw`}
+            className={`graph__line graph__line--raw series-${l.slot} dash-${l.slot}`}
+            d={drawn.shapes[i]?.raw}
+          />
+        ) : null,
+      )}
       {lines.map((l, i) => (
         <path
           key={l.id}
           className={
             l.weight === "before"
               ? `graph__line graph__line--before series-${l.slot}`
-              : `graph__line graph__line--${l.weight} series-${l.slot} dash-${l.slot}`
+              : l.weight === "hair"
+                ? `graph__line graph__line--hair series-${l.slot}`
+                : trend > 0
+                  ? `graph__line graph__line--trend series-${l.slot} dash-${l.slot}`
+                  : `graph__line graph__line--${l.weight} series-${l.slot} dash-${l.slot}`
           }
           d={drawn.shapes[i]?.line}
         />
@@ -357,12 +390,14 @@ export function Graph(props: GraphProps) {
     gaps,
     gates,
     stops,
+    trend = 0,
     readout,
     empty,
     onSeriesRender,
   } = props;
   const uid = useId().replace(/:/g, "");
   const svg = useRef<SVGSVGElement>(null);
+  const hair = useRef<SVGLineElement>(null);
   const crosshair = useCrosshair();
   const [size, setSize] = useState(FALLBACK);
 
@@ -412,7 +447,20 @@ export function Graph(props: GraphProps) {
     [bottom, axis.lo, axis.hi, span, plotH],
   );
 
-  // A move only finds the hour; one animation frame applies it, so a burst of pointer events costs one update.
+  /** Puts the crosshair's hairline at an x in the plot's units, or hides it — straight on its node, so it follows the
+   * pointer with no frame of React or the browser's paint between them. */
+  const placeHair = useCallback((x: number | null) => {
+    const el = hair.current;
+    if (!el) return;
+    if (x === null) el.style.visibility = "hidden";
+    else {
+      el.style.visibility = "visible";
+      el.style.transform = `translateX(${x.toFixed(1)}px)`;
+    }
+  }, []);
+
+  // A move only finds the hour; one animation frame applies it, so a burst of pointer events costs one update. The
+  // hairline itself is placed above, synchronously at the pointer's exact x — the dots and the readout still snap.
   const frame = useRef<number | undefined>(undefined);
   const pending = useRef<number | null>(null);
   useEffect(
@@ -421,12 +469,20 @@ export function Graph(props: GraphProps) {
     },
     [],
   );
+  // A new geometry (a resize, a new axis) re-seats the hairline where the hour it sits at now is.
+  useEffect(() => {
+    const at = crosshair.get();
+    if (at === null || stops.length === 0) return;
+    placeHair(xOf(stops[Math.min(at, stops.length - 1)] ?? 0));
+  }, [crosshair, stops, xOf, placeHair]);
   const onMove = (e: PointerEvent<SVGSVGElement>) => {
     const el = svg.current;
     if (!el || stops.length === 0) return;
     const box = el.getBoundingClientRect();
     if (box.width === 0) return;
     const px = ((e.clientX - box.left) / box.width) * width;
+    // The line sits at the pointer's exact x, clamped to the plot — not snapped to the stop the dots will take.
+    placeHair(Math.min(Math.max(px, left), left + plotW));
     pending.current = nearestStop(stops, ((px - left) / plotW) * endHours);
     if (frame.current === undefined)
       frame.current = requestAnimationFrame(() => {
@@ -439,6 +495,7 @@ export function Graph(props: GraphProps) {
       cancelAnimationFrame(frame.current);
       frame.current = undefined;
     }
+    placeHair(null);
     crosshair.set(null);
   };
   const last = stops.length - 1;
@@ -453,6 +510,8 @@ export function Graph(props: GraphProps) {
     else if (e.key === "Escape") next = null;
     if (next === undefined) return;
     e.preventDefault();
+    // The keyboard sets the line the same way the pointer does: straight to the stop's x, no frame in between.
+    placeHair(next === null ? null : xOf(stops[next] ?? 0));
     crosshair.set(next);
   };
 
@@ -482,7 +541,10 @@ export function Graph(props: GraphProps) {
         aria-label={`${title}: arrow keys move the crosshair`}
         aria-describedby={`${uid}-read`}
         onKeyDown={onKey}
-        onBlur={() => crosshair.set(null)}
+        onBlur={() => {
+          placeHair(null);
+          crosshair.set(null);
+        }}
       >
         <svg
           ref={svg}
@@ -531,6 +593,7 @@ export function Graph(props: GraphProps) {
               gaps={gaps}
               endHours={endHours}
               plotW={plotW}
+              trend={trend}
               xOf={xOf}
               yOf={yOf}
               onRender={onSeriesRender}
@@ -538,16 +601,6 @@ export function Graph(props: GraphProps) {
           </g>
 
           <GateMarks placed={placed.placed} xOf={xOf} top={top} bottom={bottom} />
-
-          <Cross
-            crosshair={crosshair}
-            stops={stops}
-            lines={lines}
-            xOf={xOf}
-            yOf={yOf}
-            top={top}
-            bottom={bottom}
-          />
 
           {empty && (
             <g className="graph__empty">
@@ -576,6 +629,12 @@ export function Graph(props: GraphProps) {
               </text>
             </g>
           )}
+        </svg>
+        {/* The crosshair's own sheet: an svg over the plot, the same box and view, painting nothing but the hairline
+            and its dots — a move repaints none of the series beneath it. */}
+        <svg className="graph__overlay" viewBox={`0 0 ${width} ${height}`} aria-hidden="true">
+          <line ref={hair} className="graph__hairline" x1={0} x2={0} y1={top} y2={bottom} />
+          <Cross crosshair={crosshair} stops={stops} lines={lines} xOf={xOf} yOf={yOf} />
         </svg>
       </div>
     </section>

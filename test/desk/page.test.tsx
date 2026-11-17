@@ -263,6 +263,99 @@ describe("the desk page", () => {
     expect(read()).toContain("1.00 h");
   });
 
+  test("the hairline follows the pointer and the keys synchronously, before any animation frame", async () => {
+    const socket = await draw();
+    await socket.say(window(1, 1, 0, 2, [0, 1, 2]));
+    const graph = screen.getByRole("group", { name: /Currencies over time/ });
+    // Where nothing measures, the svg keeps its fallback box: give it one, so a client x finds an x in the plot.
+    const svg = document.querySelector(".graph__svg") as SVGSVGElement;
+    svg.getBoundingClientRect = () => ({ left: 0, top: 0, width: 960, height: 400 }) as DOMRect;
+    // The crosshair lives in its own sheet over the plot: the series svg holds no line of it.
+    const overlay = document.querySelector(".graph__overlay") as SVGSVGElement;
+    const hair = overlay.querySelector(".graph__hairline") as SVGLineElement;
+    expect(svg.querySelector(".graph__cross")).toBeNull();
+    expect(hair.style.transform).toBe("");
+    // The frames are held back: nothing may move until they are let run.
+    const frames: FrameRequestCallback[] = [];
+    const raf = globalThis.requestAnimationFrame;
+    globalThis.requestAnimationFrame = ((cb: FrameRequestCallback) => {
+      frames.push(cb);
+      return frames.length;
+    }) as typeof requestAnimationFrame;
+    try {
+      fireEvent.pointerMove(svg, { clientX: 300, clientY: 50 });
+      // Placed straight on its node, at the pointer's exact x clamped to the plot — no frame has run yet.
+      expect(hair.style.visibility).toBe("visible");
+      expect(hair.style.transform).toBe("translateX(300.0px)");
+      // The dots still wait for the store's frame, and then sit on the raw points.
+      expect(overlay.querySelector(".graph__cross circle")).toBeNull();
+      act(() => {
+        for (const cb of frames.splice(0)) cb(0);
+      });
+      expect(overlay.querySelectorAll(".graph__cross circle").length).toBe(1);
+      // The keyboard seats the line at the stop's x the same way, with no frame either.
+      fireEvent.keyDown(graph, { key: "Home" });
+      expect(hair.style.transform).toBe("translateX(35.0px)");
+      fireEvent.keyDown(graph, { key: "End" });
+      expect(hair.style.transform).toBe("translateX(489.5px)");
+      // Leave and Escape hide it.
+      fireEvent.pointerLeave(svg);
+      expect(hair.style.visibility).toBe("hidden");
+      fireEvent.keyDown(graph, { key: "ArrowRight" });
+      expect(hair.style.visibility).toBe("visible");
+      fireEvent.keyDown(graph, { key: "Escape" });
+      expect(hair.style.visibility).toBe("hidden");
+    } finally {
+      globalThis.requestAnimationFrame = raf;
+    }
+  });
+
+  test("the trend toggle smooths the strong lines of both graphs, and the choice is kept", async () => {
+    localStorage.setItem("watchpot-desk-trend", "3h");
+    try {
+      const socket = await draw();
+      // A dense run: enough points a pixel column that the strong line carries a band to hide.
+      const dense = Array.from({ length: 2001 }, (_, i) => i / 1000);
+      await socket.say(window(1, 1, 0, 2, dense));
+      fireEvent.click(screen.getByRole("checkbox", { name: "Next cost of mine" }));
+      const graph1 = () => screen.getByRole("group", { name: /Currencies over time/ }).parentElement;
+      const graph2 = () => screen.getByRole("group", { name: /Wallet against next cost/ }).parentElement;
+      // A saved choice is read on load: the 3h window is on, both graphs smoothed over their own raw lines.
+      expect(screen.getByRole("button", { name: "3h" }).getAttribute("aria-pressed")).toBe("true");
+      expect(graph1()?.querySelectorAll(".graph__line--trend").length).toBe(1);
+      expect(graph1()?.querySelectorAll(".graph__line--raw").length).toBe(1);
+      expect(graph1()?.querySelector(".graph__band")).toBeNull();
+      expect(graph2()?.querySelectorAll(".graph__line--trend").length).toBe(2);
+      expect(graph2()?.querySelectorAll(".graph__line--raw").length).toBe(2);
+      expect(graph1()?.querySelector(".graph__caption")?.textContent).toContain("· trend 3h");
+      expect(graph2()?.querySelector(".graph__caption")?.textContent).toContain("· trend 3h");
+      // The trend is a drawing aid only: the readout and the tables keep the raw values.
+      const frame = screen.getByRole("group", { name: /Currencies over time/ });
+      fireEvent.keyDown(frame, { key: "End" });
+      const read = document.getElementById(frame.getAttribute("aria-describedby") ?? "")?.textContent ?? "";
+      expect(read).toContain("2.00 h");
+      expect(read).toContain("200");
+      expect(
+        within(screen.getByRole("table", { name: "Hourly values" })).getByRole("row", { name: /^2 / })
+          .textContent,
+      ).toContain("200");
+      // Off: the lines are as they were, band and all.
+      fireEvent.click(screen.getByRole("button", { name: "off" }));
+      expect(graph1()?.querySelector(".graph__line--trend")).toBeNull();
+      expect(graph1()?.querySelectorAll(".graph__band").length).toBe(1);
+      expect(graph1()?.querySelector(".graph__caption")?.textContent).not.toContain("trend");
+      expect(localStorage.getItem("watchpot-desk-trend")).toBe("off");
+      // Another window, and it is kept for the next visit.
+      fireEvent.click(screen.getByRole("button", { name: "1h" }));
+      expect(graph1()?.querySelectorAll(".graph__line--trend").length).toBe(1);
+      expect(graph1()?.querySelector(".graph__caption")?.textContent).toContain("· trend 1h");
+      expect(localStorage.getItem("watchpot-desk-trend")).toBe("1h");
+      expect(socket.sent.length).toBe(1);
+    } finally {
+      localStorage.removeItem("watchpot-desk-trend");
+    }
+  });
+
   test("a closed connection is said, not silent", async () => {
     const socket = fake();
     let close: (() => void) | undefined;
