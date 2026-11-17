@@ -8,9 +8,11 @@ import {
   BLOCKED,
   DRAFT_LINE,
   type FitGate,
+  fitHolds,
   fitTable,
   fitTableSource,
   formatFit,
+  type GatePin,
   holdings,
   isBlocked,
   nicePrice,
@@ -316,7 +318,13 @@ describe("the fit table", () => {
 /** A jar like `jar`, whose look reports what it did, to try `stepping`; its state is its snapshot's `extra`. */
 function steppingJar(
   plan: Record<string, number>,
-  o: { stepping?: { maxMs: number }; from?: SimSnapshot<JarExtra>; limitMs?: number; snap?: number } = {},
+  o: {
+    pinned?: Record<string, GatePin>;
+    stepping?: { maxMs: number };
+    from?: SimSnapshot<JarExtra>;
+    limitMs?: number;
+    snap?: number;
+  } = {},
 ) {
   const s = { coins: D(0), playedMs: 0, paid: new Set<string>() };
   if (o.from?.extra) {
@@ -361,6 +369,7 @@ function steppingJar(
       playedMs: () => s.playedMs,
       done: () => s.paid.size === gates.length,
       limitMs: o.limitMs ?? 20 * MIN,
+      ...(o.pinned && { pinned: o.pinned }),
       ...(o.stepping && { stepping: o.stepping }),
       ...(o.snap && {
         capture: () => ({ world: {} as never, extra: { coins: s.coins.toString(), paid: [...s.paid] } }),
@@ -493,5 +502,83 @@ describe("runFit stepping", () => {
     expect(resumed.playedMs).toBe(whole.playedMs);
     expect(() => steppingJar(plan, { stepping: { maxMs: 4000 }, from: mid }).run()).toThrow(/snapshot/);
     expect(() => steppingJar(plan, { from: mid }).run()).toThrow(/snapshot/);
+  });
+});
+
+describe("pinned gates", () => {
+  const plan = { first: 1, second: 3, third: 4 };
+
+  test("a price pin opens at its minute at the pinned figure, never written again, and reports what it would price", () => {
+    const j = steppingJar(plan, { pinned: { second: { price: 1e6 } } });
+    const writes: (string | null)[] = [];
+    const set = j.table.set.bind(j.table);
+    j.table.set = (k, f) => {
+      if (k === "second") writes.push(f);
+      set(k, f);
+    };
+    const result = j.run();
+    const g = result.gates.find((x) => x.key === "second");
+    expect(g?.pinned).toEqual({ price: true });
+    expect(g?.value).toBe("1000000");
+    expect(g?.openedMs).toBeGreaterThanOrEqual(3 * MIN);
+    expect(g?.openedMs).toBeLessThan(3 * MIN + 1000);
+    expect(j.table.figure("second")).toBe("1000000");
+    expect(g?.fitValue).toBe("120"); // what nicePrice gave off the held coins, as an unpinned gate would be priced
+    expect(writes).toEqual([null, "1000000"]);
+    expect(result.gates.find((x) => x.key === "first")?.pinned).toBeUndefined();
+  });
+
+  test("an atMs pin moves the minute", () => {
+    const j = steppingJar(plan, { pinned: { first: { atMs: 2 * MIN } } });
+    const result = j.run();
+    const g = result.gates.find((x) => x.key === "first");
+    expect(g?.atMs).toBe(2 * MIN);
+    expect(g?.pinned).toEqual({ atMs: true });
+    expect(g?.openedMs).toBeGreaterThanOrEqual(2 * MIN);
+    expect(result.gates.map((x) => x.key)).toEqual(["first", "second", "third"]);
+  });
+
+  test("a pin on an unknown key throws", () => {
+    expect(() => steppingJar(plan, { pinned: { nope: { price: 5 } } }).run()).toThrow(
+      'runFit: pinned "nope" is not a gate in the plan',
+    );
+  });
+
+  test("a pinned fit resumed from a snapshot with the same pins equals the unbroken run", () => {
+    const pinned = { second: { price: 50 }, third: { atMs: 5 * MIN } };
+    const whole = steppingJar(plan, { pinned, snap: 45_000 }).run();
+    const mid = whole.snapshots.find((x) => x.atMs > 3 * MIN + 10_000) as SimSnapshot<JarExtra>;
+    const resumed = steppingJar(plan, { pinned, snap: 45_000, from: mid }).run();
+    expect(resumed.gates).toEqual(whole.gates);
+    expect(resumed.playedMs).toBe(whole.playedMs);
+    expect(() => steppingJar(plan, { from: mid }).run()).toThrow(/pinned/);
+  });
+});
+
+describe("fitHolds with pins", () => {
+  const plan = { first: 1, second: 3 };
+  const snap = (pinned?: Record<string, GatePin>) => {
+    const j = steppingJar(plan, { pinned, snap: 30_000, limitMs: 4 * MIN });
+    return { j, snapshot: j.run().snapshots.find((x) => x.atMs >= 2 * MIN) as SimSnapshot<JarExtra> };
+  };
+
+  test("a pin before the snapshot that changed, was added or was removed is a reason", () => {
+    const a = snap({ first: { price: 5 } });
+    const gates = a.j.gates;
+    expect(fitHolds(a.snapshot, gates, { first: { price: 5 } })).toEqual([]);
+    expect(fitHolds(a.snapshot, gates, { first: { price: 6 } })[0]).toContain(
+      '"first" is pinned at 6 now and was at 5',
+    );
+    expect(fitHolds(a.snapshot, gates)[0]).toContain('"first" was pinned at 5 then and is not now');
+    const b = snap();
+    expect(fitHolds(b.snapshot, b.j.gates, { first: { price: 5 } })[0]).toContain(
+      '"first" is pinned at 5 now and was not then',
+    );
+  });
+
+  test("a pin after the snapshot changes nothing", () => {
+    const a = snap({ second: { price: 5 } });
+    expect(fitHolds(a.snapshot, a.j.gates, { second: { price: 7 } })).toEqual([]);
+    expect(fitHolds(a.snapshot, a.j.gates)).toEqual([]);
   });
 });

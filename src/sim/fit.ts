@@ -11,7 +11,7 @@
  * table between them.
  */
 
-import { D, Decimal } from "../core";
+import { D, Decimal, type DecimalSource } from "../core";
 import type { LookResult } from "./auto";
 import { fmtClock } from "./print";
 import {
@@ -147,9 +147,9 @@ export function holdings<R extends string>(
 // ------------------------------------------------------------------------------------------------ the fit
 
 /** A gate in the plan. The loop shuts it and writes its price into the table; the game says what the price is. */
-export interface FitGate {
+export interface FitGate<K extends string = string> {
   /** The plan's key for the gate; the table's key. */
-  readonly key: string;
+  readonly key: K;
   /** The planned minute, in ms of play. */
   readonly atMs: number;
   /**
@@ -159,12 +159,28 @@ export interface FitGate {
   price(): string | null;
 }
 
-/** A gate after the fit: when it opened and the value its `price()` gave, if it did. */
-export interface FittedGate {
-  readonly key: string;
+/** A gate set by hand: what the fit uses as given instead of the plan's minute or its own price. */
+export type GatePin = {
+  /** The price to open the gate at, never overwritten by the fit. Written once as a figure string (`D(price)`). */
+  readonly price?: DecimalSource;
+  /** The minute the gate opens at, in ms of play, in place of the plan's. */
+  readonly atMs?: number;
+};
+
+/**
+ * A gate after the fit: when it opened and the value its `price()` gave, if it did (for a price-pinned gate, the
+ * pinned figure).
+ */
+export interface FittedGate<K extends string = string> {
+  readonly key: K;
+  /** The gate's minute: the pinned one when `atMs` was pinned. */
   readonly atMs: number;
   openedMs?: number;
   value?: string;
+  /** What was pinned on this gate, each set only when pinned. */
+  pinned?: { price?: true; atMs?: true };
+  /** For a price-pinned gate, what its `price()` gave once its minute came (never written to the table). */
+  fitValue?: string;
 }
 
 /**
@@ -192,10 +208,16 @@ export interface FitRun<X = unknown> {
 }
 
 /** What `runFit` plays: the table, the gates, the run, the clock, and where to start. */
-export interface FitOptions<X = unknown> extends FitRun<X> {
+export interface FitOptions<X = unknown, K extends string = string> extends FitRun<X> {
   /** The live table the game reads its prices from: the fit shuts every gate in it and prices each into it. */
-  table: FitTable;
-  gates: readonly FitGate[];
+  table: FitTable<NoInfer<K>>;
+  gates: readonly FitGate<K>[];
+  /**
+   * Gates set by hand, by key. A pinned `atMs` is the gate's minute everywhere; a pinned `price` opens the gate at
+   * that figure at its minute and is never overwritten, while `price()` is still asked for the report (`fitValue`).
+   * Throws when a key is not a gate in `gates`.
+   */
+  pinned?: Readonly<Partial<Record<K, GatePin>>>;
   /** The game is finished. */
   done(): boolean;
   /** The run stops here, finished or not (ms of play). */
@@ -219,7 +241,7 @@ export interface FitOptions<X = unknown> extends FitRun<X> {
   /**
    * A snapshot to carry on from (one this fit's `capture` took, decoded). Build the run from it first (its world,
    * player and extra); the fit takes its own progress and table from it, prices only what was still unpriced there,
-   * and plays on as if it had never stopped. Throws when the plan moved before it (`fitHolds`).
+   * and plays on as if it had never stopped. Throws when the plan or the pins moved before it (`fitHolds`).
    */
   from?: SimSnapshot<X>;
 }
@@ -232,8 +254,8 @@ export interface FitProgress {
   readonly lookEvery: number;
   /** With `stepping`: its ceiling, the step the fit stood at, and the steps since its last look. */
   readonly stepping?: { readonly maxMs: number; readonly curMs: number; readonly sinceLook: number };
-  /** The plan as this fit had it: each gate's key and minute. */
-  readonly plan: readonly (readonly [string, number])[];
+  /** The plan as this fit had it: each gate's key and minute, and the pinned price figure of a price-pinned gate. */
+  readonly plan: readonly (readonly [string, number, string?])[];
   /** Every gate as it stood. */
   readonly gates: readonly FittedGate[];
   /** The table as it stood: what was priced by then. */
@@ -249,23 +271,72 @@ export interface FitResult<X = unknown> {
   snapshots: SimSnapshot<X>[];
 }
 
+/** A gate with its pins applied: the minute it opens at and the figure it is pinned at, if any. */
+interface PinnedGate<K extends string> {
+  readonly gate: FitGate<K>;
+  readonly atMs: number;
+  readonly pin: GatePin | undefined;
+  /** The pinned price as a figure string. */
+  readonly figure: string | undefined;
+}
+
+/** Applies `pinned` to `gates` (in their order); throws on a key that is not a gate. */
+function applyPins<K extends string>(
+  gates: readonly FitGate<K>[],
+  pinned: Readonly<Partial<Record<K, GatePin>>> | undefined,
+): PinnedGate<K>[] {
+  for (const key of Object.keys(pinned ?? {}))
+    if (!gates.some((g) => g.key === key))
+      throw new Error(`runFit: pinned "${key}" is not a gate in the plan`);
+  return gates.map((gate) => {
+    const pin = pinned?.[gate.key];
+    return {
+      gate,
+      atMs: pin?.atMs ?? gate.atMs,
+      pin,
+      figure: pin?.price === undefined ? undefined : D(pin.price).toString(),
+    };
+  });
+}
+
 /**
  * Whether a fit can carry on from a snapshot under this plan: the gates it had planned up to its moment must be the
- * gates planned up to it now, at the same minutes. The reasons it cannot, empty when it can.
+ * gates planned up to it now, at the same minutes and pinned at the same prices (`pinned` is applied as `runFit`
+ * applies it). The reasons it cannot, empty when it can.
  */
-export function fitHolds(snapshot: SimSnapshot, gates: readonly FitGate[]): string[] {
+export function fitHolds<K extends string = string>(
+  snapshot: SimSnapshot,
+  gates: readonly FitGate<K>[],
+  pinned?: Readonly<Partial<Record<K, GatePin>>>,
+): string[] {
   const fit = snapshot.fit;
   if (!fit) return ["the snapshot was not taken by a fit"];
   const by = snapshot.atMs;
-  const then = new Map(fit.plan.filter(([, at]) => at <= by));
-  const now = new Map(gates.filter((g) => g.atMs <= by).map((g) => [g.key, g.atMs] as const));
+  const then = new Map(
+    fit.plan.filter(([, at]) => at <= by).map(([k, at, fig]) => [k, { at, fig }] as const),
+  );
+  const now = new Map(
+    applyPins(gates, pinned)
+      .filter((g) => g.atMs <= by)
+      .map((g) => [g.gate.key as string, { at: g.atMs, fig: g.figure }] as const),
+  );
   const out: string[] = [];
-  for (const [key, at] of now)
-    if (then.get(key) !== at)
-      out.push(`"${key}" is planned at ${fmtClock(at)}, before the snapshot, and was not then`);
-  for (const [key, at] of then)
-    if (now.get(key) !== at)
-      out.push(`"${key}" was planned at ${fmtClock(at)}, before the snapshot, and is not now`);
+  for (const [key, n] of now) {
+    const t = then.get(key);
+    if (t?.at !== n.at)
+      out.push(`"${key}" is planned at ${fmtClock(n.at)}, before the snapshot, and was not then`);
+    else if (t.fig !== n.fig)
+      out.push(
+        n.fig === undefined
+          ? `"${key}" was pinned at ${t.fig} then and is not now`
+          : t.fig === undefined
+            ? `"${key}" is pinned at ${n.fig} now and was not then`
+            : `"${key}" is pinned at ${n.fig} now and was at ${t.fig} then`,
+      );
+  }
+  for (const [key, t] of then)
+    if (now.get(key)?.at !== t.at)
+      out.push(`"${key}" was planned at ${fmtClock(t.at)}, before the snapshot, and is not now`);
   return out;
 }
 
@@ -323,27 +394,38 @@ function stride(
 }
 
 /**
- * Prices a game in one pass. Shuts every gate in the table, orders them by `atMs` (the plan's order between equals),
+ * Prices a game in one pass. A price-pinned gate (`pinned`) opens at its figure on the first step at or after its
+ * minute and is never written again; `price()` is asked from then until it answers, kept as `fitValue`. Shuts every
+ * gate in the table, orders them by `atMs` (the plan's order between equals),
  * then steps: with `capture`, a snapshot first when one is due; every `lookEvery`th step `look()`, `step(stepMs)`,
  * `afterStep()`, then each unopened gate whose minute has come is asked `price()`, and a figure goes into the table
  * and opens it at `playedMs()`. Ends on `done()` or at `limitMs`. With `stepping` the step grows while looks do
  * nothing (see `FitOptions.stepping`); the snapshots keep where it stood.
  */
-export function runFit<X = unknown>(options: FitOptions<X>): FitResult<X> {
+export function runFit<X = unknown, K extends string = string>(options: FitOptions<X, K>): FitResult<X> {
   const { table, gates, step, look, playedMs, done, limitMs, afterStep, capture, from } = options;
   const stepMs = options.stepMs ?? SIM_QUALITY[options.quality ?? "exact"];
   const lookEvery = Math.max(1, options.lookEvery ?? 3);
-  const order = gates.toSorted((a, b) => a.atMs - b.atMs);
-  const fitted: FittedGate[] = order.map((g) => ({ key: g.key, atMs: g.atMs }));
+  const order = applyPins(gates, options.pinned).toSorted((a, b) => a.atMs - b.atMs);
+  const fitted: FittedGate[] = order.map((o) => ({
+    key: o.gate.key,
+    atMs: o.atMs,
+    ...((o.figure !== undefined || o.pin?.atMs !== undefined) && {
+      pinned: {
+        ...(o.figure !== undefined && { price: true as const }),
+        ...(o.pin?.atMs !== undefined && { atMs: true as const }),
+      },
+    }),
+  }));
   let steps = 0;
   const maxMs = options.stepping?.maxMs;
   if (maxMs !== undefined && !(maxMs >= stepMs))
     throw new Error(`runFit: stepping.maxMs (${maxMs}) is below the step (${stepMs})`);
-  const cfg: StepConfig = { floor: stepMs, maxMs, lookEvery, minutes: order.map((g) => g.atMs) };
+  const cfg: StepConfig = { floor: stepMs, maxMs, lookEvery, minutes: order.map((o) => o.atMs) };
   let st = stepStart(stepMs, lookEvery, 0);
 
   if (from) {
-    const problems = fitHolds(from as SimSnapshot, gates);
+    const problems = fitHolds(from as SimSnapshot, gates, options.pinned);
     if (problems.length > 0)
       throw new Error(
         `runFit: cannot carry on from the snapshot at ${fmtClock(from.atMs)}: ${problems.join("; ")}`,
@@ -359,16 +441,19 @@ export function runFit<X = unknown>(options: FitOptions<X>): FitResult<X> {
       );
     steps = fit.steps;
     st = stepStart(stepMs, lookEvery, steps, fit.stepping);
-    table.load(fit.table);
+    table.load(fit.table as FitTableData<K>);
     const was = new Map(fit.gates.map((g) => [g.key, g]));
     fitted.forEach((f, i) => {
       const old = was.get(f.key);
       if (old?.openedMs !== undefined) fitted[i] = { ...old };
+      else if (old?.fitValue !== undefined) f.fitValue = old.fitValue;
     });
   }
-  for (const [i, g] of order.entries()) if (fitted[i]?.openedMs === undefined) table.set(g.key, null);
+  for (const [i, o] of order.entries()) if (fitted[i]?.openedMs === undefined) table.set(o.gate.key, null);
 
-  const plan = order.map((g) => [g.key, g.atMs] as const);
+  const plan = order.map((o): readonly [string, number, string?] =>
+    o.figure === undefined ? [o.gate.key, o.atMs] : [o.gate.key, o.atMs, o.figure],
+  );
   const snapshots: SimSnapshot<X>[] = [];
   const take = (): void => {
     if (!capture) return;
@@ -398,9 +483,23 @@ export function runFit<X = unknown>(options: FitOptions<X>): FitResult<X> {
     step(dt);
     afterStep?.();
     const now = playedMs();
-    order.forEach((g, i) => {
+    order.forEach((o, i) => {
+      const g = o.gate;
       const f = fitted[i];
-      if (!f || f.openedMs !== undefined || g.atMs > now) return;
+      if (!f || o.atMs > now) return;
+      if (o.figure !== undefined) {
+        if (f.openedMs === undefined) {
+          table.set(g.key, o.figure);
+          f.openedMs = now;
+          f.value = o.figure;
+        }
+        if (f.fitValue === undefined) {
+          const seen = g.price();
+          if (seen !== null) f.fitValue = seen;
+        }
+        return;
+      }
+      if (f.openedMs !== undefined) return;
       const value = g.price();
       if (value === null) return;
       table.set(g.key, priceOf(value));

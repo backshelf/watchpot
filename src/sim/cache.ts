@@ -11,7 +11,7 @@
  * is async (Bun's file APIs, so the sim stays browser-safe).
  */
 
-import { type FitGate, fitHolds } from "./fit";
+import { type FitGate, fitHolds, type GatePin } from "./fit";
 import { decodeSnapshot, encodeSnapshot, type SimSnapshot } from "./snapshot";
 
 /** A tunable's value: the knobs a game lets a run turn. */
@@ -114,13 +114,15 @@ export interface SimCache<X = unknown> {
    */
   save(snapshot: SimSnapshot<X>, t: Tunables<Record<string, TunableValue>>): Promise<void>;
   /**
-   * The latest cached snapshot still exactly valid: the plan holds before it (`fitHolds`), and every tunable whose
-   * value differs from the one it was taken with (or was not there) was not yet read when it was taken. With the
+   * The latest cached snapshot still exactly valid: the plan holds before it, minutes and `pinned` prices alike
+   * (`fitHolds`), and every tunable whose value differs from the one it was taken with (or was not there) was not yet
+   * read when it was taken. With the
    * first-read map to start the resumed run's tunables from. Undefined when none is.
    */
-  resume(
-    gates: readonly FitGate[],
+  resume<K extends string = string>(
+    gates: readonly FitGate<K>[],
     t: Tunables<Record<string, TunableValue>>,
+    pinned?: Readonly<Partial<Record<K, GatePin>>>,
   ): Promise<Resumed<X> | undefined>;
   /** Deletes the snapshots after `atMs` (a run that resumes there replaces them). */
   dropAfter(atMs: number): Promise<void>;
@@ -152,13 +154,13 @@ export function simCache<X = unknown>(options: { key: string; dir?: string }): S
       const entry: CacheEntry = { snapshot: encodeSnapshot(snapshot), tunables: t.current(), firstRead };
       await Bun.write(`${root}/snap-${snapshot.atMs}.json`, JSON.stringify(entry));
     },
-    async resume(gates, t) {
+    async resume(gates, t, pinned) {
       const now = t.current() as Record<string, TunableValue>;
       const names = (await files()).sort((a, b) => atOf(b) - atOf(a));
       for (const f of names) {
         const entry = await read(f);
         const snapshot = decodeSnapshot<X>(entry.snapshot);
-        if (fitHolds(snapshot as SimSnapshot, gates).length > 0) continue;
+        if (fitHolds(snapshot as SimSnapshot, gates, pinned).length > 0) continue;
         const stale = Object.keys(now).some(
           (k) =>
             (!Object.hasOwn(entry.tunables, k) || entry.tunables[k] !== now[k]) &&

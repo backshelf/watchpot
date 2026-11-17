@@ -10,7 +10,7 @@
  * Files only: `simCache` keeps one JSON file per snapshot under `<dir>/<key>/`, and every function that touches disk
  * is async (Bun's file APIs, so the sim stays browser-safe).
  */
-import { type FitGate } from "./fit";
+import { type FitGate, type GatePin } from "./fit";
 import { type SimSnapshot } from "./snapshot";
 /** A tunable's value: the knobs a game lets a run turn. */
 export type TunableValue = number | string | boolean;
@@ -53,11 +53,12 @@ export interface SimCache<X = unknown> {
      */
     save(snapshot: SimSnapshot<X>, t: Tunables<Record<string, TunableValue>>): Promise<void>;
     /**
-     * The latest cached snapshot still exactly valid: the plan holds before it (`fitHolds`), and every tunable whose
-     * value differs from the one it was taken with (or was not there) was not yet read when it was taken. With the
+     * The latest cached snapshot still exactly valid: the plan holds before it, minutes and `pinned` prices alike
+     * (`fitHolds`), and every tunable whose value differs from the one it was taken with (or was not there) was not yet
+     * read when it was taken. With the
      * first-read map to start the resumed run's tunables from. Undefined when none is.
      */
-    resume(gates: readonly FitGate[], t: Tunables<Record<string, TunableValue>>): Promise<Resumed<X> | undefined>;
+    resume<K extends string = string>(gates: readonly FitGate<K>[], t: Tunables<Record<string, TunableValue>>, pinned?: Readonly<Partial<Record<K, GatePin>>>): Promise<Resumed<X> | undefined>;
     /** Deletes the snapshots after `atMs` (a run that resumes there replaces them). */
     dropAfter(atMs: number): Promise<void>;
     /** Deletes every snapshot under this key. */

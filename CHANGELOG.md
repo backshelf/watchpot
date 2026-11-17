@@ -2,6 +2,10 @@
 
 Each release is a tag `vX.Y.Z`. A breaking change names its codemod in `codemods/` (policy in `codemods/README.md`).
 
+## Unreleased
+
+- `runFit` takes `pinned`: a gate's price or minute set by hand is used as given and never overwritten, and the fit reports what it pinned and what it would have priced itself (`fitValue`); `fitHolds` and `SimCache.resume` see a changed pin as a changed plan. `FitGate`, `FittedGate`, `FitOptions` and `runFit` take the gate keys as `K`.
+
 ## 1.0.0-rc.6
 
 - The auto-player keeps each feature's move list in a cell of the sim store and lists it again only when something it read changed, or a fit table did. A cell checked since the last write skips its walk, and a stats feature's unchanged flags keep their object. Exact: a heavy game's 40 h fit is 23% faster with an identical report.

@@ -10,7 +10,7 @@
  * fit carries on from one (`from`) instead of playing from nothing, and the proof (`proveFit`) replays the finished
  * table between them.
  */
-import { Decimal } from "../core";
+import { Decimal, type DecimalSource } from "../core";
 import type { LookResult } from "./auto";
 import { type SimSnapshot, type SnapshotParts } from "./snapshot";
 import type { FitTable, FitTableData } from "./table";
@@ -59,9 +59,9 @@ export interface Holdings<R extends string> {
 /** Holdings over `refs`, read through `read`, keeping the last `window` samples (default 90). */
 export declare function holdings<R extends string>(refs: readonly R[], read: (ref: R) => Decimal, { window, from }?: HoldingsOptions): Holdings<R>;
 /** A gate in the plan. The loop shuts it and writes its price into the table; the game says what the price is. */
-export interface FitGate {
+export interface FitGate<K extends string = string> {
     /** The plan's key for the gate; the table's key. */
-    readonly key: string;
+    readonly key: K;
     /** The planned minute, in ms of play. */
     readonly atMs: number;
     /**
@@ -70,12 +70,30 @@ export interface FitGate {
      */
     price(): string | null;
 }
-/** A gate after the fit: when it opened and the value its `price()` gave, if it did. */
-export interface FittedGate {
-    readonly key: string;
+/** A gate set by hand: what the fit uses as given instead of the plan's minute or its own price. */
+export type GatePin = {
+    /** The price to open the gate at, never overwritten by the fit. Written once as a figure string (`D(price)`). */
+    readonly price?: DecimalSource;
+    /** The minute the gate opens at, in ms of play, in place of the plan's. */
+    readonly atMs?: number;
+};
+/**
+ * A gate after the fit: when it opened and the value its `price()` gave, if it did (for a price-pinned gate, the
+ * pinned figure).
+ */
+export interface FittedGate<K extends string = string> {
+    readonly key: K;
+    /** The gate's minute: the pinned one when `atMs` was pinned. */
     readonly atMs: number;
     openedMs?: number;
     value?: string;
+    /** What was pinned on this gate, each set only when pinned. */
+    pinned?: {
+        price?: true;
+        atMs?: true;
+    };
+    /** For a price-pinned gate, what its `price()` gave once its minute came (never written to the table). */
+    fitValue?: string;
 }
 /**
  * A run a fit plays, or a proof replays: the game's step and pilot, its played clock, and (to leave snapshots) what
@@ -100,10 +118,16 @@ export interface FitRun<X = unknown> {
     capture?(): SnapshotParts<X>;
 }
 /** What `runFit` plays: the table, the gates, the run, the clock, and where to start. */
-export interface FitOptions<X = unknown> extends FitRun<X> {
+export interface FitOptions<X = unknown, K extends string = string> extends FitRun<X> {
     /** The live table the game reads its prices from: the fit shuts every gate in it and prices each into it. */
-    table: FitTable;
-    gates: readonly FitGate[];
+    table: FitTable<NoInfer<K>>;
+    gates: readonly FitGate<K>[];
+    /**
+     * Gates set by hand, by key. A pinned `atMs` is the gate's minute everywhere; a pinned `price` opens the gate at
+     * that figure at its minute and is never overwritten, while `price()` is still asked for the report (`fitValue`).
+     * Throws when a key is not a gate in `gates`.
+     */
+    pinned?: Readonly<Partial<Record<K, GatePin>>>;
     /** The game is finished. */
     done(): boolean;
     /** The run stops here, finished or not (ms of play). */
@@ -129,7 +153,7 @@ export interface FitOptions<X = unknown> extends FitRun<X> {
     /**
      * A snapshot to carry on from (one this fit's `capture` took, decoded). Build the run from it first (its world,
      * player and extra); the fit takes its own progress and table from it, prices only what was still unpriced there,
-     * and plays on as if it had never stopped. Throws when the plan moved before it (`fitHolds`).
+     * and plays on as if it had never stopped. Throws when the plan or the pins moved before it (`fitHolds`).
      */
     from?: SimSnapshot<X>;
 }
@@ -145,8 +169,8 @@ export interface FitProgress {
         readonly curMs: number;
         readonly sinceLook: number;
     };
-    /** The plan as this fit had it: each gate's key and minute. */
-    readonly plan: readonly (readonly [string, number])[];
+    /** The plan as this fit had it: each gate's key and minute, and the pinned price figure of a price-pinned gate. */
+    readonly plan: readonly (readonly [string, number, string?])[];
     /** Every gate as it stood. */
     readonly gates: readonly FittedGate[];
     /** The table as it stood: what was priced by then. */
@@ -162,17 +186,20 @@ export interface FitResult<X = unknown> {
 }
 /**
  * Whether a fit can carry on from a snapshot under this plan: the gates it had planned up to its moment must be the
- * gates planned up to it now, at the same minutes. The reasons it cannot, empty when it can.
+ * gates planned up to it now, at the same minutes and pinned at the same prices (`pinned` is applied as `runFit`
+ * applies it). The reasons it cannot, empty when it can.
  */
-export declare function fitHolds(snapshot: SimSnapshot, gates: readonly FitGate[]): string[];
+export declare function fitHolds<K extends string = string>(snapshot: SimSnapshot, gates: readonly FitGate<K>[], pinned?: Readonly<Partial<Record<K, GatePin>>>): string[];
 /**
- * Prices a game in one pass. Shuts every gate in the table, orders them by `atMs` (the plan's order between equals),
+ * Prices a game in one pass. A price-pinned gate (`pinned`) opens at its figure on the first step at or after its
+ * minute and is never written again; `price()` is asked from then until it answers, kept as `fitValue`. Shuts every
+ * gate in the table, orders them by `atMs` (the plan's order between equals),
  * then steps: with `capture`, a snapshot first when one is due; every `lookEvery`th step `look()`, `step(stepMs)`,
  * `afterStep()`, then each unopened gate whose minute has come is asked `price()`, and a figure goes into the table
  * and opens it at `playedMs()`. Ends on `done()` or at `limitMs`. With `stepping` the step grows while looks do
  * nothing (see `FitOptions.stepping`); the snapshots keep where it stood.
  */
-export declare function runFit<X = unknown>(options: FitOptions<X>): FitResult<X>;
+export declare function runFit<X = unknown, K extends string = string>(options: FitOptions<X, K>): FitResult<X>;
 /** The fit's report: a markdown table of gate, planned minute, the minute it opened (or "never"), and its value. */
 export declare function formatFit(result: Pick<FitResult, "gates">): string;
 /** A proof's outcome: how many stretches it replayed, and a line for each that parted from the fit's run. */

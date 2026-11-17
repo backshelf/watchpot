@@ -3,7 +3,7 @@ import { mkdtempSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { D } from "watchpot/core";
-import { type FitGate, fitTable, runFit, simCache, sourceKey, tunables } from "watchpot/sim";
+import { type FitGate, fitTable, type GatePin, runFit, simCache, sourceKey, tunables } from "watchpot/sim";
 
 const tmp = mkdtempSync(join(tmpdir(), "watchpot-cache-"));
 afterAll(() => rmSync(tmp, { recursive: true, force: true }));
@@ -50,6 +50,7 @@ const LATE_AT = 5 * MIN;
 function game(
   values: { rate: number; late: number },
   from?: Awaited<ReturnType<ReturnType<typeof simCache>["resume"]>>,
+  pinned?: Record<string, GatePin>,
 ) {
   const t = tunables(values, undefined, from);
   const s = { coins: D(0), playedMs: 0, paid: false };
@@ -86,6 +87,7 @@ function game(
         };
       },
       snapshotEveryMs: MIN,
+      ...(pinned && { pinned }),
       ...(from && { from: from.snapshot }),
     });
   return { t, s, gates, run, seen };
@@ -122,5 +124,19 @@ describe("simCache", () => {
     expect((await cache.resume(g0.gates, tunables(base)))?.snapshot.atMs).toBe(LATE_AT);
     await cache.clear();
     expect(await cache.resume(g0.gates, tunables(base))).toBeUndefined();
+  });
+
+  test("resume skips a snapshot invalidated by a changed pin before it", async () => {
+    const cache = simCache<unknown>({ key: "pins", dir: join(tmp, "cache") });
+    const pinned = { g: { price: 5 } };
+    const g0 = game({ rate: 1, late: 2 }, undefined, pinned);
+    const result = g0.run();
+    for (const snap of result.snapshots) await cache.save(snap, g0.t as never);
+    const t = () => tunables({ rate: 1, late: 2 });
+    expect((await cache.resume(g0.gates, t(), pinned))?.snapshot.atMs).toBe(result.snapshots.at(-1)?.atMs);
+    // g opens at 8 min: only snapshots before it still hold when its pin changes
+    const got = await cache.resume(g0.gates, t(), { g: { price: 6 } });
+    expect(got?.snapshot.atMs).toBeLessThan(8 * MIN);
+    expect((await cache.resume(g0.gates, t()))?.snapshot.atMs).toBeLessThan(8 * MIN);
   });
 });
