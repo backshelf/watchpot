@@ -8,7 +8,8 @@ import {
   type Move,
   withMoves,
 } from "watchpot/core";
-import { BOX, DRIP_MS, ITEMS, ODDS, PITY, PULL_PRICE } from "../content/gacha";
+import { BOX, ITEMS, ODDS, PITY } from "../content/gacha";
+import { knobs } from "../content/knobs";
 import { type Currency, PREMIUM, WORDS } from "../content/words";
 import { wallet } from "./wallet";
 
@@ -48,7 +49,7 @@ export const collection = withMoves(
         let ok = false;
         api.set((s) => {
           const free = Math.min(count, s.summon.tokens[BOX] ?? 0);
-          if (!wallet.draft.debit(s, PREMIUM, PULL_PRICE * (count - free))) return;
+          if (!wallet.draft.debit(s, PREMIUM, knobs.get("pullPrice") * (count - free))) return;
           const open = summon.draft.open(s, BOX, count);
           s.collection.last = open.pulls.map((p) => p.item.id);
           for (const p of open.pulls)
@@ -60,13 +61,14 @@ export const collection = withMoves(
     }),
     steps: {
       produce: {
-        // Whole premium each time `DRIP_MS` passes; the remainder waits in `drip`.
+        // Whole premium each time the `dripMs` knob passes; the remainder waits in `drip`.
         drip: {
           pass: "both",
           run: (s, ctx) => {
             const ms = s.collection.drip + (ctx.pass === "tick" ? ctx.dtMs : ctx.dtMs * DRIP_AWAY);
-            const whole = Math.floor(ms / DRIP_MS);
-            s.collection.drip = ms - whole * DRIP_MS;
+            const dripMs = knobs.get("dripMs");
+            const whole = Math.floor(ms / dripMs);
+            s.collection.drip = ms - whole * dripMs;
             if (whole > 0) wallet.draft.credit(s, PREMIUM, whole);
           },
         },
@@ -76,7 +78,7 @@ export const collection = withMoves(
   (_s: PullMoveState): Move<PullMoveState>[] => [
     {
       id: "pull",
-      cost: { currency: PREMIUM, amount: D(PULL_PRICE) },
+      cost: { currency: PREMIUM, amount: D(knobs.get("pullPrice")) },
       // A pull is a slow, permanent raise: worth about a twentieth of production a second.
       worth: (st) => st.generators.perSecond.toNumber() * 0.05 + 1,
       apply: (store) => store.getState().collection.pull(1),

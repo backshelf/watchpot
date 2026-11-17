@@ -5,7 +5,8 @@ import { effectText } from "../app/effects";
 import { useGameState, useGameStore } from "../app/hooks";
 import { glyphOf } from "../app/icons";
 import { useOpenSheet } from "../app/sheets";
-import { BOX, BOX_NAME, GACHA_NAME, ITEMS, ODDS, PITY, PULL_PRICE, RARITY_NAME } from "../content/gacha";
+import { BOX, BOX_NAME, GACHA_NAME, ITEMS, ODDS, PITY, RARITY_NAME } from "../content/gacha";
+import { knobs } from "../content/knobs";
 import { CURRENCY, PREMIUM, type Rarity, TAB_NAMES, WORDS } from "../content/words";
 import { Button, Chest, Panel, RarityChip } from "../ui";
 import s from "./screens.module.css";
@@ -63,7 +64,7 @@ export function PullScreen() {
             <div className={s.actions}>
               {[1, 10].map((count) => {
                 const free = Math.min(tokens, count);
-                const price = PULL_PRICE * (count - free);
+                const price = knobs.get("pullPrice") * (count - free);
                 const can = premium.gte(price);
                 return (
                   <Button

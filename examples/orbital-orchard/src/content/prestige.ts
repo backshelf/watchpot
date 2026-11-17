@@ -8,5 +8,3 @@ export const PRESTIGE_CURRENCY: CurrencyWords = { name: "Orbit", plural: "Orbits
 
 /** The gain: `floor(k × (earned this run / per) ^ exp)`, times the gain stat. */
 export const GAIN = { k: 1, exp: 0.5, per: 829440000 };
-/** Each unit held raises output by this share. */
-export const BONUS_PER_UNIT = 0.1;

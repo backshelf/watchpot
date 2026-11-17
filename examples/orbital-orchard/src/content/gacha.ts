@@ -6,10 +6,6 @@ export const GACHA_NAME = "Graft bench";
 /** The one box the pulls open; its id is the gacha's box key. */
 export const BOX = "graft-kit";
 export const BOX_NAME = "Graft kit";
-/** Premium per pull. */
-export const PULL_PRICE = 10;
-/** One premium drips in this often while the game runs (away, at the offline share). */
-export const DRIP_MS = 6 * 60_000;
 
 export const RARITY_NAME: Record<Rarity, string> = {
   common: "Common",

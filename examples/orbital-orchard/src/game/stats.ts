@@ -1,7 +1,6 @@
 import { type Decimal, defineStats, rankContributions, reach } from "watchpot/core";
 import { ITEMS } from "../content/gacha";
-import { OFFLINE_BASE } from "../content/generators";
-import { BONUS_PER_UNIT } from "../content/prestige";
+import { knobs } from "../content/knobs";
 import { NODES } from "../content/tree";
 import { WORDS } from "../content/words";
 import { collection } from "./gacha";
@@ -24,14 +23,22 @@ export const stats = defineStats({
   reach: () => [upgrades, collection, reach<{ prestige: { currency: Decimal } }>()],
   stats: {
     output: { base: 1 },
-    offline: { base: OFFLINE_BASE, hardcap: 1 },
+    // A getter, so the knob is read when the stat is worked out, not once at load.
+    offline: {
+      get base() {
+        return knobs.get("offlineBase");
+      },
+      hardcap: 1,
+    },
     gain: { base: 1 },
   },
   sources: [
     {
       label: "Orbits",
       owner: "prestige",
-      effects: [{ stat: "output", mul: (q) => 1 + BONUS_PER_UNIT * q.prestige.currency.toNumber() }],
+      effects: [
+        { stat: "output", mul: (q) => 1 + knobs.get("bonusPerUnit") * q.prestige.currency.toNumber() },
+      ],
     },
   ],
   contributions: (s) => [

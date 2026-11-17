@@ -8,7 +8,8 @@ import { useGameState, useGameStore } from "../app/hooks";
 import { glyphOf } from "../app/icons";
 import { useOpenSheet } from "../app/sheets";
 import { playCharge, playKit, playReveal } from "../app/sound";
-import { BOX, BOX_NAME, ITEMS, type ItemDef, PULL_PRICE, RARITY_NAME } from "../content/gacha";
+import { BOX, BOX_NAME, ITEMS, type ItemDef, RARITY_NAME } from "../content/gacha";
+import { knobs } from "../content/knobs";
 import { CURRENCY, NAME, PREMIUM, type Rarity, WORDS } from "../content/words";
 import { Button, Chest, RarityChip, Reveal, type RevealWords } from "../ui";
 import r from "./reveal.module.css";
@@ -120,7 +121,7 @@ export function GraftReveal({ n, onClose }: { n: number; onClose: () => void }) 
     return graftsOf(st.collection.last, st.collection.owned);
   }, [n]);
   const count = grafts.length;
-  const price = PULL_PRICE * Math.max(0, count - tokens);
+  const price = knobs.get("pullPrice") * Math.max(0, count - tokens);
   const words = CURRENCY[PREMIUM];
 
   const openAgain = () => {

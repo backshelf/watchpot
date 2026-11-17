@@ -1,12 +1,15 @@
 import { D, type Decimal, defineFeature, type Move, offlineCredit, ZERO } from "watchpot/core";
-import { COST_GROWTH, GENERATORS, type GeneratorDef, OFFLINE_CAP_MS } from "../content/generators";
+import { GENERATORS, type GeneratorDef, OFFLINE_CAP_MS } from "../content/generators";
+import { knobs } from "../content/knobs";
 import { MAIN } from "../content/words";
 import { stats } from "./stats";
 import { wallet } from "./wallet";
 
 /** The price of the next one of `g` when `owned` are held. */
 export const generatorCost = (g: GeneratorDef, owned: number): Decimal =>
-  D(g.cost).mul(D(COST_GROWTH).pow(owned)).floor();
+  D(g.cost)
+    .mul(D(knobs.get("costGrowth")).pow(owned))
+    .floor();
 
 /**
  * The generators: how many of each are owned (a new profile starts with one of the first), and what they make a

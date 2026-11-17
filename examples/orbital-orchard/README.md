@@ -12,3 +12,14 @@ bun run sim -- --player=auto --contract
 ```
 
 The concept is in `.claude/specs/concept.md`; how the code is laid out, in `.claude/CLAUDE.md`.
+
+## Tuning on the sim desk
+
+```sh
+bun run desk       # opens the sim desk on the orchard
+```
+
+The desk plays one straight 24 h run on the auto-player and draws it as pace graphs. Its knobs are the orchard's tuning
+numbers, declared in `src/content/knobs.ts`: price growth and offline rate (Orchard), pull price and drip interval
+(Shower), and the prestige bonus per orbit (Prestige). Move one and the run replays from its cache. **Save** writes
+`sim.tuning.json`, which the game imports over the knobs' values, so what you set there ships.

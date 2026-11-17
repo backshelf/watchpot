@@ -6,6 +6,7 @@
     "moduleResolution": "bundler",
     "jsx": "react-jsx",
     "strict": true,
+    "resolveJsonModule": true,
     "noUncheckedIndexedAccess": true,
     "noEmit": true,
     "skipLibCheck": true,
@@ -13,5 +14,5 @@
     "allowImportingTsExtensions": true,
     "types": ["bun"]
   },
-  "include": ["env.d.ts", "src", "test", "sim", "design", "dev.ts"]
+  "include": ["env.d.ts", "src", "test", "sim", "design", "dev.ts", "sim.desk.ts", "sim.tuning.json"]
 }

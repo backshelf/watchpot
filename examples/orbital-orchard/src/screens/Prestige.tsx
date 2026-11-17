@@ -3,14 +3,15 @@ import { fmt } from "watchpot/core";
 import { cx } from "watchpot/ui";
 import { useGameState } from "../app/hooks";
 import { playOrbit } from "../app/sound";
-import { BONUS_PER_UNIT, PRESTIGE_CURRENCY, PRESTIGE_VERB } from "../content/prestige";
+import { knobs } from "../content/knobs";
+import { PRESTIGE_CURRENCY, PRESTIGE_VERB } from "../content/prestige";
 import { CURRENCY, MAIN, STAT, TAB_NAMES } from "../content/words";
 import { nextOrbitAt, prestigeGain } from "../game/prestige";
 import { Button, Panel, ProgressBar } from "../ui";
 import s from "./screens.module.css";
 
 /** The yield multiplier a count of orbits held gives. */
-const yieldOf = (orbits: number) => (1 + BONUS_PER_UNIT * orbits).toFixed(2);
+const yieldOf = (orbits: number) => (1 + knobs.get("bonusPerUnit") * orbits).toFixed(2);
 
 /**
  * Changing orbit: what a burn now would pay, as the screen's one big figure, the sunlight still to bank for one
@@ -53,7 +54,8 @@ export function PrestigeScreen() {
           />
           <p className={cx("body", s.muted)}>
             A higher orbit sees more sun. The trees and the modules don't survive the burn; the grafts and the
-            seeds do. Every orbit held adds {Math.round(BONUS_PER_UNIT * 100)}% to {STAT.output.toLowerCase()}
+            seeds do. Every orbit held adds {Math.round(knobs.get("bonusPerUnit") * 100)}% to{" "}
+            {STAT.output.toLowerCase()}
             {ready && (
               <>
                 {" "}

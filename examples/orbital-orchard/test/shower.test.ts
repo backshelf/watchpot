@@ -1,8 +1,9 @@
 import { describe, expect, test } from "bun:test";
 import { D, resolveWindow } from "watchpot/core";
 import { freshStore } from "watchpot/test";
-import { BOX, PULL_PRICE } from "../src/content/gacha";
+import { BOX } from "../src/content/gacha";
 import { GENERATORS } from "../src/content/generators";
+import { knobs } from "../src/content/knobs";
 import { NETS, SHARDS, SHOWER, SKY, SKY_CELLS } from "../src/content/shower";
 import { MAIN, PREMIUM } from "../src/content/words";
 import { castAt, freshSky, leftIn, showerMods } from "../src/game/events/shower/rules";
@@ -128,7 +129,7 @@ describe("the meteor shower", () => {
     expect(store.getState().wallet[PREMIUM].eq(seeds.add(20))).toBe(true);
     expect(store.getState().summon.tokens[BOX]).toBe(0);
     store.getState().collection.pull(1);
-    expect(store.getState().wallet[PREMIUM].eq(seeds.add(20).sub(PULL_PRICE))).toBe(true);
+    expect(store.getState().wallet[PREMIUM].eq(seeds.add(20).sub(knobs.get("pullPrice")))).toBe(true);
   });
 
   test("planting while it falls brings nets in, up to the cap", () => {

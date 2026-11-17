@@ -2,8 +2,9 @@ import { describe, expect, test } from "bun:test";
 import { D, type Decimal, ZERO } from "watchpot/core";
 import { autoPlayer, createSimWorld, simStore } from "watchpot/sim";
 import { freshStore } from "watchpot/test";
-import { BOX, PULL_PRICE } from "../src/content/gacha";
+import { BOX } from "../src/content/gacha";
 import { GENERATORS } from "../src/content/generators";
+import { knobs } from "../src/content/knobs";
 import { NODES } from "../src/content/tree";
 import { MAIN, PREMIUM } from "../src/content/words";
 import { type GameState, game } from "../src/game/game";
@@ -57,10 +58,10 @@ describe("the game", () => {
 
   test("a pull spends premium, finds an item and counts toward the guarantee", () => {
     const { store } = freshStore(game, { seed: "pull" });
-    store.getState().wallet.credit(PREMIUM, PULL_PRICE);
+    store.getState().wallet.credit(PREMIUM, knobs.get("pullPrice"));
     const held = store.getState().wallet[PREMIUM];
     expect(store.getState().collection.pull(1)).toBe(true);
-    expect(store.getState().wallet[PREMIUM].eq(held.sub(PULL_PRICE))).toBe(true);
+    expect(store.getState().wallet[PREMIUM].eq(held.sub(knobs.get("pullPrice")))).toBe(true);
     expect(store.getState().collection.last).toHaveLength(1);
     expect(store.getState().summon.opened[BOX]).toBe(1);
     const owned = Object.values(store.getState().collection.owned).reduce((a, b) => a + b, 0);
@@ -77,7 +78,7 @@ describe("the game", () => {
   test("a prestige pays, resets the run and keeps what is above it", () => {
     const { store, clock } = freshStore(game);
     store.getState().wallet.credit(MAIN, 1e12);
-    store.getState().wallet.credit(PREMIUM, PULL_PRICE);
+    store.getState().wallet.credit(PREMIUM, knobs.get("pullPrice"));
     store.getState().collection.pull(1);
     const found = { ...store.getState().collection.owned };
     expect(store.getState().prestige.ascend()).toBe(true);

@@ -4,7 +4,7 @@ export interface GeneratorDef {
   id: string;
   name: string;
   line: string;
-  /** The first one's price; each one owned multiplies it by `COST_GROWTH`. */
+  /** The first one's price; each one owned multiplies it by the `costGrowth` knob. */
   cost: number;
   /** What one makes a second, before the stats. */
   rate: number;
@@ -49,9 +49,7 @@ export const GENERATORS: readonly GeneratorDef[] = [
   },
 ];
 
-export const COST_GROWTH = 1.15;
 /** What a new profile starts with. */
 export const START = { main: 15, premium: 20 };
-/** Away, generators make this share of their rate (before the offline stat), for at most `OFFLINE_CAP_MS`. */
-export const OFFLINE_BASE = 0.5;
+/** Away, generators make the offline share of their rate (the `offlineBase` knob), for at most this long. */
 export const OFFLINE_CAP_MS = 8 * 3_600_000;
