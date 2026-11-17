@@ -36,7 +36,7 @@ export declare function runSeeds<Res>({ script, seeds, args, workers, }: {
     seeds: readonly string[];
     /** Extra args after `--seed=<seed>`. */
     args?: readonly string[];
-    /** Processes at once. Default: os.availableParallelism() - 1, at least 1. */
+    /** Processes at once. Default: the cores (`navigator.hardwareConcurrency`) less one, at least 1. */
     workers?: number;
 }): Promise<Res[]>;
 /** Each check's count of checks held by a majority, then every check's runs, values and spread. */
