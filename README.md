@@ -25,6 +25,13 @@ plainly: the template's dev server (`dev.ts`), `watchpot/sound/pack`, `watchpot/
 A release that is not on npm yet installs by git tag instead, with `"watchpot": "git+ssh://github.com/backshelf/watchpot.git#vX.Y.Z"`
 in `package.json`. [Installing](docs/installing.md) has the details and the peers each entry needs.
 
+## The watchpot command
+
+Run inside a game, as `bunx watchpot <cmd>` or `npx watchpot <cmd>`:
+
+- `doctor` checks the game's setup (Bun, the engine and whether it is behind, `tsconfig.json`, the agent skills) and exits 1 on a problem.
+- `skills add|update` copies the engine's agent skills into the game (`--to` picks the folders), or refreshes the ones it already holds.
+
 ## The smallest game
 
 One feature with a derived value, two actions and a tick step, then a store and a clock. The file is

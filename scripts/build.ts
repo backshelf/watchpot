@@ -1,7 +1,8 @@
 // Build dist/: compiled JS and declarations, file by file with tsc — no bundler. A bundle per entry would duplicate
 // the shared modules (the store-registry WeakMaps in src/core/persist.ts) between `watchpot/core` and
-// `watchpot/react`, which breaks them. Bun reads src/ through the package.json `bun` export condition; dist/ is
-// what npm ships, so the runtime entries also work on Node bundlers.
+// `watchpot/react`, which breaks them. In the repository the package.json exports point at src/ (Bun runs it with
+// no build); the packed manifest points each runtime entry at dist/ (scripts/pack-manifest.ts). dist/ is what npm
+// ships, so the runtime entries also work on Node bundlers.
 import {
   cpSync,
   mkdirSync,

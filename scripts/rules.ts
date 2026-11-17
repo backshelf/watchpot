@@ -183,6 +183,13 @@ export const IMPORT_RULES: ImportRule[] = [
     forbid: ["src/three/", "pkg:watchpot/three"],
     says: "No other entry imports `watchpot/three`, so no other entry pulls `three` in.",
   },
+  {
+    // The `watchpot` command runs in a game on Node or Bun, before any build: Node built-ins and its own folder only.
+    id: "cli-alone",
+    from: /^src\/cli\//,
+    forbid: [/^(?!src\/cli\/|pkg:node:)/],
+    says: "The `watchpot` command (`src/cli/`) imports Node's built-ins and its own folder: no engine entry, no React.",
+  },
 ];
 
 /** The package a bare specifier names (`react/jsx-runtime` is `react`, `@a/b/c` is `@a/b`). */

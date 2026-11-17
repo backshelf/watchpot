@@ -40,6 +40,7 @@ across with its numbers unchanged.
   `gates` adds the build.
 - **Agent docs are opt-in.** A new game ships no `.claude/`; `--agents` adds a generic `AGENTS.md` and the concept in `design/`.
 - **`create-watchpot`.** `bun create watchpot` scaffolds a new game: name, Bun or Vite, Tailwind or CSS modules, an optional 3D stage, and optional agent skills.
+- **`watchpot` command.** `bunx watchpot doctor` checks a game's setup; `bunx watchpot skills add|update` installs or refreshes the agent skills.
 - `saveSetAside` reports `"unreadable"` for a save that is not JSON; the game clock stands the store's own hide
   flush down, so one hide writes once; the dev panel has a Clear save button.
 - **`searchLoadout`**: the auto-equip a slice at a time (`step`, `best`, `bestScore`), so a page shows the slots filling instead of freezing; `fillLoadout` is it run to the end, and both now take the first exchange that pays rather than the best of a whole pass.

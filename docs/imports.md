@@ -21,5 +21,6 @@ Each entry of the package keeps to a small set of imports, so installing one doe
 | `devtools-narrow` | `watchpot/devtools` imports the store hooks, `/core`, the sound engine and `/ui`, and no kit, sim, test kit, 3D stage or shader. |
 | `devtools-alone` | No other entry imports `watchpot/devtools`, which carries stylesheets: only a game does. |
 | `three-alone` | No other entry imports `watchpot/three`, so no other entry pulls `three` in. |
+| `cli-alone` | The `watchpot` command (`src/cli/`) imports Node's built-ins and its own folder: no engine entry, no React. |
 
 The engine also reads no wall clock (the caller passes `now`) and ships no stylesheet or class name outside the dev panel.

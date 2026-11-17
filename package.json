@@ -6,7 +6,11 @@
   "engines": {
     "bun": ">=1.4.3"
   },
+  "bin": {
+    "watchpot": "bin/watchpot.mjs"
+  },
   "files": [
+    "bin",
     "src",
     "dist",
     "api",
