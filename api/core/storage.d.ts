@@ -50,6 +50,11 @@ export interface GameStorage extends PersistStorage<PersistedState> {
     /** Called when `failing` or `blocked` flips. Returns the remover. */
     subscribe: (listener: () => void) => () => void;
     /**
+     * The save names `read` set aside as unreadable this session (see `GameStorageOptions.onSetAside`); a later
+     * read of the name that reads a save this build can takes the name out.
+     */
+    readonly unreadable: ReadonlySet<string>;
+    /**
      * Copies the backend's raw string for `name` to `name + KEPT_SUFFIX`, over any earlier copy unless `replace` is
      * false. Never throws. On an async backend it answers with a promise, and writes wait behind it.
      */
@@ -74,6 +79,12 @@ export interface GameStorageOptions {
     schedule?: (fn: () => void, ms: number) => unknown;
     cancel?: (handle: unknown) => void;
     onError?: (error: unknown) => void;
+    /**
+     * Called when `read` sets a save this build cannot read aside: a string that is not JSON, or JSON without the
+     * saved envelope. The save is copied to the kept key and the profile starts fresh; the name lands in
+     * `unreadable`, which a store built over this storage reads after its load (`saveSetAside` says why).
+     */
+    onSetAside?: (why: "unreadable") => void;
     /** Whether the backend outlives the tab. Default false over a `createMemoryBackend`, true over anything else. */
     durable?: boolean;
 }

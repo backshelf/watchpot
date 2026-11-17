@@ -96,6 +96,11 @@ export interface GameStorage extends PersistStorage<PersistedState> {
   /** Called when `failing` or `blocked` flips. Returns the remover. */
   subscribe: (listener: () => void) => () => void;
   /**
+   * The save names `read` set aside as unreadable this session (see `GameStorageOptions.onSetAside`); a later
+   * read of the name that reads a save this build can takes the name out.
+   */
+  readonly unreadable: ReadonlySet<string>;
+  /**
    * Copies the backend's raw string for `name` to `name + KEPT_SUFFIX`, over any earlier copy unless `replace` is
    * false. Never throws. On an async backend it answers with a promise, and writes wait behind it.
    */
@@ -134,6 +139,12 @@ export interface GameStorageOptions {
   schedule?: (fn: () => void, ms: number) => unknown;
   cancel?: (handle: unknown) => void;
   onError?: (error: unknown) => void;
+  /**
+   * Called when `read` sets a save this build cannot read aside: a string that is not JSON, or JSON without the
+   * saved envelope. The save is copied to the kept key and the profile starts fresh; the name lands in
+   * `unreadable`, which a store built over this storage reads after its load (`saveSetAside` says why).
+   */
+  onSetAside?: (why: "unreadable") => void;
   /** Whether the backend outlives the tab. Default false over a `createMemoryBackend`, true over anything else. */
   durable?: boolean;
 }
@@ -191,6 +202,8 @@ export function createGameStorage(
   let busy = 0;
   let blocked = false;
   let failing = false;
+  /** The save names `read` set aside as unreadable: a store over this storage reads it after its load. */
+  const unreadable = new Set<string>();
   const listeners = new Set<() => void>();
   const setFailing = (next: boolean) => {
     if (failing === next) return;
@@ -275,16 +288,24 @@ export function createGameStorage(
       const env = deserialize(raw);
       if (isPlainObject(env)) {
         const state = asPersisted(env.state);
-        if (state) return { state, version: typeof env.version === "number" ? env.version : 0 };
+        if (state) {
+          // A save set aside earlier this session is gone once a save this build can read is back under the
+          // name: a store loading it later notes nothing.
+          unreadable.delete(name);
+          return { state, version: typeof env.version === "number" ? env.version : 0 };
+        }
       }
     } catch (e) {
       onError(e);
     }
-    // A save this build cannot read is set aside before the fresh profile's first write replaces it.
+    // A save this build cannot read is set aside before the fresh profile's first write replaces it; the name is
+    // left in `unreadable` for a store over this storage to read after its load, and the caller's hook runs.
+    unreadable.add(name);
+    options.onSetAside?.("unreadable");
     return then(keep(name), () => null);
   };
 
-  return {
+  const storage: GameStorage = {
     getItem: (name) => then(backend.getItem(name), (raw) => read(name, raw)),
     setItem: (name, value) => {
       if (blocked) return;
@@ -328,5 +349,7 @@ export function createGameStorage(
       };
     },
     keep,
+    unreadable,
   };
+  return storage;
 }

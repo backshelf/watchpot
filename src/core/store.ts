@@ -441,6 +441,9 @@ export function createIdleStore<F extends readonly FeatureSpec[], R extends obje
             }
             storage.block();
           }
+          // A save `read` set aside as unreadable (a string that is not a save at all): noted like a migration
+          // that fails, though the load itself went fine and the profile starts fresh.
+          if (!error && storage.unreadable.has(name)) notes.setAside = "unreadable";
           if (keeping) keeping.then(settle, settle);
           else settle();
         },

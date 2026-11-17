@@ -1,4 +1,5 @@
 import { useEffect, useId, useState } from "react";
+import { clearSave } from "../core/persist";
 import { DAY_MS, HOUR_MS, MINUTE_MS } from "../core/time";
 import { useClockNow, warpClock } from "../react/clock";
 import { type RuntimeStore, useIdleStore } from "../react/store";
@@ -196,6 +197,11 @@ function SaveSection({ store }: { store: RuntimeStore }) {
       setNote({ tone: "bad", text: `Load failed: ${String(error)}` });
     }
   };
+  const clear = async () => {
+    if (!window.confirm("Delete this save and reload?")) return;
+    await clearSave(store);
+    location.reload();
+  };
 
   return (
     <details className={s.section}>
@@ -226,6 +232,9 @@ function SaveSection({ store }: { store: RuntimeStore }) {
         </button>
         <button type="button" className={s.button} disabled={text === ""} onClick={load}>
           Import
+        </button>
+        <button type="button" className={s.button} onClick={() => void clear()}>
+          Clear save
         </button>
       </div>
       <p className={s.note} role="status" data-tone={note?.tone}>

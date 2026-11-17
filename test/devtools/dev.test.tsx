@@ -1,4 +1,4 @@
-import { afterEach, describe, expect, test } from "bun:test";
+import { afterEach, describe, expect, mock, spyOn, test } from "bun:test";
 import { act, cleanup, fireEvent, screen } from "@testing-library/react";
 import { DAY_MS, HOUR_MS, readClock } from "watchpot/core";
 import { warpClock } from "watchpot/react";
@@ -7,7 +7,10 @@ import { DevPanel } from "../../src/devtools/DevPanel";
 import { checkSave, featureJson, jumpToDay, profileDay } from "../../src/devtools/devTools";
 import { toy } from "../core/toy";
 
-afterEach(cleanup);
+afterEach(() => {
+  mock.restore();
+  cleanup();
+});
 
 describe("time warp", () => {
   test("moves gameNow forward by the clock's offset, never the wall", () => {
@@ -70,5 +73,19 @@ describe("DevPanel", () => {
     act(() => fireEvent.click(screen.getByRole("button", { name: "+1 h" })));
     expect(store.getState().gameNow()).toBe(before + HOUR_MS);
     for (const f of toy.features) expect(screen.getByText(f.key)).toBeInTheDocument();
+  });
+
+  test("Clear save, confirmed, deletes the save and reloads", async () => {
+    const { store, backend } = freshStore(toy);
+    expect(backend.getItem("toy.save")).not.toBeNull();
+    spyOn(window, "confirm").mockReturnValue(true);
+    const reload = spyOn(location, "reload").mockImplementation(() => {});
+    renderWith(store, <DevPanel />);
+    await act(async () => {
+      fireEvent.click(screen.getByRole("button", { name: "Clear save" }));
+    });
+    expect(backend.getItem("toy.save")).toBeNull();
+    expect(backend.getItem("toy.save.kept")).toBeNull();
+    expect(reload).toHaveBeenCalledTimes(1);
   });
 });

@@ -76,6 +76,23 @@ describe("a save set aside", () => {
     expect(saveSetAside(store)).toBe("migration-failed");
   });
 
+  test("a save that is not a save at all: noted as unreadable, kept", () => {
+    const { store, backend } = toyStore({ backend: withSave("not json{") });
+    expect(saveSetAside(store)).toBe("unreadable");
+    expect(backend.getItem("toy.save.kept")).toBe("not json{");
+  });
+
+  test("a storage a later store reuses does not hand the first's notes on", () => {
+    const storage = createGameStorage(withSave("not json{"), { debounceMs: 0, onError: () => {} });
+    const first = createIdleStore(toy, { storage, now: () => T0 });
+    expect(saveSetAside(first)).toBe("unreadable");
+    // The first store's fresh profile replaces the garbage under the save key, so the second store loads a save
+    // this build can read: its own load notes nothing, whatever the first one found.
+    first.getState().wallet.earn(1);
+    const second = createIdleStore(toy, { storage, now: () => T0 });
+    expect(saveSetAside(second)).toBeNull();
+  });
+
   test("a save that loads is not noted", () => {
     const { store } = toyStore();
     expect(saveSetAside(store)).toBeNull();

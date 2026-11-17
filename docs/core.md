@@ -369,11 +369,11 @@ The store saves every feature's data under the game's `save.key` with `save.vers
   `const old = savedRecord(saved); return { ...old, count: old.owned ?? 0 }`.
 - **A save this build will not use.** Older than any step reaches, one a step throws on, or one that cannot be
   read: copied to `<key>.kept` (over an earlier copy), then a fresh profile. A migration that sets a save aside warns
-  on the console naming the kept key, and `saveSetAside(store)` says why (`old-version` or `migration-failed`) for a
-  page that tells the player; a save that cannot be parsed at all is still set aside with no such note, only
-  `onError`. Newer: copied to `<key>.kept` only when no copy is there (the save stays safe under its key), and the
-  store writes nothing this session (`saveBlocked`; `saveBlockedBy` is `newer`). An older export no step reaches is
-  refused as `old-version`.
+  on the console naming the kept key, and `saveSetAside(store)` says why (`old-version`, `migration-failed`, or
+  `unreadable`) for a page that tells the player; a save that cannot be parsed at all is set aside as `unreadable`,
+  with `onError` still hearing the parse throw. Newer: copied to `<key>.kept` only when no copy is there (the save
+  stays safe under its key), and the store writes nothing this session (`saveBlocked`; `saveBlockedBy` is `newer`).
+  An older export no step reaches is refused as `old-version`.
 - **Loading a slice.** A saved `undefined` counts as missing. Under a Decimal default the loader reads a saved
   Decimal, number or string, and keeps the default for anything else or for NaN.
 - **Backends.** A `StorageBackend` answers at once (`localStorageBackend()`, `createMemoryBackend()`): the store

@@ -2,9 +2,10 @@ import type { AnyGame } from "./game";
 import { type GameStorage } from "./storage";
 /**
  * Why the save found at load was set aside (copied to the kept key, `name + KEPT_SUFFIX`) and replaced by a fresh
- * profile: `old-version`, a save older than any migration step reaches; `migration-failed`, a step threw on it.
+ * profile: `old-version`, a save older than any migration step reaches; `migration-failed`, a step threw on it;
+ * `unreadable`, the string under the key is not a save at all (not JSON, or JSON without the saved envelope).
  */
-export type SaveSetAside = "old-version" | "migration-failed";
+export type SaveSetAside = "old-version" | "migration-failed" | "unreadable";
 /**
  * Why the store writes nothing this session: `newer`, the save is a newer build's; `taken`, another tab of the game
  * wrote the save (`watchOtherTabs`); `unreadable`, the save could not be loaded (a read or a merge threw), so it is

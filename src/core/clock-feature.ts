@@ -1,7 +1,7 @@
 import type { Clock, ClockOptions } from "./clock";
 import { createClock } from "./clock";
 import { defineFeature, type FeatureSpec, type FeatureSteps, type SavedOf } from "./feature";
-import { flushSave } from "./persist";
+import { flushSave, holdHideFlush } from "./persist";
 import type { RootActions } from "./store";
 
 /**
@@ -119,8 +119,11 @@ export interface GameClockOptions extends Partial<ClockOptions> {
 
 /**
  * Binds the engine clock to a store: live ticks, and a hidden spell up to `awayAfterMs`, call `tick`; a longer gap
- * calls the store's `catchUp` and flushes the save; hiding the tab flushes the save. The shell calls this once at
- * start; the returned clock stops it. It runs on the store's game clock, read on every call so an offset that moves
+ * calls the store's `catchUp` and flushes the save; hiding the tab flushes the save. The store's own hide flush
+ * stands down while the clock runs (the clock flushes on hide itself after a last tick), so one hide writes the
+ * save once; a `stop` hands it back (the caller's or the failure limit's) and a later `start` holds it again. The
+ * shell calls this once at start; the returned clock stops it. It runs on the store's game clock, read on every
+ * call so an offset that moves
  * is seen at the next step. Every handler runs through one guard: a
  * throw is logged and counted, a success resets the count, and at the limit the clock stops and `onFail` is told.
  * The first catch-up and flush stay unguarded, so the caller sees their throw.
@@ -138,7 +141,7 @@ export function startGameClock(store: { getState(): RootActions }, options: Game
       console.error("watchpot clock step failed", error);
       failures += 1;
       if (failures < CLOCK_FAILURE_LIMIT) return;
-      clock.stop();
+      stop();
       onFail?.(error);
     }
   };
@@ -160,6 +163,27 @@ export function startGameClock(store: { getState(): RootActions }, options: Game
   );
   store.getState().catchUp(now());
   flushSave(store);
-  clock.start();
-  return clock;
+  // The clock flushes on hide itself (its `onHide`, after a last tick), so the store's own hide flush stands down
+  // while the clock runs: `start` takes the hold and `stop` hands it back, so a stop and a later start run like
+  // the first start did. One hold sits between stops, so a stop at the failure limit and a caller's stop hand
+  // the flush back once between them.
+  let hold: (() => void) | null = null;
+  const start = (): void => {
+    hold ??= holdHideFlush(store);
+    clock.start();
+  };
+  const stop = (): void => {
+    clock.stop();
+    hold?.();
+    hold = null;
+  };
+  start();
+  return {
+    start,
+    step: clock.step,
+    get running() {
+      return clock.running;
+    },
+    stop,
+  };
 }
