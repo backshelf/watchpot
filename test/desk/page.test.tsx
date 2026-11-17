@@ -224,8 +224,8 @@ const runs = (socket: ReturnType<typeof fake>) => socket.sent.filter((m) => m.ty
 const wait = (ms: number) => act(() => void jest.advanceTimersByTime(ms));
 const slider = () => screen.getByRole("slider", { name: "Rate" }) as HTMLInputElement;
 const setRate = (v: number) => fireEvent.change(slider(), { target: { value: String(v) } });
-const knobRow = (name: string) =>
-  screen.getByRole("spinbutton", { name: `${name} value` }).closest("li") as HTMLElement;
+const field = (name: string) => screen.getByLabelText(`${name} value`) as HTMLInputElement;
+const knobRow = (name: string) => field(name).closest("li") as HTMLElement;
 const gates = () => within(screen.getByRole("table", { name: "Gates" }));
 const saveButton = () => screen.getByRole("button", { name: "Save" }) as HTMLButtonElement;
 
@@ -254,7 +254,7 @@ describe("the knob panel", () => {
     await draw();
     const groups = screen.getAllByRole("heading", { level: 3 }).map((h) => h.textContent);
     expect(groups).toEqual(["Economy", "Timing"]);
-    expect(knobRow("Delay").textContent).toContain("1:30");
+    expect(field("Delay").value).toBe("1:30");
     // A knob with no range is a number field only.
     expect(screen.queryByRole("slider", { name: "Delay" })).toBeNull();
     expect(slider().getAttribute("step")).toBe("0.5");
@@ -301,13 +301,40 @@ describe("the knob panel", () => {
     expect(slider().value).toBe("1.5");
   });
 
-  test("a number field sets a knob too, and a time reads as a clock", async () => {
-    await draw();
-    fireEvent.change(screen.getByRole("spinbutton", { name: "Delay value" }), {
-      target: { value: "150000" },
-    });
-    expect(knobRow("Delay").textContent).toContain("2:30");
+  test("a number field sets a knob too; a time is typed and read as a clock", async () => {
+    const socket = await draw();
+    fireEvent.change(field("Delay"), { target: { value: "2:30" } });
+    expect(field("Delay").value).toBe("2:30");
     expect(within(knobRow("Delay")).getByText("by hand")).toBeTruthy();
+    expect(within(knobRow("Delay")).getByText("code 1:30")).toBeTruthy();
+    // Not a clock: not a value, and the knob stays where it was.
+    fireEvent.change(field("Delay"), { target: { value: "soon" } });
+    expect(field("Delay").getAttribute("aria-invalid")).toBe("true");
+    fireEvent.blur(field("Delay"));
+    expect(field("Delay").value).toBe("2:30");
+    expect(socket.sent).toHaveLength(1);
+  });
+
+  test("a share is stored as a fraction and shown, and typed, as a percentage; a multiplier leads with ×", async () => {
+    const socket = await draw({
+      ...INFO,
+      knobs: [
+        { key: "away", value: 0.5, code: 0.5, label: "Away", min: 0, max: 1, step: 0.05, unit: "%" },
+        { key: "grow", value: 1.15, code: 1.15, label: "Grow", min: 1, max: 2, step: 0.01, unit: "x" },
+      ],
+    });
+    expect(field("Away").value).toBe("50");
+    expect(knobRow("Away").textContent).toContain("%");
+    expect(knobRow("Grow").textContent).toContain("×");
+    fireEvent.change(field("Away"), { target: { value: "15" } });
+    expect(socket.sent.length).toBe(1);
+    expect(within(knobRow("Away")).getByText("code 50%")).toBeTruthy();
+    expect((screen.getByRole("slider", { name: "Away" }) as HTMLInputElement).value).toBe("0.15");
+    fireEvent.change(field("Grow"), { target: { value: "1.47" } });
+    expect(within(knobRow("Grow")).getByText("code 1.15")).toBeTruthy();
+    expect(
+      (screen.getByRole("slider", { name: "Grow" }) as HTMLInputElement).getAttribute("aria-valuetext"),
+    ).toBe("×1.47");
   });
 
   test("Reset puts the knob back to its code value and clears the mark", async () => {
@@ -365,8 +392,9 @@ describe("the knob panel", () => {
     const again = window(2, 1, 0, 2, [0, 1, 2], 10) as Extract<ToClient, { type: "window" }>;
     await socket.say({ ...again, cached: true });
     const table = () => screen.getByRole("table", { name: "Hourly values" });
-    expect(within(table()).getByRole("columnheader", { name: "Δ coins" })).toBeTruthy();
-    expect(within(table()).getByRole("row", { name: /^1 / }).textContent).toContain("+1.00");
+    expect(within(table()).getByRole("columnheader", { name: "Δ vs before" })).toBeTruthy();
+    // 1,000 now against 100 before: up nine times over, nine hundred per cent.
+    expect(within(table()).getByRole("row", { name: /^1 / }).textContent).toContain("+900%");
     const graph = screen.getByRole("group", { name: /Currencies over time/ });
     fireEvent.keyDown(graph, { key: "ArrowRight" });
     fireEvent.keyDown(graph, { key: "ArrowRight" });
@@ -377,7 +405,7 @@ describe("the knob panel", () => {
     const dashed = () => graph.parentElement?.querySelectorAll(".graph__line--before").length;
     expect(dashed()).toBe(1);
     fireEvent.click(screen.getByRole("button", { name: "Clear before" }));
-    expect(within(table()).queryByRole("columnheader", { name: "Δ coins" })).toBeNull();
+    expect(within(table()).queryByRole("columnheader", { name: "Δ vs before" })).toBeNull();
     expect(dashed()).toBe(0);
   });
 

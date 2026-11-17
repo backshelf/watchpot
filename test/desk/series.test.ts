@@ -5,9 +5,12 @@ import {
   addWindow,
   beforeAt,
   clock,
+  compact,
   currencySeries,
   type DeskData,
+  downsample,
   emptyData,
+  figure,
   gapPolygons,
   gateRows,
   hourlyRows,
@@ -22,8 +25,10 @@ import {
   nextSeries,
   orders,
   type Pt,
+  parseClock,
   parseHours,
   parsePrice,
+  percentChange,
   short,
   signedOrders,
   valueAt,
@@ -366,7 +371,8 @@ describe("knob values", () => {
     expect(clock(250)).toBe("0:00.25");
     expect(knobText(90_000, "ms")).toBe("1:30");
     expect(knobText(1.15, "x")).toBe("×1.15");
-    expect(knobText(15, "%")).toBe("15%");
+    expect(knobText(0.15, "%")).toBe("15%");
+    expect(knobText(0.5, "%")).toBe("50%");
     expect(knobText(0.1 + 0.2, undefined)).toBe("0.3");
   });
 
@@ -380,5 +386,105 @@ describe("knob values", () => {
     expect(parsePrice("1.5e12")).toBe("1.5e12");
     expect(parsePrice("lots")).toBeUndefined();
     expect(parsePrice("")).toBeUndefined();
+  });
+});
+
+describe("downsampling to pixel columns", () => {
+  // A purchase dip every tenth of an hour on a rising line: thousands of points, a sawtooth when drawn whole.
+  const saw: [number, number][] = Array.from({ length: 4000 }, (_, i) => {
+    const x = (i / 4000) * 24;
+    return [x, x * 10 - (i % 10 === 0 ? 8 : 0)];
+  });
+
+  test("one band per occupied column, never more than there are columns", () => {
+    const bands = downsample(saw, 0, 24, 200);
+    expect(bands.length).toBeLessThanOrEqual(200);
+    expect(bands.length).toBeGreaterThan(190);
+    for (const b of bands) expect(b.min).toBeLessThanOrEqual(b.max);
+  });
+
+  test("the highs follow the trend, so the dips do not make spikes; the dips stay in the band", () => {
+    const bands = downsample(saw, 0, 24, 200);
+    const highs = bands.map((b) => b.max);
+    for (let i = 1; i < highs.length; i++)
+      expect(highs[i] as number).toBeGreaterThanOrEqual(highs[i - 1] as number);
+    expect(bands.some((b) => b.max - b.min >= 7)).toBe(true);
+  });
+
+  test("a real drop (a reset) is still a drop: the next column starts low", () => {
+    const pts: [number, number][] = [];
+    for (let i = 0; i < 1000; i++) pts.push([i / 1000, 100 + i]);
+    for (let i = 0; i < 1000; i++) pts.push([1 + i / 1000, 3 + i / 100]);
+    const bands = downsample(pts, 0, 2, 100);
+    const before = bands.find((b) => b.x < 1 && b.x > 0.95) as { max: number };
+    const after = bands.find((b) => b.x > 1.05) as { max: number };
+    expect(before.max).toBeGreaterThan(1000);
+    expect(after.max).toBeLessThan(20);
+  });
+
+  test("a sparse series is drawn as it is; a floor value stays the low; a NaN is skipped", () => {
+    const pts: [number, number][] = [
+      [0, Number.NEGATIVE_INFINITY],
+      [1, 5],
+      [2, Number.NaN],
+      [3, 9],
+    ];
+    expect(downsample(pts, 0, 4, 400)).toEqual([
+      { x: 0, min: Number.NEGATIVE_INFINITY, max: Number.NEGATIVE_INFINITY },
+      { x: 1, min: 5, max: 5 },
+      { x: 3, min: 9, max: 9 },
+    ]);
+    // Two points in one column become one band at their mean.
+    expect(
+      downsample(
+        [
+          [1, 4],
+          [1.001, 6],
+        ],
+        0,
+        4,
+        4,
+      ),
+    ).toEqual([{ x: 1.0005, min: 4, max: 6 }]);
+    expect(downsample([], 0, 4, 4)).toEqual([]);
+  });
+});
+
+describe("figures", () => {
+  test("three significant digits in the engine's form", () => {
+    expect(figure(D("3902.1895043592453"))).toBe("3.90K");
+    expect(figure(D(18_899))).toBe("18.90K");
+    expect(figure(D(12.3456))).toBe("12.3");
+    expect(figure(D(1.2345))).toBe("1.23");
+    expect(figure(D(0))).toBe("0");
+    expect(figure(D(1_520_000))).toBe("1.52M");
+    expect(figure(undefined)).toBe("–");
+  });
+
+  test("an axis label drops the zeros", () => {
+    expect(compact(D(150_000))).toBe("150K");
+    expect(compact(D(1_500_000))).toBe("1.5M");
+    expect(compact(D(1000))).toBe("1K");
+    expect(compact(D(0.2))).toBe("0.2");
+  });
+
+  test("a change against the run before is a signed percentage; blank with no run before", () => {
+    expect(percentChange(D(112.4), D(100))).toBe("+12.4%");
+    expect(percentChange(D(96.9), D(100))).toBe("−3.1%");
+    expect(percentChange(D(1000), D(100))).toBe("+900%");
+    expect(percentChange(D(100), D(100))).toBe("0.0%");
+    expect(percentChange(D(5), undefined)).toBe("");
+    expect(percentChange(D(5), D(0))).toBe("–");
+    expect(percentChange(undefined, D(5))).toBe("–");
+  });
+
+  test("a time typed as m:ss or h:mm:ss", () => {
+    expect(parseClock("6:00")).toBe(360_000);
+    expect(parseClock("1:30")).toBe(90_000);
+    expect(parseClock("1:00:00")).toBe(3_600_000);
+    expect(parseClock("0:00.25")).toBe(250);
+    expect(parseClock("360000")).toBeUndefined();
+    expect(parseClock("1:75")).toBeUndefined();
+    expect(parseClock("")).toBeUndefined();
   });
 });

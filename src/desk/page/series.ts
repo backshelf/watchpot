@@ -1,6 +1,6 @@
 // The sim desk's data shaping: the server's windows in, the series the graphs and tables draw out. Pure: no React, no
 // DOM. Decimals arrive as strings and are parsed once, here.
-import { D, type Decimal } from "../../core";
+import { D, type Decimal, fmt } from "../../core";
 import type { FittedGate } from "../../sim/fit";
 import type { DeskPoint, ToClient } from "../protocol";
 
@@ -215,6 +215,88 @@ export function short(d: Decimal): string {
   const abs = d.abs();
   if (abs.lt(0.01) || abs.gte(1000)) return d.toExponential(2).replace("e+", "e");
   return String(Number(d.toNumber().toFixed(2)));
+}
+
+/**
+ * A Decimal to three significant digits in the engine's own form (`fmt`: separators below 100,000, then `1.52M`, then
+ * scientific past `Dc`). The figure a table or a readout prints; `–` for nothing.
+ */
+export function figure(d: Decimal | undefined): string {
+  if (!d || d.isNan()) return "–";
+  const abs = d.abs();
+  if (abs.gt(0) && abs.lt(1e-4)) return d.toExponential(2).replace("e+", "e");
+  // fmt keeps plain digits up to 100,000 (`18,899`); a table column reads better in one short form throughout.
+  if (abs.gte(1e3) && abs.lt(1e5)) return `${(d.toNumber() / 1e3).toFixed(2)}K`;
+  const decimals = abs.gte(100) || abs.eq(0) ? 0 : abs.gte(10) ? 1 : abs.gte(1) ? 2 : abs.gte(0.1) ? 3 : 4;
+  return fmt(d, { decimals }).text;
+}
+
+/** `figure` without the trailing zeros of its fraction: `152K`, `1.5M`, `0.2`. For an axis, where room is short. */
+export function compact(d: Decimal): string {
+  const text = figure(d);
+  return text.includes(".") ? text.replace(/\.?0+(?=[A-Za-z]|$)/, "") : text;
+}
+
+/**
+ * The change from a value in the run before to the value now, as a signed percentage: `+12.4%`, `−3.1%` (a true
+ * minus), three significant digits. Blank when there is no run before to compare with; `–` when the change means
+ * nothing (a price that was zero, a value not yet reached).
+ */
+export function percentChange(now: Decimal | undefined, before: Decimal | undefined): string {
+  if (before === undefined) return "";
+  if (!now || now.isNan() || !before.gt(0)) return "–";
+  const pct = now.sub(before).div(before).mul(100);
+  const abs = pct.abs();
+  const body = abs.lt(100) ? abs.toNumber().toFixed(1) : figure(abs);
+  if (body === "0.0") return "0.0%";
+  return `${pct.lt(0) ? "\u2212" : "+"}${body}%`;
+}
+
+/** One pixel column of a downsampled series: where it sits and the lowest and highest value that fell in it. */
+export interface Band {
+  x: number;
+  min: number;
+  max: number;
+}
+
+/**
+ * A series cut into `columns` equal slices of `[from, to]` (a pixel column each): for each slice that holds points,
+ * the mean x and the lowest and highest y. Drawing the highs as the line and the lows-to-highs as a band keeps every
+ * purchase dip from becoming a spike, while a real drop (a reset) is still a drop: the slice it falls in keeps both
+ * ends, and the next slice starts low. A slice with one point is that point, so a sparse series is drawn as it is.
+ * Points are in ascending x; a NaN is skipped; `-Infinity` (a log axis' zero) is kept as the low.
+ */
+export function downsample(
+  pts: readonly (readonly [x: number, y: number])[],
+  from: number,
+  to: number,
+  columns: number,
+): Band[] {
+  const live = pts.filter(([x, y]) => !Number.isNaN(x) && !Number.isNaN(y));
+  if (!(to > from) || !(columns >= 1)) return live.map(([x, y]) => ({ x, min: y, max: y }));
+  const out: Band[] = [];
+  const per = columns / (to - from);
+  let at = -1;
+  let n = 0;
+  let sum = 0;
+  let cur: Band | undefined;
+  for (const [x, y] of live) {
+    const col = Math.min(columns - 1, Math.max(0, Math.floor((x - from) * per)));
+    if (cur && col === at) {
+      n++;
+      sum += x;
+      cur.x = sum / n;
+      cur.min = Math.min(cur.min, y);
+      cur.max = Math.max(cur.max, y);
+    } else {
+      at = col;
+      n = 1;
+      sum = x;
+      cur = { x, min: y, max: y };
+      out.push(cur);
+    }
+  }
+  return out;
 }
 
 /** Hours as `h:mm`, signed when `signed`: `+0:12`, `-1:05`. Rounded to the minute. */
@@ -445,13 +527,23 @@ export function clock(ms: number): string {
   return h > 0 ? `${sign}${h}:${String(m).padStart(2, "0")}:${s}` : `${sign}${m}:${s}`;
 }
 
-/** A knob's value for reading: `ms` as a clock, `x` as `×1.15`, `%` as `15%`, anything else as the number. */
+/** A knob's value for reading: `ms` as a clock, `x` as `×1.15`, `%` (stored as a fraction) as `50%`, else the number. */
 export function knobText(value: number, unit: unknown): string {
   const plain = String(Number(value.toPrecision(6)));
   if (unit === "ms") return clock(value);
   if (unit === "x") return `×${plain}`;
-  if (unit === "%") return `${plain}%`;
+  if (unit === "%") return `${Number((value * 100).toPrecision(6))}%`;
   return plain;
+}
+
+/** A time typed as `m:ss` or `h:mm:ss` (seconds may carry a fraction), in ms; undefined when it is neither. */
+export function parseClock(text: string): number | undefined {
+  const t = text.trim();
+  const mmss = /^(\d+):([0-5]?\d(?:\.\d+)?)$/.exec(t);
+  if (mmss) return Math.round((Number(mmss[1]) * 60 + Number(mmss[2])) * 1000);
+  const hmmss = /^(\d+):([0-5]\d):([0-5]?\d(?:\.\d+)?)$/.exec(t);
+  if (hmmss) return Math.round((Number(hmmss[1]) * 3600 + Number(hmmss[2]) * 60 + Number(hmmss[3])) * 1000);
+  return undefined;
 }
 
 /** A time typed as `h:mm` or as plain (possibly fractional) hours, in ms; undefined when it is neither. */

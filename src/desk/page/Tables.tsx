@@ -1,27 +1,24 @@
 // The tables under the graphs: one row per whole hour, one column per visible series (and, against a run before, its
 // difference); then the gates, where a gate can be pinned by hand.
 import { useState } from "react";
-import { D, type Decimal } from "../../core";
+import { D } from "../../core";
 import type { DeskInfo } from "../protocol";
 import { HandMark } from "./Panel";
 import {
   beforeAt,
   type Column,
+  figure,
   type GateRow,
   HOUR_MS,
   hourlyRows,
   hoursMinutes,
-  orders,
   parseHours,
   parsePrice,
-  short,
-  signedOrders,
+  percentChange,
 } from "./series";
 
 export type Pins = NonNullable<DeskInfo["pins"]>;
 export type Pin = Pins[string];
-
-const cell = (v: Decimal | undefined): string => (v === undefined ? "–" : v.toString());
 
 export function HourTable({ columns, waiting }: { columns: readonly Column[]; waiting: boolean }) {
   const rows = hourlyRows(columns);
@@ -44,15 +41,22 @@ export function HourTable({ columns, waiting }: { columns: readonly Column[]; wa
           <table className="parts" aria-label="Hourly values">
             <thead>
               <tr>
-                <th scope="col">Hour</th>
+                <th scope="col" className="parts__hour">
+                  Hour
+                </th>
                 {columns.flatMap((c) => [
-                  <th scope="col" key={c.id}>
+                  <th scope="col" key={c.id} className="parts__n">
                     {c.label}
                   </th>,
                   ...(compare
                     ? [
-                        <th scope="col" key={`${c.id}:delta`} className="parts__delta">
-                          {`Δ ${c.label}`}
+                        <th
+                          scope="col"
+                          key={`${c.id}:delta`}
+                          className="parts__n parts__delta"
+                          title={`${c.label}: change against the run before`}
+                        >
+                          Δ vs before
                         </th>,
                       ]
                     : []),
@@ -62,17 +66,17 @@ export function HourTable({ columns, waiting }: { columns: readonly Column[]; wa
             <tbody>
               {rows.map((r) => (
                 <tr key={r.hour}>
-                  <th scope="row" className="num">
+                  <th scope="row" className="num parts__hour">
                     {r.hour}
                   </th>
                   {columns.flatMap((c, i) => [
-                    <td className="num" key={c.id}>
-                      {cell(r.cells[i])}
+                    <td className="num parts__n" key={c.id}>
+                      {figure(r.cells[i])}
                     </td>,
                     ...(compare
                       ? [
-                          <td className="num parts__delta" key={`${c.id}:delta`}>
-                            {signedOrders(orders(r.cells[i], beforeAt(c.before, r.hour)))}
+                          <td className="num parts__n parts__delta" key={`${c.id}:delta`}>
+                            {percentChange(r.cells[i], c.before ? beforeAt(c.before, r.hour) : undefined)}
                           </td>,
                         ]
                       : []),
@@ -88,10 +92,10 @@ export function HourTable({ columns, waiting }: { columns: readonly Column[]; wa
 }
 
 const hours = (h: number | undefined): string => (h === undefined ? "–" : h.toFixed(2));
-const figure = (v: string | undefined): string => {
+const price = (v: string | undefined): string => {
   if (v === undefined) return "–";
   const d = D(v);
-  return d.isNan() ? v : short(d);
+  return d.isNan() ? v : figure(d);
 };
 
 /** The inline fields of a pin: a price and an hour. A valid entry is a pin at once; both empty is no pin. */
@@ -165,7 +169,7 @@ function GateRowView({
       <th scope="row" className="num">
         {g.key}
       </th>
-      <td className="num">
+      <td className="num parts__n">
         {pin?.atMs === undefined ? (
           hours(g.plannedH)
         ) : (
@@ -175,42 +179,44 @@ function GateRowView({
           </span>
         )}
       </td>
-      <td className="num">
+      <td className="num parts__n">
         {hours(g.openedH)}
         {g.seeds > 1 && g.opened < g.seeds ? ` (${g.opened}/${g.seeds})` : ""}
       </td>
-      <td className="num">{g.driftH === undefined ? "–" : hoursMinutes(g.driftH, true)}</td>
-      <td className="num">
+      <td className="num parts__n">{g.driftH === undefined ? "–" : hoursMinutes(g.driftH, true)}</td>
+      <td className="num parts__n">
         {pin?.price === undefined ? (
-          figure(g.value)
+          price(g.value)
         ) : (
           <span className="hand">
             <HandMark />
-            <strong>{figure(pin.price)}</strong>
-            {fitted !== undefined && <s className="hand__code">{figure(fitted)}</s>}
+            <strong>{price(pin.price)}</strong>
+            {fitted !== undefined && <s className="hand__code">{price(fitted)}</s>}
           </span>
         )}
       </td>
-      <td className="pincell">
-        {editing ? (
-          <>
-            <PinFields gate={g.key} pin={pin} onPin={(p) => onPin(g.key, p)} />
-            <button
-              type="button"
-              className="control control--small"
-              onClick={() => {
-                setOpen(false);
-                onPin(g.key, undefined);
-              }}
-            >
-              {pinned ? "Unpin" : "Cancel"}
+      <td>
+        <span className="pincell">
+          {editing ? (
+            <>
+              <PinFields gate={g.key} pin={pin} onPin={(p) => onPin(g.key, p)} />
+              <button
+                type="button"
+                className="control control--small"
+                onClick={() => {
+                  setOpen(false);
+                  onPin(g.key, undefined);
+                }}
+              >
+                {pinned ? "Unpin" : "Cancel"}
+              </button>
+            </>
+          ) : (
+            <button type="button" className="control control--small" onClick={() => setOpen(true)}>
+              Pin
             </button>
-          </>
-        ) : (
-          <button type="button" className="control control--small" onClick={() => setOpen(true)}>
-            Pin
-          </button>
-        )}
+          )}
+        </span>
       </td>
     </tr>
   );
@@ -244,10 +250,18 @@ export function GateTable({
             <thead>
               <tr>
                 <th scope="col">Gate</th>
-                <th scope="col">Planned h</th>
-                <th scope="col">Opened h</th>
-                <th scope="col">Drift</th>
-                <th scope="col">Price</th>
+                <th scope="col" className="parts__n">
+                  Planned h
+                </th>
+                <th scope="col" className="parts__n">
+                  Opened h
+                </th>
+                <th scope="col" className="parts__n">
+                  Drift
+                </th>
+                <th scope="col" className="parts__n">
+                  Price
+                </th>
                 <th scope="col">Pin</th>
               </tr>
             </thead>

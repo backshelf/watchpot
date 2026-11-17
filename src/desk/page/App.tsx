@@ -14,6 +14,7 @@ import {
   beforeAt,
   type Column,
   currencySeries,
+  figure,
   gapPolygons,
   gateRows,
   HOUR_MS,
@@ -27,7 +28,6 @@ import {
   orders,
   type Pt,
   seedNumbers,
-  short,
   signedOrders,
   toNumber,
   valueAt,
@@ -240,13 +240,8 @@ export function App({ connect = connectSocket, load = fetchDesk }: AppProps = {}
     const shown = currencies.filter((c) => selected.has(cid(c)));
     const shownNext = keys.filter((k) => selected.has(nid(k)));
     const yOf = (d: Decimal) => (log ? log10(d) : toNumber(d));
-    const line = (
-      id: string,
-      dash: number,
-      weight: GraphLine["weight"],
-      pts: readonly Pt[],
-      label?: string,
-    ) => ({ id, dash, weight, label, pts: pts.map(([h, v]): Xy => [h, yOf(v)]) }) satisfies GraphLine;
+    const line = (id: string, dash: number, weight: GraphLine["weight"], pts: readonly Pt[]) =>
+      ({ id, dash, weight, pts: pts.map(([h, v]): Xy => [h, yOf(v)]) }) satisfies GraphLine;
 
     const medians = new Map<string, Pt[]>(shown.map((c) => [c, medianCurrency(data, c)]));
     const befores = new Map<string, Pt[]>(shown.map((c) => [c, before ? medianCurrency(before, c) : []]));
@@ -258,7 +253,7 @@ export function App({ connect = connectSocket, load = fetchDesk }: AppProps = {}
       const dash = currencies.indexOf(c) % DASHES;
       if (many)
         for (const s of eachSeed) lines1.push(line(`${c}#${s}`, dash, "hair", currencySeries(data, s, c)));
-      lines1.push(line(c, dash, "strong", medians.get(c) ?? [], c));
+      lines1.push(line(c, dash, "strong", medians.get(c) ?? []));
     }
     const axis1 = yAxis(
       lines1.flatMap((l) => l.pts.map((p) => p[1])),
@@ -308,14 +303,13 @@ export function App({ connect = connectSocket, load = fetchDesk }: AppProps = {}
         }
       const heldPts = med.map((p): Pt => [p.hours, p.held]);
       held.push(heldPts);
-      lines2.push(line(`${k}:held`, dash, "mid", heldPts, `${k} held`));
+      lines2.push(line(`${k}:held`, dash, "mid", heldPts));
       lines2.push(
         line(
           `${k}:cost`,
           dash,
           "strong",
           med.map((p): Pt => [p.hours, p.cost]),
-          `${k} cost`,
         ),
       );
     }
@@ -433,8 +427,8 @@ export function App({ connect = connectSocket, load = fetchDesk }: AppProps = {}
   /** A readout row: now, and against the run before when there is one. */
   const row = (label: string, now: Decimal | undefined, then: Decimal | undefined) => ({
     label,
-    text: now ? short(now) : "–",
-    ...(before ? { before: then ? short(then) : "–", delta: signedOrders(orders(now, then)) } : {}),
+    text: figure(now),
+    ...(before ? { before: figure(then), delta: signedOrders(orders(now, then)) } : {}),
   });
   const readout1 = (h: number) =>
     (view?.shown ?? []).map((c) =>
@@ -455,7 +449,9 @@ export function App({ connect = connectSocket, load = fetchDesk }: AppProps = {}
     run.resumedFromMs === undefined
       ? ""
       : ` Resumed from the cache at ${(run.resumedFromMs / HOUR_MS).toFixed(1)} h: the hours before it were not replayed.`;
-  const basis = many ? `the median of ${seeds.length} seeds, each seed a hairline` : "seed 1";
+  const basis = many ? `median of ${seeds.length} seeds` : "seed 1";
+  const scale = log ? "log₁₀" : "linear";
+  const dashed = before ? " · dashed: the run before" : "";
   const against = before ? " The dashed hairline beneath each line is the run before." : "";
 
   return (
@@ -464,7 +460,7 @@ export function App({ connect = connectSocket, load = fetchDesk }: AppProps = {}
         <h1 className="mast__name lettering">watchpot sim</h1>
         <p className="mast__currency">
           <span className="lettering">{desk?.currency ?? ""}</span>{" "}
-          <span className="num">{view?.main ? short(view.main) : "–"}</span>
+          <span className="num">{figure(view?.main)}</span>
         </p>
         <p className="mast__state" role="status" data-phase={run.phase}>
           <span className="mast__lamp" aria-hidden="true" />
@@ -501,58 +497,62 @@ export function App({ connect = connectSocket, load = fetchDesk }: AppProps = {}
       <div className="body">
         <Filter groups={groups} selected={selected} search={search} onSearch={setSearch} onSet={set} />
         <main className="main">
-          <div className="scale">
-            <span className="lettering">Scale</span>
-            <div className="seg">
-              <button type="button" className="control" aria-pressed={log} onClick={() => setLog(true)}>
-                log
-              </button>
-              <button type="button" className="control" aria-pressed={!log} onClick={() => setLog(false)}>
-                linear
-              </button>
+          <div className="main__graphs">
+            <div className="scale">
+              <span className="lettering">Scale</span>
+              <div className="seg">
+                <button type="button" className="control" aria-pressed={log} onClick={() => setLog(true)}>
+                  log
+                </button>
+                <button type="button" className="control" aria-pressed={!log} onClick={() => setLog(false)}>
+                  linear
+                </button>
+              </div>
+              {before && (
+                <button type="button" className="control" onClick={() => dispatch({ type: "clearBefore" })}>
+                  Clear before
+                </button>
+              )}
             </div>
-            {before && (
-              <button type="button" className="control" onClick={() => dispatch({ type: "clearBefore" })}>
-                Clear before
-              </button>
+            <Graph
+              title="Currencies over time"
+              caption={`${scale}, ${basis}${dashed}`}
+              note={`Played hours along the bottom, ${log ? "log10 of the value" : "the value"} up the side; ${many ? `the median of ${seeds.length} seeds, each seed a hairline` : "seed 1"}. The line is the highest value in each pixel column and the faint band its range. A hairline down the plot is where a gate opened; the chain-line tick at the foot is where it was planned.${resumed}${against}`}
+              endHours={end || 1}
+              axis={view?.axis1 ?? { lo: 0, hi: 1, ticks: [0, 1] }}
+              log={log}
+              lines={view?.lines1 ?? []}
+              gates={view?.marks}
+              stops={view?.stops1 ?? []}
+              readout={readout1}
+              empty={emptyFor(view && view.shown.length === 0 ? "Tick a currency in the left column" : "")}
+            />
+            {view && view.shownNext.length > 0 && (
+              <Graph
+                title="Wallet against next cost"
+                caption={`${scale}, ${basis} · hatched: price above balance${dashed}`}
+                note={`The balance that pays for each ticked buyable, and its price. Hatched where the price is above the balance: a long hatched plateau is a stall.${against}`}
+                endHours={end || 1}
+                axis={view.axis2}
+                log={log}
+                lines={view.lines2}
+                gaps={view.gaps2}
+                stops={view.stops2}
+                readout={readout2}
+                empty={emptyFor("")}
+              />
             )}
           </div>
-          <Graph
-            title="Currencies over time"
-            caption={`Played hours along the bottom, ${log ? "log10 of the value" : "the value"} up the side; ${basis}. A hairline down the plot is where a gate opened; the chain-line tick at the foot is where it was planned.${resumed}${against}`}
-            height={420}
-            endHours={end || 1}
-            axis={view?.axis1 ?? { lo: 0, hi: 1, ticks: [0, 1] }}
-            log={log}
-            lines={view?.lines1 ?? []}
-            gates={view?.marks}
-            stops={view?.stops1 ?? []}
-            readout={readout1}
-            empty={emptyFor(view && view.shown.length === 0 ? "Tick a currency in the left column" : "")}
-          />
-          {view && view.shownNext.length > 0 && (
-            <Graph
-              title="Wallet against next cost"
-              caption={`The balance that pays for each ticked buyable, and its price. Hatched where the price is above the balance: a long hatched plateau is a stall.${against}`}
-              height={340}
-              endHours={end || 1}
-              axis={view.axis2}
-              log={log}
-              lines={view.lines2}
-              gaps={view.gaps2}
-              stops={view.stops2}
-              readout={readout2}
-              empty={emptyFor("")}
+          <div className="main__tables">
+            <HourTable columns={view?.columns ?? []} waiting={waiting} />
+            <GateTable
+              key={epoch}
+              gates={view?.gates ?? []}
+              pins={hand.pins}
+              waiting={waiting}
+              onPin={setPin}
             />
-          )}
-          <HourTable columns={view?.columns ?? []} waiting={waiting} />
-          <GateTable
-            key={epoch}
-            gates={view?.gates ?? []}
-            pins={hand.pins}
-            waiting={waiting}
-            onPin={setPin}
-          />
+          </div>
         </main>
         {desk && (
           <Panel

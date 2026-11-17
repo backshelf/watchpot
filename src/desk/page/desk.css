@@ -2,22 +2,59 @@
  * The sim desk's page, in the tools' one look (DESIGN.md: the service manual of the machine inside the game). One ink,
  * hairlines, tone as hatching; `--dp-live` only for the run that is running now. Every colour, font and line weight
  * is a `--dp-*` token.
+ *
+ * One type scale: captions and column heads 0.6875rem small capitals, tracked; titles 0.75rem small capitals; body and
+ * figures 0.8125rem (figures in mono). Layout: the filter column (15rem), the main column, the knob column (20rem);
+ * from 2200px the main column splits into graphs and tables, each scrolling by itself under the masthead.
  */
 @import "../../devtools/tokens.css";
+
+/*
+ * The two families the tools name, served with the desk (latin only; both SIL OFL 1.1, licences beside the files). The
+ * desk is bundled by Bun's HTML loader, which finds the files from these urls.
+ */
+@font-face {
+  font-family: "Archivo";
+  font-style: normal;
+  font-display: swap;
+  font-weight: 100 900;
+  font-stretch: 62% 125%;
+  src: url("./fonts/archivo-latin-standard-normal.woff2") format("woff2-variations");
+  unicode-range:
+    U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F,
+    U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD;
+}
+
+@font-face {
+  font-family: "Chivo Mono";
+  font-style: normal;
+  font-display: swap;
+  font-weight: 100 900;
+  src: url("./fonts/chivo-mono-latin-wght-normal.woff2") format("woff2-variations");
+  unicode-range:
+    U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F,
+    U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD;
+}
 
 .desk {
   --dp-line-mid: calc(var(--dp-hair) * 1.5);
   --dp-line-strong: calc(var(--dp-hair) * 2.25);
-  --dp-filter-width: 16rem;
+  --dp-filter-width: 15rem;
   --dp-panel-width: 20rem;
   --dp-gap: 1rem;
+  --dp-mast-height: 3rem;
+  --dp-plot-height: clamp(18rem, 42vh, 34rem);
 
+  display: flex;
+  flex-direction: column;
   min-height: 100vh;
+  max-width: 3200px;
+  margin-inline: auto;
   box-sizing: border-box;
   background: var(--dp-paper);
   color: var(--dp-ink);
   font-family: var(--dp-font-sans);
-  font-size: 0.9375rem;
+  font-size: 0.8125rem;
   line-height: 1.5;
 }
 
@@ -29,7 +66,7 @@
 
 body {
   margin: 0;
-  background: var(--dp-paper-sunk);
+  background: var(--dp-paper);
 }
 
 .num {
@@ -49,6 +86,7 @@ body {
 
 h1,
 h2,
+h3,
 p,
 ul,
 fieldset,
@@ -57,19 +95,26 @@ legend {
   padding: 0;
 }
 
-/* The masthead strip. */
-.mast {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: 0.5rem 1.5rem;
-  padding: 0.75rem var(--dp-gap);
-  border-bottom: var(--dp-line-strong) solid var(--dp-ink);
-  background: var(--dp-paper-lift);
+/* Titles: the plates', the masthead's and the knob groups'. */
+.mast__name,
+.plate__title,
+.knobs__head {
+  --dp-lettering-size: 0.75rem;
 }
 
-.mast__name {
-  --dp-lettering-size: 0.875rem;
+/* The masthead strip: one hairline under it; its controls sit inside it. */
+.mast {
+  position: sticky;
+  top: 0;
+  z-index: 3;
+  display: flex;
+  align-items: center;
+  gap: 0 1.5rem;
+  height: var(--dp-mast-height);
+  padding: 0 var(--dp-gap);
+  border-bottom: var(--dp-hair) solid var(--dp-ink);
+  background: var(--dp-paper-lift);
+  line-height: 1.25;
 }
 
 .mast__currency {
@@ -88,8 +133,9 @@ legend {
 
 /* A lamp: hollow when nothing runs, lit with the live tone only while a run is playing. */
 .mast__lamp {
-  width: 0.75rem;
-  height: 0.75rem;
+  flex: none;
+  width: 0.625rem;
+  height: 0.625rem;
   border: var(--dp-hair) solid var(--dp-ink);
   border-radius: 50%;
 }
@@ -115,13 +161,14 @@ legend {
 
 /* A control: ruled and square, inverts under the pointer, drops a pixel on a press; unusable is dashed and ruled through. */
 .control {
-  padding: var(--dp-control-pad-y, 0.35rem) var(--dp-control-pad-x, 0.85rem);
+  padding: var(--dp-control-pad-y, 0.25rem) var(--dp-control-pad-x, 0.75rem);
   border: var(--dp-hair) solid var(--dp-ink);
   border-radius: 0;
   background: var(--dp-paper-lift);
   color: var(--dp-ink);
   font: inherit;
-  font-size: var(--dp-control-size, 0.8125rem);
+  font-size: 0.8125rem;
+  line-height: 1.25;
   cursor: pointer;
   transition:
     background 140ms var(--dp-ease-out),
@@ -145,15 +192,20 @@ legend {
   cursor: not-allowed;
 }
 
+.control--small {
+  --dp-control-pad-y: 0.125rem;
+  --dp-control-pad-x: 0.5rem;
+}
+
 .desk :focus-visible {
-  outline: var(--dp-line-strong) solid var(--dp-focus);
+  outline: var(--dp-line-mid) solid var(--dp-focus);
   outline-offset: 2px;
 }
 
-/* Errors: a heavy rule, hatched ground. */
+/* Errors: a ruled strip on a hatched ground. */
 .errors {
   padding: 0.5rem var(--dp-gap);
-  border-bottom: var(--dp-line-strong) solid var(--dp-ink);
+  border-bottom: var(--dp-hair) solid var(--dp-ink);
   background: repeating-linear-gradient(
     -45deg,
     var(--dp-hatch) 0,
@@ -163,33 +215,60 @@ legend {
   );
 }
 
-/* The body: the filter column, the graphs, and the knob panel's column. */
+/* The body: the filter column, the main column and the knob column, each one surface from the strip to the foot. */
 .body {
   display: grid;
+  flex: 1 1 auto;
   grid-template-columns: var(--dp-filter-width) minmax(0, 1fr) var(--dp-panel-width);
 }
 
 .main {
   display: grid;
   gap: var(--dp-gap);
+  align-content: start;
   min-width: 0;
   padding: var(--dp-gap);
 }
 
-/* The filter column. */
-.filter {
+.main__graphs,
+.main__tables {
   display: grid;
-  align-content: start;
   gap: var(--dp-gap);
+  align-content: start;
   min-width: 0;
-  padding: var(--dp-gap);
+}
+
+/* The two side columns: the column is the surface, its content sticks under the strip and scrolls by itself. */
+.filter {
+  min-width: 0;
   border-right: var(--dp-hair) solid var(--dp-rule-strong);
   background: var(--dp-paper-lift);
 }
 
+.panel {
+  min-width: 0;
+  border-left: var(--dp-hair) solid var(--dp-rule-strong);
+  background: var(--dp-paper-lift);
+}
+
+.filter__stick,
+.panel__stick {
+  position: sticky;
+  top: var(--dp-mast-height);
+  max-height: calc(100vh - var(--dp-mast-height));
+  padding: var(--dp-gap);
+  overflow-y: auto;
+}
+
+.filter__stick {
+  display: grid;
+  align-content: start;
+  gap: var(--dp-gap);
+}
+
 .filter__search {
   width: 100%;
-  padding: 0.4rem 0.5rem;
+  padding: 0.3rem 0.5rem;
   border: var(--dp-hair) solid var(--dp-ink);
   border-radius: 0;
   background: var(--dp-paper);
@@ -220,7 +299,7 @@ legend {
   display: flex;
   align-items: center;
   gap: 0.5rem;
-  padding: 0.25rem 0;
+  padding: 0.3rem 0;
   border-bottom: var(--dp-hair) solid var(--dp-rule);
   cursor: pointer;
 }
@@ -233,13 +312,6 @@ legend {
 .filter__none {
   padding: 0.5rem 0;
   color: var(--dp-text-faint);
-  font-size: 0.8125rem;
-}
-
-.filter input[type="checkbox"] {
-  flex: none;
-  margin: 0;
-  accent-color: var(--dp-ink);
 }
 
 .filter__swatch {
@@ -251,6 +323,51 @@ legend {
 .filter__swatchline {
   stroke: var(--dp-ink);
   stroke-width: var(--dp-line-mid);
+}
+
+/* A checkbox: a ruled square, an ink tick; a group's half-ticked state is a bar. */
+.desk input[type="checkbox"] {
+  position: relative;
+  flex: none;
+  width: 0.9375rem;
+  height: 0.9375rem;
+  margin: 0;
+  border: var(--dp-hair) solid var(--dp-ink);
+  border-radius: 0;
+  appearance: none;
+  background: var(--dp-paper);
+  cursor: pointer;
+}
+
+.desk input[type="checkbox"]::after {
+  content: "";
+  position: absolute;
+  top: 45%;
+  left: 50%;
+  width: 0.3125rem;
+  height: 0.5625rem;
+  border: solid var(--dp-ink);
+  border-width: 0 var(--dp-line-mid) var(--dp-line-mid) 0;
+  opacity: 0;
+  transform: translate(-50%, -55%) rotate(45deg);
+}
+
+.desk input[type="checkbox"]:checked::after {
+  opacity: 1;
+}
+
+.desk input[type="checkbox"]:indeterminate::after {
+  top: 50%;
+  width: 0.5rem;
+  height: 0;
+  border-width: 0 0 var(--dp-line-mid);
+  opacity: 1;
+  transform: translate(-50%, -50%);
+}
+
+.desk input[type="checkbox"]:disabled {
+  border-style: dashed;
+  cursor: not-allowed;
 }
 
 /* The scale switch. */
@@ -283,11 +400,22 @@ legend {
   border-bottom: var(--dp-hair) solid var(--dp-ink);
 }
 
-/* The graph. */
+/* The graph: a title with one muted line beside it, the reading under, the plot at its own height. */
+.graph__titlerow {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 0 0.75rem;
+}
+
+.graph__caption {
+  color: var(--dp-ink-soft);
+}
+
 .graph__readout {
   display: flex;
   flex-wrap: wrap;
-  gap: 0.25rem 1rem;
+  gap: 0.125rem 1rem;
   min-height: 1.5em;
   color: var(--dp-ink);
 }
@@ -310,34 +438,32 @@ legend {
 }
 
 .graph__frame {
-  padding: 0.5rem;
+  padding: 0.5rem 0.5rem 0.25rem;
   touch-action: pan-y;
 }
 
 .graph__svg {
   display: block;
   width: 100%;
-  height: auto;
+  height: var(--dp-plot-height);
   overflow: visible;
 }
 
 .graph__grid {
   stroke: var(--dp-rule);
   stroke-width: var(--dp-hair);
-  vector-effect: non-scaling-stroke;
 }
 
-.graph__frame-line {
-  fill: none;
-  stroke: var(--dp-ink);
+.graph__axis {
+  stroke: var(--dp-ink-faint);
   stroke-width: var(--dp-hair);
-  vector-effect: non-scaling-stroke;
 }
 
 .graph__tick {
   fill: var(--dp-ink-soft);
   font-family: var(--dp-font-mono);
-  font-size: 12px;
+  font-size: 0.6875rem;
+  font-variant-numeric: tabular-nums;
 }
 
 .graph__hatchline {
@@ -351,8 +477,8 @@ legend {
 
 .graph__line {
   fill: none;
+  stroke-linecap: round;
   stroke-linejoin: round;
-  vector-effect: non-scaling-stroke;
 }
 
 .graph__line--hair {
@@ -362,12 +488,12 @@ legend {
 
 .graph__line--mid {
   stroke: var(--dp-ink);
-  stroke-width: var(--dp-line-mid);
+  stroke-width: var(--dp-hair);
 }
 
 .graph__line--strong {
   stroke: var(--dp-ink);
-  stroke-width: var(--dp-line-strong);
+  stroke-width: var(--dp-line-mid);
 }
 
 /* The run before: a dashed hairline, drawn under the live lines. */
@@ -375,6 +501,12 @@ legend {
   stroke: var(--dp-ink-faint);
   stroke-width: var(--dp-hair);
   stroke-dasharray: 5 4;
+}
+
+/* The range each pixel column spans, behind the line that follows its highs. */
+.graph__band {
+  fill: color-mix(in oklch, var(--dp-ink) 18%, transparent);
+  stroke: none;
 }
 
 /* The dash patterns: a series is the same line in the graph, the filter and the readout. */
@@ -402,17 +534,13 @@ legend {
   stroke-dasharray: 1 5;
 }
 
-.graph__linename,
 .graph__gatename {
-  --dp-lettering-size: 10px;
-
   fill: var(--dp-ink);
 }
 
 .graph__opened {
   stroke: var(--dp-rule-strong);
   stroke-width: var(--dp-hair);
-  vector-effect: non-scaling-stroke;
 }
 
 /* A gate set by hand: the by-hand square on its planned tick. */
@@ -425,20 +553,17 @@ legend {
   stroke: var(--dp-ink);
   stroke-width: var(--dp-line-mid);
   stroke-dasharray: 6 2 1 2;
-  vector-effect: non-scaling-stroke;
 }
 
 .graph__cross line {
   stroke: var(--dp-ink);
   stroke-width: var(--dp-hair);
-  vector-effect: non-scaling-stroke;
 }
 
 .graph__cross circle {
   fill: var(--dp-paper-lift);
   stroke: var(--dp-ink);
   stroke-width: var(--dp-line-mid);
-  vector-effect: non-scaling-stroke;
 }
 
 .graph__emptyplate {
@@ -446,36 +571,30 @@ legend {
   stroke: var(--dp-ink);
   stroke-width: var(--dp-hair);
   stroke-dasharray: 6 4;
-  vector-effect: non-scaling-stroke;
 }
 
 .graph__emptytext {
-  --dp-lettering-size: 12px;
+  --dp-lettering-size: 0.75rem;
 
   fill: var(--dp-ink);
 }
 
-.graph__caption {
-  padding: 0 0.75rem 0.75rem;
-  color: var(--dp-ink-soft);
-  font-size: 0.8125rem;
-}
-
-/* The tables, as parts lists. */
+/* The tables, as parts lists: figures right-aligned under right-aligned heads, the head fixed while the body scrolls. */
 .sheet__scroll {
-  overflow-x: auto;
   max-height: 24rem;
+  overflow: auto;
 }
 
 .parts {
   width: 100%;
-  border-collapse: collapse;
+  border-collapse: separate;
+  border-spacing: 0;
   text-align: left;
 }
 
 .parts th,
 .parts td {
-  padding: 0.3rem 1rem 0.3rem 0.75rem;
+  padding: 0.3rem 0.75rem;
   white-space: nowrap;
 }
 
@@ -488,14 +607,27 @@ legend {
 .parts thead th {
   position: sticky;
   top: 0;
+  z-index: 1;
   border-bottom: var(--dp-hair) solid var(--dp-ink);
   background: var(--dp-paper-lift);
   color: var(--dp-ink-soft);
   font-stretch: 125%;
   font-weight: 560;
-  font-size: 0.625rem;
+  font-size: 0.6875rem;
   letter-spacing: 0.09em;
   text-transform: uppercase;
+}
+
+.parts .parts__n {
+  text-align: right;
+}
+
+.parts .parts__hour {
+  width: 1%;
+}
+
+.parts__delta {
+  color: var(--dp-ink-soft);
 }
 
 /* Set by hand: a filled square in the ink before the name, the value bold, the code's own value struck beside it. */
@@ -528,12 +660,6 @@ legend {
   white-space: nowrap;
 }
 
-.control--small {
-  --dp-control-pad-y: 0.15rem;
-  --dp-control-pad-x: 0.5rem;
-  --dp-control-size: 0.75rem;
-}
-
 /* The fields: ruled and square, like the search box. */
 .field {
   min-width: 0;
@@ -542,6 +668,7 @@ legend {
   border-radius: 0;
   background: var(--dp-paper);
   color: var(--dp-ink);
+  font-size: 0.8125rem;
 }
 
 .field[aria-invalid="true"] {
@@ -562,18 +689,10 @@ legend {
 }
 
 .pinfields .field {
-  width: 6rem;
+  width: 5rem;
 }
 
 /* The knob panel. */
-.panel {
-  align-self: start;
-  min-width: 0;
-  padding: var(--dp-gap);
-  border-left: var(--dp-hair) solid var(--dp-rule-strong);
-  background: var(--dp-paper-lift);
-}
-
 .panel__head {
   grid-template-columns: 1fr auto;
   align-items: center;
@@ -617,18 +736,16 @@ legend {
   list-style: none;
 }
 
+/* One row to a knob: its label, a slider with its number and a reset, and under them the code's value if it differs. */
 .knob {
   display: grid;
-  gap: 0.35rem;
-  padding: 0.5rem 0;
+  gap: 0.375rem;
+  padding: 0.625rem 0;
   border-bottom: var(--dp-hair) solid var(--dp-rule);
 }
 
 .knob__head {
-  display: flex;
-  align-items: baseline;
-  justify-content: space-between;
-  gap: 0.5rem;
+  min-width: 0;
 }
 
 .knob__label {
@@ -639,34 +756,79 @@ legend {
   overflow-wrap: anywhere;
 }
 
-.knob[data-hand="true"] .knob__value strong {
-  color: var(--dp-ink);
+.knob[data-hand="true"] .knob__label {
   font-weight: 700;
-}
-
-.knob__value {
-  display: inline-flex;
-  align-items: baseline;
-  gap: 0.5rem;
-  flex: none;
 }
 
 .knob__ctl {
   display: flex;
   align-items: center;
   gap: 0.5rem;
+  min-width: 0;
 }
 
 .knob__slider {
-  flex: 1 1 auto;
+  flex: 1 1 0;
   min-width: 0;
   margin: 0;
   accent-color: var(--dp-ink);
 }
 
-.knob__number {
+/* The number and its unit in one ruled box: a multiplier leads with ×, a share ends with %. */
+.knob__field {
+  display: flex;
+  align-items: center;
   flex: none;
   width: 5.5rem;
+  margin-inline-start: auto;
+  padding-inline: 0.4rem;
+  border: var(--dp-hair) solid var(--dp-ink);
+  background: var(--dp-paper);
+}
+
+.knob__field:focus-within {
+  outline: var(--dp-line-mid) solid var(--dp-focus);
+  outline-offset: 2px;
+}
+
+.knob__field .knob__number {
+  flex: 1 1 auto;
+  width: 100%;
+  padding: 0.2rem 0;
+  border: 0;
+  outline: none;
+  appearance: textfield;
+  background: transparent;
+  text-align: right;
+}
+
+.knob__field .knob__number[aria-invalid="true"] {
+  text-decoration: underline wavy;
+}
+
+.knob__unit {
+  flex: none;
+  padding-inline: 0.25rem;
+  color: var(--dp-ink-soft);
+  font-family: var(--dp-font-mono);
+}
+
+.knob__slot {
+  flex: none;
+  width: 1.5rem;
+  height: 1.5rem;
+}
+
+.knob__reset {
+  display: grid;
+  place-items: center;
+  width: 1.5rem;
+  height: 1.5rem;
+  padding: 0;
+}
+
+.knob__code {
+  color: var(--dp-text-faint);
 }
 
 /* An empty plate: ruled, saying what is coming. */
@@ -685,10 +847,23 @@ legend {
   text-align: center;
 }
 
-/* Narrow: the filter column stacks above and the panel under the graphs. */
-@media (max-width: 56rem) {
+/* Narrow: the filter column stacks above the main and the knob column under it. */
+@media (max-width: 1099px) {
   .body {
     grid-template-columns: minmax(0, 1fr);
+  }
+
+  .mast {
+    position: static;
+    flex-wrap: wrap;
+    gap: 0.5rem 1.5rem;
+    height: auto;
+    min-height: var(--dp-mast-height);
+    padding-block: 0.5rem;
+  }
+
+  .mast__state {
+    margin-inline-start: 0;
   }
 
   .filter {
@@ -701,20 +876,59 @@ legend {
     border-top: var(--dp-hair) solid var(--dp-rule-strong);
   }
 
-  .mast__state {
-    margin-inline-start: 0;
+  .filter__stick,
+  .panel__stick {
+    position: static;
+    max-height: none;
   }
 }
 
-/* The plot scales with its box: on a phone its figures are drawn larger. */
-@media (max-width: 40rem) {
-  .graph__tick {
-    font-size: 20px;
+/* Ultrawide: the main column splits, graphs left and tables right, each scrolling by itself under the strip. */
+@media (min-width: 2200px) {
+  .desk {
+    height: 100vh;
   }
 
-  .graph__linename,
-  .graph__gatename {
-    --dp-lettering-size: 16px;
+  .body {
+    grid-template-rows: minmax(0, 1fr);
+    min-height: 0;
+    overflow: hidden;
+  }
+
+  .filter,
+  .panel {
+    min-height: 0;
+    overflow-y: auto;
+  }
+
+  .filter__stick,
+  .panel__stick {
+    position: static;
+    max-height: none;
+  }
+
+  .main {
+    grid-template-columns: minmax(0, 3fr) minmax(28rem, 2fr);
+    grid-template-rows: minmax(0, 1fr);
+    gap: 0;
+    min-height: 0;
+    padding: 0;
+    overflow: hidden;
+  }
+
+  .main__graphs,
+  .main__tables {
+    min-height: 0;
+    padding: var(--dp-gap);
+    overflow-y: auto;
+  }
+
+  .main__tables {
+    border-left: var(--dp-hair) solid var(--dp-rule);
+  }
+
+  .sheet__scroll {
+    max-height: max(24rem, 50vh);
   }
 }
 
