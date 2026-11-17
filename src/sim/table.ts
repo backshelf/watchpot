@@ -5,6 +5,7 @@
  */
 
 import { D, type Decimal } from "../core";
+import { bumpTables } from "./table-epoch";
 
 /** A price nothing can pay: what an unfitted gate costs until a fit has priced it. */
 export const BLOCKED = "1e999999999";
@@ -48,6 +49,7 @@ export function fitTable<K extends string = string>(initial: FitTableData<K> = {
   let version = 0;
   const set = (key: K, figure: string | null): void => {
     version++;
+    bumpTables();
     if (figure === null) {
       written.delete(key);
       live.delete(key);
@@ -64,6 +66,7 @@ export function fitTable<K extends string = string>(initial: FitTableData<K> = {
     live.clear();
     for (const [k, v] of Object.entries(data) as [K, string | undefined][]) if (v !== undefined) set(k, v);
     version++;
+    bumpTables();
   };
   load(initial);
   return {

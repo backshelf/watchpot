@@ -1,5 +1,6 @@
 import { type AnyMove, type Decimal, type FeatureSpec, type Move, type StateOf, ZERO } from "../core";
 import { planDay, type Rng, type Schedule } from "./schedule";
+import { tablesEpoch } from "./table-epoch";
 import type { SimWorld } from "./world";
 
 /**
@@ -96,7 +97,9 @@ export interface AutoStore<S> {
   trial?<T>(run: () => T): T;
   /**
    * A value worked out from the state and kept until what it read changes (the plain store has one). The
-   * auto-player keeps each feature's move list this way; without it, every look lists them afresh.
+   * auto-player keeps each feature's move list this way, and drops them all when a fit table changes (prices live
+   * outside the state); without it, every look lists them afresh. A game whose moves read anything else outside its
+   * state (the wall clock, a module variable) must not hand the auto-player a store with `memo`.
    */
   memo?<T>(fn: (state: S) => T): () => T;
 }
@@ -163,24 +166,30 @@ export function autoPlayer<S extends object>(
       );
   };
 
-  /** Each feature's move list, kept per store when it has `memo`; else listed afresh. In the game's feature order. */
-  const listers = new WeakMap<AutoStore<S>, ((state: S) => readonly Move<S>[])[]>();
-  const memoOf = (memo: NonNullable<AutoStore<S>["memo"]>, read: (state: S) => readonly Move<S>[]) => {
-    const kept = memo(read);
-    return () => kept();
-  };
+  /**
+   * Each feature's move list, kept per store when it has `memo` (else listed afresh), in the game's feature order;
+   * made anew when any fit table has changed since, since a price read from a table is outside the state.
+   */
+  const listers = new WeakMap<
+    AutoStore<S>,
+    { tables: number; lists: ((state: S) => readonly Move<S>[])[] }
+  >();
   const movesFor = (store: AutoStore<S>, state: S): Move<S>[] => {
     let mine = listers.get(store);
-    if (!mine) {
-      mine = [];
+    if (!mine || mine.tables !== tablesEpoch()) {
+      const lists: ((state: S) => readonly Move<S>[])[] = [];
       for (const f of game.features) {
         const read = f.moves as ((state: S) => readonly Move<S>[]) | undefined;
         if (!read) continue;
-        mine.push(store.memo ? memoOf(store.memo, read) : read);
+        if (store.memo) {
+          const kept = store.memo(read);
+          lists.push(() => kept());
+        } else lists.push(read);
       }
+      mine = { tables: tablesEpoch(), lists };
       listers.set(store, mine);
     }
-    return mine.flatMap((list) => list(state));
+    return mine.lists.flatMap((list) => list(state));
   };
 
   const trial = <T>(store: AutoStore<S>, run: () => T): T => {

@@ -68,7 +68,9 @@ export interface AutoStore<S> {
     trial?<T>(run: () => T): T;
     /**
      * A value worked out from the state and kept until what it read changes (the plain store has one). The
-     * auto-player keeps each feature's move list this way; without it, every look lists them afresh.
+     * auto-player keeps each feature's move list this way, and drops them all when a fit table changes (prices live
+     * outside the state); without it, every look lists them afresh. A game whose moves read anything else outside its
+     * state (the wall clock, a module variable) must not hand the auto-player a store with `memo`.
      */
     memo?<T>(fn: (state: S) => T): () => T;
 }
