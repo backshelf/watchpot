@@ -118,7 +118,7 @@ export function nextCurrency(data: DeskData, key: string): string | undefined {
 }
 
 /** Index of the last entry whose hour is at or before `hours`, or -1. Entries are in time order. */
-function lastAtOrBefore(hoursOf: (i: number) => number, length: number, hours: number): number {
+export function lastAtOrBefore(hoursOf: (i: number) => number, length: number, hours: number): number {
   let lo = 0;
   let hi = length - 1;
   let found = -1;

@@ -1,6 +1,6 @@
 // The tables under the graphs: one row per whole hour, one column per visible series (and, against a run before, its
 // difference); then the gates, where a gate can be pinned by hand.
-import { useState } from "react";
+import { memo, useState } from "react";
 import { D } from "../../core";
 import type { DeskInfo } from "../protocol";
 import { HandMark } from "./Panel";
@@ -20,7 +20,15 @@ import {
 export type Pins = NonNullable<DeskInfo["pins"]>;
 export type Pin = Pins[string];
 
-export function HourTable({ columns, waiting }: { columns: readonly Column[]; waiting: boolean }) {
+// Memoised: an unrelated change above (a pin typed, a save note) leaves the table's rows and their formatted
+// figures alone; only new data or a change to what is shown redraws it.
+export const HourTable = memo(function HourTable({
+  columns,
+  waiting,
+}: {
+  columns: readonly Column[];
+  waiting: boolean;
+}) {
   const rows = hourlyRows(columns);
   const compare = columns.some((c) => c.before !== undefined);
   return (
@@ -89,7 +97,7 @@ export function HourTable({ columns, waiting }: { columns: readonly Column[]; wa
       )}
     </section>
   );
-}
+});
 
 const hours = (h: number | undefined): string => (h === undefined ? "–" : h.toFixed(2));
 const price = (v: string | undefined): string => {

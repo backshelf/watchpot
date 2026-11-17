@@ -394,6 +394,11 @@ legend {
   cursor: not-allowed;
 }
 
+/* The pointer over a checkbox: its square takes a hatch, the tone for what is not full ink. */
+.desk input[type="checkbox"]:hover:enabled {
+  background: var(--dp-hatch);
+}
+
 /* The scale switch. */
 .scale {
   display: flex;
@@ -483,6 +488,8 @@ legend {
   position: relative;
   height: var(--dp-plot-height);
   touch-action: pan-y;
+  /* The plot is read at the pointer: the cursor says the crosshair follows it. */
+  cursor: crosshair;
 }
 
 .graph__svg {

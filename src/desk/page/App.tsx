@@ -40,6 +40,8 @@ export interface AppProps {
   connect?: Connect;
   /** Reads the desk. Default: `GET /api/desk`. */
   load?: () => Promise<DeskInfo>;
+  /** Test-only: called each time a graph's series layer renders, for a test that counts them. Not set in the page. */
+  onSeriesRender?: () => void;
 }
 
 async function fetchDesk(): Promise<DeskInfo> {
@@ -63,7 +65,7 @@ const sameHand = (a: Hand, b: Hand): boolean =>
   JSON.stringify([Object.entries(a.knobs).sort(), Object.entries(a.pins).sort()]) ===
   JSON.stringify([Object.entries(b.knobs).sort(), Object.entries(b.pins).sort()]);
 
-export function App({ connect = connectSocket, load = fetchDesk }: AppProps = {}) {
+export function App({ connect = connectSocket, load = fetchDesk, onSeriesRender }: AppProps = {}) {
   const [desk, setDesk] = useState<DeskInfo>();
   const [problem, setProblem] = useState<string>();
   const [run, dispatch] = useReducer(runReducer, undefined, idleRun);
@@ -353,17 +355,6 @@ export function App({ connect = connectSocket, load = fetchDesk }: AppProps = {}
 
     // While a new run waits for its first window the gates stay listed, from the run before: a pin being typed stays.
     const gates = gateRows(data.seeds.size > 0 || !before ? data : before);
-    const marks: GateMark[] = gates.map((g) => {
-      const at = hand.pins[g.key]?.atMs;
-      const plannedH = at === undefined ? g.plannedH : at / HOUR_MS;
-      return {
-        key: g.key,
-        plannedH,
-        openings: g.openings,
-        labelH: g.openedH ?? plannedH,
-        hand: hand.pins[g.key] !== undefined,
-      };
-    });
     const main = valueAt(medianCurrency(data, desk.currency), Number.POSITIVE_INFINITY);
 
     return {
@@ -380,12 +371,28 @@ export function App({ connect = connectSocket, load = fetchDesk }: AppProps = {}
       stops2,
       columns,
       gates,
-      marks,
       main,
       befores,
       beforeNexts,
     };
-  }, [desk, data, before, hand.pins, selected, keys, log, currencies]);
+  }, [desk, data, before, selected, keys, log, currencies]);
+
+  // The marks a pin being typed moves, split from the series above: a keystroke in a pin field redraws the marks
+  // without recomputing every median series (with eight seeds that recompute was the page's heaviest work).
+  const marks = useMemo(() => {
+    const pins = hand.pins;
+    return (view?.gates ?? []).map((g) => {
+      const at = pins[g.key]?.atMs;
+      const plannedH = at === undefined ? g.plannedH : at / HOUR_MS;
+      return {
+        key: g.key,
+        plannedH,
+        openings: g.openings,
+        labelH: g.openedH ?? plannedH,
+        hand: pins[g.key] !== undefined,
+      } satisfies GateMark;
+    });
+  }, [view?.gates, hand.pins]);
 
   const groups: FilterGroup[] = [
     {
@@ -532,9 +539,10 @@ export function App({ connect = connectSocket, load = fetchDesk }: AppProps = {}
               axis={view?.axis1 ?? { lo: 0, hi: 1, ticks: [0, 1] }}
               log={log}
               lines={view?.lines1 ?? []}
-              gates={view?.marks}
+              gates={marks}
               stops={view?.stops1 ?? []}
               readout={readout1}
+              onSeriesRender={onSeriesRender}
               empty={emptyFor(view && view.shown.length === 0 ? "Tick a currency in the left column" : "")}
             />
             {view && view.shownNext.length > 0 && (
@@ -549,6 +557,7 @@ export function App({ connect = connectSocket, load = fetchDesk }: AppProps = {}
                 gaps={view.gaps2}
                 stops={view.stops2}
                 readout={readout2}
+                onSeriesRender={onSeriesRender}
                 empty={emptyFor("")}
               />
             )}

@@ -204,6 +204,65 @@ describe("the desk page", () => {
     expect(read()).toContain("0.00 h");
   });
 
+  test("a pointer move redraws the crosshair and the readout, never the series paths", async () => {
+    const socket = fake();
+    const seriesRenders = { count: 0 };
+    render(
+      <StrictMode>
+        <App connect={socket.connect} load={async () => INFO} onSeriesRender={() => seriesRenders.count++} />
+      </StrictMode>,
+    );
+    await screen.findByRole("checkbox", { name: "coins" });
+    await socket.open();
+    await socket.say(window(1, 1, 0, 2, [0, 1, 2]));
+    await waitFor(() => expect(seriesRenders.count).toBeGreaterThan(0));
+    const before = seriesRenders.count;
+    const graph = screen.getByRole("group", { name: /Currencies over time/ });
+    const read = () =>
+      document.getElementById(graph.getAttribute("aria-describedby") ?? "")?.textContent ?? "";
+    // Where nothing measures, the svg keeps its fallback box: give it one, so a client x finds an hour.
+    const svg = document.querySelector(".graph__svg") as SVGSVGElement;
+    svg.getBoundingClientRect = () => ({ left: 0, top: 0, width: 960, height: 400 }) as DOMRect;
+    const paths = [...svg.querySelectorAll(".graph__line")];
+    expect(paths.length).toBeGreaterThan(0);
+    // Moves are coalesced to one update a frame: the frames are held back here, then run at once.
+    const frames: FrameRequestCallback[] = [];
+    const raf = globalThis.requestAnimationFrame;
+    globalThis.requestAnimationFrame = ((cb: FrameRequestCallback) => {
+      frames.push(cb);
+      return frames.length;
+    }) as typeof requestAnimationFrame;
+    try {
+      fireEvent.pointerMove(svg, { clientX: 300, clientY: 50 });
+      fireEvent.pointerMove(svg, { clientX: 500, clientY: 60 });
+      fireEvent.pointerMove(svg, { clientX: 340, clientY: 70 });
+      expect(read()).toContain("Hover or focus");
+      act(() => {
+        for (const cb of frames.splice(0)) cb(0);
+      });
+      // One frame for the burst, at the last position.
+      expect(frames).toHaveLength(0);
+      expect(read()).toContain("1.00 h");
+      fireEvent.pointerMove(svg, { clientX: 500, clientY: 50 });
+      act(() => {
+        for (const cb of frames.splice(0)) cb(0);
+      });
+      expect(read()).toContain("2.00 h");
+      fireEvent.pointerLeave(svg);
+      expect(read()).toContain("Hover or focus");
+    } finally {
+      globalThis.requestAnimationFrame = raf;
+    }
+    // The series layer never rendered again through all of that: its paths are the same nodes.
+    expect(seriesRenders.count).toBe(before);
+    expect([...svg.querySelectorAll(".graph__line")]).toEqual(paths);
+    // The arrow keys still move the readout.
+    fireEvent.keyDown(graph, { key: "ArrowRight" });
+    expect(read()).toContain("0.00 h");
+    fireEvent.keyDown(graph, { key: "ArrowRight" });
+    expect(read()).toContain("1.00 h");
+  });
+
   test("a closed connection is said, not silent", async () => {
     const socket = fake();
     let close: (() => void) | undefined;

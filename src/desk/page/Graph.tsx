@@ -2,8 +2,13 @@
 // given (lines, hatched gaps, gate marks) and owns the crosshair: pointer and arrow keys pick one of the `stops`.
 // The svg is drawn in the pixels it is shown in (CSS sets its height, a ResizeObserver reports its box), so a series is
 // cut to one slice per pixel column (`downsample`) and a stroke is the weight it says on any screen.
+//
+// The crosshair's position is a small store, not state of this component: a pointer move re-renders only the crosshair
+// line and the readout, the two pieces that subscribe to it — never the series paths, the axes, the gate marks or
+// anything outside the graph — and pointer moves are coalesced to one update a frame.
 import {
   type KeyboardEvent,
+  memo,
   type PointerEvent,
   useCallback,
   useEffect,
@@ -11,9 +16,10 @@ import {
   useMemo,
   useRef,
   useState,
+  useSyncExternalStore,
 } from "react";
 import { D } from "../../core";
-import { compact, downsample, hourTicks, type YAxis } from "./series";
+import { compact, downsample, hourTicks, lastAtOrBefore, type YAxis } from "./series";
 
 // The plot's margins, in px: the left grows with the widest y label, the top with the rows of gate keys above the plot.
 const M = { r: 16, b: 26, t: 10 };
@@ -78,21 +84,287 @@ export interface GraphProps {
   readout: (hours: number) => ReadoutRow[];
   /** A drawn empty state: what is coming. The axes are still drawn. */
   empty?: string;
+  /** Test-only: called each time the series layer renders, for a test that counts them. Not set in the page. */
+  onSeriesRender?: () => void;
 }
 
 const tickText = (v: number, log: boolean): string => (log ? (v === 0 ? "1" : `1e${v}`) : compact(D(v)));
 
 type Pts = readonly (readonly [number, number])[];
 
+/** The crosshair's position: the index into the stops it sits at, or null when it is hidden. */
+interface Crosshair {
+  get(): number | null;
+  set(at: number | null): void;
+  subscribe(onChange: () => void): () => void;
+}
+
+/** One graph's crosshair position, written by the pointer and the arrow keys, read by what draws it. */
+const useCrosshair = (): Crosshair => {
+  const at = useRef<number | null>(null);
+  const listeners = useRef(new Set<() => void>());
+  return useMemo(
+    () => ({
+      get: () => at.current,
+      set: (next: number | null) => {
+        if (next === at.current) return;
+        at.current = next;
+        for (const fn of listeners.current) fn();
+      },
+      subscribe: (fn: () => void) => {
+        listeners.current.add(fn);
+        return () => void listeners.current.delete(fn);
+      },
+    }),
+    [],
+  );
+};
+
+/** Reads the crosshair's position: only the component that calls this re-renders when it moves. */
+const useAt = (crosshair: Crosshair): number | null =>
+  useSyncExternalStore(crosshair.subscribe, crosshair.get);
+
+/** The hour the crosshair sits at: its stop, clamped to the stops a newer run may have shortened. */
+const hourAt = (at: number | null, stops: readonly number[]): number | undefined =>
+  at === null || stops.length === 0 ? undefined : stops[Math.min(at, stops.length - 1)];
+
+/** The stop nearest an hour: a binary search over the stops, which are ascending. */
+const nearestStop = (stops: readonly number[], hours: number): number => {
+  if (stops.length === 0) return 0;
+  let lo = 0;
+  let hi = stops.length - 1;
+  while (lo < hi) {
+    const mid = (lo + hi) >> 1;
+    if ((stops[mid] as number) < hours) lo = mid + 1;
+    else hi = mid;
+  }
+  if (lo === 0) return 0;
+  const before = stops[lo - 1] as number;
+  const found = stops[lo] as number;
+  return Math.abs(before - hours) <= Math.abs(found - hours) ? lo - 1 : lo;
+};
+
+/** The reading at the crosshair: the one line of the plate's head that follows the pointer. */
+function Readout({
+  uid,
+  crosshair,
+  stops,
+  readout,
+}: {
+  uid: string;
+  crosshair: Crosshair;
+  stops: readonly number[];
+  readout: (hours: number) => ReadoutRow[];
+}) {
+  const h = hourAt(useAt(crosshair), stops);
+  return (
+    <p className="graph__readout num" id={`${uid}-read`}>
+      {h === undefined ? (
+        <span className="graph__hint">Hover or focus the graph, then use the arrow keys, for a reading.</span>
+      ) : (
+        <>
+          <span className="graph__at">{h.toFixed(2)} h</span>
+          {readout(h).map((r) => (
+            <span key={r.label} className={`graph__row series-${r.slot}`}>
+              <svg className="graph__rowkey" viewBox="0 0 28 8" aria-hidden="true">
+                <line className={`graph__rowline dash-${r.slot}`} x1="0" x2="28" y1="4" y2="4" />
+              </svg>
+              <span className="graph__rowname">{r.label}</span>
+              {r.before === undefined ? (
+                ` ${r.text}`
+              ) : (
+                <>
+                  {" "}
+                  <span className="graph__rowname">now</span> {r.text}{" "}
+                  <span className="graph__rowname">before</span> {r.before}{" "}
+                  <span className="graph__delta">{r.delta}</span>
+                </>
+              )}
+            </span>
+          ))}
+        </>
+      )}
+    </p>
+  );
+}
+
+/** The crosshair itself: a hairline at the hour and a dot on every strong line, found by binary search. */
+function Cross({
+  crosshair,
+  stops,
+  lines,
+  xOf,
+  yOf,
+  top,
+  bottom,
+}: {
+  crosshair: Crosshair;
+  stops: readonly number[];
+  lines: readonly GraphLine[];
+  xOf: (h: number) => number;
+  yOf: (v: number) => number;
+  top: number;
+  bottom: number;
+}) {
+  const h = hourAt(useAt(crosshair), stops);
+  if (h === undefined) return null;
+  return (
+    <g className="graph__cross">
+      <line x1={xOf(h)} x2={xOf(h)} y1={top} y2={bottom} />
+      {lines
+        .filter((l) => l.weight !== "hair" && l.weight !== "before")
+        .map((l) => {
+          const i = lastAtOrBefore((j) => l.pts[j]?.[0] ?? 0, l.pts.length, h);
+          const p = i < 0 ? undefined : l.pts[i];
+          return p ? (
+            <circle key={l.id} className={`series-${l.slot}`} cx={xOf(p[0])} cy={yOf(p[1])} r="3.5" />
+          ) : null;
+        })}
+    </g>
+  );
+}
+
+/** One line's drawn shapes: the path of its highs, and the band of each pixel column's range behind it. */
+interface Shapes {
+  line: string;
+  band: string;
+}
+
+/**
+ * The plot's data layer: hatched gaps, the bands and the series paths, cut to the pixels they are drawn in. The d
+ * strings are built once per data, size or scale change, and the crosshair is not a prop, so a move renders none of
+ * this; memoised, an unrelated change above (a pin typed, a note set) leaves it alone too.
+ */
+const Series = memo(function Series({
+  uid,
+  lines,
+  gaps,
+  endHours,
+  plotW,
+  xOf,
+  yOf,
+  onRender,
+}: {
+  uid: string;
+  lines: readonly GraphLine[];
+  gaps?: readonly (readonly (readonly [number, number])[])[];
+  endHours: number;
+  plotW: number;
+  xOf: (h: number) => number;
+  yOf: (v: number) => number;
+  onRender?: () => void;
+}) {
+  const drawn = useMemo(() => {
+    const d = (pts: Pts) =>
+      pts.map(([h, v], i) => `${i === 0 ? "M" : "L"}${xOf(h).toFixed(1)} ${yOf(v).toFixed(1)}`).join("");
+    const gapDs = gaps?.map((poly) => `${d(poly)}Z`);
+    const shapes: Shapes[] = lines.map((l) => {
+      const bands = downsample(l.pts, 0, endHours, Math.round(plotW));
+      const line = bands.map(
+        (b, i) => `${i === 0 ? "M" : "L"}${xOf(b.x).toFixed(1)} ${yOf(b.max).toFixed(1)}`,
+      );
+      let band = "";
+      if (l.weight !== "hair" && l.weight !== "before" && bands.some((b) => yOf(b.min) - yOf(b.max) >= 0.5)) {
+        const hi = bands.map((b) => `${xOf(b.x).toFixed(1)} ${yOf(b.max).toFixed(1)}`);
+        const lo = bands.map((b) => `${xOf(b.x).toFixed(1)} ${yOf(b.min).toFixed(1)}`).reverse();
+        band = `M${[...hi, ...lo].join("L")}Z`;
+      }
+      return { line: line.join(""), band };
+    });
+    return { gapDs, shapes };
+  }, [lines, gaps, endHours, plotW, xOf, yOf]);
+  onRender?.();
+  return (
+    <>
+      {drawn.gapDs?.map((d, i) => (
+        <path key={i} className="graph__gap" fill={`url(#${uid}-hatch)`} d={d} />
+      ))}
+      {lines.map((l, i) =>
+        drawn.shapes[i]?.band ? (
+          <path key={`${l.id}:band`} className={`graph__band series-${l.slot}`} d={drawn.shapes[i]?.band} />
+        ) : null,
+      )}
+      {lines.map((l, i) => (
+        <path
+          key={l.id}
+          className={
+            l.weight === "before"
+              ? `graph__line graph__line--before series-${l.slot}`
+              : `graph__line graph__line--${l.weight} series-${l.slot} dash-${l.slot}`
+          }
+          d={drawn.shapes[i]?.line}
+        />
+      ))}
+    </>
+  );
+});
+
+/** A gate's key placed in a row above the plot, never over data. */
+interface PlacedKey {
+  gate: GateMark;
+  row: number;
+  x: number;
+  anchor: "start" | "end";
+}
+
+/** The gate marks: a hairline where each seed opened a gate, its planned tick, its by-hand square, its key. */
+const GateMarks = memo(function GateMarks({
+  placed,
+  xOf,
+  top,
+  bottom,
+}: {
+  placed: readonly PlacedKey[];
+  xOf: (h: number) => number;
+  top: number;
+  bottom: number;
+}) {
+  return (
+    <>
+      {placed.map(({ gate: g, row, x, anchor }, i) => (
+        <g key={g.key} className="graph__gate">
+          {g.openings.map((h) => (
+            <line key={`${h}-${i}`} className="graph__opened" x1={xOf(h)} x2={xOf(h)} y1={top} y2={bottom} />
+          ))}
+          <line
+            className="graph__planned"
+            x1={xOf(g.plannedH)}
+            x2={xOf(g.plannedH)}
+            y1={bottom - 18}
+            y2={bottom}
+          />
+          {g.hand && (
+            <rect className="graph__hand" x={xOf(g.plannedH) - 3.5} y={bottom - 26} width="7" height="7" />
+          )}
+          <text className="graph__gatename lettering" x={x} y={top - 5 - row * KEY_ROW} textAnchor={anchor}>
+            {g.key}
+          </text>
+        </g>
+      ))}
+    </>
+  );
+});
+
 export function Graph(props: GraphProps) {
-  const { title, caption, note, endHours, axis, log, lines, gaps, gates, stops, readout, empty } = props;
+  const {
+    title,
+    caption,
+    note,
+    endHours,
+    axis,
+    log,
+    lines,
+    gaps,
+    gates,
+    stops,
+    readout,
+    empty,
+    onSeriesRender,
+  } = props;
   const uid = useId().replace(/:/g, "");
   const svg = useRef<SVGSVGElement>(null);
-  const [cursor, setCursor] = useState<number | null>(null);
+  const crosshair = useCrosshair();
   const [size, setSize] = useState(FALLBACK);
-  const last = stops.length - 1;
-  const at = cursor === null ? undefined : Math.min(cursor, last);
-  const cursorH = at === undefined ? undefined : stops[at];
 
   useEffect(() => {
     const el = svg.current;
@@ -116,8 +388,8 @@ export function Graph(props: GraphProps) {
   );
 
   // The gate keys sit in rows above the plot, never over data: a key that would overlap the one before drops a row.
-  const keys = useMemo(() => {
-    const placed: { gate: GateMark; row: number; x: number; anchor: "start" | "end" }[] = [];
+  const placed = useMemo(() => {
+    const out: PlacedKey[] = [];
     const ends: number[] = [];
     for (const gate of [...(gates ?? [])].sort((a, b) => a.labelH - b.labelH)) {
       const x = left + (Math.min(Math.max(gate.labelH, 0), endHours) / endHours) * plotW;
@@ -127,11 +399,11 @@ export function Graph(props: GraphProps) {
       let row = ends.findIndex((e) => e + 6 <= from);
       if (row < 0) row = Math.min(ends.length, 2);
       ends[row] = anchor === "end" ? x : x + span;
-      placed.push({ gate, row, x: x + (anchor === "end" ? -4 : 4), anchor });
+      out.push({ gate, row, x: x + (anchor === "end" ? -4 : 4), anchor });
     }
-    return { placed, rows: ends.length };
+    return { placed: out, rows: ends.length };
   }, [gates, left, plotW, endHours]);
-  const top = M.t + (keys.rows > 0 ? keys.rows * KEY_ROW : 0);
+  const top = M.t + (placed.rows > 0 ? placed.rows * KEY_ROW : 0);
   const plotH = Math.max(40, height - top - M.b);
   const bottom = top + plotH;
   const span = axis.hi - axis.lo || 1;
@@ -140,60 +412,50 @@ export function Graph(props: GraphProps) {
     [bottom, axis.lo, axis.hi, span, plotH],
   );
 
-  const d = (pts: Pts) =>
-    pts.map(([h, v], i) => `${i === 0 ? "M" : "L"}${xOf(h).toFixed(1)} ${yOf(v).toFixed(1)}`).join("");
-  const drawn = useMemo(
-    () =>
-      lines.map((l) => {
-        const bands = downsample(l.pts, 0, endHours, Math.round(plotW));
-        const line = bands.map(
-          (b, i) => `${i === 0 ? "M" : "L"}${xOf(b.x).toFixed(1)} ${yOf(b.max).toFixed(1)}`,
-        );
-        let band = "";
-        if (
-          l.weight !== "hair" &&
-          l.weight !== "before" &&
-          bands.some((b) => yOf(b.min) - yOf(b.max) >= 0.5)
-        ) {
-          const hi = bands.map((b) => `${xOf(b.x).toFixed(1)} ${yOf(b.max).toFixed(1)}`);
-          const lo = bands.map((b) => `${xOf(b.x).toFixed(1)} ${yOf(b.min).toFixed(1)}`).reverse();
-          band = `M${[...hi, ...lo].join("L")}Z`;
-        }
-        return { line: line.join(""), band };
-      }),
-    [lines, endHours, plotW, xOf, yOf],
+  // A move only finds the hour; one animation frame applies it, so a burst of pointer events costs one update.
+  const frame = useRef<number | undefined>(undefined);
+  const pending = useRef<number | null>(null);
+  useEffect(
+    () => () => {
+      if (frame.current !== undefined) cancelAnimationFrame(frame.current);
+    },
+    [],
   );
-
-  const nearest = (hours: number): number => {
-    let best = 0;
-    stops.forEach((s, i) => {
-      if (Math.abs(s - hours) < Math.abs((stops[best] ?? 0) - hours)) best = i;
-    });
-    return best;
-  };
   const onMove = (e: PointerEvent<SVGSVGElement>) => {
     const el = svg.current;
     if (!el || stops.length === 0) return;
     const box = el.getBoundingClientRect();
     if (box.width === 0) return;
     const px = ((e.clientX - box.left) / box.width) * width;
-    setCursor(nearest(((px - left) / plotW) * endHours));
+    pending.current = nearestStop(stops, ((px - left) / plotW) * endHours);
+    if (frame.current === undefined)
+      frame.current = requestAnimationFrame(() => {
+        frame.current = undefined;
+        crosshair.set(pending.current);
+      });
   };
+  const onLeave = () => {
+    if (frame.current !== undefined) {
+      cancelAnimationFrame(frame.current);
+      frame.current = undefined;
+    }
+    crosshair.set(null);
+  };
+  const last = stops.length - 1;
   const onKey = (e: KeyboardEvent<HTMLDivElement>) => {
     if (stops.length === 0) return;
-    const now = at;
+    const now = crosshair.get();
     let next: number | null | undefined;
-    if (e.key === "ArrowRight") next = now === undefined ? 0 : Math.min(now + 1, last);
-    else if (e.key === "ArrowLeft") next = now === undefined ? last : Math.max(now - 1, 0);
+    if (e.key === "ArrowRight") next = now === null ? 0 : Math.min(now + 1, last);
+    else if (e.key === "ArrowLeft") next = now === null ? last : Math.max(now - 1, 0);
     else if (e.key === "Home") next = 0;
     else if (e.key === "End") next = last;
     else if (e.key === "Escape") next = null;
     if (next === undefined) return;
     e.preventDefault();
-    setCursor(next);
+    crosshair.set(next);
   };
 
-  const rows = cursorH === undefined ? [] : readout(cursorH);
   const xticks = hourTicks(endHours);
   const emptyW = Math.min(460, plotW - 24);
 
@@ -209,35 +471,7 @@ export function Graph(props: GraphProps) {
         <span id={`${uid}-note`} className="sr">
           {note}
         </span>
-        <p className="graph__readout num" id={`${uid}-read`}>
-          {cursorH === undefined ? (
-            <span className="graph__hint">
-              Hover or focus the graph, then use the arrow keys, for a reading.
-            </span>
-          ) : (
-            <>
-              <span className="graph__at">{cursorH.toFixed(2)} h</span>
-              {rows.map((r) => (
-                <span key={r.label} className={`graph__row series-${r.slot}`}>
-                  <svg className="graph__rowkey" viewBox="0 0 28 8" aria-hidden="true">
-                    <line className={`graph__rowline dash-${r.slot}`} x1="0" x2="28" y1="4" y2="4" />
-                  </svg>
-                  <span className="graph__rowname">{r.label}</span>
-                  {r.before === undefined ? (
-                    ` ${r.text}`
-                  ) : (
-                    <>
-                      {" "}
-                      <span className="graph__rowname">now</span> {r.text}{" "}
-                      <span className="graph__rowname">before</span> {r.before}{" "}
-                      <span className="graph__delta">{r.delta}</span>
-                    </>
-                  )}
-                </span>
-              ))}
-            </>
-          )}
-        </p>
+        <Readout uid={uid} crosshair={crosshair} stops={stops} readout={readout} />
       </div>
       {/* biome-ignore lint/a11y/useSemanticElements: a plot, not a form group */}
       <div
@@ -248,7 +482,7 @@ export function Graph(props: GraphProps) {
         aria-label={`${title}: arrow keys move the crosshair`}
         aria-describedby={`${uid}-read`}
         onKeyDown={onKey}
-        onBlur={() => setCursor(null)}
+        onBlur={() => crosshair.set(null)}
       >
         <svg
           ref={svg}
@@ -256,7 +490,7 @@ export function Graph(props: GraphProps) {
           viewBox={`0 0 ${width} ${height}`}
           aria-hidden="true"
           onPointerMove={onMove}
-          onPointerLeave={() => setCursor(null)}
+          onPointerLeave={onLeave}
         >
           <defs>
             <pattern
@@ -291,86 +525,29 @@ export function Graph(props: GraphProps) {
           <line className="graph__axis" x1={left} x2={left + plotW} y1={bottom} y2={bottom} />
 
           <g clipPath={`url(#${uid}-clip)`}>
-            {gaps?.map((poly, i) => (
-              <path key={i} className="graph__gap" fill={`url(#${uid}-hatch)`} d={`${d(poly)}Z`} />
-            ))}
-            {lines.map((l, i) =>
-              drawn[i]?.band ? (
-                <path key={`${l.id}:band`} className={`graph__band series-${l.slot}`} d={drawn[i]?.band} />
-              ) : null,
-            )}
-            {lines.map((l, i) => (
-              <path
-                key={l.id}
-                className={
-                  l.weight === "before"
-                    ? `graph__line graph__line--before series-${l.slot}`
-                    : `graph__line graph__line--${l.weight} series-${l.slot} dash-${l.slot}`
-                }
-                d={drawn[i]?.line}
-              />
-            ))}
+            <Series
+              uid={uid}
+              lines={lines}
+              gaps={gaps}
+              endHours={endHours}
+              plotW={plotW}
+              xOf={xOf}
+              yOf={yOf}
+              onRender={onSeriesRender}
+            />
           </g>
 
-          {keys.placed.map(({ gate: g, row, x, anchor }, i) => (
-            <g key={g.key} className="graph__gate">
-              {g.openings.map((h) => (
-                <line
-                  key={`${h}-${i}`}
-                  className="graph__opened"
-                  x1={xOf(h)}
-                  x2={xOf(h)}
-                  y1={top}
-                  y2={bottom}
-                />
-              ))}
-              <line
-                className="graph__planned"
-                x1={xOf(g.plannedH)}
-                x2={xOf(g.plannedH)}
-                y1={bottom - 18}
-                y2={bottom}
-              />
-              {g.hand && (
-                <rect
-                  className="graph__hand"
-                  x={xOf(g.plannedH) - 3.5}
-                  y={bottom - 26}
-                  width="7"
-                  height="7"
-                />
-              )}
-              <text
-                className="graph__gatename lettering"
-                x={x}
-                y={top - 5 - row * KEY_ROW}
-                textAnchor={anchor}
-              >
-                {g.key}
-              </text>
-            </g>
-          ))}
+          <GateMarks placed={placed.placed} xOf={xOf} top={top} bottom={bottom} />
 
-          {cursorH !== undefined && (
-            <g className="graph__cross">
-              <line x1={xOf(cursorH)} x2={xOf(cursorH)} y1={top} y2={bottom} />
-              {lines
-                .filter((l) => l.weight !== "hair" && l.weight !== "before")
-                .map((l) => {
-                  let p: readonly [number, number] | undefined;
-                  for (let k = l.pts.length - 1; k >= 0; k--) {
-                    const q = l.pts[k] as readonly [number, number];
-                    if (q[0] <= cursorH + 1e-9) {
-                      p = q;
-                      break;
-                    }
-                  }
-                  return p ? (
-                    <circle key={l.id} className={`series-${l.slot}`} cx={xOf(p[0])} cy={yOf(p[1])} r="3.5" />
-                  ) : null;
-                })}
-            </g>
-          )}
+          <Cross
+            crosshair={crosshair}
+            stops={stops}
+            lines={lines}
+            xOf={xOf}
+            yOf={yOf}
+            top={top}
+            bottom={bottom}
+          />
 
           {empty && (
             <g className="graph__empty">
