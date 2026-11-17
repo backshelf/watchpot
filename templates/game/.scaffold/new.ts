@@ -12,7 +12,8 @@
  * stops after the files are written. `--agents` also writes a generic `AGENTS.md` and the concept in `design/`
  * (`concept.md`, the answers in `answers.json`); without it a new game ships no agent docs.
  */
-import { readdir } from "node:fs/promises";
+import { spawnSync } from "node:child_process";
+import { readdir, stat } from "node:fs/promises";
 import { resolve } from "node:path";
 import { engineTag, generate, lookWarnings } from "./generate";
 
@@ -40,7 +41,7 @@ if (!answersArg || !outArg) {
 const answers = resolve(answersArg);
 const out = resolve(outArg);
 
-if (!(await Bun.file(answers).exists())) {
+if (!(await stat(answers).then((s) => s.isFile(), () => false))) {
   console.error(`new: no answers file at ${answers}`);
   process.exit(2);
 }
@@ -53,9 +54,14 @@ if (held.length) {
 /** Runs a command in the game's folder, its output streamed; exits naming the step when it fails. */
 function run(cmd: string[]) {
   console.log(`$ ${cmd.join(" ")}`);
-  const p = Bun.spawnSync(cmd, { cwd: out, stdout: "inherit", stderr: "inherit" });
-  if (p.exitCode !== 0) {
-    console.error(`\nnew: "${cmd.join(" ")}" failed (exit ${p.exitCode}) in ${out}`);
+  // npm is a `.cmd` shim on Windows, which only a shell runs.
+  const p = spawnSync(cmd[0] as string, cmd.slice(1), {
+    cwd: out,
+    stdio: "inherit",
+    shell: process.platform === "win32" && cmd[0] === "npm",
+  });
+  if (p.status !== 0) {
+    console.error(`\nnew: "${cmd.join(" ")}" failed (exit ${p.status}) in ${out}`);
     process.exit(1);
   }
 }
@@ -66,9 +72,11 @@ for (const w of lookWarnings(plan)) console.warn(`look: ${w}`);
 
 if (install) {
   console.log("\n== install");
-  run([process.execPath, "install"]);
+  // Under Bun its own binary; under Node, npm.
+  const pm = process.versions.bun ? process.execPath : "npm";
+  run([pm, "install"]);
   console.log("\n== format");
-  run([process.execPath, "run", "lint:fix"]);
+  run([pm, "run", "lint:fix"]);
 }
 
 console.log(`\nnew: ${plan.name} is at ${out}.`);

@@ -1,6 +1,9 @@
 // The theme compiler: a game's tokens.json into the tokens.css laid out the way the Design System page compiles it.
 // A design-time tool (not in the kit barrel): a game calls it from a three-line script.
 
+import { mkdir, readFile, writeFile } from "node:fs/promises";
+import { dirname } from "node:path";
+
 /** A colour, shadow, spacing, grid or radius token: one value, or one per theme id. */
 export type ColorToken = { name: string; value: string | Record<string, string>; usage?: string };
 /** A type style, compiled to a `.name` class. */
@@ -68,7 +71,7 @@ export type BuildTokensOptions = {
 
 /** Compiles a game's tokens.json (a `TokensFile`) into its tokens.css. */
 export async function buildTokens(opts: BuildTokensOptions): Promise<void> {
-  const tokens = await Bun.file(opts.tokens).json();
+  const tokens = JSON.parse(await readFile(opts.tokens, "utf8"));
   const fontBase = opts.fontBase ?? "fonts";
   const esc = (n: string) => n.replace(/\./g, "\\.");
   const themes: { id: string; skin?: Record<string, string> }[] = tokens.color.themes;
@@ -200,6 +203,7 @@ export async function buildTokens(opts: BuildTokensOptions): Promise<void> {
     );
   }
 
-  await Bun.write(opts.out, `${lines.join("\n")}\n`);
+  await mkdir(dirname(opts.out), { recursive: true });
+  await writeFile(opts.out, `${lines.join("\n")}\n`);
   console.log(`wrote ${opts.out} (${lines.length} lines)`);
 }

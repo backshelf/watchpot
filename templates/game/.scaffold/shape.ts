@@ -10,8 +10,12 @@
  * stands.
  */
 import { rm } from "node:fs/promises";
-import { join, resolve } from "node:path";
+import { dirname, join, resolve } from "node:path";
+import { fileURLToPath } from "node:url";
 import { generate } from "./generate";
+
+/** Whether this file is the script being run (see `generate.ts`). */
+const isEntry = resolve(process.argv[1] ?? "") === join(dirname(fileURLToPath(import.meta.url)), "shape.ts");
 
 /** Empties `out`, generates `answers` into it (the template copied first) and drops its `package.json`. */
 export async function writeShape(answers: string, out: string, engine = "v0.0.0") {
@@ -22,7 +26,7 @@ export async function writeShape(answers: string, out: string, engine = "v0.0.0"
   return plan;
 }
 
-if (import.meta.main) {
+if (isEntry) {
   const [answers, out] = process.argv.slice(2);
   if (!answers || !out) {
     console.error("usage: bun templates/game/.scaffold/shape.ts <answers.json> <out-dir>");

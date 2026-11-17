@@ -20,8 +20,12 @@
  * holds; blocks nest, and the marker lines go. `@if a|b` holds when any of them is chosen, `@if !a|b` when none is. In
  * JSX the markers are `{/* @if <f> *\/}` and `{/* @end *\/}`; in CSS, `/* @if <f> *\/` and `/* @end *\/`.
  */
-import { cp, mkdir, readdir, rm } from "node:fs/promises";
+import { spawnSync } from "node:child_process";
+import { cp, mkdir, readdir, readFile, rm, writeFile } from "node:fs/promises";
+import { createRequire } from "node:module";
 import { dirname, join, resolve } from "node:path";
+import { fileURLToPath } from "node:url";
+import { buildTokens } from "../../../src/kit/theme/build";
 
 // ---------------------------------------------------------------------------------------------- the answers
 
@@ -1171,7 +1175,7 @@ async function walk(dir: string, rel = ""): Promise<string[]> {
 
 async function write(path: string, text: string) {
   await mkdir(dirname(path), { recursive: true });
-  await Bun.write(path, text);
+  await writeFile(path, text);
 }
 
 // ---------------------------------------------------------------------------------------------- main
@@ -1201,12 +1205,18 @@ export function templateVars(pl: Plan, engine: string): Record<string, string> {
 }
 
 /** This template, and the engine it ships in (a checkout, or `node_modules/watchpot`). */
-export const TEMPLATE = resolve(import.meta.dir, "..");
+const HERE = dirname(fileURLToPath(import.meta.url));
+export const TEMPLATE = resolve(HERE, "..");
 const ENGINE = resolve(TEMPLATE, "..", "..");
+/**
+ * Whether this file is the script being run. Compared by file name, not by `import.meta.url`: in a bundle (`new.ts`
+ * built for Node) every module shares the bundle's URL, so only this tells the CLI apart from an import.
+ */
+const isEntry = resolve(process.argv[1] ?? "") === join(HERE, "generate.ts");
 
 /** The engine tag this template belongs to: `v` and the engine's `package.json` version. */
 export async function engineTag(): Promise<string> {
-  const pkg = (await Bun.file(join(ENGINE, "package.json")).json()) as { version: string };
+  const pkg = JSON.parse(await readFile(join(ENGINE, "package.json"), "utf8")) as { version: string };
   return `v${pkg.version}`;
 }
 
@@ -1229,7 +1239,6 @@ async function copyTemplate(out: string) {
 
 /** Compiles `design/tokens.json` into `src/tokens.css` with the engine's own compiler, as `bun run tokens` does. */
 async function writeTokens(out: string) {
-  const { buildTokens } = await import(join(ENGINE, "src", "kit", "theme", "build.ts"));
   await buildTokens({ tokens: join(out, "design", "tokens.json"), out: join(out, "src", "tokens.css") });
 }
 
@@ -1240,16 +1249,16 @@ async function writeTokens(out: string) {
 function lintFix(out: string): boolean {
   let bin: string;
   try {
-    bin = Bun.resolveSync("@biomejs/biome/bin/biome", out);
+    bin = createRequire(join(out, "package.json")).resolve("@biomejs/biome/bin/biome");
   } catch {
     try {
-      bin = Bun.resolveSync("@biomejs/biome/bin/biome", ENGINE);
+      bin = createRequire(join(ENGINE, "package.json")).resolve("@biomejs/biome/bin/biome");
     } catch {
       return false;
     }
   }
-  const p = Bun.spawnSync([process.execPath, bin, "check", "--write", "."], { cwd: out, stdout: "pipe", stderr: "pipe" });
-  if (p.exitCode !== 0) throw new Error(`biome check --write failed in ${out}:\n${p.stdout.toString()}${p.stderr.toString()}`);
+  const p = spawnSync(process.execPath, [bin, "check", "--write", "."], { cwd: out, encoding: "utf8" });
+  if (p.status !== 0) throw new Error(`biome check --write failed in ${out}:\n${p.stdout}${p.stderr}`);
   return true;
 }
 
@@ -1271,7 +1280,7 @@ export async function generate(opts: {
 }) {
   // An absolute folder: Bun on Windows refuses `mkdir(".", { recursive: true })`.
   opts = { ...opts, out: resolve(opts.out) };
-  const pl = plan(await Bun.file(opts.answers).json());
+  const pl = plan(JSON.parse(await readFile(opts.answers, "utf8")));
   if (opts.mode === "full") {
     if (opts.out === TEMPLATE)
       throw new Error("--out is the template itself: full mode would rewrite it (regenerate its content with --mode content)");
@@ -1281,7 +1290,7 @@ export async function generate(opts: {
   }
   const files = contentFiles(pl, opts.mode === "content", opts.agents);
   for (const [rel, text] of Object.entries(files)) await write(join(opts.out, rel), text);
-  if (opts.agents) await write(join(opts.out, "AGENTS.md"), await Bun.file(join(TEMPLATE, "..", "agents", "AGENTS.md")).text());
+  if (opts.agents) await write(join(opts.out, "AGENTS.md"), await readFile(join(TEMPLATE, "..", "agents", "AGENTS.md"), "utf8"));
   if (opts.mode === "content") return pl;
   const chosen = flagsOf(pl);
   const vars = templateVars(pl, opts.engine);
@@ -1289,7 +1298,7 @@ export async function generate(opts: {
     const base = rel.split("/").pop() ?? rel;
     if (!TEXT.test(base)) continue;
     const path = join(opts.out, rel);
-    const text = await Bun.file(path).text();
+    const text = await readFile(path, "utf8");
     const gated = gate(text, chosen, rel);
     if (gated === null) {
       await rm(path);
@@ -1303,14 +1312,14 @@ export async function generate(opts: {
       });
       await write(path.slice(0, -".tmpl".length), rendered);
       await rm(path);
-    } else if (gated !== text) await Bun.write(path, gated);
+    } else if (gated !== text) await writeFile(path, gated);
   }
   await writeTokens(opts.out);
   if (opts.lint !== false && !lintFix(opts.out)) console.warn("generate: no Biome to format with; run `bun run lint:fix` after `bun install`");
   return pl;
 }
 
-if (import.meta.main) {
+if (isEntry) {
   const answers = arg("answers");
   const out = arg("out");
   if (!answers || !out) {
