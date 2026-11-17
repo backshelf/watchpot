@@ -66,7 +66,11 @@ try {
       },
       // Glob patterns want forward slashes, even on Windows.
       include: [`${SRC.replaceAll("\\", "/")}/**/*`],
-      exclude: [`${SRC.replaceAll("\\", "/")}/sound/pack/**`, `${SRC.replaceAll("\\", "/")}/kit/theme/**`],
+      exclude: [
+        `${SRC.replaceAll("\\", "/")}/desk/**`,
+        `${SRC.replaceAll("\\", "/")}/sound/pack/**`,
+        `${SRC.replaceAll("\\", "/")}/kit/theme/**`,
+      ],
     }),
   );
   const tsc = join(ROOT, "node_modules", ".bin", process.platform === "win32" ? "tsc.exe" : "tsc");
@@ -91,6 +95,7 @@ if (code !== 0 || kind(join(DIST, "core", "index.js")) !== "file") {
 // (Vite) resolves them. Copied before the specifier pass below, so those imports resolve in dist.
 for (const css of walk(SRC)) {
   if (!css.endsWith(".css")) continue;
+  if (relative(SRC, css).replaceAll("\\", "/").startsWith("desk/")) continue; // Bun-only, ships as source
   const dest = join(DIST, relative(SRC, css));
   mkdirSync(dirname(dest), { recursive: true });
   cpSync(css, dest);

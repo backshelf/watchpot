@@ -1,0 +1,534 @@
+/*
+ * The sim desk's page, in the tools' one look (DESIGN.md: the service manual of the machine inside the game). One ink,
+ * hairlines, tone as hatching; `--dp-live` only for the run that is running now. Every colour, font and line weight
+ * is a `--dp-*` token.
+ */
+@import "../../devtools/tokens.css";
+
+.desk {
+  --dp-line-mid: calc(var(--dp-hair) * 1.5);
+  --dp-line-strong: calc(var(--dp-hair) * 2.25);
+  --dp-filter-width: 16rem;
+  /* The knob panel's column (D5): reserved, no width until it is built. */
+  --dp-panel-width: 0px;
+  --dp-gap: 1rem;
+
+  min-height: 100vh;
+  box-sizing: border-box;
+  background: var(--dp-paper);
+  color: var(--dp-ink);
+  font-family: var(--dp-font-sans);
+  font-size: 0.9375rem;
+  line-height: 1.5;
+}
+
+.desk *,
+.desk *::before,
+.desk *::after {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  background: var(--dp-paper-sunk);
+}
+
+.num {
+  font-family: var(--dp-font-mono);
+  font-size: 0.8125rem;
+  font-variant-numeric: tabular-nums;
+}
+
+.lettering {
+  font-family: var(--dp-font-sans);
+  font-stretch: 125%;
+  font-weight: 560;
+  font-size: var(--dp-lettering-size, 0.6875rem);
+  letter-spacing: 0.09em;
+  text-transform: uppercase;
+}
+
+h1,
+h2,
+p,
+ul,
+fieldset,
+legend {
+  margin: 0;
+  padding: 0;
+}
+
+/* The masthead strip. */
+.mast {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.5rem 1.5rem;
+  padding: 0.75rem var(--dp-gap);
+  border-bottom: var(--dp-line-strong) solid var(--dp-ink);
+  background: var(--dp-paper-lift);
+}
+
+.mast__name {
+  --dp-lettering-size: 0.875rem;
+}
+
+.mast__currency {
+  display: flex;
+  gap: 0.5rem;
+  align-items: baseline;
+  color: var(--dp-ink-soft);
+}
+
+.mast__state {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  margin-inline-start: auto;
+}
+
+/* A lamp: hollow when nothing runs, lit with the live tone only while a run is playing. */
+.mast__lamp {
+  width: 0.75rem;
+  height: 0.75rem;
+  border: var(--dp-hair) solid var(--dp-ink);
+  border-radius: 50%;
+}
+
+.mast__state[data-phase="running"] .mast__lamp {
+  background: var(--dp-live);
+}
+
+.mast__state[data-phase="done"] .mast__lamp {
+  background: var(--dp-ink);
+}
+
+.mast__state[data-phase="error"] .num {
+  text-decoration: underline wavy;
+  text-decoration-thickness: var(--dp-hair);
+  text-underline-offset: 0.25em;
+}
+
+.mast__controls {
+  display: flex;
+  gap: 0.5rem;
+}
+
+/* A control: ruled and square, inverts under the pointer, drops a pixel on a press; unusable is dashed and ruled through. */
+.control {
+  padding: 0.35rem 0.85rem;
+  border: var(--dp-hair) solid var(--dp-ink);
+  border-radius: 0;
+  background: var(--dp-paper-lift);
+  color: var(--dp-ink);
+  font: inherit;
+  font-size: 0.8125rem;
+  cursor: pointer;
+  transition:
+    background 140ms var(--dp-ease-out),
+    color 140ms var(--dp-ease-out);
+}
+
+.control:hover:enabled,
+.control[aria-pressed="true"] {
+  background: var(--dp-ink);
+  color: var(--dp-paper);
+}
+
+.control:active:enabled {
+  transform: translateY(1px);
+}
+
+.control:disabled {
+  border-style: dashed;
+  color: var(--dp-text-faint);
+  text-decoration: line-through;
+  cursor: not-allowed;
+}
+
+.desk :focus-visible {
+  outline: var(--dp-line-strong) solid var(--dp-focus);
+  outline-offset: 2px;
+}
+
+/* Errors: a heavy rule, hatched ground. */
+.errors {
+  padding: 0.5rem var(--dp-gap);
+  border-bottom: var(--dp-line-strong) solid var(--dp-ink);
+  background: repeating-linear-gradient(
+    -45deg,
+    var(--dp-hatch) 0,
+    var(--dp-hatch) var(--dp-hair),
+    transparent var(--dp-hair),
+    transparent 6px
+  );
+}
+
+/* The body: the filter column, the graphs, and the column the knob panel will take. */
+.body {
+  display: grid;
+  grid-template-columns: var(--dp-filter-width) minmax(0, 1fr) var(--dp-panel-width);
+}
+
+.main {
+  display: grid;
+  gap: var(--dp-gap);
+  min-width: 0;
+  padding: var(--dp-gap);
+}
+
+/* The filter column. */
+.filter {
+  display: grid;
+  align-content: start;
+  gap: var(--dp-gap);
+  min-width: 0;
+  padding: var(--dp-gap);
+  border-right: var(--dp-hair) solid var(--dp-rule-strong);
+  background: var(--dp-paper-lift);
+}
+
+.filter__search {
+  width: 100%;
+  padding: 0.4rem 0.5rem;
+  border: var(--dp-hair) solid var(--dp-ink);
+  border-radius: 0;
+  background: var(--dp-paper);
+  color: var(--dp-ink);
+  font: inherit;
+  font-size: 0.8125rem;
+}
+
+.filter__group {
+  min-width: 0;
+  border: 0;
+}
+
+.filter__head {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  width: 100%;
+  padding-bottom: 0.35rem;
+  border-bottom: var(--dp-hair) solid var(--dp-ink);
+}
+
+.filter__list {
+  list-style: none;
+}
+
+.filter__item {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.25rem 0;
+  border-bottom: var(--dp-hair) solid var(--dp-rule);
+  cursor: pointer;
+}
+
+.filter__name {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+.filter__none {
+  padding: 0.5rem 0;
+  color: var(--dp-text-faint);
+  font-size: 0.8125rem;
+}
+
+.filter input[type="checkbox"] {
+  flex: none;
+  margin: 0;
+  accent-color: var(--dp-ink);
+}
+
+.filter__swatch {
+  flex: none;
+  width: 1.75rem;
+  height: 0.5rem;
+}
+
+.filter__swatchline {
+  stroke: var(--dp-ink);
+  stroke-width: var(--dp-line-mid);
+}
+
+/* The scale switch. */
+.scale {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+}
+
+.seg {
+  display: flex;
+}
+
+.seg .control + .control {
+  margin-inline-start: calc(var(--dp-hair) * -1);
+}
+
+/* A plate: one ink line all round, 2px corners, a strip of lettering for its name. */
+.plate {
+  min-width: 0;
+  border: var(--dp-hair) solid var(--dp-ink);
+  border-radius: 2px;
+  background: var(--dp-paper-lift);
+}
+
+.plate__head {
+  display: grid;
+  gap: 0.25rem;
+  padding: 0.5rem 0.75rem;
+  border-bottom: var(--dp-hair) solid var(--dp-ink);
+}
+
+/* The graph. */
+.graph__readout {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.25rem 1rem;
+  min-height: 1.5em;
+  color: var(--dp-ink);
+}
+
+.graph__hint {
+  color: var(--dp-text-faint);
+  font-family: var(--dp-font-sans);
+}
+
+.graph__at {
+  font-weight: 700;
+}
+
+.graph__rowname {
+  color: var(--dp-ink-soft);
+}
+
+.graph__frame {
+  padding: 0.5rem;
+  touch-action: pan-y;
+}
+
+.graph__svg {
+  display: block;
+  width: 100%;
+  height: auto;
+  overflow: visible;
+}
+
+.graph__grid {
+  stroke: var(--dp-rule);
+  stroke-width: var(--dp-hair);
+  vector-effect: non-scaling-stroke;
+}
+
+.graph__frame-line {
+  fill: none;
+  stroke: var(--dp-ink);
+  stroke-width: var(--dp-hair);
+  vector-effect: non-scaling-stroke;
+}
+
+.graph__tick {
+  fill: var(--dp-ink-soft);
+  font-family: var(--dp-font-mono);
+  font-size: 12px;
+}
+
+.graph__hatchline {
+  stroke: var(--dp-hatch);
+  stroke-width: var(--dp-line-mid);
+}
+
+.graph__gap {
+  stroke: none;
+}
+
+.graph__line {
+  fill: none;
+  stroke-linejoin: round;
+  vector-effect: non-scaling-stroke;
+}
+
+.graph__line--hair {
+  stroke: var(--dp-ink-faint);
+  stroke-width: var(--dp-hair);
+}
+
+.graph__line--mid {
+  stroke: var(--dp-ink);
+  stroke-width: var(--dp-line-mid);
+}
+
+.graph__line--strong {
+  stroke: var(--dp-ink);
+  stroke-width: var(--dp-line-strong);
+}
+
+/* The dash patterns: a series is the same line in the graph, the filter and the readout. */
+.dash-0 {
+  stroke-dasharray: none;
+}
+
+.dash-1 {
+  stroke-dasharray: 8 4;
+}
+
+.dash-2 {
+  stroke-dasharray: 2 3;
+}
+
+.dash-3 {
+  stroke-dasharray: 12 3 2 3;
+}
+
+.dash-4 {
+  stroke-dasharray: 4 2;
+}
+
+.dash-5 {
+  stroke-dasharray: 1 5;
+}
+
+.graph__linename,
+.graph__gatename {
+  --dp-lettering-size: 10px;
+
+  fill: var(--dp-ink);
+}
+
+.graph__opened {
+  stroke: var(--dp-rule-strong);
+  stroke-width: var(--dp-hair);
+  vector-effect: non-scaling-stroke;
+}
+
+/* The chain line: what is planned, not yet drawn. */
+.graph__planned {
+  stroke: var(--dp-ink);
+  stroke-width: var(--dp-line-mid);
+  stroke-dasharray: 6 2 1 2;
+  vector-effect: non-scaling-stroke;
+}
+
+.graph__cross line {
+  stroke: var(--dp-ink);
+  stroke-width: var(--dp-hair);
+  vector-effect: non-scaling-stroke;
+}
+
+.graph__cross circle {
+  fill: var(--dp-paper-lift);
+  stroke: var(--dp-ink);
+  stroke-width: var(--dp-line-mid);
+  vector-effect: non-scaling-stroke;
+}
+
+.graph__emptyplate {
+  fill: var(--dp-paper-lift);
+  stroke: var(--dp-ink);
+  stroke-width: var(--dp-hair);
+  stroke-dasharray: 6 4;
+  vector-effect: non-scaling-stroke;
+}
+
+.graph__emptytext {
+  --dp-lettering-size: 12px;
+
+  fill: var(--dp-ink);
+}
+
+.graph__caption {
+  padding: 0 0.75rem 0.75rem;
+  color: var(--dp-ink-soft);
+  font-size: 0.8125rem;
+}
+
+/* The tables, as parts lists. */
+.sheet__scroll {
+  overflow-x: auto;
+  max-height: 24rem;
+}
+
+.parts {
+  width: 100%;
+  border-collapse: collapse;
+  text-align: left;
+}
+
+.parts th,
+.parts td {
+  padding: 0.3rem 1rem 0.3rem 0.75rem;
+  white-space: nowrap;
+}
+
+.parts tbody th,
+.parts tbody td {
+  border-bottom: var(--dp-hair) solid var(--dp-rule);
+  font-weight: 400;
+}
+
+.parts thead th {
+  position: sticky;
+  top: 0;
+  border-bottom: var(--dp-hair) solid var(--dp-ink);
+  background: var(--dp-paper-lift);
+  color: var(--dp-ink-soft);
+  font-stretch: 125%;
+  font-weight: 560;
+  font-size: 0.625rem;
+  letter-spacing: 0.09em;
+  text-transform: uppercase;
+}
+
+/* An empty plate: ruled, saying what is coming. */
+.empty {
+  margin: 0.75rem;
+  padding: 1.25rem 1rem;
+  border: var(--dp-hair) dashed var(--dp-ink-faint);
+  background: repeating-linear-gradient(
+    -45deg,
+    var(--dp-hatch) 0,
+    var(--dp-hatch) var(--dp-hair),
+    transparent var(--dp-hair),
+    transparent 6px
+  );
+  color: var(--dp-ink-soft);
+  text-align: center;
+}
+
+/* Narrow: the filter column stacks above, the panel's column goes. */
+@media (max-width: 56rem) {
+  .body {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .filter {
+    border-right: 0;
+    border-bottom: var(--dp-hair) solid var(--dp-rule-strong);
+  }
+
+  .mast__state {
+    margin-inline-start: 0;
+  }
+}
+
+/* The plot scales with its box: on a phone its figures are drawn larger. */
+@media (max-width: 40rem) {
+  .graph__tick {
+    font-size: 20px;
+  }
+
+  .graph__linename,
+  .graph__gatename {
+    --dp-lettering-size: 16px;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .control {
+    transition: none;
+  }
+}

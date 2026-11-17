@@ -4,7 +4,8 @@ import { existsSync } from "node:fs";
 import { resolve } from "node:path";
 import { pathToFileURL } from "node:url";
 import type { CliIo } from "../cli/index";
-import type { ToClient, ToServer, WorkerInit } from "./protocol";
+import page from "./page/index.html";
+import type { DeskInfo, ToClient, ToServer, WorkerInit } from "./protocol";
 
 const DEFAULT_PORT = 4777;
 const DESK_FILE = "sim.desk.ts";
@@ -12,11 +13,11 @@ const DESK_FILE = "sim.desk.ts";
 interface DeskShape {
   run: unknown;
   knobs: { spec: Record<string, Record<string, unknown>>; defaults(): Record<string, number> };
-  vocab: { currencies: unknown };
+  vocab: { currencies: string[] };
   currency: string;
   windowHours: number;
-  end: unknown;
-  seeds: unknown;
+  end: { hours: number };
+  seeds: { tuning: number; full: number };
 }
 
 const WORKER_URL = new URL("./worker.ts", import.meta.url);
@@ -42,16 +43,8 @@ function isDesk(v: unknown): v is DeskShape {
   );
 }
 
-const esc = (s: unknown): string =>
-  String(s)
-    .replace(/&/g, "&amp;")
-    .replace(/</g, "&lt;")
-    .replace(/>/g, "&gt;")
-    .replace(/"/g, "&quot;")
-    .replace(/'/g, "&#39;");
-
 /** The desk as the page and `/api/desk` both show it: knobs in spec order, each with its current value. */
-function deskData(desk: DeskShape) {
+function deskData(desk: DeskShape): DeskInfo {
   const defaults = desk.knobs.defaults();
   const knobs = Object.entries(desk.knobs.spec).map(([key, spec]) => ({
     key,
@@ -64,27 +57,8 @@ function deskData(desk: DeskShape) {
     windowHours: desk.windowHours,
     end: desk.end,
     seeds: desk.seeds,
-    knobs,
+    knobs: knobs as DeskInfo["knobs"],
   };
-}
-
-function page(data: ReturnType<typeof deskData>): string {
-  const groups = new Map<string, typeof data.knobs>();
-  for (const k of data.knobs) {
-    const group = String((k as { group?: unknown }).group ?? "");
-    groups.set(group, [...(groups.get(group) ?? []), k]);
-  }
-  const sections = [...groups]
-    .map(
-      ([group, knobs]) =>
-        `<section><h2>${esc(group)}</h2><ul>${knobs
-          .map((k) => `<li>${esc((k as { label?: unknown }).label ?? k.key)}: ${esc(k.value)}</li>`)
-          .join("")}</ul></section>`,
-    )
-    .join("");
-  return `<!doctype html><html><head><meta charset="utf-8"><title>watchpot sim</title></head><body><h1>${esc(
-    data.currency,
-  )}</h1>${sections}</body></html>`;
 }
 
 /** Loads the game's desk and serves it on 127.0.0.1. Throws a message when the desk is missing or not a desk. */
@@ -100,7 +74,7 @@ export async function startSim(options: {
   if (!isDesk(mod.default)) throw new Error(`${path} does not default-export defineDesk({...})`);
   const desk = mod.default as DeskShape;
   const data = deskData(desk);
-  const full = (desk.seeds as { full: number }).full;
+  const full = desk.seeds.full;
   const sockets = new Set<{ send(text: string): unknown }>();
   const send = (m: ToClient): void => {
     const text = JSON.stringify(m);
@@ -172,6 +146,9 @@ export async function startSim(options: {
   const server = Bun.serve({
     hostname: "127.0.0.1",
     port: options.port ?? DEFAULT_PORT,
+    routes: { "/": page },
+    // The page is bundled once, when the server starts, minified: no HMR socket beside the desk's own, no log.
+    development: false,
     websocket: {
       open: (ws) => void sockets.add(ws),
       close: (ws) => void sockets.delete(ws),
@@ -204,8 +181,6 @@ export async function startSim(options: {
         return new Response("expected a WebSocket upgrade", { status: 426 });
       }
       if (req.method === "GET" && pathname === "/api/desk") return Response.json(data);
-      if (req.method === "GET" && pathname === "/")
-        return new Response(page(data), { headers: { "content-type": "text/html; charset=utf-8" } });
       return new Response("not found", { status: 404 });
     },
   });

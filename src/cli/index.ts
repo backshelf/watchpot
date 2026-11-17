@@ -49,7 +49,12 @@ export async function main(
         all.err("watchpot: sim needs Bun (the desk runs the game's TypeScript): run bunx watchpot sim");
         return 1;
       }
-      const { sim } = await import("../desk/server");
+      // The desk is Bun-only and ships as source, not in dist (its page is an HTML import only Bun bundles): a
+      // specifier the build cannot see keeps it out of tsc's program, and Bun runs the command from `src/` anyway.
+      const server = "../desk/server.ts";
+      const { sim } = (await import(new URL(server, import.meta.url).href)) as {
+        sim(argv: readonly string[], cwd: string, io: CliIo): Promise<number>;
+      };
       return await sim(rest, cwd, all);
     }
     all.err(`watchpot: unknown command "${cmd}"`);

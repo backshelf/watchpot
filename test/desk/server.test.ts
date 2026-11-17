@@ -77,17 +77,17 @@ describe("startSim", () => {
     ]);
   });
 
-  test("/ is plain HTML with the currency and both knobs", async () => {
+  test("GET / is the page: HTML titled watchpot sim, with a script that is served", async () => {
     const server = await start(game({ "sim.desk.ts": DESK }));
     const res = await get(server.url);
-    const html = res.body;
+    expect(res.status).toBe(200);
     expect(res.type).toContain("text/html");
-    expect(html).toContain("<title>watchpot sim</title>");
-    expect(html).toContain("<h1>coins</h1>");
-    expect(html).toContain("Gain &lt;b&gt;");
-    expect(html).toContain("Delay");
-    expect(html).not.toContain("class=");
-    expect(html).not.toContain("<style");
+    expect(res.body).toContain("<title>watchpot sim</title>");
+    const src = /<script[^>]*?\ssrc="([^"]+)"/.exec(res.body)?.[1];
+    expect(src).toBeTruthy();
+    const script = await get(new URL(src ?? "", server.url).href);
+    expect(script.status).toBe(200);
+    expect(script.type).toContain("javascript");
   });
 
   test("anything else is 404", async () => {
@@ -101,8 +101,8 @@ describe("startSim", () => {
       "other.ts": DESK.replace('currency: "coins"', 'currency: "gems"'),
     });
     const server = await start(dir, "other.ts");
-    const html = (await get(server.url)).body;
-    expect(html).toContain("<h1>gems</h1>");
+    const body = JSON.parse((await get(new URL("/api/desk", server.url).href)).body) as { currency: string };
+    expect(body.currency).toBe("gems");
   });
 
   test("a missing desk file throws the message", async () => {

@@ -1,4 +1,4 @@
-// The messages of `watchpot sim`'s WebSocket (`/ws`), shared by the server, its workers and, later, the page.
+// The messages of `watchpot sim`'s WebSocket (`/ws`), shared by the server, its workers and the page.
 // Decimals travel as strings (`Decimal#toString()`).
 import type { FittedGate } from "../sim/fit";
 
@@ -46,4 +46,24 @@ export interface WorkerInit {
   seed: number;
   knobs: Record<string, number>;
   pins: ToServer["pins"];
+}
+
+/** One knob as `/api/desk` lists it: the game's spec with the value the page starts from. */
+export interface DeskKnob {
+  key: string;
+  value: number;
+  label?: string;
+  group?: string;
+  [spec: string]: unknown;
+}
+
+/** What `GET /api/desk` answers: the desk as the page needs it. */
+export interface DeskInfo {
+  /** The main currency. */
+  currency: string;
+  currencies: string[];
+  windowHours: number;
+  end: { hours: number };
+  seeds: { tuning: number; full: number };
+  knobs: DeskKnob[];
 }
