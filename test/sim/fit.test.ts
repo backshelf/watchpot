@@ -3,6 +3,7 @@ import { mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { D, type Decimal } from "watchpot/core";
+import type { LookResult } from "watchpot/sim";
 import {
   BLOCKED,
   DRAFT_LINE,
@@ -14,7 +15,9 @@ import {
   isBlocked,
   nicePrice,
   priceAbove,
+  proveFit,
   runFit,
+  type SimSnapshot,
 } from "watchpot/sim";
 
 const MIN = 60_000;
@@ -132,7 +135,9 @@ describe("runFit", () => {
       step: (dt) => {
         played += dt;
       },
-      look: () => seen.push(played),
+      look: () => {
+        seen.push(played);
+      },
       playedMs: () => played,
       done: () => false,
       limitMs: 10_000,
@@ -305,5 +310,188 @@ describe("the fit table", () => {
     } finally {
       rmSync(dir, { recursive: true, force: true });
     }
+  });
+});
+
+/** A jar like `jar`, whose look reports what it did, to try `stepping`; its state is its snapshot's `extra`. */
+function steppingJar(
+  plan: Record<string, number>,
+  o: { stepping?: { maxMs: number }; from?: SimSnapshot<JarExtra>; limitMs?: number; snap?: number } = {},
+) {
+  const s = { coins: D(0), playedMs: 0, paid: new Set<string>() };
+  if (o.from?.extra) {
+    s.coins = D(o.from.extra.coins);
+    s.playedMs = o.from.atMs;
+    for (const k of o.from.extra.paid) s.paid.add(k);
+  }
+  const table = fitTable();
+  const have = holdings(["coins"], () => s.coins, { window: 30 });
+  const steps: number[] = [];
+  const atPricing: Record<string, { played: number; step: number }> = {};
+  const gates: FitGate[] = Object.entries(plan).map(([key, minute]) => ({
+    key,
+    atMs: minute * MIN,
+    price: () => {
+      atPricing[key] = { played: s.playedMs, step: steps.at(-1) ?? 0 };
+      return nicePrice(have.held("coins"));
+    },
+  }));
+  const look = (): LookResult => {
+    let bought = 0;
+    for (const key of Object.keys(plan)) {
+      const p = table.get(key);
+      if (s.paid.has(key) || s.coins.lt(p)) continue;
+      s.coins = s.coins.sub(p);
+      s.paid.add(key);
+      bought++;
+    }
+    return { bought, free: 0 };
+  };
+  const run = () =>
+    runFit<JarExtra>({
+      table,
+      gates,
+      step: (dt) => {
+        steps.push(dt);
+        s.coins = s.coins.add(dt / 1000);
+        s.playedMs += dt;
+      },
+      look,
+      afterStep: () => have.sample(),
+      playedMs: () => s.playedMs,
+      done: () => s.paid.size === gates.length,
+      limitMs: o.limitMs ?? 20 * MIN,
+      ...(o.stepping && { stepping: o.stepping }),
+      ...(o.snap && {
+        capture: () => ({ world: {} as never, extra: { coins: s.coins.toString(), paid: [...s.paid] } }),
+        snapshotEveryMs: o.snap,
+      }),
+      ...(o.from && { from: o.from }),
+    });
+  return { s, table, steps, atPricing, gates, look, run };
+}
+
+interface JarExtra {
+  coins: string;
+  paid: string[];
+}
+
+describe("runFit stepping", () => {
+  test("maxMs equal to the step gives the same gates and clock as no stepping", () => {
+    const a = steppingJar({ first: 1, second: 3, third: 4 }).run();
+    const b = steppingJar({ first: 1, second: 3, third: 4 }, { stepping: { maxMs: 1000 } }).run();
+    expect(b.playedMs).toBe(a.playedMs);
+    expect(b.gates).toEqual(a.gates);
+  });
+
+  test("throws when maxMs is below the step", () => {
+    expect(() => steppingJar({ a: 1 }, { stepping: { maxMs: 500 } }).run()).toThrow(/maxMs/);
+  });
+
+  test("idle looks grow the steps, and no step passes a gate's minute", () => {
+    const run = (stepping?: { maxMs: number }) => {
+      const seen: number[] = [];
+      let played = 0;
+      const atGate: number[] = [];
+      const gates: FitGate[] = [60_000, 150_500].map((atMs, i) => ({
+        key: `g${i}`,
+        atMs,
+        price: () => {
+          atGate.push(played);
+          return "1";
+        },
+      }));
+      runFit({
+        table: fitTable(),
+        gates,
+        step: (dt) => {
+          seen.push(dt);
+          played += dt;
+        },
+        look: () => ({ bought: 0, free: 0 }),
+        playedMs: () => played,
+        done: () => false,
+        limitMs: 300_000,
+        stepMs: 1000,
+        ...(stepping && { stepping }),
+      });
+      return { seen, atGate };
+    };
+    const flat = run();
+    const grown = run({ maxMs: 16_000 });
+    expect(grown.seen.length).toBeLessThan(flat.seen.length);
+    expect(Math.max(...grown.seen)).toBe(16_000);
+    expect(grown.seen.reduce((a, b) => a + b, 0)).toBe(300_000);
+    expect(grown.atGate).toEqual([60_000, 150_500]);
+  });
+
+  test("a buy drops the step back to the floor", () => {
+    const seen: number[] = [];
+    let played = 0;
+    let buy = false;
+    runFit({
+      table: fitTable(),
+      gates: [],
+      step: (dt) => {
+        seen.push(dt);
+        played += dt;
+      },
+      look: () => {
+        const bought = buy ? 1 : 0;
+        buy = false;
+        return { bought, free: 0 };
+      },
+      playedMs: () => {
+        if (played >= 15_000 && seen.length < 100) buy = true;
+        return played;
+      },
+      done: () => false,
+      limitMs: 40_000,
+      stepMs: 1000,
+      stepping: { maxMs: 8000 },
+    });
+    expect(seen.slice(0, 5)).toEqual([2000, 4000, 8000, 8000, 1000]);
+    const at = seen.indexOf(1000);
+    expect(at).toBeGreaterThan(3);
+  });
+
+  test("a fit with stepping, capture and snapshots passes proveFit", () => {
+    const plan = { first: 1, second: 3, third: 4 };
+    const j = steppingJar(plan, { stepping: { maxMs: 8000 }, snap: 45_000 });
+    const result = j.run();
+    expect(result.snapshots.length).toBeGreaterThan(2);
+    expect(result.snapshots[0]?.fit?.stepping?.maxMs).toBe(8000);
+    const proof = proveFit({
+      marks: result.snapshots,
+      replay: (from) => {
+        const r = steppingJar(plan, from ? { from: from as SimSnapshot<JarExtra> } : {});
+        // the replay plays on the finished table
+        for (const g of result.gates) if (g.value) r.table.set(g.key, g.value.split(" ")[0] ?? g.value);
+        return {
+          step: (dt) => {
+            r.s.coins = r.s.coins.add(dt / 1000);
+            r.s.playedMs += dt;
+          },
+          look: r.look,
+          playedMs: () => r.s.playedMs,
+          capture: () => ({
+            world: {} as never,
+            extra: { coins: r.s.coins.toString(), paid: [...r.s.paid] },
+          }),
+        };
+      },
+    });
+    expect(proof.failed).toEqual([]);
+  });
+
+  test("resuming from a mid-run snapshot gives the uninterrupted run's result", () => {
+    const plan = { first: 1, second: 3, third: 4 };
+    const whole = steppingJar(plan, { stepping: { maxMs: 8000 }, snap: 45_000 }).run();
+    const mid = whole.snapshots[1] as SimSnapshot<JarExtra>;
+    const resumed = steppingJar(plan, { stepping: { maxMs: 8000 }, snap: 45_000, from: mid }).run();
+    expect(resumed.gates).toEqual(whole.gates);
+    expect(resumed.playedMs).toBe(whole.playedMs);
+    expect(() => steppingJar(plan, { stepping: { maxMs: 4000 }, from: mid }).run()).toThrow(/snapshot/);
+    expect(() => steppingJar(plan, { from: mid }).run()).toThrow(/snapshot/);
   });
 });

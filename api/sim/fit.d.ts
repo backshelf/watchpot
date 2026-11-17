@@ -11,6 +11,7 @@
  * table between them.
  */
 import { Decimal } from "../core";
+import type { LookResult } from "./auto";
 import { type SimSnapshot, type SnapshotParts } from "./snapshot";
 import type { FitTable, FitTableData } from "./table";
 import { type SimQuality } from "./world";
@@ -83,8 +84,11 @@ export interface FittedGate {
 export interface FitRun<X = unknown> {
     /** Advances the game `dtMs`. */
     step(dtMs: number): void;
-    /** One look by the pilot: buys what it would buy. */
-    look(): void;
+    /**
+     * One look by the pilot: buys what it would buy. It may return what it did (`LookResult`); with `stepping`, a look
+     * that did nothing lets the steps grow and one that bought or moved sends them back to the floor.
+     */
+    look(): void | LookResult;
     /** Ms of play so far. */
     playedMs(): number;
     /** After each step, before the gates are asked (sample the holdings here). */
@@ -110,6 +114,16 @@ export interface FitOptions<X = unknown> extends FitRun<X> {
     stepMs?: number;
     /** A look every this many steps. Default 3. */
     lookEvery?: number;
+    /**
+     * Steps that grow while the pilot has nothing to do: the floor is the resolved `stepMs`, and `maxMs` the longest
+     * step. Looks come on the `lookEvery` cadence at the floor and every step above it; a look that did nothing doubles
+     * the step (up to `maxMs`), one that bought or moved sets it back to the floor, a look that reports nothing leaves
+     * it at the floor. A step never runs past the next planned minute, the next snapshot or `limitMs`. Absent, the fit
+     * steps at `stepMs` as ever. Throws when `maxMs` is below `stepMs`.
+     */
+    stepping?: {
+        maxMs: number;
+    };
     /** With `capture`: a snapshot every this many ms of play (and always one where the run ends). */
     snapshotEveryMs?: number;
     /**
@@ -125,6 +139,12 @@ export interface FitProgress {
     readonly steps: number;
     readonly stepMs: number;
     readonly lookEvery: number;
+    /** With `stepping`: its ceiling, the step the fit stood at, and the steps since its last look. */
+    readonly stepping?: {
+        readonly maxMs: number;
+        readonly curMs: number;
+        readonly sinceLook: number;
+    };
     /** The plan as this fit had it: each gate's key and minute. */
     readonly plan: readonly (readonly [string, number])[];
     /** Every gate as it stood. */
@@ -149,7 +169,8 @@ export declare function fitHolds(snapshot: SimSnapshot, gates: readonly FitGate[
  * Prices a game in one pass. Shuts every gate in the table, orders them by `atMs` (the plan's order between equals),
  * then steps: with `capture`, a snapshot first when one is due; every `lookEvery`th step `look()`, `step(stepMs)`,
  * `afterStep()`, then each unopened gate whose minute has come is asked `price()`, and a figure goes into the table
- * and opens it at `playedMs()`. Ends on `done()` or at `limitMs`.
+ * and opens it at `playedMs()`. Ends on `done()` or at `limitMs`. With `stepping` the step grows while looks do
+ * nothing (see `FitOptions.stepping`); the snapshots keep where it stood.
  */
 export declare function runFit<X = unknown>(options: FitOptions<X>): FitResult<X>;
 /** The fit's report: a markdown table of gate, planned minute, the minute it opened (or "never"), and its value. */
@@ -169,8 +190,9 @@ export declare function proofStretches<X>(marks: readonly SimSnapshot<X>[], star
 /**
  * Replays one stretch on the table as it stands: `replay` builds a run from the stretch's start (from nothing when
  * there is none) and plays it, on the fit's own steps and looks, to the end's moment; the stretch holds when the run
- * then is the snapshot (its world, its player, and its `extra` when the replay captures one). The differences, empty
- * when it holds.
+ * then is the snapshot (its world, its player, and its `extra` when the replay captures one). A fit that stepped
+ * (`stepping`) is replayed by the same stepper, from the state its start kept, never stepping past the end's moment.
+ * The differences, empty when it holds.
  */
 export declare function replayStretch<X>(stretch: ProofStretch<X>, replay: (from: SimSnapshot<X> | undefined) => FitRun<X>): string[];
 /**

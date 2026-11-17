@@ -12,6 +12,7 @@
  */
 
 import { D, Decimal } from "../core";
+import type { LookResult } from "./auto";
 import { fmtClock } from "./print";
 import {
   type SimSnapshot,
@@ -173,8 +174,12 @@ export interface FittedGate {
 export interface FitRun<X = unknown> {
   /** Advances the game `dtMs`. */
   step(dtMs: number): void;
-  /** One look by the pilot: buys what it would buy. */
-  look(): void;
+  /**
+   * One look by the pilot: buys what it would buy. It may return what it did (`LookResult`); with `stepping`, a look
+   * that did nothing lets the steps grow and one that bought or moved sends them back to the floor.
+   */
+  // biome-ignore lint/suspicious/noConfusingVoidType: a look may return nothing or what it did
+  look(): void | LookResult;
   /** Ms of play so far. */
   playedMs(): number;
   /** After each step, before the gates are asked (sample the holdings here). */
@@ -201,6 +206,14 @@ export interface FitOptions<X = unknown> extends FitRun<X> {
   stepMs?: number;
   /** A look every this many steps. Default 3. */
   lookEvery?: number;
+  /**
+   * Steps that grow while the pilot has nothing to do: the floor is the resolved `stepMs`, and `maxMs` the longest
+   * step. Looks come on the `lookEvery` cadence at the floor and every step above it; a look that did nothing doubles
+   * the step (up to `maxMs`), one that bought or moved sets it back to the floor, a look that reports nothing leaves
+   * it at the floor. A step never runs past the next planned minute, the next snapshot or `limitMs`. Absent, the fit
+   * steps at `stepMs` as ever. Throws when `maxMs` is below `stepMs`.
+   */
+  stepping?: { maxMs: number };
   /** With `capture`: a snapshot every this many ms of play (and always one where the run ends). */
   snapshotEveryMs?: number;
   /**
@@ -217,6 +230,8 @@ export interface FitProgress {
   readonly steps: number;
   readonly stepMs: number;
   readonly lookEvery: number;
+  /** With `stepping`: its ceiling, the step the fit stood at, and the steps since its last look. */
+  readonly stepping?: { readonly maxMs: number; readonly curMs: number; readonly sinceLook: number };
   /** The plan as this fit had it: each gate's key and minute. */
   readonly plan: readonly (readonly [string, number])[];
   /** Every gate as it stood. */
@@ -254,11 +269,65 @@ export function fitHolds(snapshot: SimSnapshot, gates: readonly FitGate[]): stri
   return out;
 }
 
+/** The stepper's state: the step it stands at and the steps since the last look. */
+interface StepState {
+  curMs: number;
+  sinceLook: number;
+}
+
+/** The stepper's fixed side: the floor, the ceiling (none: fixed steps), the look cadence and the plan's minutes. */
+interface StepConfig {
+  readonly floor: number;
+  readonly maxMs: number | undefined;
+  readonly lookEvery: number;
+  /** Every gate's minute, ascending. */
+  readonly minutes: readonly number[];
+}
+
+/** Where a stepper starts: from what a snapshot kept, else at the floor, looking first if the cadence says so. */
+function stepStart(
+  floor: number,
+  lookEvery: number,
+  steps: number,
+  kept?: FitProgress["stepping"],
+): StepState {
+  if (kept) return { curMs: kept.curMs, sinceLook: kept.sinceLook };
+  const r = steps % lookEvery;
+  return { curMs: floor, sinceLook: r === 0 ? lookEvery : r };
+}
+
+/**
+ * One turn of the stepper, shared by the fit and its proof so both take the same steps: looks if due, moves the
+ * state by what the look did, and gives the ms to step. `boundary` is the next moment a step must not pass (a
+ * snapshot); `limitMs` the end. Without a ceiling the step is the floor, whatever the plan.
+ */
+function stride(
+  st: StepState,
+  cfg: StepConfig,
+  look: FitRun["look"],
+  now: number,
+  boundary: number,
+  limitMs: number,
+): number {
+  const { floor, maxMs, lookEvery, minutes } = cfg;
+  if (st.curMs > floor || st.sinceLook >= lookEvery) {
+    st.sinceLook = 0;
+    const res = look();
+    if (maxMs !== undefined && res && typeof res === "object")
+      st.curMs = res.bought + res.free > 0 ? floor : Math.min(st.curMs * 2, maxMs);
+  }
+  st.sinceLook++;
+  if (maxMs === undefined) return floor;
+  const gate = minutes.find((m) => m > now) ?? Infinity;
+  return Math.max(1, Math.min(st.curMs, gate - now, boundary - now, limitMs - now));
+}
+
 /**
  * Prices a game in one pass. Shuts every gate in the table, orders them by `atMs` (the plan's order between equals),
  * then steps: with `capture`, a snapshot first when one is due; every `lookEvery`th step `look()`, `step(stepMs)`,
  * `afterStep()`, then each unopened gate whose minute has come is asked `price()`, and a figure goes into the table
- * and opens it at `playedMs()`. Ends on `done()` or at `limitMs`.
+ * and opens it at `playedMs()`. Ends on `done()` or at `limitMs`. With `stepping` the step grows while looks do
+ * nothing (see `FitOptions.stepping`); the snapshots keep where it stood.
  */
 export function runFit<X = unknown>(options: FitOptions<X>): FitResult<X> {
   const { table, gates, step, look, playedMs, done, limitMs, afterStep, capture, from } = options;
@@ -267,6 +336,11 @@ export function runFit<X = unknown>(options: FitOptions<X>): FitResult<X> {
   const order = gates.toSorted((a, b) => a.atMs - b.atMs);
   const fitted: FittedGate[] = order.map((g) => ({ key: g.key, atMs: g.atMs }));
   let steps = 0;
+  const maxMs = options.stepping?.maxMs;
+  if (maxMs !== undefined && !(maxMs >= stepMs))
+    throw new Error(`runFit: stepping.maxMs (${maxMs}) is below the step (${stepMs})`);
+  const cfg: StepConfig = { floor: stepMs, maxMs, lookEvery, minutes: order.map((g) => g.atMs) };
+  let st = stepStart(stepMs, lookEvery, 0);
 
   if (from) {
     const problems = fitHolds(from as SimSnapshot, gates);
@@ -279,7 +353,12 @@ export function runFit<X = unknown>(options: FitOptions<X>): FitResult<X> {
       throw new Error(
         `runFit: the snapshot was taken stepping ${fit.stepMs} ms with a look every ${fit.lookEvery} steps, not ${stepMs} and ${lookEvery}`,
       );
+    if (fit.stepping?.maxMs !== maxMs)
+      throw new Error(
+        `runFit: the snapshot was taken ${fit.stepping ? `stepping up to ${fit.stepping.maxMs} ms` : "without stepping"}, not ${maxMs === undefined ? "without" : `up to ${maxMs} ms`}`,
+      );
     steps = fit.steps;
+    st = stepStart(stepMs, lookEvery, steps, fit.stepping);
     table.load(fit.table);
     const was = new Map(fit.gates.map((g) => [g.key, g]));
     fitted.forEach((f, i) => {
@@ -299,7 +378,15 @@ export function runFit<X = unknown>(options: FitOptions<X>): FitResult<X> {
       format: SNAPSHOT_FORMAT,
       atMs: at,
       ...capture(),
-      fit: { steps, stepMs, lookEvery, plan, gates: fitted.map((f) => ({ ...f })), table: table.data() },
+      fit: {
+        steps,
+        stepMs,
+        lookEvery,
+        ...(maxMs !== undefined && { stepping: { maxMs, curMs: st.curMs, sinceLook: st.sinceLook } }),
+        plan,
+        gates: fitted.map((f) => ({ ...f })),
+        table: table.data(),
+      },
     });
   };
   const cadence =
@@ -307,8 +394,8 @@ export function runFit<X = unknown>(options: FitOptions<X>): FitResult<X> {
 
   for (; playedMs() < limitMs && !done(); steps++) {
     if (cadence?.due(playedMs())) take();
-    if (steps % lookEvery === 0) look();
-    step(stepMs);
+    const dt = stride(st, cfg, look, playedMs(), cadence?.next() ?? Infinity, limitMs);
+    step(dt);
     afterStep?.();
     const now = playedMs();
     order.forEach((g, i) => {
@@ -371,8 +458,9 @@ export function proofStretches<X>(
 /**
  * Replays one stretch on the table as it stands: `replay` builds a run from the stretch's start (from nothing when
  * there is none) and plays it, on the fit's own steps and looks, to the end's moment; the stretch holds when the run
- * then is the snapshot (its world, its player, and its `extra` when the replay captures one). The differences, empty
- * when it holds.
+ * then is the snapshot (its world, its player, and its `extra` when the replay captures one). A fit that stepped
+ * (`stepping`) is replayed by the same stepper, from the state its start kept, never stepping past the end's moment.
+ * The differences, empty when it holds.
  */
 export function replayStretch<X>(
   stretch: ProofStretch<X>,
@@ -383,9 +471,15 @@ export function replayStretch<X>(
   if (!fit) throw new Error("proveFit: a mark was not taken by a fit");
   const run = replay(from);
   let steps = from?.fit?.steps ?? 0;
+  const cfg: StepConfig = {
+    floor: fit.stepMs,
+    maxMs: fit.stepping?.maxMs,
+    lookEvery: fit.lookEvery,
+    minutes: fit.plan.map(([, at]) => at).toSorted((a, b) => a - b),
+  };
+  const st = stepStart(fit.stepMs, fit.lookEvery, steps, from?.fit?.stepping);
   while (run.playedMs() < to.atMs) {
-    if (steps % fit.lookEvery === 0) run.look();
-    run.step(fit.stepMs);
+    run.step(stride(st, cfg, () => run.look(), run.playedMs(), to.atMs, Infinity));
     run.afterStep?.();
     steps++;
   }
