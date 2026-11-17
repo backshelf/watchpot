@@ -22,3 +22,6 @@ package.json.source
 
 # The Node bundle of the game scaffold, built by the scaffold-node test and removed after it.
 /templates/game/.scaffold/.node-check.mjs
+
+# Local caches (the sim cache).
+.watchpot/

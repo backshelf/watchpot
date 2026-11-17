@@ -1,5 +1,6 @@
 export * from "./auto";
 export * from "./bare";
+export * from "./cache";
 export * from "./contract";
 export * from "./fit";
 export * from "./gate";
