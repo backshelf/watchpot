@@ -2,6 +2,10 @@
 
 Each release is a tag `vX.Y.Z`. A breaking change names its codemod in `codemods/` (policy in `codemods/README.md`).
 
+## 1.0.0-rc.2
+
+The npm release of rc.1 pointed its entries at the TypeScript source instead of `dist/`, and `create-watchpot`'s rc.1 named the engine with an unresolvable `workspace:` range. Both are republished with `bun publish`, which reads the manifest `prepack` writes. No code changed.
+
 ## 1.0.0-rc.1
 
 A clean break: the API a game is written against, redone in one release, with no deprecated aliases and no codemods.
