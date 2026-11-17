@@ -100,6 +100,17 @@ describe("the stats feature", () => {
     expect(first.deref()).toBeUndefined();
   });
 
+  test("flags that did not change are the same object, so what reads them stays current", () => {
+    const store = createIdleStore(game, at());
+    store.getState().stove.set({ burners: 1 });
+    const before = store.getState().numbers.flags;
+    store.getState().stove.set({ burners: 2 });
+    expect(store.getState().numbers.flags).toBe(before);
+    store.getState().stove.set({ lid: true });
+    expect(store.getState().numbers.flags).not.toBe(before);
+    expect(store.getState().numbers.flags.sealed).toBe(true);
+  });
+
   test("ranks held are one row of the breakdown, counted that many times", () => {
     const store = createIdleStore(game, at());
     store.getState().stove.set({ copper: 3 });

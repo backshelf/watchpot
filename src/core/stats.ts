@@ -254,11 +254,16 @@ export function defineStats<
       extra: (stat) => (self(q).feed as unknown as Fed)[stat] ?? [],
     });
 
+  let lastFlags: Record<string, boolean> | null = null;
   const derived: Record<string, (q: Q) => unknown> = {
     feed,
     flags: (q) => {
       const g = graph(q);
-      return Object.fromEntries(flags.map((f) => [f, g.flag(f)]));
+      const next = Object.fromEntries(flags.map((f) => [f, g.flag(f)]));
+      // The same flags hand back the same object: a new one would stale every value that reads `flags`.
+      if (lastFlags && flags.every((f) => lastFlags?.[f] === next[f])) return lastFlags;
+      lastFlags = next;
+      return next;
     },
   };
   for (const id of ids) derived[id] = (q) => graph(q).stat(id);
