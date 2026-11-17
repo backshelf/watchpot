@@ -9,8 +9,7 @@
   --dp-line-mid: calc(var(--dp-hair) * 1.5);
   --dp-line-strong: calc(var(--dp-hair) * 2.25);
   --dp-filter-width: 16rem;
-  /* The knob panel's column (D5): reserved, no width until it is built. */
-  --dp-panel-width: 0px;
+  --dp-panel-width: 20rem;
   --dp-gap: 1rem;
 
   min-height: 100vh;
@@ -116,13 +115,13 @@ legend {
 
 /* A control: ruled and square, inverts under the pointer, drops a pixel on a press; unusable is dashed and ruled through. */
 .control {
-  padding: 0.35rem 0.85rem;
+  padding: var(--dp-control-pad-y, 0.35rem) var(--dp-control-pad-x, 0.85rem);
   border: var(--dp-hair) solid var(--dp-ink);
   border-radius: 0;
   background: var(--dp-paper-lift);
   color: var(--dp-ink);
   font: inherit;
-  font-size: 0.8125rem;
+  font-size: var(--dp-control-size, 0.8125rem);
   cursor: pointer;
   transition:
     background 140ms var(--dp-ease-out),
@@ -164,7 +163,7 @@ legend {
   );
 }
 
-/* The body: the filter column, the graphs, and the column the knob panel will take. */
+/* The body: the filter column, the graphs, and the knob panel's column. */
 .body {
   display: grid;
   grid-template-columns: var(--dp-filter-width) minmax(0, 1fr) var(--dp-panel-width);
@@ -306,6 +305,10 @@ legend {
   color: var(--dp-ink-soft);
 }
 
+.graph__delta {
+  font-weight: 700;
+}
+
 .graph__frame {
   padding: 0.5rem;
   touch-action: pan-y;
@@ -367,6 +370,13 @@ legend {
   stroke-width: var(--dp-line-strong);
 }
 
+/* The run before: a dashed hairline, drawn under the live lines. */
+.graph__line--before {
+  stroke: var(--dp-ink-faint);
+  stroke-width: var(--dp-hair);
+  stroke-dasharray: 5 4;
+}
+
 /* The dash patterns: a series is the same line in the graph, the filter and the readout. */
 .dash-0 {
   stroke-dasharray: none;
@@ -403,6 +413,11 @@ legend {
   stroke: var(--dp-rule-strong);
   stroke-width: var(--dp-hair);
   vector-effect: non-scaling-stroke;
+}
+
+/* A gate set by hand: the by-hand square on its planned tick. */
+.graph__hand {
+  fill: var(--dp-ink);
 }
 
 /* The chain line: what is planned, not yet drawn. */
@@ -483,6 +498,177 @@ legend {
   text-transform: uppercase;
 }
 
+/* Set by hand: a filled square in the ink before the name, the value bold, the code's own value struck beside it. */
+.hand {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 0.4rem;
+}
+
+.hand__mark {
+  display: inline-block;
+  flex: none;
+  width: 0.5rem;
+  height: 0.5rem;
+  background: var(--dp-ink);
+}
+
+.hand__code {
+  color: var(--dp-text-faint);
+  font-weight: 400;
+}
+
+/* Text for a reader that cannot see the mark. */
+.sr {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+}
+
+.control--small {
+  --dp-control-pad-y: 0.15rem;
+  --dp-control-pad-x: 0.5rem;
+  --dp-control-size: 0.75rem;
+}
+
+/* The fields: ruled and square, like the search box. */
+.field {
+  min-width: 0;
+  padding: 0.25rem 0.4rem;
+  border: var(--dp-hair) solid var(--dp-ink);
+  border-radius: 0;
+  background: var(--dp-paper);
+  color: var(--dp-ink);
+}
+
+.field[aria-invalid="true"] {
+  border-style: dashed;
+  text-decoration: underline wavy;
+  text-decoration-thickness: var(--dp-hair);
+}
+
+.pincell {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.pinfields {
+  display: flex;
+  gap: 0.35rem;
+}
+
+.pinfields .field {
+  width: 6rem;
+}
+
+/* The knob panel. */
+.panel {
+  align-self: start;
+  min-width: 0;
+  padding: var(--dp-gap);
+  border-left: var(--dp-hair) solid var(--dp-rule-strong);
+  background: var(--dp-paper-lift);
+}
+
+.panel__head {
+  grid-template-columns: 1fr auto;
+  align-items: center;
+}
+
+.panel__controls {
+  display: flex;
+  gap: 0.5rem;
+}
+
+.panel__strip {
+  grid-column: 1 / -1;
+  min-height: 1.5em;
+  color: var(--dp-ink-soft);
+  overflow-wrap: anywhere;
+}
+
+.panel__strip--error {
+  padding: 0.25rem 0.5rem;
+  border: var(--dp-hair) solid var(--dp-ink);
+  background: repeating-linear-gradient(
+    -45deg,
+    var(--dp-hatch) 0,
+    var(--dp-hatch) var(--dp-hair),
+    transparent var(--dp-hair),
+    transparent 6px
+  );
+  font-weight: 700;
+}
+
+.knobs {
+  padding: 0.5rem 0.75rem 0.75rem;
+}
+
+.knobs__head {
+  padding-bottom: 0.35rem;
+  border-bottom: var(--dp-hair) solid var(--dp-ink);
+}
+
+.knobs__list {
+  list-style: none;
+}
+
+.knob {
+  display: grid;
+  gap: 0.35rem;
+  padding: 0.5rem 0;
+  border-bottom: var(--dp-hair) solid var(--dp-rule);
+}
+
+.knob__head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 0.5rem;
+}
+
+.knob__label {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 0.4rem;
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+.knob[data-hand="true"] .knob__value strong {
+  color: var(--dp-ink);
+  font-weight: 700;
+}
+
+.knob__value {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 0.5rem;
+  flex: none;
+}
+
+.knob__ctl {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.knob__slider {
+  flex: 1 1 auto;
+  min-width: 0;
+  margin: 0;
+  accent-color: var(--dp-ink);
+}
+
+.knob__number {
+  flex: none;
+  width: 5.5rem;
+}
+
 /* An empty plate: ruled, saying what is coming. */
 .empty {
   margin: 0.75rem;
@@ -499,7 +685,7 @@ legend {
   text-align: center;
 }
 
-/* Narrow: the filter column stacks above, the panel's column goes. */
+/* Narrow: the filter column stacks above and the panel under the graphs. */
 @media (max-width: 56rem) {
   .body {
     grid-template-columns: minmax(0, 1fr);
@@ -508,6 +694,11 @@ legend {
   .filter {
     border-right: 0;
     border-bottom: var(--dp-hair) solid var(--dp-rule-strong);
+  }
+
+  .panel {
+    border-left: 0;
+    border-top: var(--dp-hair) solid var(--dp-rule-strong);
   }
 
   .mast__state {

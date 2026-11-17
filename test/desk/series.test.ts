@@ -3,6 +3,8 @@ import { describe, expect, test } from "bun:test";
 import { D } from "../../src/core";
 import {
   addWindow,
+  beforeAt,
+  clock,
   currencySeries,
   type DeskData,
   emptyData,
@@ -10,6 +12,7 @@ import {
   gateRows,
   hourlyRows,
   hoursMinutes,
+  knobText,
   log10,
   median,
   medianCurrency,
@@ -17,8 +20,12 @@ import {
   medianSeries,
   nextKeys,
   nextSeries,
+  orders,
   type Pt,
+  parseHours,
+  parsePrice,
   short,
+  signedOrders,
   valueAt,
   yAxis,
 } from "../../src/desk/page/series";
@@ -327,5 +334,51 @@ describe("the hatched gap", () => {
         { x: 1, high: 1, low: 3 },
       ]),
     ).toEqual([]);
+  });
+});
+
+describe("comparing with the run before", () => {
+  test("the difference is in orders of magnitude, signed, and only where both are above zero", () => {
+    expect(orders(D(1000), D(100))).toBeCloseTo(1);
+    expect(signedOrders(orders(D(100), D(1000)))).toBe("-1.00");
+    expect(signedOrders(orders(D("2.6"), D(1)))).toBe("+0.41");
+    expect(signedOrders(orders(D(5), D(5)))).toBe("+0.00");
+    expect(signedOrders(orders(D(0), D(5)))).toBe("–");
+    expect(signedOrders(orders(D(5), undefined))).toBe("–");
+  });
+
+  test("the run before has no value past where it was played", () => {
+    const pts: Pt[] = [
+      [0, D(1)],
+      [2, D(9)],
+    ];
+    expect(beforeAt(pts, 1)?.toString()).toBe("1");
+    expect(beforeAt(pts, 2)?.toString()).toBe("9");
+    expect(beforeAt(pts, 2.5)).toBeUndefined();
+    expect(beforeAt(undefined, 1)).toBeUndefined();
+  });
+});
+
+describe("knob values", () => {
+  test("a time reads as a clock, a multiple as ×, a percentage with its sign", () => {
+    expect(clock(90_000)).toBe("1:30");
+    expect(clock(3_600_000)).toBe("1:00:00");
+    expect(clock(250)).toBe("0:00.25");
+    expect(knobText(90_000, "ms")).toBe("1:30");
+    expect(knobText(1.15, "x")).toBe("×1.15");
+    expect(knobText(15, "%")).toBe("15%");
+    expect(knobText(0.1 + 0.2, undefined)).toBe("0.3");
+  });
+
+  test("a pinned hour is h:mm or plain hours; a pinned price is a figure Decimal reads", () => {
+    expect(parseHours("1:30")).toBe(5_400_000);
+    expect(parseHours("2")).toBe(7_200_000);
+    expect(parseHours("1.5")).toBe(5_400_000);
+    expect(parseHours("1:75")).toBeUndefined();
+    expect(parseHours("soon")).toBeUndefined();
+    expect(parsePrice(" 250 ")).toBe("250");
+    expect(parsePrice("1.5e12")).toBe("1.5e12");
+    expect(parsePrice("lots")).toBeUndefined();
+    expect(parsePrice("")).toBeUndefined();
   });
 });

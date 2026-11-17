@@ -22,9 +22,14 @@ export interface RunState {
   resumedFromMs?: number;
   errors: RunError[];
   data: DeskData;
+  /** The run shown before this one: what the graphs draw dashed beneath the live run. Absent until a second run starts. */
+  before?: DeskData;
 }
 
-export type RunAction = { type: "start"; id: number; seeds: number } | { type: "message"; msg: ToClient };
+export type RunAction =
+  | { type: "start"; id: number; seeds: number }
+  | { type: "clearBefore" }
+  | { type: "message"; msg: ToClient };
 
 export const idleRun = (): RunState => ({
   id: 0,
@@ -36,9 +41,16 @@ export const idleRun = (): RunState => ({
   data: emptyData(),
 });
 
-/** A new run clears what was drawn; a message for any run but the latest is dropped. */
+/**
+ * A new run clears what was drawn, and the run just shown (if it drew anything) becomes `before`; a message for any run
+ * but the latest is dropped. A cached window is part of the new run like any other.
+ */
 export function runReducer(state: RunState, action: RunAction): RunState {
-  if (action.type === "start") return { ...idleRun(), id: action.id, phase: "running", seeds: action.seeds };
+  if (action.type === "start") {
+    const before = state.data.seeds.size > 0 ? state.data : state.before;
+    return { ...idleRun(), id: action.id, phase: "running", seeds: action.seeds, before };
+  }
+  if (action.type === "clearBefore") return { ...state, before: undefined };
   const msg = action.msg;
   if (msg.id !== state.id) return state;
   switch (msg.type) {

@@ -12,8 +12,11 @@ export interface GraphLine {
   id: string;
   /** Which of the dash patterns, so a series is the same line everywhere. */
   dash: number;
-  /** A seed's own line is a hairline; the median (or the only seed) is `strong`; a wallet is `mid`. */
-  weight: "hair" | "mid" | "strong";
+  /**
+   * A seed's own line is a hairline; the median (or the only seed) is `strong`; a wallet is `mid`; the run before is a
+   * dashed hairline, listed first so it is drawn under the live lines.
+   */
+  weight: "hair" | "mid" | "strong" | "before";
   /** `[hours, y]` in the axis' units; `-Infinity` sits on the axis floor. */
   pts: readonly (readonly [number, number])[];
   /** The name written at the line's end. */
@@ -27,11 +30,17 @@ export interface GateMark {
   openings: readonly number[];
   /** Where the key is written. */
   labelH: number;
+  /** Its minute or price is set by hand: the planned tick wears the by-hand square. */
+  hand?: boolean;
 }
 
 export interface ReadoutRow {
   label: string;
+  /** The value now. */
   text: string;
+  /** The value in the run before at the same hour, and the signed difference in orders of magnitude. */
+  before?: string;
+  delta?: string;
 }
 
 export interface GraphProps {
@@ -118,7 +127,17 @@ export function Graph(props: GraphProps) {
               <span className="graph__at">{cursorH.toFixed(2)} h</span>
               {rows.map((r) => (
                 <span key={r.label} className="graph__row">
-                  <span className="graph__rowname">{r.label}</span> {r.text}
+                  <span className="graph__rowname">{r.label}</span>
+                  {r.before === undefined ? (
+                    ` ${r.text}`
+                  ) : (
+                    <>
+                      {" "}
+                      <span className="graph__rowname">now</span> {r.text}{" "}
+                      <span className="graph__rowname">before</span> {r.before}{" "}
+                      <span className="graph__delta">{r.delta}</span>
+                    </>
+                  )}
                 </span>
               ))}
             </>
@@ -189,7 +208,11 @@ export function Graph(props: GraphProps) {
             {lines.map((l) => (
               <path
                 key={l.id}
-                className={`graph__line graph__line--${l.weight} dash-${l.dash}`}
+                className={
+                  l.weight === "before"
+                    ? "graph__line graph__line--before"
+                    : `graph__line graph__line--${l.weight} dash-${l.dash}`
+                }
                 d={d(l.pts)}
               />
             ))}
@@ -214,6 +237,15 @@ export function Graph(props: GraphProps) {
                 y1={height - M.b - 18}
                 y2={height - M.b}
               />
+              {g.hand && (
+                <rect
+                  className="graph__hand"
+                  x={x(g.plannedH) - 3.5}
+                  y={height - M.b - 26}
+                  width="7"
+                  height="7"
+                />
+              )}
               <text
                 className="graph__gatename lettering"
                 x={x(g.labelH) + (labelAnchor(g.labelH) === "end" ? -4 : 4)}
@@ -246,7 +278,7 @@ export function Graph(props: GraphProps) {
             <g className="graph__cross">
               <line x1={x(cursorH)} x2={x(cursorH)} y1={M.t} y2={height - M.b} />
               {lines
-                .filter((l) => l.weight !== "hair")
+                .filter((l) => l.weight !== "hair" && l.weight !== "before")
                 .map((l) => {
                   const p = [...l.pts].reverse().find((q) => q[0] <= cursorH + 1e-9);
                   return p ? <circle key={l.id} cx={x(p[0])} cy={y(p[1])} r="3.5" /> : null;

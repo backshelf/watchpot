@@ -225,11 +225,12 @@ export function hoursMinutes(hours: number, signed = false): string {
   return `${hours < 0 ? "-" : "+"}${text}`;
 }
 
-/** One column of the hourly table. */
+/** One column of the hourly table; `before` is the same series in the run before. */
 export interface Column {
   id: string;
   label: string;
   pts: readonly Pt[];
+  before?: readonly Pt[];
 }
 
 /** One row of the hourly table: a whole hour and each column's value then (the last at or before it). */
@@ -266,6 +267,9 @@ export interface GateRow {
   opened: number;
   seeds: number;
   pinned: boolean;
+  /** The gate's price as the latest run priced it, and what the fit would have priced it when it was pinned. */
+  value?: string;
+  fitValue?: string;
   /** Each opening, one per seed that opened it. */
   openings: number[];
 }
@@ -293,6 +297,8 @@ export function gateRows(data: DeskData): GateRow[] {
       opened: openings.length,
       seeds: per.length,
       pinned: found.some((g) => g.pinned !== undefined),
+      value: found.find((g) => g.value !== undefined)?.value,
+      fitValue: found.find((g) => g.fitValue !== undefined)?.fitValue,
       openings,
     };
   });
@@ -399,4 +405,67 @@ export function hourTicks(end: number): number[] {
   const ticks: number[] = [];
   for (let h = 0; h <= end + 1e-9; h += step) ticks.push(h);
   return ticks;
+}
+
+/**
+ * The difference of a value from the run before, in orders of magnitude (`log10(now) - log10(before)`); undefined when
+ * either is not above zero, so the ratio means nothing.
+ */
+export function orders(now: Decimal | undefined, before: Decimal | undefined): number | undefined {
+  if (!now || !before || !now.gt(0) || !before.gt(0)) return undefined;
+  const d = log10(now) - log10(before);
+  return Number.isFinite(d) ? d : undefined;
+}
+
+/** A difference in orders of magnitude, signed, two decimals: `+0.42`, `-1.05`, `+0.00`. */
+export function signedOrders(d: number | undefined): string {
+  if (d === undefined) return "–";
+  const text = Math.abs(d).toFixed(2);
+  return `${d < 0 && Number(text) !== 0 ? "-" : "+"}${text}`;
+}
+
+/** A series' value at an hour in the run before, only where that run was played: past its end there is no before. */
+export function beforeAt(pts: readonly Pt[] | undefined, hours: number): Decimal | undefined {
+  const last = pts?.[pts.length - 1];
+  if (!pts || !last || hours > last[0] + 1e-9) return undefined;
+  return valueAt(pts, hours);
+}
+
+/** A time in ms as a clock: `1:30` for a minute and a half, `1:00:00` for an hour, `0:00.25` below a whole second. */
+export function clock(ms: number): string {
+  if (!Number.isFinite(ms)) return String(ms);
+  const sign = ms < 0 ? "-" : "";
+  const abs = Math.abs(ms);
+  const whole = Math.floor(abs / 1000);
+  const frac = Math.round(abs - whole * 1000);
+  const h = Math.floor(whole / 3600);
+  const m = Math.floor((whole % 3600) / 60);
+  const tail = frac > 0 ? `.${String(frac).padStart(3, "0").replace(/0+$/, "")}` : "";
+  const s = `${String(whole % 60).padStart(2, "0")}${tail}`;
+  return h > 0 ? `${sign}${h}:${String(m).padStart(2, "0")}:${s}` : `${sign}${m}:${s}`;
+}
+
+/** A knob's value for reading: `ms` as a clock, `x` as `×1.15`, `%` as `15%`, anything else as the number. */
+export function knobText(value: number, unit: unknown): string {
+  const plain = String(Number(value.toPrecision(6)));
+  if (unit === "ms") return clock(value);
+  if (unit === "x") return `×${plain}`;
+  if (unit === "%") return `${plain}%`;
+  return plain;
+}
+
+/** A time typed as `h:mm` or as plain (possibly fractional) hours, in ms; undefined when it is neither. */
+export function parseHours(text: string): number | undefined {
+  const t = text.trim();
+  const clocked = /^(\d+):([0-5]\d)$/.exec(t);
+  if (clocked) return (Number(clocked[1]) * 60 + Number(clocked[2])) * 60_000;
+  if (/^\d+(\.\d+)?$/.test(t)) return Math.round(Number(t) * HOUR_MS);
+  return undefined;
+}
+
+/** A price typed as a figure Decimal reads (`150`, `1.5e12`): the text trimmed, or undefined when it is not one. */
+export function parsePrice(text: string): string | undefined {
+  const t = text.trim();
+  if (!/^\d+(\.\d+)?(e[+-]?\d+)?$/i.test(t)) return undefined;
+  return D(t).isNan() ? undefined : t;
 }

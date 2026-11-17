@@ -1,13 +1,17 @@
 // The sim desk's page: the game runs on load and its pacing is drawn as the windows stream in. A masthead with the run's
-// state, a filter column, two graphs and the tables. The knob panel (D5) gets the column to the right of the graphs.
+// state, a filter column, two graphs and the tables, and the knob panel in the column to the right of the graphs.
+// Whatever is turned or pinned by hand reruns the pacing half a second after the last change and is drawn over the run
+// before it; Save writes it to the game's tuning file.
 import { useCallback, useEffect, useMemo, useReducer, useRef, useState } from "react";
 import type { Decimal } from "../../core";
 import type { DeskInfo } from "../protocol";
 import { Filter, type FilterGroup } from "./Filter";
 import { type GateMark, Graph, type GraphLine } from "./Graph";
 import { type Connect, connectSocket, type DeskLink } from "./link";
+import { type Hand, Panel } from "./Panel";
 import { idleRun, runReducer } from "./run";
 import {
+  beforeAt,
   type Column,
   currencySeries,
   gapPolygons,
@@ -20,14 +24,16 @@ import {
   nextAt,
   nextKeys,
   nextSeries,
+  orders,
   type Pt,
   seedNumbers,
   short,
+  signedOrders,
   toNumber,
   valueAt,
   yAxis,
 } from "./series";
-import { GateTable, HourTable } from "./Tables";
+import { GateTable, HourTable, type Pin } from "./Tables";
 
 export interface AppProps {
   /** Opens the line to the desk server. Default: the WebSocket at `/ws`. A test passes a fake. */
@@ -43,10 +49,17 @@ async function fetchDesk(): Promise<DeskInfo> {
 }
 
 const DASHES = 6;
+/** How long after the last change to a knob or a pin the pacing reruns. */
+const RERUN_MS = 500;
 const cid = (name: string) => `cur:${name}`;
 const nid = (key: string) => `next:${key}`;
 
 type Xy = readonly [number, number];
+
+const cloneHand = (h: Hand): Hand => ({ knobs: { ...h.knobs }, pins: structuredClone(h.pins) });
+const sameHand = (a: Hand, b: Hand): boolean =>
+  JSON.stringify([Object.entries(a.knobs).sort(), Object.entries(a.pins).sort()]) ===
+  JSON.stringify([Object.entries(b.knobs).sort(), Object.entries(b.pins).sort()]);
 
 export function App({ connect = connectSocket, load = fetchDesk }: AppProps = {}) {
   const [desk, setDesk] = useState<DeskInfo>();
@@ -58,20 +71,60 @@ export function App({ connect = connectSocket, load = fetchDesk }: AppProps = {}
   const [online, setOnline] = useState(false);
   const link = useRef<DeskLink>(undefined);
   const lastId = useRef(0);
+  // What is set now and what the tuning file holds: `hand` is what the next run sends.
+  const [hand, setHandState] = useState<Hand>({ knobs: {}, pins: {} });
+  const [saved, setSaved] = useState<Hand>({ knobs: {}, pins: {} });
+  const [saving, setSaving] = useState(false);
+  const [note, setNote] = useState<{ kind: "saved" | "error"; text: string }>();
+  // Counts reverts: a revert remounts the gates table, whose pin fields hold what was typed.
+  const [epoch, setEpoch] = useState(0);
+  const handRef = useRef(hand);
+  const seedsRef = useRef(1);
+  const timer = useRef<ReturnType<typeof setTimeout>>(undefined);
 
-  const play = useCallback((info: DeskInfo, seeds: number, via: DeskLink | undefined = link.current) => {
+  /** Sends a run of what is set now; the server cancels an older one still streaming. */
+  const play = useCallback((seeds: number, via: DeskLink | undefined = link.current) => {
+    if (timer.current !== undefined) clearTimeout(timer.current);
+    timer.current = undefined;
     if (!via) return;
     const id = ++lastId.current;
-    const knobs = Object.fromEntries(info.knobs.map((k) => [k.key, k.value]));
+    const { knobs, pins } = handRef.current;
     dispatch({ type: "start", id, seeds });
-    via.send({ type: "run", id, knobs, pins: {}, seeds });
+    via.send({ type: "run", id, knobs: { ...knobs }, pins: structuredClone(pins), seeds });
   }, []);
+
+  /** Changes what is set by hand, and reruns once it has been left alone for a moment. */
+  const edit = useCallback(
+    (change: (h: Hand) => Hand) => {
+      const next = change(handRef.current);
+      handRef.current = next;
+      setHandState(next);
+      setNote(undefined);
+      if (timer.current !== undefined) clearTimeout(timer.current);
+      timer.current = setTimeout(() => play(seedsRef.current), RERUN_MS);
+    },
+    [play],
+  );
+  useEffect(
+    () => () => {
+      if (timer.current !== undefined) clearTimeout(timer.current);
+    },
+    [],
+  );
 
   useEffect(() => {
     let live = true;
     load().then(
       (info) => {
         if (!live) return;
+        const start: Hand = {
+          knobs: Object.fromEntries(info.knobs.map((k) => [k.key, k.value])),
+          pins: structuredClone(info.pins ?? {}),
+        };
+        handRef.current = start;
+        seedsRef.current = info.seeds.tuning;
+        setHandState(start);
+        setSaved(cloneHand(start));
         setSelected(new Set([cid(info.currency)]));
         setDesk(info);
       },
@@ -92,7 +145,7 @@ export function App({ connect = connectSocket, load = fetchDesk }: AppProps = {}
         if (!live) return;
         link.current = via;
         setOnline(true);
-        play(desk, desk.seeds.tuning, via);
+        play(desk.seeds.tuning, via);
       },
       onMessage: (msg) => {
         if (live) dispatch({ type: "message", msg });
@@ -123,7 +176,58 @@ export function App({ connect = connectSocket, load = fetchDesk }: AppProps = {}
     });
   }, []);
 
+  const setKnob = (key: string, value: number) =>
+    edit((h) => ({ ...h, knobs: { ...h.knobs, [key]: value } }));
+  const resetKnob = (key: string) => {
+    const code = desk?.knobs.find((k) => k.key === key)?.code;
+    if (code !== undefined) setKnob(key, code);
+  };
+  const setPin = (key: string, pin: Pin | undefined) =>
+    edit((h) => {
+      const pins = { ...h.pins };
+      if (pin) pins[key] = pin;
+      else delete pins[key];
+      return { ...h, pins };
+    });
+  const revert = () => {
+    edit(() => cloneHand(saved));
+    setEpoch((e) => e + 1);
+  };
+  const tuningFile = desk?.tuningFile ?? "sim.tuning.json";
+  const dirty = !sameHand(hand, saved);
+  const save = async () => {
+    if (!desk) return;
+    const sent = cloneHand(handRef.current);
+    setSaving(true);
+    setNote(undefined);
+    try {
+      const res = await fetch("/api/tuning", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify(sent),
+      });
+      if (res.ok) {
+        setSaved(sent);
+        setNote({ kind: "saved", text: `saved to ${tuningFile}` });
+      } else {
+        let text = `/api/tuning answered ${res.status}`;
+        try {
+          const body = (await res.json()) as { error?: unknown };
+          if (typeof body.error === "string") text = body.error;
+        } catch {
+          // Not JSON: the status says enough.
+        }
+        setNote({ kind: "error", text });
+      }
+    } catch (err) {
+      setNote({ kind: "error", text: `could not save: ${err instanceof Error ? err.message : String(err)}` });
+    } finally {
+      setSaving(false);
+    }
+  };
+
   const data = run.data;
+  const before = run.before;
   const seeds = seedNumbers(data);
   const keys = useMemo(() => nextKeys(data), [data]);
   const currencies = desk?.currencies ?? [];
@@ -145,7 +249,11 @@ export function App({ connect = connectSocket, load = fetchDesk }: AppProps = {}
     ) => ({ id, dash, weight, label, pts: pts.map(([h, v]): Xy => [h, yOf(v)]) }) satisfies GraphLine;
 
     const medians = new Map<string, Pt[]>(shown.map((c) => [c, medianCurrency(data, c)]));
-    const lines1: GraphLine[] = [];
+    const befores = new Map<string, Pt[]>(shown.map((c) => [c, before ? medianCurrency(before, c) : []]));
+    const lines1: GraphLine[] = shown.flatMap((c) => {
+      const pts = befores.get(c) ?? [];
+      return pts.length > 0 ? [line(`before:${c}`, 0, "before", pts)] : [];
+    });
     for (const c of shown) {
       const dash = currencies.indexOf(c) % DASHES;
       if (many)
@@ -158,7 +266,22 @@ export function App({ connect = connectSocket, load = fetchDesk }: AppProps = {}
     );
 
     const nexts = new Map<string, NextPt[]>(shownNext.map((k) => [k, medianNext(data, k)]));
-    const lines2: GraphLine[] = [];
+    const beforeNexts = new Map<string, { held: Pt[]; cost: Pt[] }>(
+      shownNext.map((k) => {
+        const med = before ? medianNext(before, k) : [];
+        return [
+          k,
+          { held: med.map((p): Pt => [p.hours, p.held]), cost: med.map((p): Pt => [p.hours, p.cost]) },
+        ];
+      }),
+    );
+    const lines2: GraphLine[] = shownNext.flatMap((k) => {
+      const b = beforeNexts.get(k);
+      return [
+        ...(b && b.held.length > 0 ? [line(`before:${k}:held`, 0, "before", b.held)] : []),
+        ...(b && b.cost.length > 0 ? [line(`before:${k}:cost`, 0, "before", b.cost)] : []),
+      ];
+    });
     const held: Pt[][] = [];
     for (const k of shownNext) {
       const dash = (currencies.length + keys.indexOf(k)) % DASHES;
@@ -216,21 +339,33 @@ export function App({ connect = connectSocket, load = fetchDesk }: AppProps = {}
     const stops2 = stopsOf([...nexts.values()].map((n) => n.map((p): Pt => [p.hours, p.cost])));
 
     const columns: Column[] = [
-      ...shown.map((c) => ({ id: cid(c), label: c, pts: medians.get(c) ?? [] })),
+      ...shown.map((c) => ({
+        id: cid(c),
+        label: c,
+        pts: medians.get(c) ?? [],
+        before: before ? (befores.get(c) ?? []) : undefined,
+      })),
       ...shownNext.map((k) => ({
         id: nid(k),
         label: `${k} cost`,
         pts: (nexts.get(k) ?? []).map((p): Pt => [p.hours, p.cost]),
+        before: before ? (beforeNexts.get(k)?.cost ?? []) : undefined,
       })),
     ];
 
-    const gates = gateRows(data);
-    const marks: GateMark[] = gates.map((g) => ({
-      key: g.key,
-      plannedH: g.plannedH,
-      openings: g.openings,
-      labelH: g.openedH ?? g.plannedH,
-    }));
+    // While a new run waits for its first window the gates stay listed, from the run before: a pin being typed stays.
+    const gates = gateRows(data.seeds.size > 0 || !before ? data : before);
+    const marks: GateMark[] = gates.map((g) => {
+      const at = hand.pins[g.key]?.atMs;
+      const plannedH = at === undefined ? g.plannedH : at / HOUR_MS;
+      return {
+        key: g.key,
+        plannedH,
+        openings: g.openings,
+        labelH: g.openedH ?? plannedH,
+        hand: hand.pins[g.key] !== undefined,
+      };
+    });
     const main = valueAt(medianCurrency(data, desk.currency), Number.POSITIVE_INFINITY);
 
     return {
@@ -249,8 +384,10 @@ export function App({ connect = connectSocket, load = fetchDesk }: AppProps = {}
       gates,
       marks,
       main,
+      befores,
+      beforeNexts,
     };
-  }, [desk, data, selected, keys, log, currencies]);
+  }, [desk, data, before, hand.pins, selected, keys, log, currencies]);
 
   const groups: FilterGroup[] = [
     {
@@ -293,17 +430,23 @@ export function App({ connect = connectSocket, load = fetchDesk }: AppProps = {}
     return undefined;
   };
 
+  /** A readout row: now, and against the run before when there is one. */
+  const row = (label: string, now: Decimal | undefined, then: Decimal | undefined) => ({
+    label,
+    text: now ? short(now) : "–",
+    ...(before ? { before: then ? short(then) : "–", delta: signedOrders(orders(now, then)) } : {}),
+  });
   const readout1 = (h: number) =>
-    (view?.shown ?? []).map((c) => {
-      const v = valueAt(view?.medians.get(c) ?? [], h);
-      return { label: c, text: v ? short(v) : "–" };
-    });
+    (view?.shown ?? []).map((c) =>
+      row(c, valueAt(view?.medians.get(c) ?? [], h), beforeAt(view?.befores.get(c), h)),
+    );
   const readout2 = (h: number) =>
     (view?.shownNext ?? []).flatMap((k) => {
       const p = nextAt(view?.nexts.get(k) ?? [], h);
+      const b = view?.beforeNexts.get(k);
       return [
-        { label: `${k} held`, text: p ? short(p.held) : "–" },
-        { label: `${k} cost`, text: p ? short(p.cost) : "–" },
+        row(`${k} held`, p?.held, beforeAt(b?.held, h)),
+        row(`${k} cost`, p?.cost, beforeAt(b?.cost, h)),
       ];
     });
 
@@ -313,6 +456,7 @@ export function App({ connect = connectSocket, load = fetchDesk }: AppProps = {}
       ? ""
       : ` Resumed from the cache at ${(run.resumedFromMs / HOUR_MS).toFixed(1)} h: the hours before it were not replayed.`;
   const basis = many ? `the median of ${seeds.length} seeds, each seed a hairline` : "seed 1";
+  const against = before ? " The dashed hairline beneath each line is the run before." : "";
 
   return (
     <div className="desk" data-dp-tool="sim" data-run={run.phase}>
@@ -331,7 +475,7 @@ export function App({ connect = connectSocket, load = fetchDesk }: AppProps = {}
             type="button"
             className="control"
             disabled={!desk || !online}
-            onClick={() => desk && play(desk, desk.seeds.tuning)}
+            onClick={() => desk && play(desk.seeds.tuning)}
           >
             Run
           </button>
@@ -339,7 +483,7 @@ export function App({ connect = connectSocket, load = fetchDesk }: AppProps = {}
             type="button"
             className="control"
             disabled={!desk || !online}
-            onClick={() => desk && play(desk, desk.seeds.full)}
+            onClick={() => desk && play(desk.seeds.full)}
           >
             All seeds
           </button>
@@ -367,10 +511,15 @@ export function App({ connect = connectSocket, load = fetchDesk }: AppProps = {}
                 linear
               </button>
             </div>
+            {before && (
+              <button type="button" className="control" onClick={() => dispatch({ type: "clearBefore" })}>
+                Clear before
+              </button>
+            )}
           </div>
           <Graph
             title="Currencies over time"
-            caption={`Played hours along the bottom, ${log ? "log10 of the value" : "the value"} up the side; ${basis}. A hairline down the plot is where a gate opened; the chain-line tick at the foot is where it was planned.${resumed}`}
+            caption={`Played hours along the bottom, ${log ? "log10 of the value" : "the value"} up the side; ${basis}. A hairline down the plot is where a gate opened; the chain-line tick at the foot is where it was planned.${resumed}${against}`}
             height={420}
             endHours={end || 1}
             axis={view?.axis1 ?? { lo: 0, hi: 1, ticks: [0, 1] }}
@@ -384,7 +533,7 @@ export function App({ connect = connectSocket, load = fetchDesk }: AppProps = {}
           {view && view.shownNext.length > 0 && (
             <Graph
               title="Wallet against next cost"
-              caption="The balance that pays for each ticked buyable, and its price. Hatched where the price is above the balance: a long hatched plateau is a stall."
+              caption={`The balance that pays for each ticked buyable, and its price. Hatched where the price is above the balance: a long hatched plateau is a stall.${against}`}
               height={340}
               endHours={end || 1}
               axis={view.axis2}
@@ -397,9 +546,28 @@ export function App({ connect = connectSocket, load = fetchDesk }: AppProps = {}
             />
           )}
           <HourTable columns={view?.columns ?? []} waiting={waiting} />
-          <GateTable gates={view?.gates ?? []} waiting={waiting} />
+          <GateTable
+            key={epoch}
+            gates={view?.gates ?? []}
+            pins={hand.pins}
+            waiting={waiting}
+            onPin={setPin}
+          />
         </main>
-        {/* The knob panel's column (D5) goes here: the grid reserves it. */}
+        {desk && (
+          <Panel
+            knobs={desk.knobs}
+            values={hand.knobs}
+            tuningFile={tuningFile}
+            dirty={dirty}
+            saving={saving}
+            note={note}
+            onKnob={setKnob}
+            onReset={resetKnob}
+            onSave={save}
+            onRevert={revert}
+          />
+        )}
       </div>
     </div>
   );
