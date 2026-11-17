@@ -16,3 +16,6 @@ site/.impeccable/
 site/tools/out/
 # The source manifest, set aside while `prepack` packs the published one.
 package.json.source
+
+# The Node bundle of the game scaffold, built by the scaffold-node test and removed after it.
+/templates/game/.scaffold/.node-check.mjs
