@@ -16,7 +16,7 @@ The concept is in `.claude/specs/concept.md`; how the code is laid out, in `.cla
 ## Tuning on the sim desk
 
 ```sh
-bun run desk       # opens the sim desk on the orchard
+bun run desk       # opens the sim desk on the orchard (a game installed from npm runs `bunx watchpot sim`)
 ```
 
 The desk plays one straight 24 h run on the auto-player and draws it as pace graphs. Its knobs are the orchard's tuning
