@@ -7,6 +7,9 @@ dist/
 .scratch/
 dsp/target/
 
+# The create-watchpot slow test writes its Vite game under the package, and removes it after.
+.test-out/
+
 # Local only: what is parked for later.
 /ROADMAP.md
 

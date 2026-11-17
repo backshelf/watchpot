@@ -2,11 +2,12 @@
 /**
  * Makes a new idle game on the watchpot engine: `bun create watchpot` or `npm create watchpot`.
  *
- * It asks for a name, a 3D stage and agent skills, then writes the game from the engine's template (the engine is the
- * installed `watchpot` package, whose `templates/game` the files are read from at run time), copies the skills in,
- * and installs. Runs on Node 20+ and on Bun.
+ * It asks for a name, a template (Bun or Vite), a 3D stage and agent skills, then writes the game from the engine's
+ * template (the engine is the installed `watchpot` package, whose `templates/game` the files are read from at run
+ * time), copies the skills in, and installs. The Vite template converts the written game (`./vite.ts`). Runs on Node
+ * 20+ and on Bun.
  *
- * Non-interactive (tests, scripts): `--name <n> --three --skills=.claude/skills,.agents/skills --no-install --yes`.
+ * Non-interactive (tests, scripts): `--name <n> --vite --three --skills=.claude/skills,.agents/skills --no-install --yes`.
  * Any answer given as a flag skips its prompt; `--yes` takes the default for every answer not given.
  */
 import { spawnSync } from "node:child_process";
@@ -26,6 +27,7 @@ import { tmpdir } from "node:os";
 import { dirname, join, resolve } from "node:path";
 import * as p from "@clack/prompts";
 import { generate, slugify } from "../../../templates/game/.scaffold/generate";
+import { toVite } from "./vite";
 
 const DEFAULT_NAME = "My Idle Game";
 
@@ -38,6 +40,7 @@ const TARGETS: readonly { value: string; label: string }[] = [
 
 interface Flags {
   name?: string;
+  vite?: boolean;
   three?: boolean;
   skills?: string[];
   install: boolean;
@@ -46,6 +49,7 @@ interface Flags {
 
 interface Choices {
   name: string;
+  vite: boolean;
   three: boolean;
   skills: string[];
 }
@@ -53,7 +57,7 @@ interface Choices {
 class UsageError extends Error {}
 
 const USAGE =
-  "usage: create-watchpot [--name <name>] [--three] [--skills=<dir,dir>] [--no-install] [--yes]\n" +
+  "usage: create-watchpot [--name <name>] [--vite] [--three] [--skills=<dir,dir>] [--no-install] [--yes]\n" +
   `  --skills takes any of: ${TARGETS.map((t) => t.value).join(", ")}`;
 
 function parseFlags(argv: readonly string[]): Flags {
@@ -70,6 +74,9 @@ function parseFlags(argv: readonly string[]): Flags {
     switch (key) {
       case "--name":
         flags.name = take();
+        break;
+      case "--vite":
+        flags.vite = true;
         break;
       case "--three":
         flags.three = true;
@@ -140,6 +147,22 @@ async function choose(flags: Flags): Promise<Choices> {
   const problem = nameProblem(name);
   if (problem) throw new UsageError(`name: ${problem}`);
 
+  // Bun when given no flag (`--yes` included); at the prompt, the runtime's own is the default.
+  const vite =
+    flags.vite ??
+    (flags.yes
+      ? false
+      : answered(
+          await p.select<"bun" | "vite">({
+            message: "Which template?",
+            options: [
+              { value: "bun", label: "Bun (recommended)" },
+              { value: "vite", label: "Vite (Node)" },
+            ],
+            initialValue: process.versions.bun !== undefined ? "bun" : "vite",
+          }),
+        ) === "vite");
+
   const three =
     flags.three ??
     (flags.yes
@@ -168,7 +191,7 @@ async function choose(flags: Flags): Promise<Choices> {
         }),
       );
   }
-  return { name: name.trim(), three, skills };
+  return { name: name.trim(), vite, three, skills };
 }
 
 /** The engine: the installed `watchpot` package (or `WATCHPOT_ENGINE_DIR`, for the tests against a checkout). */
@@ -246,9 +269,9 @@ function copySkills(engine: string, out: string, targets: readonly string[]) {
   }
 }
 
-/** Installs with the package manager that is running this: Bun's own, else npm. */
-function install(dir: string) {
-  const bun = process.versions.bun !== undefined;
+/** Installs with the package manager that is running this (Bun's own, else npm); the Vite game always uses npm. */
+function install(dir: string, vite: boolean) {
+  const bun = !vite && process.versions.bun !== undefined;
   const cmd = bun ? process.execPath : "npm";
   // npm is a `.cmd` shim on Windows, which only a shell runs.
   const r = spawnSync(cmd, ["install"], {
@@ -276,17 +299,22 @@ async function main() {
   await writeGame(engine, choice, out, pkg);
   fixManifest(out, choice, pkg);
   copySkills(engine, out, choice.skills);
+  if (choice.vite) toVite(out, engine);
   step.stop(`Wrote ${slug}/`);
 
+  const pm = choice.vite ? "npm" : process.versions.bun !== undefined ? "bun" : "npm";
   if (flags.install) {
-    p.log.step(`Installing (${process.versions.bun ? "bun" : "npm"} install)`);
-    install(out);
+    p.log.step(`Installing (${pm} install)`);
+    install(out, choice.vite);
   }
 
-  const next = [`cd ${slug}`, ...(flags.install ? [] : ["bun install"]), "bun run dev"];
+  const runner = choice.vite ? "npm" : "bun";
+  const next = [`cd ${slug}`, ...(flags.install ? [] : [`${runner} install`]), `${runner} run dev`];
   p.note(next.join("\n"), "Next steps");
   p.outro(
-    "The game runs on Bun (https://bun.sh): `bun run dev` serves it at http://localhost:3000. Happy idling.",
+    choice.vite
+      ? "The game runs on Node (`npm run dev` serves it at the URL Vite prints, usually http://localhost:5173). Happy idling."
+      : "The game runs on Bun (https://bun.sh): `bun run dev` serves it at http://localhost:3000. Happy idling.",
   );
 }
 
