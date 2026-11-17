@@ -107,6 +107,23 @@ export async function build({ dev = false, out = join(here, "dist") } = {}): Pro
     return { ok: false, ms: performance.now() - started, pages: 0, warnings: [] };
   }
 
+  // The sim lab's worker: its own script beside the pages, so the lab's seeds can run off the main thread.
+  const worker = await Bun.build({
+    entrypoints: [join(here, "src/game/lab-worker.ts")],
+    outdir: out,
+    target: "browser",
+    minify: !dev,
+    sourcemap: dev ? "linked" : "none",
+    naming: { entry: "[name].[ext]" },
+    define: {
+      "process.env.NODE_ENV": JSON.stringify(dev ? "development" : "production"),
+    },
+  });
+  if (!worker.success) {
+    for (const log of worker.logs) console.error(log);
+    return { ok: false, ms: performance.now() - started, pages: 0, warnings: [] };
+  }
+
   const fonts = join(out, "assets/fonts");
   await mkdir(fonts, { recursive: true });
   for (const [pkg, file] of FONTS) {

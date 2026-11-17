@@ -1,7 +1,8 @@
 // The sim lab, run in the page: the same game definition played headless for three days by the auto-player on a
 // seeded schedule, plotted on a log axis against a pacing contract. Every line on the chart is a real run, made here.
 import { useEffect, useRef, useState } from "react";
-import { BANDS, DAYS, type LabRun, MARKS, runLab } from "../game/lab";
+import { BANDS, DAYS, type LabRun, MARKS } from "../game/lab";
+import { type LabPool, labPool, type WorkerLike } from "../game/lab-pool";
 
 const SEEDS = 5;
 // Three days from an 08:00 start end at the third night: 63 hours. The axis stops just past it.
@@ -42,22 +43,56 @@ export function SimLab() {
   const batch = useRef(0);
   const section = useRef<HTMLElement>(null);
   const started = useRef(false);
+  const pool = useRef<LabPool | null>(null);
 
-  // One run a timeslice, so the lines are plotted as they are played and the page stays live between them.
+  // The seeds run in a few workers at once; the page never waits on them. Made on first play, kept for the life of the sheet.
+  const getPool = () => {
+    if (!pool.current) {
+      const size = Math.max(1, Math.min(SEEDS, (navigator.hardwareConcurrency || 2) - 1));
+      pool.current = labPool({
+        size,
+        create: () =>
+          new Worker(new URL("lab-worker.js", document.baseURI), { type: "module" }) as unknown as WorkerLike,
+      });
+    }
+    return pool.current;
+  };
+
+  useEffect(
+    () => () => {
+      pool.current?.dispose();
+      pool.current = null;
+    },
+    [],
+  );
+
+  // Each run is added as it lands, in completion order. A batch that is no longer the current one is dropped.
   const play = (pressure: number) => {
     const mine = ++batch.current;
     setRuns([]);
     setBusy(true);
-    let i = 0;
-    const next = () => {
-      if (batch.current !== mine) return;
-      const run = runLab(`seed-${mine}-${i}`, { pressure });
-      setRuns((before) => (batch.current === mine ? [...before, run] : before));
-      i += 1;
-      if (i < SEEDS) setTimeout(next, 30);
-      else setBusy(false);
-    };
-    setTimeout(next, 30);
+    const p = getPool();
+    p.cancel();
+    let settled = 0;
+    for (let i = 0; i < SEEDS; i++) {
+      p.run(`seed-${mine}-${i}`, { pressure })
+        .then(
+          (run) => {
+            if (batch.current !== mine) return;
+            setRuns((before) => (batch.current === mine ? [...before, run] : before));
+          },
+          (err: unknown) => {
+            if (batch.current === mine && !(err instanceof Error && err.message === "cancelled")) {
+              console.error(err);
+            }
+          },
+        )
+        .finally(() => {
+          if (batch.current !== mine) return;
+          settled += 1;
+          if (settled === SEEDS) setBusy(false);
+        });
+    }
   };
   const playRef = useRef(play);
   playRef.current = play;
