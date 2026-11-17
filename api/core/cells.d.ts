@@ -13,6 +13,20 @@ import type { FeatureSpec } from "./feature";
  * written when it is set, or when what it holds could be changed in place (an object or an array; not a Decimal)
  * and is taken hold of. A cell waits on the fields it read, so a step that only reads a slice, or writes a field
  * the cell never read, leaves the cell alone, which is most of what a sim's pass does.
+ *
+ * Invariants a change here must keep:
+ * - Versions move only at `close` (and `touchAll`), never at the write itself. That is what makes a cell current
+ *   as of the start of the step that reads it; moving a version early would let a step see half its own writes.
+ * - A cell is current when every version it saw is unchanged and every cell it read still has the stamp it saw
+ *   (checked dependencies first, through `ensure`). Both maps are replaced whole on each compute, never merged.
+ * - A cell's `stamp` moves only when its value changes (`same`: identical, or equal Decimals), so a recompute that
+ *   lands on the same value leaves the cells that read it current. Drop that check and every read cascades.
+ * - A field read records both the slice key and the field key. An ordinary view bumps the slice key on any take and
+ *   a precise view the field keys; either bumps the shape key when a field is added or removed. So either view stales
+ *   exactly the cells that could have seen the change.
+ * - Derived values live in their slice of the state, written only by `ensure` on the raw slice. A write through
+ *   the view throws, and the store leaves them out of the save (`names`).
+ * - One `Cells` per store or sim run: it remembers versions, so two stores sharing one would stale each other.
  */
 export interface Cells {
     /** False when no feature declares a derived value: the game's state is then handed out as it is. */

@@ -1,3 +1,23 @@
+/*
+ * Design notes for maintainers: the invariants this file keeps. Break one and a game loses progress or reads stale
+ * numbers without any error.
+ *
+ * 1. Every change to the state is one recipe through `draft`. A recipe runs over a `cells` view, then `cells.close()`
+ *    and `cells.settle()`, so the state zustand publishes always holds current derived values. A recipe started inside
+ *    another throws (`drafting`): immer would land the outer result over the inner change.
+ * 2. Nothing is written before the save is read. `gated.setItem` drops writes until `loaded` (set by `merge`, or by
+ *    `onRehydrateStorage` when the load fails), so a fresh profile never lands over a save still being loaded.
+ * 3. A save this build will not use is copied to `<key>.kept` before anything can overwrite it (`storage.keep`), and
+ *    `notes` records why for `saveSetAside` / `saveBlockedBy`. A newer build's save blocks this session's writes.
+ * 4. The save holds each feature's data only (`partializeState`: no actions, transient or derived fields), and loads
+ *    slice by slice over a fresh `initial` (`mergeFeature`), so a field a save lacks keeps its default.
+ * 5. The wall is read only through `options.now`. Game time is the wall plus the clock's offset (`gameNow`), and every
+ *    `InitialContext` is handed game time, except `wallNow`.
+ * 6. A reset or an import writes under `cells.raw` and then calls `cells.touchAll()`: it replaces whole slices, which
+ *    the view did not see field by field, so every derived value must count as stale.
+ * 7. Randomness comes from `rng(label)`: seeded, the same label gives the same stream, so a seeded replay (a sim, a
+ *    test, an import of the same save) does not part ways.
+ */
 import { current, type Draft, isDraft } from "immer";
 import { type PersistStorage, persist } from "zustand/middleware";
 import { immer } from "zustand/middleware/immer";
