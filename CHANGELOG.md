@@ -2,7 +2,7 @@
 
 Each release is a tag `vX.Y.Z`. A breaking change names its codemod in `codemods/` (policy in `codemods/README.md`).
 
-## Unreleased
+## 1.0.0-rc.4
 
 - Fix: a stats feature kept every feed it ever made alive (each new feed's closures held the last one), so a long sim's memory grew without bound; a 20 h fit of a heavy game went from 195 MB live heap to 20 MB.
 - `runFit` takes `stepping: { maxMs }`: steps grow while the pilot has nothing to buy and drop back on a buy, never past a planned gate minute or a snapshot. The proof replays the same steps.
