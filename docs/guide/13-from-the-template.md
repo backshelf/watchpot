@@ -84,10 +84,11 @@ a new folder:
 
 1. Copies the template into it, leaving out the scaffold's own `.scaffold/` folder.
 2. Writes your content: `src/content/*.ts` (the words, the economy, the core's list, one file per system,
-   `pacing.ts`), `design/tokens.json`, and `.claude/specs/answers.json` and `concept.md`.
+   `pacing.ts`) and `design/tokens.json`. With `--agents`, also `AGENTS.md` and, in `design/`, `answers.json` and
+   `concept.md`.
 3. Deletes every file and block whose flag you did not choose.
-4. Renders the five files whose names would clash with the engine's own (`package.json`, `biome.json`,
-   `index.html`, `README.md`, `.claude/CLAUDE.md`) from their `*.tmpl` versions.
+4. Renders the four files whose names would clash with the engine's own (`package.json`, `biome.json`,
+   `index.html`, `README.md`) from their `*.tmpl` versions.
 5. Compiles `design/tokens.json` into `src/tokens.css`, and formats what the gating left with Biome.
 6. Runs `bun install`, which fetches the engine by tag, then `bun run lint:fix` with the game's own Biome.
 7. Prints any warnings about your colours, and the next steps.
