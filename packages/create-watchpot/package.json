@@ -1,6 +1,6 @@
 {
   "name": "create-watchpot",
-  "version": "1.0.0-rc.4",
+  "version": "1.0.0-rc.5",
   "description": "Make a new idle game on the watchpot engine: bun create watchpot, or npm create watchpot.",
   "type": "module",
   "bin": {
@@ -15,7 +15,7 @@
   },
   "dependencies": {
     "@clack/prompts": "^1.9.0",
-    "watchpot": "workspace:^1.0.0-rc.4"
+    "watchpot": "workspace:^1.0.0-rc.5"
   },
   "devDependencies": {
     "@tailwindcss/vite": "^4.3.5",
