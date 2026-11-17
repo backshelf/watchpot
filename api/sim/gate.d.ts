@@ -26,5 +26,18 @@ export interface GateRunner<J, Res> {
 export declare function runGate<J, Res>(checks: readonly GateCheck<J, Res>[], { key, run }: GateRunner<J, Res>): Promise<GateResult[]>;
 /** Runs a script in its own Bun process and parses what it prints as JSON; a non-zero exit throws with its stderr. */
 export declare function spawnJob<Res>(script: string, args: readonly string[]): Promise<Res>;
+/**
+ * Runs one script per seed (`--seed=<seed>` then `args`) through `spawnJob`, at most `workers` at once, and returns
+ * the results in seed order whatever order they finish in. The first failure rejects; jobs already running finish,
+ * and no new ones start.
+ */
+export declare function runSeeds<Res>({ script, seeds, args, workers, }: {
+    script: string;
+    seeds: readonly string[];
+    /** Extra args after `--seed=<seed>`. */
+    args?: readonly string[];
+    /** Processes at once. Default: os.availableParallelism() - 1, at least 1. */
+    workers?: number;
+}): Promise<Res[]>;
 /** Each check's count of checks held by a majority, then every check's runs, values and spread. */
 export declare function formatGate(results: readonly GateResult[]): string;

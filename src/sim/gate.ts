@@ -1,3 +1,4 @@
+import { availableParallelism } from "node:os";
 import { failing, p10p90, type Tally, tally, type Verdict } from "./contract";
 
 /**
@@ -49,6 +50,43 @@ export async function spawnJob<Res>(script: string, args: readonly string[]): Pr
   ]);
   if (code !== 0) throw new Error(`gate job ${[script, ...args].join(" ")} exited ${code}: ${err}`);
   return JSON.parse(out) as Res;
+}
+
+/**
+ * Runs one script per seed (`--seed=<seed>` then `args`) through `spawnJob`, at most `workers` at once, and returns
+ * the results in seed order whatever order they finish in. The first failure rejects; jobs already running finish,
+ * and no new ones start.
+ */
+export async function runSeeds<Res>({
+  script,
+  seeds,
+  args = [],
+  workers = Math.max(1, availableParallelism() - 1),
+}: {
+  script: string;
+  seeds: readonly string[];
+  /** Extra args after `--seed=<seed>`. */
+  args?: readonly string[];
+  /** Processes at once. Default: os.availableParallelism() - 1, at least 1. */
+  workers?: number;
+}): Promise<Res[]> {
+  if (workers < 1) throw new RangeError(`runSeeds needs at least 1 worker, got ${workers}`);
+  const results: Res[] = new Array(seeds.length);
+  let next = 0;
+  let failure: { error: unknown } | null = null;
+  const lane = async (): Promise<void> => {
+    while (!failure && next < seeds.length) {
+      const i = next++;
+      try {
+        results[i] = await spawnJob<Res>(script, [`--seed=${seeds[i]}`, ...args]);
+      } catch (error) {
+        failure ??= { error };
+      }
+    }
+  };
+  await Promise.all(Array.from({ length: Math.min(workers, seeds.length) }, lane));
+  if (failure) throw (failure as { error: unknown }).error;
+  return results;
 }
 
 /** Each check's count of checks held by a majority, then every check's runs, values and spread. */
