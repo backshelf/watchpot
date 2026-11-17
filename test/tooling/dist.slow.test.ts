@@ -50,6 +50,16 @@ test("the devtools CSS modules ship beside their compiled modules", () => {
   expect(existsSync(join(DIST, "devtools", "DevPanel.module.css"))).toBe(true);
 });
 
+test("the store's declarations load the zustand middleware types a game's compiler needs", () => {
+  // Without these, a game typechecking against dist/ sees every store as `never` (1.0.0-rc.2 on npm did).
+  const head = readFileSync(join(ROOT, "dist/core/feature-types.d.ts"), "utf8")
+    .split("\n")
+    .slice(0, 4)
+    .join("\n");
+  expect(head).toContain('/// <reference types="zustand/middleware" preserve="true" />');
+  expect(head).toContain('/// <reference types="zustand/middleware/immer" preserve="true" />');
+});
+
 test("plain Node imports dist/core/index.js and sees defineGame", async () => {
   const node = Bun.which("node");
   if (!node) {

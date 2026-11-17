@@ -211,6 +211,21 @@ describe("what the template writes", () => {
     }
   });
 
+  test("the template ships its ignore file undotted, and a game gets it as .gitignore", async () => {
+    // npm leaves every `.gitignore` out of a published package; a game made from npm then has none and its lint fails.
+    expect(readdirSync(TEMPLATE)).not.toContain(".gitignore");
+    const answers = join(TEMPLATE, ".scaffold", "fixtures", "everything.json");
+    const dir = join(await mkdtemp(join(tmpdir(), "watchpot-gen-")), "game");
+    try {
+      await generate({ answers, out: dir, engine: "v0.0.0", mode: "full", lint: false });
+      const files = readdirSync(dir);
+      expect(files).toContain(".gitignore");
+      expect(files).not.toContain("gitignore");
+    } finally {
+      await rm(dirname(dir), { recursive: true, force: true });
+    }
+  });
+
   test("a scaffolded game ships no tests: no test/ folder and no test script", async () => {
     const answers = join(TEMPLATE, ".scaffold", "fixtures", "smallest.json");
     const dir = join(await mkdtemp(join(tmpdir(), "watchpot-gen-")), "game");

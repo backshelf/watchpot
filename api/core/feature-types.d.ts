@@ -1,3 +1,5 @@
+/// <reference types="zustand/middleware" preserve="true" />
+/// <reference types="zustand/middleware/immer" preserve="true" />
 import type { Draft } from "immer";
 import type { Mutate, StoreApi } from "zustand/vanilla";
 import type { Decimal } from "./decimal";

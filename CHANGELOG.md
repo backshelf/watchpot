@@ -2,6 +2,10 @@
 
 Each release is a tag `vX.Y.Z`. A breaking change names its codemod in `codemods/` (policy in `codemods/README.md`).
 
+## 1.0.0-rc.3
+
+Found by scaffolding a game from npm: the published store types collapsed to `never` in a game (the declarations now load the zustand middleware types), npm dropped the template's `.gitignore` (it ships as `gitignore` and the scaffold renames it), and `create-watchpot` left a new game unformatted (it runs `lint:fix` after the install).
+
 ## 1.0.0-rc.2
 
 The npm release of rc.1 pointed its entries at the TypeScript source instead of `dist/`, and `create-watchpot`'s rc.1 named the engine with an unresolvable `workspace:` range. Both are republished with `bun publish`, which reads the manifest `prepack` writes. No code changed.

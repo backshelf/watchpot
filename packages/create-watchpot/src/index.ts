@@ -297,6 +297,14 @@ function install(dir: string, vite: boolean) {
     shell: !bun && process.platform === "win32",
   });
   if (r.error || r.status !== 0) throw new Error(`${bun ? "bun" : "npm"} install failed in ${dir}`);
+  // The scaffold formats what it writes with the game's Biome, which only exists once the install is done: format
+  // now, so a new game passes its own `verify` from the first run.
+  const fmt = spawnSync(cmd, ["run", "lint:fix"], {
+    cwd: dir,
+    stdio: "ignore",
+    shell: !bun && process.platform === "win32",
+  });
+  if (fmt.error || fmt.status !== 0) console.warn("create-watchpot: run `lint:fix` in the game to format it");
 }
 
 async function main() {

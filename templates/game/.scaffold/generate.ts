@@ -21,7 +21,7 @@
  * JSX the markers are `{/* @if <f> *\/}` and `{/* @end *\/}`; in CSS, `/* @if <f> *\/` and `/* @end *\/`.
  */
 import { spawnSync } from "node:child_process";
-import { cp, mkdir, readdir, readFile, rm, writeFile } from "node:fs/promises";
+import { cp, mkdir, readdir, readFile, rename, rm, writeFile } from "node:fs/promises";
 import { createRequire } from "node:module";
 import { dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -1231,12 +1231,17 @@ async function vacant(dir: string): Promise<boolean> {
 /** The engine a `templates/game` folder ships in: two folders up (`<engine>/templates/game`). */
 const engineOf = (template: string) => resolve(template, "..", "..");
 
-/** Copies the template into `out`, leaving out its scaffold, installs and git folder. */
+/**
+ * Copies the template into `out`, leaving out its scaffold, installs and git folder. The template keeps its ignore
+ * file as `gitignore`: npm leaves every `.gitignore` out of a published package, so the dotted name never reaches a
+ * game made from the npm install. It becomes `.gitignore` here.
+ */
 async function copyTemplate(out: string, template: string) {
   await cp(template, out, {
     recursive: true,
     filter: (src) => !/[\\/](node_modules|\.git|\.scaffold)([\\/]|$)/.test(src.slice(template.length)),
   });
+  await rename(join(out, "gitignore"), join(out, ".gitignore"));
 }
 
 /** Compiles `design/tokens.json` into `src/tokens.css` with the engine's own compiler, as `bun run tokens` does. */

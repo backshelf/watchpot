@@ -1,3 +1,8 @@
+/// <reference types="zustand/middleware" preserve="true" />
+/// <reference types="zustand/middleware/immer" preserve="true" />
+// The persist and immer middlewares declare their mutators by module augmentation. These references carry it into
+// the published declarations, where nothing else imports the middlewares: without them `IdleMutators` names mutators
+// a game's compiler has never seen, and every store type collapses to `never`.
 import type { Draft } from "immer";
 import type { Mutate, StoreApi } from "zustand/vanilla";
 import type { Decimal } from "./decimal";
