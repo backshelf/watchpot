@@ -2,8 +2,8 @@
 
 `templates/game/` is what a new game is made from. As it stands it is the union of everything it can generate (both
 cores, every feature, all four starter backdrops) with the example content in `answers.example.json`: the engine's
-`bun check` type-checks it, its tests run in the engine's suite, and `bun templates/game/sim/run.ts --contract` holds
-its pacing (wide bands: the union runs two incomes into one wallet, so it is faster than any real shape).
+`bun check` type-checks it, the engine's suite builds it in production, and `bun templates/game/sim/run.ts --contract`
+holds its pacing (wide bands: the union runs two incomes into one wallet, so it is faster than any real shape).
 
 ## Making a game
 
@@ -45,20 +45,20 @@ engine only through the `watchpot/*` imports.
   `defineGenerators` (3 to 8; none beside a clicker) or `defineDimensions` (4 to 8 tiers). Then any of `clicker`
   (`defineClicker`), `tree` (`defineUpgradeTree`), `gacha` (`defineGacha`), `prestige` (`definePrestige`),
   `achievements` (`defineAchievements`, eight to a row) and `visitor` (`defineSpawns` paying a `defineBuffs` buff),
-  each with its content file, its feature, its screen or part of the main screen, its sim column and its tests.
+  each with its content file, its feature, its screen or part of the main screen and its sim column.
   `look.surface.base` picks the starter backdrop in `src/shaders/`; without a surface the page has none.
 - **The sim.** `sim/run.ts` plays the auto-player on `activeSchedule` (played hours), on the plain store, and judges
   the contract in `src/content/pacing.ts` at hours 1, 2 and 4; `--sessions` plays the session schedule for a week,
   never judged. The engine's fit kit (`fitTable`, snapshots, `proveFit`, the profiler: `docs/fit-kit.md`) is for a
   game big enough to need it; the template has none.
-- **The tests.** `test/game.test.ts` and `test/app.test.tsx` (the game's rules and its page), `test/decimals.test.ts`
-  (no two Decimals compared with an operator: `decimalComparisons` from `watchpot/test`) and `test/parity.test.ts`
-  (`plainParity`: the sim's plain store and the page's real store play one seed identically).
+- **No tests.** The template ships none (the engine's gates prove it); a game that wants them writes its own on the
+  engine's test kit (`watchpot/test`: `freshStore`, `fixtureSave`, `renderWith`, `plainParity`,
+  `decimalComparisons`).
 - **Gating.** The flags are the features, the core (when it has producers) and the backdrop's base. `// @feature
   <flag>` (or `/* @feature <flag> */` in CSS) as a file's first line keeps the file only with that flag; `// @if
   <flag>` (or `!<flag>`, or `a|b`) to `// @end` keeps the lines between only then, and nests; in JSX,
   `{/* @if <f> */}` and `{/* @end */}`; in CSS, `/* @if <f> */` and `/* @end */`. A game without a feature has no
-  file, import, tab, column or test for it. The raw template keeps every block, so a block must also make sense
+  file, import, tab or column for it. The raw template keeps every block, so a block must also make sense
   beside every other.
 - **The example content** is regenerated with
   `bun templates/game/.scaffold/generate.ts --answers templates/game/.scaffold/answers.example.json --out templates/game --mode content`.
@@ -71,5 +71,5 @@ core with a clicker and achievements), `dimensions-reset.json` (the dimensions c
 visitor, in long sittings), `smallest.json` (three generators and the default look) and `smallest-clicker.json` (a
 clicker alone). `bun templates/game/.scaffold/shape.ts <answers> .scratch/shapes/<name>` writes one inside the engine
 checkout with no install; `test/tooling/template-shapes.slow.test.ts` does that for each fixture and type-checks,
-tests and runs the contract on the result. Before a release, run `new.ts` on them into `.scratch/` too: each must
-install, pass `bun run typecheck`, `bun run lint` and `bun test`, and hold its contract there.
+builds and runs the contract on the result. Before a release, run `new.ts` on them into `.scratch/` too: each must
+install, pass `bun run gates` (typecheck, lint, the build), and hold its contract there.

@@ -12,8 +12,8 @@ Needs Bun 1.4.3 or later (`bun check` typechecks).
 ```sh
 bun install
 bun run dev        # http://localhost:3000 (PORT=<n> for another); #dev opens the dev panel
-bun run verify     # typecheck, lint, the tests a change touches (every test before the first commit), the Decimal check
-bun run gates      # typecheck, lint, every fast test, the build; gates:full adds the slow tier and the contract
+bun run verify     # typecheck and lint
+bun run gates      # typecheck, lint, the build; gates:full adds the sim's contract
 bun run sim -- --contract     # four played hours on the auto-player, judged against the pacing bands
 bun run sim -- --sessions     # a week of a person coming and going, never judged
 bun run tokens     # after editing design/tokens.json
@@ -33,7 +33,10 @@ bun run lint:fix   # format
   `theme.css`; `src/ui/README.md` lists the `--ui-*` tokens they read.
 - `src/shaders/` the backdrop's fragment and its still.
 - `design/tokens.json` the palette and type, compiled to `src/tokens.css` by `bun run tokens` (commit both).
-- `sim/` the headless sim (`run.ts`) and what it reads off a row (`row.ts`). `test/` the game's tests.
+- `sim/` the headless sim (`run.ts`) and what it reads off a row (`row.ts`).
+
+The template ships no tests (the engine's gates prove it). A game that wants them writes its own on the engine's
+test kit (`watchpot/test`).
 
 The engine's guide is its `README.md` and `docs/` (`node_modules/watchpot/`). To move to a newer engine, change the
 tag on `watchpot` in `package.json` and run `bun install`.

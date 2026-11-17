@@ -6,7 +6,8 @@
  *
  * `out-dir` must sit inside the engine checkout (its `.scratch/`, which git ignores): the game's `package.json` is
  * left out, so `watchpot/*` resolves to the checkout's own source and every other import to its `node_modules`. Then
- * `bunx tsc -p <out-dir>`, and `bun test` and `bun sim/run.ts --contract` from inside it, run the shape as it stands.
+ * `bunx tsc -p <out-dir>`, the production build, and `bun sim/run.ts --contract` from inside it, run the shape as it
+ * stands.
  */
 import { rm } from "node:fs/promises";
 import { join, resolve } from "node:path";

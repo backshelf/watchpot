@@ -251,8 +251,7 @@ bun run verify
 bun run dev
 ```
 
-`verify` is typecheck, lint, and the tests your change touches since `main`; before there is a `main` to compare
-with, it runs every test. Open `http://localhost:3000`. The dev server runs with hot reload off (a Bun bug drops
+`verify` is typecheck and lint. Open `http://localhost:3000`. The dev server runs with hot reload off (a Bun bug drops
 CSS-module imports while it is on), so refresh to see a change.
 
 To hear the sim's verdict once, run `bun run sim -- --contract`. It plays four hours on the auto-player and checks
@@ -283,7 +282,11 @@ where things are. In brief:
   them later.
 - `src/tokens.css` is compiled from `design/tokens.json`. Run `bun run tokens` after every edit to the JSON, and
   commit both.
-- `sim/` and `test/` are what their names say.
+- `sim/` is the pacing sim: the auto-player and the contract it is held to.
+
+There is no `test/` folder. The engine's own checks prove the template builds, typechecks and holds its contract, so
+a new game starts with nothing to keep green but its own code. When you want tests of your own, `watchpot/test` is
+the kit for them ([chapter 12](12-proving-the-pacing.md)).
 
 One folder is not for you. `.claude/` holds the concept as the command took it down and notes written for an AI
 coding agent, which assume the game is being built that way. Read them if you are curious, delete them if you are
@@ -309,21 +312,23 @@ like yours:
 
 *VOID IF REMOVED, `package.json`*
 
-The one difference worth seeing is in `gates:full`: the template's version ends by running the sim's contract, and
-this one does not, because the game proves its pacing with a fit of its own instead (the large-game route in
+Two differences are worth seeing. VOID IF REMOVED added tests of its own on `watchpot/test`, so its `verify` and
+`gates` run them, where the template's run none. And its `gates:full` does not end by running the sim's contract,
+because the game proves its pacing with a fit of its own instead (the large-game route in
 [chapter 12](12-proving-the-pacing.md)). It also dropped the `tokens` script. The scripts are yours to change.
 
 ## The daily loop
 
 Three commands carry almost all of your working day. They are ordered by cost, and you run the cheap one most.
 
-- **`bun run verify`**: typecheck, lint, and only the tests your change touches. Run it before every commit. It takes
-  seconds.
-- **`bun run gates`**: typecheck, lint, every fast test, and a production build. Run it when a piece of work is done,
-  before you push. The build is there because a page can typecheck and still fail to bundle: a missing
+- **`bun run verify`**: typecheck and lint. Run it before every commit. It takes seconds.
+- **`bun run gates`**: typecheck, lint and a production build. Run it when a piece of work is done, before you
+  push. The build is there because a page can typecheck and still fail to bundle: a missing
   `src/tokens.css`, say, which typecheck never sees because `env.d.ts` declares every `.css` import.
-- **`bun run gates:full`**: the gates, plus the slow tests (files named `*.slow.test.ts`) and the pacing contract.
-  Run it at a checkpoint, not on every change.
+- **`bun run gates:full`**: the gates, plus the pacing contract. Run it at a checkpoint, not on every change.
+
+When you add tests of your own, add them to these scripts too: `bun test` in `gates`, and the slow ones (files named
+`*.slow.test.ts`) in `gates:full`.
 
 The sim is a measuring tool, not a test. Run `bun run sim` once after a change to numbers and read the table, add
 `--contract` when you want the verdict, and `--sessions` to watch a week of a person coming and going (never judged).

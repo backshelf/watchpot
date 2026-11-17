@@ -76,7 +76,7 @@ console.log(
     `  cd ${outArg}`,
     ...(install ? [] : ["  bun install && bun run lint:fix"]),
     "  git init -b main && git add -A && git commit -m \"feat: scaffold the game\"",
-    "  bun run verify     # typecheck, lint, tests",
+    "  bun run verify     # typecheck, lint",
     "  bun run dev        # http://localhost:3000, and play it",
   ].join("\n"),
 );

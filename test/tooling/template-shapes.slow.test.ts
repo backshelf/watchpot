@@ -1,7 +1,8 @@
 // Each of the template's fixture shapes, written as the scaffold would (no install: inside this checkout, on its own
-// source), must type-check, pass its own tests and hold its pacing contract.
+// source), must type-check, build in production and hold its pacing contract. The template ships no tests; the
+// engine's gates are what prove it.
 import { afterAll, describe, expect, test } from "bun:test";
-import { rmSync } from "node:fs";
+import { existsSync, rmSync } from "node:fs";
 import { join } from "node:path";
 import { writeShape } from "../../templates/game/.scaffold/shape";
 
@@ -28,15 +29,18 @@ describe.each(["everything", "dimensions", "dimensions-reset", "smallest", "smal
     const dir = join(SCRATCH, name);
 
     test(
-      "type-checks, passes its tests and holds its contract",
+      "type-checks, builds and holds its contract",
       async () => {
         await writeShape(join(ROOT, "templates", "game", ".scaffold", "fixtures", `${name}.json`), dir);
         const tsc = run([TSC, "-p", dir], ROOT);
         expect(tsc.out).toBe("");
         expect(tsc.code).toBe(0);
-        const tests = run(["bun", "test"], dir);
-        expect(tests.out).toContain(" 0 fail");
-        expect(tests.code).toBe(0);
+        const build = run(
+          ["bun", "build", "./index.html", "--outdir", join(dir, "dist"), "--production"],
+          dir,
+        );
+        expect(build.code).toBe(0);
+        expect(existsSync(join(dir, "dist", "index.html"))).toBe(true);
         const sim = run(["bun", "sim/run.ts", "--contract"], dir);
         expect(sim.out).not.toContain("| OUT |");
         expect(sim.code).toBe(0);

@@ -179,6 +179,25 @@ describe("what the template writes", () => {
     }
   });
 
+  test("a scaffolded game ships no tests: no test/ folder and no test script", async () => {
+    const answers = join(TEMPLATE, ".scaffold", "fixtures", "smallest.json");
+    const dir = join(await mkdtemp(join(tmpdir(), "watchpot-gen-")), "game");
+    try {
+      await generate({ answers, out: dir, engine: "v0.0.0", mode: "full", lint: false });
+      const files = readdirSync(dir, { recursive: true }).map((f) => String(f).replaceAll("\\", "/"));
+      expect(files.filter((f) => f === "test" || f.startsWith("test/"))).toEqual([]);
+      const scripts = JSON.parse(readFileSync(join(dir, "package.json"), "utf8")).scripts as Record<
+        string,
+        string
+      >;
+      expect(scripts.test).toBeUndefined();
+      expect(scripts["test:changed"]).toBeUndefined();
+      expect(scripts["test:slow"]).toBeUndefined();
+    } finally {
+      await rm(dirname(dir), { recursive: true, force: true });
+    }
+  });
+
   test("the default engine tag is this engine's own version", async () => {
     const pkg = JSON.parse(readFileSync(join(TEMPLATE, "..", "..", "package.json"), "utf8"));
     expect(await engineTag()).toBe(`v${pkg.version}`);

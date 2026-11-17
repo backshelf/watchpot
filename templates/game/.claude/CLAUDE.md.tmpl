@@ -107,15 +107,14 @@ cannot compile GLSL: a shader counts only once it has drawn in the browser with 
   module, and `theme.css` (the token contract and the page's base); `src/ui/README.md` lists every token
 - `design/tokens.json` the palette and type, compiled to `src/tokens.css` by `bun run tokens` (commit both); the
   fonts are Google-hosted, linked from `index.html`
-- `sim/` the headless sim and its timeline row · `test/` the game's tests
+- `sim/` the headless sim and its timeline row. The template ships no tests (the engine's gates prove it); a game
+  that wants them writes its own on the engine's test kit (`watchpot/test`)
 
 ## Commands
 
 - `bun run dev` serves the game at http://localhost:3000 (HMR off: refresh; `PORT=<n>` for another port).
-- `bun run verify`: typecheck, lint, the tests the change touches, and `test/decimals.test.ts` (no two Decimals
-  compared with an operator: use `.lt()`, `.gte()`, `.eq()`). Green before every commit.
-- `bun run gates`: typecheck, lint, every fast test, the build. `bun run gates:full` adds the slow tier and the
-  pacing contract.
+- `bun run verify`: typecheck, lint. Green before every commit.
+- `bun run gates`: typecheck, lint, the build. `bun run gates:full` adds the pacing contract.
 - `bun run sim -- [--hours=4] [--seed=sim] [--contract]`: played hours on `activeSchedule`, the contract judged at
   its hours. One run for a ballpark, never a loop.
 - `bun run sim -- --sessions [--days=7] [--seed=sim]`: the session schedule, days of coming and going, never judged.
@@ -133,9 +132,10 @@ cannot compile GLSL: a shader counts only once it has drawn in the browser with 
 
 1. Fix it where the rule lives: numbers and words in `src/content/`, rules in the feature in `src/game/`, looks in
    the screen, the component's module or `design/tokens.json`.
-2. A bug fix gets one test that fails on the old code. A new rule or mechanic gets a test only for what can break in
-   it (an ordering, an invariant, a boundary). No test for content, copy, a retune, a look, or anything the sim or the
-   type checker already pins: every test is paid for at every gate.
+2. The template ships no tests (the engine's gates prove the template); a game that grows its own (the engine's test
+   kit, `watchpot/test`) runs them itself. A bug fix gets one test that fails on the old code; a new rule or mechanic
+   gets a test only for what can break in it (an ordering, an invariant, a boundary); none for content, copy, a
+   retune, a look, or anything the sim or the type checker already pins.
 3. A change to a saved shape bumps `save.version` in `src/game/game.ts` with a migration step.
 4. A tuning change runs the sim once with `--contract`; a band moved on purpose says why in the commit.
 5. `bun run verify`, Conventional Commit on `main`, no trailers.
@@ -154,7 +154,8 @@ cannot compile GLSL: a shader counts only once it has drawn in the browser with 
 - One wall-clock read: `createGameStore`'s `now`. Game logic reads `api.now()` or the step's `ctx`.
 - Sounds are cues in `src/app/sound.ts`: zzfx voices, or a pack's recordings as `takes` with the voice kept until
   the pack has loaded.
-- `bun test` runs on happy-dom: no CSS, no layout. Assert elements by name. A test over a second is `*.slow.test.ts`.
+- Never compare two Decimals with an operator: use `.lt()`, `.gte()`, `.eq()`.
+- Tests run on happy-dom: no CSS, no layout. Assert elements by name. A test over a second is `*.slow.test.ts`.
 
 ## Git
 
