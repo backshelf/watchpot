@@ -178,6 +178,21 @@ export const IMPORT_RULES: ImportRule[] = [
     says: "No other entry imports `watchpot/devtools`, which carries stylesheets: only a game does.",
   },
   {
+    // The sim desk (`watchpot sim`): a Bun-only server, its per-seed workers and its page. It plays the sim, so it
+    // reads `/sim` and `/core`, and the command's own types; the CLI reaches it only by a dynamic import under Bun.
+    id: "desk-narrow",
+    from: /^src\/desk\//,
+    forbid: [/^src\/(?!desk\/|sim\/|core\/|cli\/)/],
+    says: "The sim desk (`src/desk/`) imports `/sim`, `/core` and the command's types, and no other engine entry.",
+  },
+  {
+    // The desk carries its own page and styles: only the `sim` command reaches it, by a dynamic import under Bun.
+    id: "desk-alone",
+    from: /^src\/(?!desk\/|cli\/index\.ts$)/,
+    forbid: ["src/desk/"],
+    says: "No engine entry imports the sim desk (`src/desk/`); the `sim` command loads it with a dynamic import.",
+  },
+  {
     id: "three-alone",
     from: /^src\/(?!three\/)/,
     forbid: ["src/three/", "pkg:watchpot/three"],
@@ -187,8 +202,8 @@ export const IMPORT_RULES: ImportRule[] = [
     // The `watchpot` command runs in a game on Node or Bun, before any build: Node built-ins and its own folder only.
     id: "cli-alone",
     from: /^src\/cli\//,
-    forbid: [/^(?!src\/cli\/|pkg:node:)/],
-    says: "The `watchpot` command (`src/cli/`) imports Node's built-ins and its own folder: no engine entry, no React.",
+    forbid: [/^(?!src\/cli\/|src\/desk\/server\.ts$|pkg:node:)/],
+    says: "The `watchpot` command (`src/cli/`) imports Node's built-ins and its own folder (and, under Bun only, the desk server): no engine entry, no React.",
   },
 ];
 

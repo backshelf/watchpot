@@ -49,7 +49,7 @@ export async function main(
         all.err("watchpot: sim needs Bun (the desk runs the game's TypeScript): run bunx watchpot sim");
         return 1;
       }
-      const { sim } = await import("./sim");
+      const { sim } = await import("../desk/server");
       return await sim(rest, cwd, all);
     }
     all.err(`watchpot: unknown command "${cmd}"`);

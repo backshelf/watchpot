@@ -1,0 +1,49 @@
+// The messages of `watchpot sim`'s WebSocket (`/ws`), shared by the server, its workers and, later, the page.
+// Decimals travel as strings (`Decimal#toString()`).
+import type { FittedGate } from "../sim/fit";
+
+/** What the page sends: one run of the desk. */
+export type ToServer = {
+  type: "run";
+  /** The page's number for this run; every answer carries it. */
+  id: number;
+  /** Full knob values; a missing key takes `knobs.defaults()`. */
+  knobs: Record<string, number>;
+  /** Gates set by hand, by key. */
+  pins: Record<string, { price?: string; atMs?: number }>;
+  /** 1..`desk.seeds.full`. */
+  seeds: number;
+};
+
+/** The desk's sample at a moment of play. */
+export interface DeskPoint {
+  atMs: number;
+  currencies: Record<string, string>;
+  next?: Record<string, { currency: string; cost: string }>;
+}
+
+/** What the server sends. `resumedFromMs` is set on a seed's first window when it resumed from a cached snapshot. */
+export type ToClient =
+  | {
+      type: "window";
+      id: number;
+      seed: number;
+      fromMs: number;
+      toMs: number;
+      points: DeskPoint[];
+      gates: FittedGate[];
+      resumedFromMs?: number;
+    }
+  | { type: "done"; id: number; seed: number; finished: boolean; playedMs: number }
+  | { type: "error"; id: number; seed?: number; message: string }
+  | { type: "cancelled"; id: number };
+
+/** What the server hands a worker to start a seed (the page never sees it). */
+export interface WorkerInit {
+  id: number;
+  deskPath: string;
+  cwd: string;
+  seed: number;
+  knobs: Record<string, number>;
+  pins: ToServer["pins"];
+}

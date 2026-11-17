@@ -3,26 +3,16 @@ import { afterAll, afterEach, beforeAll, describe, expect, test } from "bun:test
 import { mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { GlobalRegistrator } from "@happy-dom/global-registrator";
 import { main } from "../../src/cli/index";
-import { startSim } from "../../src/cli/sim";
+import { startSim } from "../../src/desk/server";
+import { useBunFetch } from "../happydom";
 
-// The test preload (happy-dom) replaces Response, Request, Headers and fetch, which Bun.serve and a cross-origin
-// request refuse. These tests use Bun's own for their run: unregister to reach them, register again (the preload's
-// cleanup needs `document`), then lay Bun's over happy-dom's until the file ends.
-const NATIVE = ["Response", "Request", "Headers", "fetch"] as const;
-const g = globalThis as Record<string, unknown>;
-let dom: Record<string, unknown> = {};
-beforeAll(async () => {
-  dom = Object.fromEntries(NATIVE.map((k) => [k, g[k]]));
-  await GlobalRegistrator.unregister();
-  const bun = Object.fromEntries(NATIVE.map((k) => [k, g[k]]));
-  GlobalRegistrator.register();
-  Object.assign(g, bun);
+// The test preload (happy-dom) replaces the fetch globals, which `Bun.serve` refuses: Bun's own for this file.
+let restore = (): void => {};
+beforeAll(() => {
+  restore = useBunFetch();
 });
-afterAll(() => {
-  Object.assign(g, dom);
-});
+afterAll(() => restore());
 
 async function get(url: string): Promise<{ status: number; type: string; body: string }> {
   const res = await fetch(url);
