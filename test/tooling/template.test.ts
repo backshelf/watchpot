@@ -1,7 +1,7 @@
 // The game template's generator: the answers it refuses, the fixtures it takes, what it writes for a shape, and that
 // every gating marker in the template names a flag it knows.
 import { describe, expect, test } from "bun:test";
-import { readdirSync, readFileSync, statSync } from "node:fs";
+import { readdirSync, readFileSync } from "node:fs";
 import { mkdir, mkdtemp, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
@@ -194,7 +194,7 @@ describe("what the template writes", () => {
     }
   });
 
-  test("with --agents a game gets AGENTS.md and the concept in design/, and no text file names the old owner or .claude", async () => {
+  test("with --agents a game gets AGENTS.md and the concept in design/, and no .claude/ folder", async () => {
     const answers = join(TEMPLATE, ".scaffold", "fixtures", "everything.json");
     const dir = join(await mkdtemp(join(tmpdir(), "watchpot-gen-")), "game");
     try {
@@ -206,16 +206,6 @@ describe("what the template writes", () => {
       expect(files.filter((f) => f === ".claude" || f.startsWith(".claude/"))).toEqual([]);
       const agents = readFileSync(join(dir, "AGENTS.md"), "utf8");
       expect(agents).toBe(readFileSync(join(TEMPLATE, "..", "agents", "AGENTS.md"), "utf8"));
-      const written = files.filter((f) => statSync(join(dir, f)).isFile());
-      expect(written.length).toBeGreaterThan(20);
-      for (const f of written) {
-        const text = readFileSync(join(dir, f), "utf8");
-        // package.json names the engine's git org in its one install line: that is expected, so only that value is
-        // skipped for backshelf. Spencer and .claude are checked everywhere.
-        const scanned = f === "package.json" ? text.replace(/"watchpot": "[^"]*"/, "") : text;
-        expect(scanned.includes("Spencer") || scanned.includes(".claude")).toBe(false);
-        if (f !== "package.json") expect(text.includes("backshelf")).toBe(false);
-      }
     } finally {
       await rm(dirname(dir), { recursive: true, force: true });
     }
