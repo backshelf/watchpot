@@ -281,6 +281,13 @@ describe("axes and scales", () => {
     expect(short(D(0))).toBe("0");
   });
 
+  test("an axis over every seed of every series (far past the call stack's argument limit) still works", () => {
+    const ys = Array.from({ length: 1_000_000 }, (_, i) => (i % 9) + 0.5);
+    const a = yAxis(ys, true);
+    expect(a.lo).toBe(0);
+    expect(a.hi).toBeGreaterThanOrEqual(8);
+  });
+
   test("a log axis takes whole powers; zeros do not move it", () => {
     const a = yAxis([Number.NEGATIVE_INFINITY, 0.4, 7.2], true);
     expect([a.lo, a.hi]).toEqual([0, 8]);

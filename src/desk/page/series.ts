@@ -459,10 +459,15 @@ export interface YAxis {
 
 /** The axis for some y values: whole powers of ten on a log axis; from zero to a round figure on a linear one. */
 export function yAxis(ys: readonly number[], log: boolean): YAxis {
-  const finite = ys.filter(Number.isFinite);
-  if (finite.length === 0) return { lo: 0, hi: 1, ticks: [0, 1] };
-  const min = Math.min(...finite);
-  const max = Math.max(...finite);
+  // A loop, not `Math.min(...ys)`: every seed of every series is hundreds of thousands of values, past the stack.
+  let min = Number.POSITIVE_INFINITY;
+  let max = Number.NEGATIVE_INFINITY;
+  for (const y of ys) {
+    if (!Number.isFinite(y)) continue;
+    if (y < min) min = y;
+    if (y > max) max = y;
+  }
+  if (min > max) return { lo: 0, hi: 1, ticks: [0, 1] };
   if (log) {
     const lo = Math.floor(min);
     const hi = Math.max(Math.ceil(max), lo + 1);
