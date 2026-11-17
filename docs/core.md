@@ -390,3 +390,12 @@ The store saves every feature's data under the game's `save.key` with `save.vers
   `fillDeep(saved, fresh)` from its own `merge`: it fills a key a newer build added at any depth, keeps a saved key
   `fresh` lacks (an id-keyed record), coerces a saved number or string where `fresh` holds a Decimal, and treats an
   array as a leaf. It returns a new object and mutates neither side.
+
+## Knobs
+
+`defineKnobs(spec, saved?)` names the numbers a game lets the sim turn (a price growth, a delay): each has a `value`, a
+`label`, a `group` and optionally `min`, `max`, `step` and a `unit` (`"ms"`, `"x"`, `"%"`). Game code reads one with
+`knobs.get("growth")` where it needs it. Knobs are config, never store state: there is no `select` and nothing is saved.
+Unbound, `get` returns the default (`defaults()` is a copy with `saved` laid over). `bind(reader)` reads from
+`reader.values` (the sim's `tunables`) until the next `bind`; `bind(null)` unbinds. One run binds at a time. It throws on
+an unknown key, a `saved` key that names no knob, a non-finite number, `min > max` and `step <= 0`; it never clamps.

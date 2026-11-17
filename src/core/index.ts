@@ -25,6 +25,7 @@ export * from "./graph/nodes";
 export * from "./graph/stats";
 export * from "./graph/yields";
 export * from "./journal";
+export * from "./knobs";
 export * from "./layers";
 export * from "./levels";
 export * from "./loadout";

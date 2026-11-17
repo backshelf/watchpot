@@ -122,3 +122,14 @@ judge(rows.rows, CONTRACT); // a verdict per band the run reached
   `formatProfile` prints it (`docs/fit-kit.md`).
 
 A game keeps its own personas, sample rows, tables and gate checks in its `sim/` on top of these.
+
+## The desk contract
+
+A game's `sim.desk.ts` default-exports `defineDesk({ vocab, knobs, currency, source, end, run })`: the vocab and the
+`defineKnobs` result, the currency progress is measured in, the `sourceKey` globs that invalidate a cached run, where a
+run ends (`end.hours`), and `run({ seed, from })`, which returns a `DeskRun` (a `FitRun` with its `table`, `gates`, an
+optional `done()` and `sample()`, every currency plus the price of what is next). `windowHours` (default 2) and `seeds`
+(`tuning` 1, `full` 8) are filled in, and `fit` may set `quality`, `stepMs`, `stepping`, `lookEvery` and
+`snapshotEveryMs`. `X`, the type of a snapshot's `extra`, is inferred from `run` when its `from` parameter is annotated.
+It throws on a currency outside the vocab, a non-positive `windowHours` or `end.hours`, and seed counts that are not
+positive integers; it returns a frozen object and does not call `run`.
