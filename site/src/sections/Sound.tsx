@@ -14,6 +14,8 @@ import {
   DEGREES,
   LINE,
   type MixSettings,
+  PRESET_NAMES,
+  type PresetName,
   SCALES,
   STEPS,
   TRACKS,
@@ -36,6 +38,10 @@ const fromCutoff = (hz: number) => (100 * Math.log(hz / CUT_LO)) / Math.log(CUT_
 const hz = (n: number) => (n >= 1000 ? `${(n / 1000).toFixed(1)} kHz` : `${n} Hz`);
 
 const range = (from: number, to: number) => Array.from({ length: to - from }, (_, i) => from + i);
+
+/** The audition row's voices, the engine's own split by bus: the eight `ui.*`, then the ten `sfx.*`. */
+const UI_VOICES = PRESET_NAMES.filter((name) => name.startsWith("ui."));
+const SFX_VOICES = PRESET_NAMES.filter((name) => name.startsWith("sfx."));
 
 /** A control: its name, its value in the mono, the engine's slider, and the call it makes. */
 function Knob({
@@ -226,6 +232,12 @@ export function Sound() {
       sound.play("blip", { step: rung, mine: true });
       setRung((n) => (n + 1) % 6);
     } else sound.play(cue, { mine: true });
+  };
+
+  const playPreset = (name: PresetName) => {
+    const sound = rig.current?.sound;
+    if (!sound || !on) return;
+    sound.play(name, { mine: true });
   };
 
   const say = () => {
@@ -422,6 +434,49 @@ export function Sound() {
               <p className="caption">
                 The blip climbs its cue's <code>ladder: "scale"</code> a step a press. The line is{" "}
                 <code>babble</code>: syllables of shaped buzz, printed as each one starts.
+              </p>
+            </div>
+          </div>
+
+          <div className="plate">
+            <div className="plate__head">
+              <h3>Default voices</h3>
+              <code className="sound__count">
+                cues: {"{"} coin: "sfx.coin" {"}"}
+              </code>
+            </div>
+            <div className="plate__body sound__pads">
+              <div className="sound__padrow">
+                {UI_VOICES.map((name) => (
+                  <button
+                    key={name}
+                    type="button"
+                    className="button"
+                    aria-disabled={!ready}
+                    aria-label={name}
+                    onClick={() => playPreset(name)}
+                  >
+                    {name.slice(name.indexOf(".") + 1)}
+                  </button>
+                ))}
+              </div>
+              <div className="sound__padrow">
+                {SFX_VOICES.map((name) => (
+                  <button
+                    key={name}
+                    type="button"
+                    className="button"
+                    aria-disabled={!ready}
+                    aria-label={name}
+                    onClick={() => playPreset(name)}
+                  >
+                    {name.slice(name.indexOf(".") + 1)}
+                  </button>
+                ))}
+              </div>
+              <p className="caption">
+                The engine's built-in voices: a cue may be just one of these names. <code>ui.*</code> plays on
+                the <code>ui</code> bus, the rest on <code>sfx</code>.
               </p>
             </div>
           </div>

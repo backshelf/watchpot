@@ -1,9 +1,36 @@
 // What the sound sheet plays, as plain data: the cues (zzfx voices, numbers only), the tracks, the opening pattern,
 // the blip's scale degrees and the mix's starting settings. Types alone come from `watchpot/sound`, so the page can
 // draw the instrument before the engine itself is loaded (`rig.ts` is imported on the visitor's press).
-import type { Cue, DefaultBus, Scale } from "watchpot/sound";
+import type { Cue, DefaultBus, PresetVoiceName, Scale } from "watchpot/sound";
 
 export type Bus = DefaultBus | "room";
+
+/**
+ * The engine's 18 preset voice names, copied in `PRESET_VOICE_NAMES`'s order (a test in `site/test` keeps the copy
+ * true). A cue may be just one of these strings; the engine resolves it to that voice on its bus.
+ */
+export const PRESET_NAMES = [
+  "ui.click",
+  "ui.hover",
+  "ui.open",
+  "ui.close",
+  "ui.toggle",
+  "ui.confirm",
+  "ui.error",
+  "ui.notify",
+  "sfx.coin",
+  "sfx.gem",
+  "sfx.pop",
+  "sfx.buy",
+  "sfx.hit",
+  "sfx.levelup",
+  "sfx.unlock",
+  "sfx.prestige",
+  "sfx.tick",
+  "sfx.whoosh",
+] as const satisfies readonly PresetVoiceName[];
+
+export type PresetName = (typeof PRESET_NAMES)[number];
 
 /** Every cue is zzfx voices: numbers, no recording. Short envelopes, quiet. */
 export const CUES = {

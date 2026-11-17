@@ -3,11 +3,19 @@
 // imports this module with `import()` from the press, so the engine (and its committed core) is fetched only then
 // where the bundler splits; `createSound` itself loads nothing, and `unlock()` makes the AudioContext and adds the core.
 import { type Babble, createSound, type Scale, type Sequence } from "watchpot/sound";
-import { CUES, DEGREES, type MixSettings, TRACKS } from "./score";
+import type { PresetName } from "./score";
+import { CUES, DEGREES, type MixSettings, PRESET_NAMES, TRACKS } from "./score";
 
 function build(mix: MixSettings) {
   return createSound({
-    cues: CUES,
+    // A preset name is its own shorthand cue; typed per name so `sound.play("sfx.coin")` checks beside the
+    // section's own cues.
+    cues: {
+      ...CUES,
+      ...(Object.fromEntries(PRESET_NAMES.map((n) => [n, n] as const)) as {
+        [N in PresetName]: N;
+      }),
+    },
     volume: 0.3,
     buses: {
       sfx: {
