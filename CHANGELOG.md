@@ -2,6 +2,10 @@
 
 Each release is a tag `vX.Y.Z`. A breaking change names its codemod in `codemods/` (policy in `codemods/README.md`).
 
+## 1.0.0-rc.8
+
+Fix: `bunx watchpot sim` in an installed game ran under Node (bunx honours the bin's node shebang) and refused to start; the bin now hands `sim` to Bun.
+
 ## 1.0.0-rc.7
 
 The sim desk: `bunx watchpot sim` serves a game's pacing as graphs and tables with knobs and gate pins that rerun from the snapshot cache and save to `sim.tuning.json`; the developer tools wear one token sheet (grey in a dark system).
