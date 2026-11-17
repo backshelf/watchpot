@@ -95,7 +95,10 @@ export function defineFeature<
 export function defineFeature(
   def: FeatureDef<string, object, object, ReachShape, object, unknown, unknown>,
 ): Feature<string, object, object, unknown, unknown> {
-  if (def.key.includes(".")) throw new Error(`feature "${def.key}": a key cannot contain "."`);
+  if (def.key.includes("."))
+    throw new Error(
+      `feature "${def.key}": the key cannot contain ".": rename the feature, as state paths and step ids are dotted with it`,
+    );
   for (const phase of EARNING_PHASES)
     for (const [name, entry] of Object.entries(def.steps?.[phase] ?? {}))
       if (typeof entry === "function" || entry.pass === undefined)

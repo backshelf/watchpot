@@ -221,6 +221,6 @@ describe("derived values", () => {
 
   test("a derived value named like a field or an action is refused", () => {
     const clash = defineFeature({ key: "clash", initial: () => ({ n: 1 }), derived: { n: () => 2 } });
-    expect(() => defineGame({ id: "clash", save, features: [clash] })).toThrow('derived value "n"');
+    expect(() => defineGame({ id: "clash", save, features: [clash] })).toThrow("derived value `n`");
   });
 });

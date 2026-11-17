@@ -5,7 +5,10 @@ export function flatDerived(given: unknown): Readonly<Record<string, (state: nev
   const out: Block = {};
   for (const layer of given as readonly (Block | undefined)[])
     for (const [name, fn] of Object.entries(layer ?? {})) {
-      if (name in out) throw new Error(`a derived value "${name}" is declared in two layers`);
+      if (name in out)
+        throw new Error(
+          `a derived value "${name}" is declared in two layers of the \`derived\` block: rename one, or fold the two into one layer`,
+        );
       out[name] = fn;
     }
   return out;

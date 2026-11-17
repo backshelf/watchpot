@@ -251,7 +251,9 @@ export function createMixer<B extends string>(options: MixerOptions<B>, port: Co
   const slots: (string | null)[] = [...DEFAULT_BUSES];
   for (const name of Object.keys(declared)) if (name !== MASTER && !slots.includes(name)) slots.push(name);
   if (slots.length > LIMITS.MAX_BUSES - 1)
-    throw new Error(`watchpot/sound: ${slots.length} buses, but the core holds ${LIMITS.MAX_BUSES - 1}`);
+    throw new Error(
+      `watchpot/sound: ${slots.length} buses, but the core holds ${LIMITS.MAX_BUSES - 1}: drop or merge buses in \`buses\``,
+    );
   /** The buses the desk made. */
   const madeBuses = new Set<string>();
 
@@ -288,27 +290,31 @@ export function createMixer<B extends string>(options: MixerOptions<B>, port: Co
     const def = defOf(name);
     const out = declaredOut(name);
     if (out !== MASTER && !isBus(out))
-      throw new Error(`watchpot/sound: bus "${name}" sums into "${out}", which is not a bus`);
+      throw new Error(
+        `watchpot/sound: bus "${name}" sums into "${out}", which is not a bus: set \`out\` to an existing bus, or leave it out to sum into the master`,
+      );
     for (const to of Object.keys(def.sends ?? {}))
       if (!isBus(to) || to === name)
-        throw new Error(`watchpot/sound: bus "${name}" sends to "${to}", which is not another bus`);
+        throw new Error(
+          `watchpot/sound: bus "${name}" sends to "${to}", which is not another bus: name an existing other bus in \`sends\`, or drop the send`,
+        );
     if (def.volume !== undefined && (!isBus(def.volume) || def.volume === name))
       throw new Error(
-        `watchpot/sound: bus "${name}" takes the volume of "${def.volume}", which is not another bus`,
+        `watchpot/sound: bus "${name}" takes the volume of "${def.volume}", which is not another bus: set \`volume\` to an existing other bus, or leave it out`,
       );
     const fx = def.fx ?? [];
     if (fx.length > LIMITS.FX_SLOTS)
       throw new Error(
-        `watchpot/sound: bus "${name}" has ${fx.length} effects; a bus holds ${LIMITS.FX_SLOTS}`,
+        `watchpot/sound: bus "${name}" has ${fx.length} effects; a bus holds ${LIMITS.FX_SLOTS}: drop some from its \`fx\``,
       );
     const units: Unit[] = fx.map((unit, at) => {
       if (unit.kind === "compressor" && unit.key !== undefined && !isBus(unit.key))
         throw new Error(
-          `watchpot/sound: a compressor on "${name}" listens to "${unit.key}", which is not a bus`,
+          `watchpot/sound: a compressor on "${name}" listens to "${unit.key}", which is not a bus: set \`key\` to an existing bus, or leave it out to listen to "${name}"`,
         );
       if (unit.id !== undefined && (/^\d*$/.test(unit.id) || unit.id.includes(":")))
         throw new Error(
-          `watchpot/sound: an effect on "${name}" is named "${unit.id}"; a name has a letter in it and no colon`,
+          `watchpot/sound: an effect on "${name}" is named "${unit.id}"; an \`id\` needs a letter in it and no colon: rename it, or leave \`id\` out to go by its slot`,
         );
       const key = unit.kind === "compressor" ? unit.key : undefined;
       return {
@@ -322,7 +328,9 @@ export function createMixer<B extends string>(options: MixerOptions<B>, port: Co
     });
     for (const unit of units)
       if (units.some((other) => other !== unit && other.id === unit.id))
-        throw new Error(`watchpot/sound: two effects on "${name}" are named "${unit.id}"`);
+        throw new Error(
+          `watchpot/sound: two effects on "${name}" are named "${unit.id}": give each a different \`id\``,
+        );
     declaredUnits.set(name, units);
     chains.set(name, [...units]);
   }
@@ -337,7 +345,9 @@ export function createMixer<B extends string>(options: MixerOptions<B>, port: Co
       const next = names.find((name) => !done.has(name) && deps(name).every((to) => done.has(to)));
       if (next === undefined) {
         const left = names.filter((name) => !done.has(name)).join(", ");
-        throw new Error(`watchpot/sound: the buses ${left} feed each other in a cycle`);
+        throw new Error(
+          `watchpot/sound: the buses ${left} feed each other in a cycle: point one's \`out\` or \`sends\` back at the master, or drop a link`,
+        );
       }
       done.add(next);
     }
@@ -416,23 +426,32 @@ export function createMixer<B extends string>(options: MixerOptions<B>, port: Co
   for (const [scene, def] of Object.entries(options.scenes ?? {})) {
     const layer = new Map<string, number>();
     if (def.label !== undefined) labels[scene] = def.label;
-    const fail = (what: string) => {
-      throw new Error(`watchpot/sound: scene "${scene}" names ${what}, which does not exist`);
+    const fail = (what: string, fix: string) => {
+      throw new Error(`watchpot/sound: scene "${scene}" names ${what}, which does not exist: ${fix}`);
     };
     for (const [bus, says] of Object.entries(def.buses ?? {}) as [string, SceneBus<string> | undefined][]) {
-      if (bus !== MASTER && !isBus(bus)) fail(`bus "${bus}"`);
+      if (bus !== MASTER && !isBus(bus))
+        fail(`bus "${bus}"`, `use a bus that \`buses\` (or a default) declares, or drop it from this scene`);
       if (!says) continue;
       if (says.level !== undefined) layer.set(levelKey(bus), says.level);
       for (const [to, level] of Object.entries(says.sends ?? {})) {
         const key = sendKey(bus, to);
-        if (!key) fail(`a send from "${bus}" to "${to}"`);
+        if (!key)
+          fail(
+            `a send from "${bus}" to "${to}"`,
+            `point \`sends\` from a non-master bus to another, or drop the entry`,
+          );
         else if (typeof level === "number") layer.set(key, Math.max(0, level));
       }
       for (const [slot, settings] of Object.entries(says.fx ?? {}))
         for (const [param, raw] of Object.entries(settings)) {
           const key = fxKey(bus, slot, param);
           const value = toWire(param, raw);
-          if (!key) fail(`"${param}" of effect ${slot} on "${bus}"`);
+          if (!key)
+            fail(
+              `"${param}" of effect ${slot} on "${bus}"`,
+              `name an effect the bus's \`fx\` has, by \`id\` or slot, and a setting its kind takes`,
+            );
           else if (value !== undefined) {
             layer.set(key, value);
             // The mix has no value of its own for it (the effect's default lives in the core), so nothing takes the
@@ -903,7 +922,7 @@ export function createMixer<B extends string>(options: MixerOptions<B>, port: Co
     const asWanted = (name: string) => wanted.get(name) ?? MASTER;
     if (live().some((name) => loops(name, asWanted(name), asWanted)))
       console.warn(
-        "watchpot/sound: a mix file's buses feed each other in a cycle; their outputs are left alone",
+        "watchpot/sound: a mix file's buses feed each other in a cycle, so their outputs are left alone: untangle them in the mix desk, or edit the file's `out`s",
       );
     else
       for (const name of live()) {
@@ -1049,13 +1068,24 @@ export function createMixer<B extends string>(options: MixerOptions<B>, port: Co
       return UNTOUCHED;
     },
     target(target) {
-      const fail = (): never => {
-        throw new Error(`watchpot/sound: a mod route drives ${JSON.stringify(target)}, which does not exist`);
+      const fail = (fix: string): never => {
+        throw new Error(
+          `watchpot/sound: a mod route drives ${JSON.stringify(target)}, which does not exist: ${fix}`,
+        );
       };
       if ("level" in target)
-        return target.bus === MASTER || isBus(target.bus) ? levelKey(target.bus) : fail();
-      if ("send" in target) return sendKey(target.bus, target.send) ?? fail();
-      return fxKey(target.bus, target.fx, target.param) ?? fail();
+        return target.bus === MASTER || isBus(target.bus)
+          ? levelKey(target.bus)
+          : fail(`use a bus that \`buses\` (or a default) declares, or the master`);
+      if ("send" in target)
+        return (
+          sendKey(target.bus, target.send) ??
+          fail(`set \`bus\` and \`send\` to two existing, different buses`)
+        );
+      return (
+        fxKey(target.bus, target.fx, target.param) ??
+        fail(`name an effect the bus's \`fx\` has, by \`id\` or slot, and a setting its kind takes`)
+      );
     },
     drive(key, driveValue, slewMs) {
       if (!targets.has(key)) return;

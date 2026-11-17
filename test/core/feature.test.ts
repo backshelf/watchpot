@@ -110,12 +110,12 @@ describe("defineGame refuses", () => {
 
   test("two features with the same key, naming it", () => {
     const twin = defineFeature({ key: "wallet", initial: () => ({ x: 1 }) });
-    expect(() => defineGame({ id: "dup", save, features: [wallet, twin] })).toThrow('key "wallet"');
+    expect(() => defineGame({ id: "dup", save, features: [wallet, twin] })).toThrow("share the key `wallet`");
   });
 
   test("a feature named like the built-in clock when no clock fields are given", () => {
     const clockish = defineFeature({ key: "clock", initial: () => ({ lastSeen: 0 }) });
-    expect(() => defineGame({ id: "clockish", save, features: [clockish] })).toThrow('key "clock"');
+    expect(() => defineGame({ id: "clockish", save, features: [clockish] })).toThrow("share the key `clock`");
   });
 
   test("an after target no feature declares, one in another phase, and one that is no step", () => {
@@ -126,13 +126,13 @@ describe("defineGame refuses", () => {
         steps: { sync: { x: { after: target, run: () => {} } } },
       });
     expect(() => defineGame({ id: "order", save, features: [step("nobody.sync.y")] })).toThrow(
-      'no feature "nobody"',
+      "no feature `nobody`",
     );
     expect(() => defineGame({ id: "order", save, features: [step("w.produce.y")] })).toThrow(
       "not a step of the sync phase",
     );
     expect(() => defineGame({ id: "order", save, features: [step("w.sync.y")] })).toThrow(
-      "declares no such step",
+      "does not declare in sync",
     );
   });
 
@@ -142,17 +142,17 @@ describe("defineGame refuses", () => {
       initial: () => ({ a: 1 }) as { a: number; b?: number },
       transient: ["b"],
     });
-    expect(() => defineGame({ id: "leaky", save, features: [leaky] })).toThrow('transient key "b"');
+    expect(() => defineGame({ id: "leaky", save, features: [leaky] })).toThrow("transient key `b`");
     const keepy = defineFeature({
       key: "keepy",
       initial: () => ({ a: 1 }) as { a: number; b?: number },
       reset: { keep: ["b"] },
     });
-    expect(() => defineGame({ id: "keepy", save, features: [keepy] })).toThrow('kept key "b"');
+    expect(() => defineGame({ id: "keepy", save, features: [keepy] })).toThrow("kept key `b`");
   });
 
   test("a reach the game does not list", () => {
-    expect(() => defineGame({ id: "reach", save, features: [generator] })).toThrow('reaches "wallet"');
+    expect(() => defineGame({ id: "reach", save, features: [generator] })).toThrow("reaches `wallet`");
     expect(() => defineGame({ id: "reach", save, features: [wallet, generator, prestige] })).not.toThrow();
   });
 
@@ -163,7 +163,7 @@ describe("defineGame refuses", () => {
       initial: () => ({}),
       steps: { sync: { "x.y": () => {} } },
     });
-    expect(() => defineGame({ id: "dotted", save, features: [dotted] })).toThrow('"x.y"');
+    expect(() => defineGame({ id: "dotted", save, features: [dotted] })).toThrow("step name `x.y`");
   });
 
   test("the toy itself is well formed", () => {
