@@ -10,6 +10,7 @@
       "docs/examples/**",
       ".agents/skills/watchpot-init/references/examples/**",
       "examples/**",
+      "packages/**",
       "site/**",
       "*.json",
       "!api",

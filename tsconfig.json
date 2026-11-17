@@ -22,6 +22,7 @@
     "docs/examples",
     ".agents/skills/watchpot-init/references/examples",
     "examples",
+    "packages",
     "templates",
     "site"
   ],

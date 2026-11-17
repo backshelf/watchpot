@@ -1207,16 +1207,15 @@ export function templateVars(pl: Plan, engine: string): Record<string, string> {
 /** This template, and the engine it ships in (a checkout, or `node_modules/watchpot`). */
 const HERE = dirname(fileURLToPath(import.meta.url));
 export const TEMPLATE = resolve(HERE, "..");
-const ENGINE = resolve(TEMPLATE, "..", "..");
 /**
  * Whether this file is the script being run. Compared by file name, not by `import.meta.url`: in a bundle (`new.ts`
  * built for Node) every module shares the bundle's URL, so only this tells the CLI apart from an import.
  */
 const isEntry = resolve(process.argv[1] ?? "") === join(HERE, "generate.ts");
 
-/** The engine tag this template belongs to: `v` and the engine's `package.json` version. */
-export async function engineTag(): Promise<string> {
-  const pkg = JSON.parse(await readFile(join(ENGINE, "package.json"), "utf8")) as { version: string };
+/** The engine tag a template belongs to: `v` and its engine's `package.json` version (this engine's, by default). */
+export async function engineTag(template = TEMPLATE): Promise<string> {
+  const pkg = JSON.parse(await readFile(join(engineOf(template), "package.json"), "utf8")) as { version: string };
   return `v${pkg.version}`;
 }
 
@@ -1229,11 +1228,14 @@ async function vacant(dir: string): Promise<boolean> {
   }
 }
 
+/** The engine a `templates/game` folder ships in: two folders up (`<engine>/templates/game`). */
+const engineOf = (template: string) => resolve(template, "..", "..");
+
 /** Copies the template into `out`, leaving out its scaffold, installs and git folder. */
-async function copyTemplate(out: string) {
-  await cp(TEMPLATE, out, {
+async function copyTemplate(out: string, template: string) {
+  await cp(template, out, {
     recursive: true,
-    filter: (src) => !/[\\/](node_modules|\.git|\.scaffold)([\\/]|$)/.test(src.slice(TEMPLATE.length)),
+    filter: (src) => !/[\\/](node_modules|\.git|\.scaffold)([\\/]|$)/.test(src.slice(template.length)),
   });
 }
 
@@ -1246,13 +1248,13 @@ async function writeTokens(out: string) {
  * Formats and fixes the written game with Biome (its own `biome.json`): the game's install when it has one, else the
  * engine's. False when neither has Biome; `bun run lint:fix` after the install does the same.
  */
-function lintFix(out: string): boolean {
+function lintFix(out: string, engine: string): boolean {
   let bin: string;
   try {
     bin = createRequire(join(out, "package.json")).resolve("@biomejs/biome/bin/biome");
   } catch {
     try {
-      bin = createRequire(join(ENGINE, "package.json")).resolve("@biomejs/biome/bin/biome");
+      bin = createRequire(join(engine, "package.json")).resolve("@biomejs/biome/bin/biome");
     } catch {
       return false;
     }
@@ -1277,20 +1279,24 @@ export async function generate(opts: {
   agents?: boolean;
   /** The closing Biome pass (default on). */
   lint?: boolean;
+  /** The `templates/game` folder to copy and write from (default this one, in this engine). */
+  template?: string;
 }) {
   // An absolute folder: Bun on Windows refuses `mkdir(".", { recursive: true })`.
   opts = { ...opts, out: resolve(opts.out) };
+  const template = resolve(opts.template ?? TEMPLATE);
+  const engine = engineOf(template);
   const pl = plan(JSON.parse(await readFile(opts.answers, "utf8")));
   if (opts.mode === "full") {
-    if (opts.out === TEMPLATE)
+    if (opts.out === template)
       throw new Error("--out is the template itself: full mode would rewrite it (regenerate its content with --mode content)");
-    if (await vacant(opts.out)) await copyTemplate(opts.out);
+    if (await vacant(opts.out)) await copyTemplate(opts.out, template);
     else if (!(await walk(opts.out)).some((rel) => rel.endsWith(".tmpl")))
       throw new Error(`${opts.out} holds no *.tmpl files: give an empty folder, or a fresh copy of the template`);
   }
   const files = contentFiles(pl, opts.mode === "content", opts.agents);
   for (const [rel, text] of Object.entries(files)) await write(join(opts.out, rel), text);
-  if (opts.agents) await write(join(opts.out, "AGENTS.md"), await readFile(join(TEMPLATE, "..", "agents", "AGENTS.md"), "utf8"));
+  if (opts.agents) await write(join(opts.out, "AGENTS.md"), await readFile(join(engine, "templates", "agents", "AGENTS.md"), "utf8"));
   if (opts.mode === "content") return pl;
   const chosen = flagsOf(pl);
   const vars = templateVars(pl, opts.engine);
@@ -1315,7 +1321,7 @@ export async function generate(opts: {
     } else if (gated !== text) await writeFile(path, gated);
   }
   await writeTokens(opts.out);
-  if (opts.lint !== false && !lintFix(opts.out)) console.warn("generate: no Biome to format with; run `bun run lint:fix` after `bun install`");
+  if (opts.lint !== false && !lintFix(opts.out, engine)) console.warn("generate: no Biome to format with; run `bun run lint:fix` after `bun install`");
   return pl;
 }
 
@@ -1324,13 +1330,21 @@ if (isEntry) {
   const out = arg("out");
   if (!answers || !out) {
     console.error(
-      "usage: bun .scaffold/generate.ts --answers <file> --out <dir> [--engine <tag, default this engine's>] [--mode full|content] [--agents]",
+      "usage: bun .scaffold/generate.ts --answers <file> --out <dir> [--engine <tag, default this engine's>] [--mode full|content] [--agents] [--template <templates/game dir>]",
     );
     process.exit(2);
   }
   const mode = arg("mode") === "content" ? "content" : "full";
   const agents = process.argv.includes("--agents");
-  const pl = await generate({ answers, out, engine: arg("engine") ?? (await engineTag()), mode, agents });
+  const template = resolve(arg("template") ?? TEMPLATE);
+  const pl = await generate({
+    answers,
+    out,
+    engine: arg("engine") ?? (await engineTag(template)),
+    mode,
+    agents,
+    template,
+  });
   for (const w of lookWarnings(pl)) console.warn(`look: ${w}`);
   console.log(`generated ${pl.name} (${mode}): ${pl.core}${[...pl.features].map((f) => `, ${f}`).join("")}, ${pl.surface} backdrop`);
 }
