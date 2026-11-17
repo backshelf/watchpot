@@ -4,6 +4,7 @@ Each release is a tag `vX.Y.Z`. A breaking change names its codemod in `codemods
 
 ## Unreleased
 
+- `defineKnobs` (`watchpot/core`) and `defineDesk` (`watchpot/sim`): the types a game uses to describe its knobs and its runs to the sim desk. Game code reads a knob with `knobs.get(key)`; the sim binds a run's `tunables` to track each read.
 - `runFit` takes `pinned`: a gate's price or minute set by hand is used as given and never overwritten, and the fit reports what it pinned and what it would have priced itself (`fitValue`); `fitHolds` and `SimCache.resume` see a changed pin as a changed plan. `FitGate`, `FittedGate`, `FitOptions` and `runFit` take the gate keys as `K`.
 
 ## 1.0.0-rc.6
