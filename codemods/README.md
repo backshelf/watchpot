@@ -15,13 +15,5 @@ A release that breaks a consumer's code ships a codemod beside it, so a game upg
 
 ## So far
 
-- `0.3.0-headless-kit.ts`: the styled kit retires; imports split by where each name lives now, with `--vendor` to copy
-  the retired sources into the game.
-- `0.9.0-sound.ts`: the sound comes from `watchpot/sound` alone. It moves the sound names a game imports from
-  `watchpot/kit`, and lists every use of `createStems`, `stemOffset`, `mixLayers`, `soundSamples` and `.context()` with
-  what to write instead. A game that already imports `watchpot/sound` (the template, the example) has nothing to
-  rewrite and only the listed call sites to read.
-- `0.17.0-watchpot.ts`: the package's old codename becomes `watchpot` in a game's specifiers, dependency and docs.
-- `0.18.0-offline-credit.ts`: optional. The pure helpers `catchUp` and `catchUpSteps` (and their types) become
-  `offlineCredit` and `offlineSteps`; the old names stay as deprecated aliases. The store's `catchUp` action keeps its
-  name, and the codemod leaves members, strings and comments alone.
+None. 1.0 is a clean break with no codemod: its changes are listed old → new in `docs/migrating-to-1.0.md`.
+Codemods start with the first breaking release after it.

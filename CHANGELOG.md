@@ -39,6 +39,7 @@ across with its numbers unchanged.
 - **Agent skills.** The engine ships `watchpot-sound`, `watchpot-features` and `watchpot-save` beside `watchpot-init`; the guide gains a three-line sound start and a page on how the page boots.
 - **Tests.** `decimalComparisons` fails a game's tests on Decimals compared with `<` or `===`. `plainParity` proves
   a game's sim and its real store agree. The guide's examples are run against what the chapters quote.
+- **Codemods.** The pre-1.0 codemods are gone; `codemods/` keeps its rules for the releases after 1.0.
 - **Template.** A new game ships no tests (the engine's gates prove the template); `verify` is typecheck and lint,
   `gates` adds the build.
 - **Agent docs are opt-in.** A new game ships no `.claude/`; `--agents` adds a generic `AGENTS.md` and the concept in `design/`.

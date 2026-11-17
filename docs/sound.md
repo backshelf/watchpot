@@ -88,5 +88,4 @@ FLAC files and a typed manifest through `ffmpeg`, and is never in a game's bundl
   layer list's length by zzfx's own envelope arithmetic. None of them imports zzfx. The 0.6 `clips`, `ClipLayer` and
   `SoundOptions.samples` are still read; a new cue names `takes`.
 - **0.9.0 removed** `createStems` and `stemOffset` (a score is `sound.music`), `soundSamples` and `mixLayers`, and
-  `watchpot/kit` exports no sound: import it from `watchpot/sound`. `codemods/0.9.0-sound.ts` rewrites the imports and
-  lists what is left to hand.
+  `watchpot/kit` exports no sound: import it from `watchpot/sound`.
