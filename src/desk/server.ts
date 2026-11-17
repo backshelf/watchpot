@@ -1,11 +1,12 @@
 // `watchpot sim`: serves the sim desk for a game on localhost and opens it in the browser. Bun only: the desk file is
 // the game's TypeScript, imported as it is. `startSim` is the server; `sim` is the command around it.
-import { existsSync } from "node:fs";
-import { resolve } from "node:path";
+import { existsSync, readFileSync, writeFileSync } from "node:fs";
+import { dirname, resolve } from "node:path";
 import { pathToFileURL } from "node:url";
 import type { CliIo } from "../cli/index";
+import { D } from "../core/decimal";
 import page from "./page/index.html";
-import type { DeskInfo, ToClient, ToServer, WorkerInit } from "./protocol";
+import type { DeskInfo, ToClient, ToServer, TuningFile, WorkerInit } from "./protocol";
 
 const DEFAULT_PORT = 4777;
 const DESK_FILE = "sim.desk.ts";
@@ -43,13 +44,71 @@ function isDesk(v: unknown): v is DeskShape {
   );
 }
 
-/** The desk as the page and `/api/desk` both show it: knobs in spec order, each with its current value. */
-function deskData(desk: DeskShape): DeskInfo {
-  const defaults = desk.knobs.defaults();
+const TUNING_FILE = "sim.tuning.json";
+
+/** A pin's price or minute as the desk reads them; a reason when it is not one. */
+function pinProblem(k: string, p: unknown): string | undefined {
+  if (!isObject(p)) return `pin "${k}" must be an object`;
+  if (p.price !== undefined) {
+    if (typeof p.price !== "string") return `pin "${k}": price must be a string`;
+    let ok = false;
+    try {
+      const d = D(p.price);
+      ok = d.isFinite() && d.gt(0);
+    } catch {
+      ok = false;
+    }
+    if (!ok) return `pin "${k}": price must be a positive number`;
+  }
+  if (p.atMs !== undefined && (typeof p.atMs !== "number" || !Number.isFinite(p.atMs) || p.atMs < 0))
+    return `pin "${k}": atMs must be a finite number from 0`;
+  return undefined;
+}
+
+/** A tuning body's problem, or undefined when it is a `TuningFile` over the desk's knobs. */
+function tuningProblem(raw: unknown, spec: Record<string, unknown>): string | undefined {
+  if (!isObject(raw)) return "expected an object with knobs and pins";
+  if (!isObject(raw.knobs)) return "knobs must be an object of numbers";
+  for (const [k, v] of Object.entries(raw.knobs)) {
+    if (!Object.hasOwn(spec, k)) return `unknown knob "${k}"`;
+    if (typeof v !== "number" || !Number.isFinite(v)) return `knob "${k}" must be a finite number`;
+  }
+  if (!isObject(raw.pins)) return "pins must be an object";
+  for (const [k, p] of Object.entries(raw.pins)) {
+    const bad = pinProblem(k, p);
+    if (bad) return bad;
+  }
+  return undefined;
+}
+
+/** Reads `sim.tuning.json`; a missing file is empty, a malformed one throws. */
+function readTuning(path: string, spec: Record<string, unknown>): TuningFile {
+  if (!existsSync(path)) return { knobs: {}, pins: {} };
+  let raw: unknown;
+  try {
+    raw = JSON.parse(readFileSync(path, "utf8"));
+  } catch (err) {
+    throw new Error(`${path} is not a tuning file: ${err instanceof Error ? err.message : String(err)}`);
+  }
+  const bad = tuningProblem(raw, spec);
+  if (bad) throw new Error(`${path} is not a tuning file: ${bad}`);
+  return raw as TuningFile;
+}
+
+const sorted = <T>(o: Record<string, T>): Record<string, T> =>
+  Object.fromEntries(Object.entries(o).sort(([a], [b]) => (a < b ? -1 : a > b ? 1 : 0)));
+
+/**
+ * The desk as the page and `/api/desk` show it. A knob's `value` is the saved one when the tuning file holds it, else
+ * the code's: read from the file the desk last wrote, not from the game's import at start, so a reload after a Save
+ * shows what was saved.
+ */
+function deskData(desk: DeskShape, tuning: TuningFile, tuningFile: string): DeskInfo {
   const knobs = Object.entries(desk.knobs.spec).map(([key, spec]) => ({
     key,
     ...spec,
-    value: defaults[key],
+    value: Object.hasOwn(tuning.knobs, key) ? (tuning.knobs[key] as number) : (spec.value as number),
+    code: spec.value,
   }));
   return {
     currency: desk.currency,
@@ -58,6 +117,8 @@ function deskData(desk: DeskShape): DeskInfo {
     end: desk.end,
     seeds: desk.seeds,
     knobs: knobs as DeskInfo["knobs"],
+    pins: tuning.pins,
+    tuningFile,
   };
 }
 
@@ -73,7 +134,8 @@ export async function startSim(options: {
   const mod = await import(pathToFileURL(path).href);
   if (!isDesk(mod.default)) throw new Error(`${path} does not default-export defineDesk({...})`);
   const desk = mod.default as DeskShape;
-  const data = deskData(desk);
+  const tuningFile = resolve(dirname(path), TUNING_FILE);
+  let tuning = readTuning(tuningFile, desk.knobs.spec);
   const full = desk.seeds.full;
   const sockets = new Set<{ send(text: string): unknown }>();
   const send = (m: ToClient): void => {
@@ -143,6 +205,32 @@ export async function startSim(options: {
       w.postMessage(init);
     }
   };
+  const saveTuning = async (req: Request): Promise<Response> => {
+    const bad = (error: string) => Response.json({ error }, { status: 400 });
+    let raw: unknown;
+    try {
+      raw = await req.json();
+    } catch {
+      return bad("not JSON");
+    }
+    const problem = tuningProblem(raw, desk.knobs.spec);
+    if (problem) return bad(problem);
+    const body = raw as TuningFile;
+    const knobs: Record<string, number> = {};
+    for (const [k, v] of Object.entries(body.knobs)) if (v !== desk.knobs.spec[k]?.value) knobs[k] = v;
+    const file: TuningFile = { knobs: sorted(knobs), pins: sorted(body.pins) };
+    try {
+      writeFileSync(
+        tuningFile,
+        `${JSON.stringify(file, null, 2)}
+`,
+      );
+    } catch (err) {
+      return bad(`could not write ${tuningFile}: ${err instanceof Error ? err.message : String(err)}`);
+    }
+    tuning = file;
+    return Response.json({ ok: true });
+  };
   const server = Bun.serve({
     hostname: "127.0.0.1",
     port: options.port ?? DEFAULT_PORT,
@@ -180,7 +268,9 @@ export async function startSim(options: {
         if (srv.upgrade(req)) return undefined;
         return new Response("expected a WebSocket upgrade", { status: 426 });
       }
-      if (req.method === "GET" && pathname === "/api/desk") return Response.json(data);
+      if (req.method === "GET" && pathname === "/api/desk")
+        return Response.json(deskData(desk, tuning, tuningFile));
+      if (req.method === "POST" && pathname === "/api/tuning") return saveTuning(req);
       return new Response("not found", { status: 404 });
     },
   });

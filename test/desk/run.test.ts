@@ -107,6 +107,31 @@ describe("the sim desk's run service", () => {
     expect(again.at(-1)?.points.at(-1)).toEqual(first.at(-1)?.points.at(-1));
   }, 60_000);
 
+  test("a rerun replays the earlier windows as cached, then the live ones", async () => {
+    const dir = copy();
+    const a = await connect(dir);
+    a.run({ id: 1 });
+    const first = windows(await a.until(finished(1)), 1);
+    const b = await connect(dir);
+    b.run({ id: 2 });
+    const again = windows(await b.until(finished(2)), 2);
+    const cached = again.filter((w) => w.cached);
+    const live = again.filter((w) => !w.cached);
+    expect(cached.length).toBeGreaterThan(0);
+    expect(live.length).toBeGreaterThan(0);
+    expect(again.slice(0, cached.length)).toEqual(cached);
+    expect(cached[0]?.resumedFromMs).toBeGreaterThan(0);
+    for (const w of cached) {
+      const was = first.find((f) => f.fromMs === w.fromMs);
+      expect(JSON.stringify(w.points)).toBe(JSON.stringify(was?.points));
+    }
+    const all = [...again].sort((x, y) => x.fromMs - y.fromMs);
+    expect(all[0]?.fromMs).toBe(0);
+    for (let i = 1; i < all.length; i++) expect(all[i]?.fromMs).toBe(all[i - 1]?.toMs as number);
+    const done = (await b.until(finished(2))).find((m) => m.type === "done" && m.id === 2);
+    expect(all.at(-1)?.toMs).toBe((done as { playedMs: number }).playedMs);
+  }, 60_000);
+
   test("a changed knob invalidates resume at its first read", async () => {
     const dir = copy();
     const a = await connect(dir);

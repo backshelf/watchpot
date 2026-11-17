@@ -1,6 +1,6 @@
 // `watchpot sim`: the desk server, in-process. Each test writes a small desk into a temp game folder.
 import { afterAll, afterEach, beforeAll, describe, expect, test } from "bun:test";
-import { mkdtempSync, rmSync, writeFileSync } from "node:fs";
+import { existsSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { main } from "../../src/cli/index";
@@ -64,6 +64,87 @@ afterAll(() => {
 });
 
 describe("startSim", () => {
+  const post = (url: string, body: unknown) =>
+    fetch(new URL("/api/tuning", url).href, { method: "POST", body: JSON.stringify(body) });
+  const getDesk = async (url: string) =>
+    (await (await fetch(new URL("/api/desk", url).href)).json()) as {
+      knobs: { key: string; value: number; code: number }[];
+      pins: Record<string, unknown>;
+      tuningFile: string;
+    };
+
+  test("/api/desk has code, pins and tuningFile", async () => {
+    const dir = game({ "sim.desk.ts": DESK });
+    const server = await start(dir);
+    const body = await getDesk(server.url);
+    expect(body.knobs.map((k) => [k.key, k.value, k.code])).toEqual([
+      ["gain", 2, 2],
+      ["delay", 150, 150],
+    ]);
+    expect(body.pins).toEqual({});
+    expect(body.tuningFile).toBe(join(dir, "sim.tuning.json"));
+  });
+
+  test("POST /api/tuning writes only changed knobs and the pins, sorted; the next GET shows the pins", async () => {
+    const dir = game({ "sim.desk.ts": DESK });
+    const server = await start(dir);
+    const res = await post(server.url, {
+      knobs: { gain: 2, delay: 200 },
+      pins: { zeta: { atMs: 5 }, alpha: { price: "1e3" } },
+    });
+    expect(res.status).toBe(200);
+    expect(await res.json()).toEqual({ ok: true });
+    const text = readFileSync(join(dir, "sim.tuning.json"), "utf8");
+    expect(text).toBe(
+      `${JSON.stringify({ knobs: { delay: 200 }, pins: { alpha: { price: "1e3" }, zeta: { atMs: 5 } } }, null, 2)}
+`,
+    );
+    expect(Object.keys(JSON.parse(text).pins)).toEqual(["alpha", "zeta"]);
+    expect((await getDesk(server.url)).pins).toEqual({ alpha: { price: "1e3" }, zeta: { atMs: 5 } });
+  });
+
+  test("after a Save the next GET starts from the saved knob values, and a reset knob from the code", async () => {
+    const dir = game({ "sim.desk.ts": DESK });
+    const server = await start(dir);
+    await post(server.url, { knobs: { gain: 3, delay: 150 }, pins: {} });
+    expect((await getDesk(server.url)).knobs.map((k) => [k.key, k.value])).toEqual([
+      ["gain", 3],
+      ["delay", 150],
+    ]);
+    await post(server.url, { knobs: { gain: 2, delay: 150 }, pins: {} });
+    expect((await getDesk(server.url)).knobs.map((k) => [k.key, k.value])).toEqual([
+      ["gain", 2],
+      ["delay", 150],
+    ]);
+  });
+
+  test("a bad tuning body is 400 and writes nothing", async () => {
+    const dir = game({ "sim.desk.ts": DESK });
+    const server = await start(dir);
+    const bads = [
+      { knobs: { nope: 1 }, pins: {} },
+      { knobs: { gain: Number.NaN }, pins: {} },
+      { knobs: { gain: "3" }, pins: {} },
+      { knobs: {}, pins: { a: { price: "abc" } } },
+      { knobs: {}, pins: { a: { price: "-5" } } },
+      { knobs: {}, pins: { a: { atMs: -1 } } },
+    ];
+    for (const b of bads) {
+      const res = await post(server.url, b);
+      expect(res.status).toBe(400);
+      expect(typeof ((await res.json()) as { error: string }).error).toBe("string");
+    }
+    expect(existsSync(join(dir, "sim.tuning.json"))).toBe(false);
+  });
+
+  test("a saved sim.tuning.json shows its pins; a malformed one makes startSim throw", async () => {
+    const pins = { a: { price: "10" } };
+    const dir = game({ "sim.desk.ts": DESK, "sim.tuning.json": JSON.stringify({ knobs: {}, pins }) });
+    expect((await getDesk((await start(dir)).url)).pins).toEqual(pins);
+    const bad = game({ "sim.desk.ts": DESK, "sim.tuning.json": "{ nope" });
+    await expect(startSim({ cwd: bad, port: 0 })).rejects.toThrow(/sim.tuning.json is not a tuning file: /);
+  });
+
   test("/api/desk returns the knobs in spec order with values", async () => {
     const server = await start(game({ "sim.desk.ts": DESK }));
     const body = JSON.parse((await get(new URL("/api/desk", server.url).href)).body) as {

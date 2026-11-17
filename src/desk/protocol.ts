@@ -33,6 +33,8 @@ export type ToClient =
       points: DeskPoint[];
       gates: FittedGate[];
       resumedFromMs?: number;
+      /** Replayed from the window cache, not played by this run. */
+      cached?: true;
     }
   | { type: "done"; id: number; seed: number; finished: boolean; playedMs: number }
   | { type: "error"; id: number; seed?: number; message: string }
@@ -51,7 +53,10 @@ export interface WorkerInit {
 /** One knob as `/api/desk` lists it: the game's spec with the value the page starts from. */
 export interface DeskKnob {
   key: string;
+  /** The value the desk starts from: `saved` laid over `code`. */
   value: number;
+  /** The knob's value in the game's code (its spec `value`). */
+  code: number;
   label?: string;
   group?: string;
   [spec: string]: unknown;
@@ -66,4 +71,14 @@ export interface DeskInfo {
   end: { hours: number };
   seeds: { tuning: number; full: number };
   knobs: DeskKnob[];
+  /** Gates set by hand, from `sim.tuning.json`. */
+  pins: Record<string, { price?: string; atMs?: number }>;
+  /** Absolute path of `sim.tuning.json`. */
+  tuningFile: string;
 }
+
+/** `sim.tuning.json`: what was set by hand. Knobs holds only values that differ from the code's. */
+export type TuningFile = {
+  knobs: Record<string, number>;
+  pins: Record<string, { price?: string; atMs?: number }>;
+};

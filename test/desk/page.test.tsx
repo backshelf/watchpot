@@ -14,7 +14,9 @@ const INFO: DeskInfo = {
   windowHours: 2,
   end: { hours: 4 },
   seeds: { tuning: 1, full: 3 },
-  knobs: [{ key: "rate", value: 2, label: "Rate", group: "Economy" }],
+  knobs: [{ key: "rate", value: 2, code: 2, label: "Rate", group: "Economy" }],
+  pins: {},
+  tuningFile: "/g/sim.tuning.json",
 };
 
 /** A socket the test drives: what the page sent, and a way to say what the server sent. */

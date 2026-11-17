@@ -1,5 +1,7 @@
 // One seed of a desk run, in a Bun Worker: resumes from the snapshot cache, plays the fit window by window and posts
 // each window as it is done. `sim.ts` starts one per seed and terminates it on a newer run.
+import { mkdirSync } from "node:fs";
+import { readdir, rm } from "node:fs/promises";
 import { pathToFileURL } from "node:url";
 import { simCache, sourceKey, tunables } from "../sim/cache";
 import type { Desk } from "../sim/desk";
@@ -27,18 +29,63 @@ function point(run: ReturnType<AnyDesk["run"]>): DeskPoint {
   return out;
 }
 
+type WindowMsg = Extract<ToClient, { type: "window" }>;
+
+/** The window cache beside the snapshot cache: `<root>/win-<fromMs>.json`, one per captured window. */
+function windowCache(root: string) {
+  const at = (f: string): number => Number(f.slice(4, -5));
+  const names = async (): Promise<string[]> => {
+    try {
+      return (await readdir(root)).filter((f) => /^win-\d+(\.\d+)?\.json$/.test(f));
+    } catch {
+      return [];
+    }
+  };
+  return {
+    async save(m: WindowMsg): Promise<void> {
+      const { id: _id, ...rest } = m;
+      mkdirSync(root, { recursive: true });
+      await Bun.write(`${root}/win-${m.fromMs}.json`, JSON.stringify(rest));
+    },
+    /** Every readable window ending by `atMs`, by `fromMs`. */
+    async before(atMs: number): Promise<Omit<WindowMsg, "id">[]> {
+      const out: Omit<WindowMsg, "id">[] = [];
+      for (const f of await names()) {
+        try {
+          const w = JSON.parse(await Bun.file(`${root}/${f}`).text()) as Omit<WindowMsg, "id">;
+          if (w.type === "window" && Number.isFinite(w.fromMs) && w.toMs <= atMs) out.push(w);
+        } catch {
+          // missing or unreadable: skipped
+        }
+      }
+      return out.sort((a, b) => a.fromMs - b.fromMs);
+    },
+    async dropFrom(atMs: number): Promise<void> {
+      for (const f of await names()) if (at(f) >= atMs) await rm(`${root}/${f}`, { force: true });
+    },
+  };
+}
+
 async function play(init: WorkerInit): Promise<void> {
   const { id, seed, cwd, pins } = init;
   const desk = (await import(pathToFileURL(init.deskPath).href)).default as AnyDesk;
   const values: Record<string, number> = { ...(desk.knobs.defaults() as object), ...init.knobs };
   const key = await sourceKey([...desk.source], { cwd, extra: `seed:${seed}` });
   const cache = simCache<unknown>({ key, dir: `${cwd}/.watchpot/sim-cache` });
+  const wins = windowCache(`${cwd}/.watchpot/sim-cache/${key}`);
   let t = tunables(values);
   const gates = desk.run({ seed }).gates as readonly FitGate[];
   const resumed = await cache.resume(gates, t, pins);
   if (resumed) {
     t = tunables(values, undefined, { firstRead: resumed.firstRead });
-    await cache.dropAfter(resumed.snapshot.atMs);
+    const atMs = resumed.snapshot.atMs;
+    await cache.dropAfter(atMs);
+    const earlier = await wins.before(atMs);
+    for (const [i, w] of earlier.entries()) {
+      const { resumedFromMs: _r, ...rest } = w;
+      post({ ...rest, id, cached: true, ...(i === 0 ? { resumedFromMs: atMs } : {}) });
+    }
+    await wins.dropFrom(atMs);
   }
   const W = desk.windowHours * HOUR;
   const endMs = desk.end.hours * HOUR;
@@ -83,7 +130,7 @@ async function play(init: WorkerInit): Promise<void> {
       const gatesOut: FittedGate[] = result.gates;
       const resumedFromMs = first && resumed ? resumed.snapshot.atMs : undefined;
       if (capture) {
-        post({
+        const win: WindowMsg = {
           type: "window",
           id,
           seed,
@@ -92,7 +139,9 @@ async function play(init: WorkerInit): Promise<void> {
           points,
           gates: gatesOut,
           ...(resumedFromMs !== undefined ? { resumedFromMs } : {}),
-        });
+        };
+        post(win);
+        await wins.save({ ...win, resumedFromMs: undefined });
       } else {
         // No snapshots: the whole span was one fit; post it a window at a time.
         for (let k = Math.floor(start / W); k * W < played || k === Math.floor(start / W); k++) {
