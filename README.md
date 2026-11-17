@@ -1,28 +1,32 @@
 # watchpot
 
+[![npm](https://img.shields.io/npm/v/watchpot)](https://www.npmjs.com/package/watchpot)
+[![license: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
+
 A framework-light engine for idle and incremental games, in TypeScript on Bun and React. You describe a game as
 features (saved state, actions, tick steps, a reset rule); the engine runs the clock, the big numbers, saving, time
 away, the systems idle games share (currencies, generators, upgrade trees, prestige, gacha, events) and a sim lab
 that proves the pacing. It is for developers who want to build an idle game and keep the look, the words and the
 rules their own: the engine ships mechanism and behaviour, never a stylesheet.
 
-**How this was made.** This engine is more or less completely vibe-coded, prompted closely by somebody
-who has spent far too much time playing idle games.
+The website — the guide, the reference pages and a game built with the engine — is at
+<https://backshelf.github.io/watchpot>.
+
+**How this was made.** The engine was written AI-assisted, under close direction from a developer who has spent
+years playing idle games, and what it claims is held to by the sim lab and the test suite rather than by trust.
 
 ## Install
 
-Needs Bun 1.4.3 or later. watchpot 1.0 is meant to be public on npm as `watchpot` (MIT):
+On npm under the MIT licence. Bun 1.4.3 or later is required (`engines.bun`):
 
 ```sh
 bun add watchpot
 ```
 
-On npm, the runtime entries (`core`, `sim`, `test`, `react`, `devtools`, `kit`, `sound`, `three`, `ui`, `shader`)
-work on Node bundlers (Vite) too: the package ships compiled JS and declarations in `dist/`. Bun-only, stated
-plainly: the template's dev server (`dev.ts`), `watchpot/sound/pack`, `watchpot/kit/theme`, and the sim's gate CLI.
-
-A release that is not on npm yet installs by git tag instead, with `"watchpot": "git+ssh://github.com/backshelf/watchpot.git#vX.Y.Z"`
-in `package.json`. [Installing](docs/installing.md) has the details and the peers each entry needs.
+The runtime entries (`core`, `sim`, `test`, `react`, `devtools`, `kit`, `sound`, `three`, `ui`, `shader`) also work
+on Node bundlers such as Vite: the package ships compiled JavaScript and type declarations in `dist/`. Bun-only,
+stated plainly: the template's dev server (`dev.ts`), `watchpot/sound/pack`, `watchpot/kit/theme`, and the sim's
+gate CLI. [Installing](docs/installing.md) has the details and the peers each entry needs.
 
 ## The watchpot command
 

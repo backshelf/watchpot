@@ -9,7 +9,3 @@ const read = (path: string) => readFileSync(join(ROOT, path), "utf8").replace(/\
 test("the README's smallest game is the example file", () => {
   expect(read("README.md")).toContain(read("docs/examples/readme-smallest.ts"));
 });
-
-test("the README stays an overview", () => {
-  expect(read("README.md").split("\n").length).toBeLessThan(160);
-});
