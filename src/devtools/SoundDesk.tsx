@@ -2,6 +2,7 @@ import { createElement, StrictMode } from "react";
 import { createRoot } from "react-dom/client";
 import type { Desk, MixFile, SampleHost } from "../sound/desk";
 import { DEFAULT_STORAGE_KEY, readPrefs, writePrefs } from "./desk/prefs";
+import "./tokens.css";
 
 /**
  * A switch of the game's own in the desk's top bar: one of a few named states, set from the desk (which scene the
@@ -157,11 +158,13 @@ export function openSoundDesk(options: SoundDeskOptions): () => void {
   doc.close();
   doc.title = title;
   doc.documentElement.lang = document.documentElement.lang || "en";
-  // The page itself, before any stylesheet arrives: the desk is dark, so no white flash, and it fills the window.
+  // The page itself, before any stylesheet arrives: stock in the system's scheme (the blueline or the blueprint), so
+  // no flash of the wrong one, and it fills the window.
+  const dark = w.matchMedia?.("(prefers-color-scheme: dark)").matches ?? false;
   for (const el of [doc.documentElement, doc.body]) {
     el.style.margin = "0";
-    el.style.background = "#141416";
-    el.style.colorScheme = "dark";
+    el.style.background = dark ? "oklch(0.235 0.078 264)" : "oklch(0.975 0.006 240)";
+    el.style.colorScheme = dark ? "dark" : "light";
   }
   doc.body.replaceChildren();
   const mount = doc.createElement("div");

@@ -1,19 +1,12 @@
 /*
- * The dev panel: a developer's tool, quiet and dense. A slip docked at the window's bottom right (the full width on a
- * phone), above everything the game draws, ruled in hairlines, small type, figures in a monospace face. It scrolls on
- * its own when the sections are open. Self-contained: its colours are its own (`--dp-*`, set here, light and dark),
- * so it reads no game token and needs no global the game must define.
+ * The dev panel: a developer's tool, quiet and dense. A plate docked at the window's bottom right (the full width on a
+ * phone), above everything the game draws, ruled in one hairline, small type, figures in a monospace face. It scrolls on
+ * its own when the sections are open. It wears the site's look through `tokens.css` (`data-dp-tool` on the root: the
+ * blueline in a light system, the blueprint in a dark one), reads no game token and needs no global the game must
+ * define. The one signal of its own is `--dp-bad`; the lamp in the head is lit with `--dp-live` because the clock runs.
  */
 .panel {
-  --dp-ground: #f4f4f2;
-  --dp-well: #ffffff;
-  --dp-ink: #1c1c1e;
-  --dp-muted: #6b6b70;
-  --dp-line: #d4d4d8;
-  --dp-focus: #2563eb;
-  --dp-bad: #c62828;
-  --dp-ui: system-ui, -apple-system, "Segoe UI", sans-serif;
-  --dp-num: ui-monospace, "Cascadia Mono", Menlo, Consolas, monospace;
+  --dp-bad: oklch(0.52 0.19 27);
 
   position: fixed;
   right: 12px;
@@ -25,29 +18,22 @@
   overflow-y: auto;
   overscroll-behavior: contain;
   padding: 8px 12px 12px;
-  border: 1px solid var(--dp-line);
-  border-radius: 6px;
-  background: var(--dp-ground);
+  border: var(--dp-hair) solid var(--dp-ink);
+  border-radius: 2px;
+  background: var(--dp-paper);
   color: var(--dp-ink);
-  box-shadow: 0 6px 24px #0000002e;
-  font-family: var(--dp-ui);
+  font-family: var(--dp-font-sans);
   font-size: 12px;
   line-height: 1.4;
 }
 @media (prefers-color-scheme: dark) {
   .panel {
-    --dp-ground: #1f1f22;
-    --dp-well: #151517;
-    --dp-ink: #ededf0;
-    --dp-muted: #9a9aa2;
-    --dp-line: #3a3a40;
-    --dp-focus: #7aa2ff;
-    --dp-bad: #ff7a7a;
+    --dp-bad: oklch(0.74 0.16 25);
   }
 }
 .panel ::selection {
   background: var(--dp-ink);
-  color: var(--dp-ground);
+  color: var(--dp-paper);
 }
 
 .head {
@@ -60,6 +46,8 @@
   margin: 0;
   font-size: 13px;
   font-weight: 700;
+  font-variant-caps: all-small-caps;
+  letter-spacing: 0.06em;
 }
 .clock {
   flex: 1;
@@ -68,17 +56,28 @@
   gap: 4px;
   margin: 0;
   min-width: 0;
-  color: var(--dp-muted);
+  color: var(--dp-ink-soft);
   white-space: nowrap;
 }
+/* The lamp: lit while the panel's clock runs. */
+.clock::before {
+  content: "";
+  flex: none;
+  width: 6px;
+  height: 6px;
+  margin-right: 2px;
+  border: var(--dp-hair) solid var(--dp-ink);
+  border-radius: 50%;
+  background: var(--dp-live);
+}
 .sep {
-  width: 1px;
+  width: var(--dp-hair);
   height: 10px;
   margin: 0 4px;
-  background: var(--dp-line);
+  background: var(--dp-rule-strong);
 }
 .num {
-  font-family: var(--dp-num);
+  font-family: var(--dp-font-mono);
   font-size: 11px;
   font-variant-numeric: tabular-nums;
 }
@@ -87,13 +86,14 @@
   display: grid;
   gap: 8px;
   padding: 8px 0;
-  border-top: 1px solid var(--dp-line);
+  border-top: var(--dp-hair) solid var(--dp-rule-strong);
 }
 .label {
-  font-size: 11px;
+  font-size: 12px;
   font-weight: 600;
-  letter-spacing: 0.02em;
-  color: var(--dp-muted);
+  font-variant-caps: all-small-caps;
+  letter-spacing: 0.06em;
+  color: var(--dp-ink-soft);
 }
 h3.label {
   margin: 0;
@@ -102,7 +102,7 @@ summary.label {
   cursor: pointer;
 }
 summary.label::marker {
-  color: var(--dp-muted);
+  color: var(--dp-ink-soft);
 }
 
 .row {
@@ -115,8 +115,8 @@ summary.label::marker {
 .button {
   min-height: 28px;
   padding: 0 8px;
-  border: 1px solid var(--dp-line);
-  border-radius: 4px;
+  border: var(--dp-hair) solid var(--dp-ink);
+  border-radius: 2px;
   background: transparent;
   color: var(--dp-ink);
   font: inherit;
@@ -124,10 +124,17 @@ summary.label::marker {
   cursor: pointer;
 }
 .button:hover:not(:disabled) {
-  border-color: var(--dp-muted);
+  background: var(--dp-ink);
+  color: var(--dp-paper);
+}
+.button:active:not(:disabled) {
+  transform: translateY(1px);
 }
 .button:disabled {
-  color: var(--dp-muted);
+  border-style: dashed;
+  border-color: var(--dp-rule-strong);
+  color: var(--dp-text-faint);
+  text-decoration: line-through;
   cursor: default;
 }
 .button:focus-visible,
@@ -143,11 +150,11 @@ summary.label::marker {
   min-height: 28px;
   box-sizing: border-box;
   padding: 0 8px;
-  border: 1px solid var(--dp-line);
-  border-radius: 4px;
-  background: transparent;
+  border: var(--dp-hair) solid var(--dp-rule-strong);
+  border-radius: 2px;
+  background: var(--dp-paper-sunk);
   color: var(--dp-ink);
-  font-family: var(--dp-num);
+  font-family: var(--dp-font-mono);
   font-size: 11px;
 }
 
@@ -159,7 +166,7 @@ summary.label::marker {
 }
 .key {
   padding: 2px 0;
-  font-family: var(--dp-num);
+  font-family: var(--dp-font-mono);
   font-size: 11px;
   cursor: pointer;
 }
@@ -169,11 +176,11 @@ summary.label::marker {
   width: 100%;
   margin: 4px 0 0;
   padding: 8px;
-  border: 1px solid var(--dp-line);
-  border-radius: 4px;
-  background: var(--dp-well);
+  border: var(--dp-hair) solid var(--dp-rule-strong);
+  border-radius: 2px;
+  background: var(--dp-paper-sunk);
   color: var(--dp-ink);
-  font-family: var(--dp-num);
+  font-family: var(--dp-font-mono);
   font-size: 10px;
   line-height: 1.5;
 }
@@ -189,7 +196,7 @@ summary.label::marker {
 .note {
   margin: 0;
   min-height: 1.4em;
-  color: var(--dp-muted);
+  color: var(--dp-ink-soft);
 }
 .note[data-tone="bad"] {
   color: var(--dp-bad);

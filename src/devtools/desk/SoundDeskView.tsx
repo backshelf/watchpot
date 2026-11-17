@@ -296,6 +296,7 @@ export function SoundDeskView({
       <ViewCtx.Provider value={view}>
         <div
           className={s.desk}
+          data-dp-tool=""
           ref={rootRef}
           data-listening={listening || undefined}
           data-edit={edit === MIX ? "mix" : "scene"}

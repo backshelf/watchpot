@@ -4,6 +4,7 @@ import { DAY_MS, HOUR_MS, MINUTE_MS } from "../core/time";
 import { useClockNow, warpClock } from "../react/clock";
 import { type RuntimeStore, useIdleStore } from "../react/store";
 import s from "./DevPanel.module.css";
+import "./tokens.css";
 import { checkSave, featureJson, featureKeys, jumpToDay, profileDay } from "./devTools";
 
 /** Props of `DevPanel`. */
@@ -32,7 +33,7 @@ export function DevPanel({ onClose }: DevPanelProps) {
   const now = useClockNow(1000);
   const day = profileDay(store);
   return (
-    <aside className={s.panel} aria-labelledby={headingId} data-dev-panel="">
+    <aside className={s.panel} aria-labelledby={headingId} data-dev-panel="" data-dp-tool="">
       <header className={s.head}>
         <h2 id={headingId} className={s.title}>
           Dev
