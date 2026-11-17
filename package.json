@@ -39,6 +39,7 @@
     "postpack": "bun scripts/pack-manifest.ts restore",
     "api": "bun scripts/api-report.ts",
     "api:check": "bun scripts/api-report.ts check",
+    "bench:heavy": "bun bench/heavy/run.ts",
     "dsp": "bun scripts/dsp.ts",
     "dsp:test": "cargo test --release --manifest-path dsp/Cargo.toml",
     "verify": "bun run typecheck && bun run lint && bun run test:changed && bun test test/rules",

@@ -6,6 +6,7 @@
       "src/**",
       "test/**",
       "scripts/**",
+      "bench/**",
       "codemods/**",
       "docs/examples/**",
       ".agents/skills/watchpot-init/references/examples/**",
