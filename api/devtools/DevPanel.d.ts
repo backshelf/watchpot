@@ -1,3 +1,4 @@
+import "./tokens.css";
 /** Props of `DevPanel`. */
 export interface DevPanelProps {
     /** Closes the panel (the game drops its `#dev` route). Absent, no close button. */

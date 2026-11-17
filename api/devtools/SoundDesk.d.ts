@@ -1,4 +1,5 @@
 import type { Desk, MixFile, SampleHost } from "../sound/desk";
+import "./tokens.css";
 /**
  * A switch of the game's own in the desk's top bar: one of a few named states, set from the desk (which scene the
  * sound is in, say, so a mix can be worked on without playing to it). `options` and `value` are read on every draw.
