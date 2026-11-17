@@ -270,3 +270,19 @@ describe("the reference page", () => {
     expect(map).toMatch(/\[What each entry may import\]\(docs\/imports\.md\): [^\n]+\./);
   });
 });
+
+test("llms.txt lists every entry under its group, in order, with a link under docs/", async () => {
+  const { llmsTxt } = await import("../src/docs/llms");
+  const text = llmsTxt("watchpot", "An engine.", [
+    { url: "start/01.html", title: "One", group: "Getting started", headings: [], text: "First. Second." },
+    { url: "core.html", title: "Core", group: "Reference", headings: [], text: "" },
+    { url: "start/02.html", title: "Two", group: "Getting started", headings: [], text: "More." },
+  ]);
+  expect(text.startsWith("# watchpot\n\n> An engine.\n")).toBe(true);
+  const start = text.indexOf("## Getting started");
+  const ref = text.indexOf("## Reference");
+  expect(start).toBeGreaterThan(0);
+  expect(ref).toBeGreaterThan(start);
+  expect(text.indexOf("[Two](docs/start/02.html)")).toBeLessThan(ref);
+  expect(text).toContain("- [Core](docs/core.html)\n");
+});

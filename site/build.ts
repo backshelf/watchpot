@@ -3,14 +3,20 @@
 import { cp, mkdir, rm } from "node:fs/promises";
 import { dirname, join, resolve } from "node:path";
 import { SITE } from "./site.config";
-import { buildDocs } from "./src/docs";
+import { buildDocs, type SearchEntry } from "./src/docs";
 import { relativeUrl } from "./src/docs/links";
+import { llmsTxt } from "./src/docs/llms";
 import { renderNav } from "./src/docs/nav";
 import { fillShell } from "./src/docs/shell";
 import { buildGuide, guideLinks } from "./src/guide/build";
 
 const here = import.meta.dir;
 const repoRoot = join(here, "..");
+
+/** The one-line summary at the top of `llms.txt`. */
+const LLMS_SUMMARY =
+  "An idle-game engine for Bun, TypeScript and React 19: Decimals, a store with saves, prices and generators, " +
+  "prestige, a pacing sim, sound, shaders and headless UI. Start a game with `bun create watchpot`.";
 
 /** The font files the stylesheet names, copied out of their packages (SIL OFL 1.1, the licences copied beside them). */
 const FONTS = [
@@ -133,6 +139,10 @@ export async function build({ dev = false, out = join(here, "dist") } = {}): Pro
     (page, slots) => fillShell(shell, page, slots),
     (page) => renderNav(docs.nav, page, (to) => relativeUrl(page, to)),
   );
+
+  // A map of the docs for language models, from the same entries the docs search reads.
+  const entries = JSON.parse(await Bun.file(join(out, "docs", "search.json")).text()) as SearchEntry[];
+  await Bun.write(join(out, "llms.txt"), llmsTxt(SITE.name, LLMS_SUMMARY, entries));
 
   // What Pages serves for a missing path. It can be asked for at any depth, so it carries its own few styles and
   // finds the site's root from the address (a project site lives under its first path segment).
