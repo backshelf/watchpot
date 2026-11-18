@@ -2,7 +2,7 @@
 
 Each release is a tag `vX.Y.Z`. A breaking change names its codemod in `codemods/` (policy in `codemods/README.md`).
 
-## Unreleased
+## 1.0.0-rc.10
 
 - Fix: the sim desk's pace graphs hold up to a plan with thousands of gates. Gate keys are drawn one per pixel column and only where the band's three rows have room, and planned ticks, openings and by-hand squares are one per pixel column each, so a 2 491-gate plan draws a readable band instead of a smear and its whole plan is still marked.
 
