@@ -2,7 +2,7 @@
 
 Each release is a tag `vX.Y.Z`. A breaking change names its codemod in `codemods/` (policy in `codemods/README.md`).
 
-## Unreleased
+## 1.0.0-rc.9
 
 - `watchpot sim`'s knob panel scales to hundreds of knobs: groups fold shut (their headers count knobs and those set by hand, and the desk remembers which are open), a filter matches key, label or group, and `Changed only` shows what is set by hand. A slider reruns on release and a number field on Enter or blur, not on every tick or keystroke; the rerun debounce is 1000 ms.
 - `watchpot sim`'s page has a `Waits` table, read from the median seed: the longest dry spells between purchases and what ended them, waits per buyable (bought, first, median and longest wait) and per window. A purchase is a change in a buyable's next price, so a wait is only as fine as the sample step the table names. Picking a dry spell marks it on both graphs.
