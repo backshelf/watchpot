@@ -34,7 +34,7 @@ Run inside a game, as `bunx watchpot <cmd>` or `npx watchpot <cmd>`:
 
 - `doctor` checks the game's setup (Bun, the engine and whether it is behind, `tsconfig.json`, the agent skills) and exits 1 on a problem.
 - `skills add|update` copies the engine's agent skills into the game (`--to` picks the folders), or refreshes the ones it already holds.
-- `sim [--port <n>] [--no-open] [--desk <file>]` serves the game's sim desk (`sim.desk.ts`) on localhost and opens it in the browser. Bun only.
+- `sim [--port <n>] [--no-open] [--desk <file>]` serves the game's sim desk (`sim.desk.ts`) on localhost and opens it in the browser. Bun only. Its pace graphs cut a series to one slice per pixel column, and the plan's gate keys and marks to one per column, so a plan with thousands of gates reads as density rather than a smear; the gates table lists every gate.
 
 ## The smallest game
 

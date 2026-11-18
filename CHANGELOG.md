@@ -2,6 +2,10 @@
 
 Each release is a tag `vX.Y.Z`. A breaking change names its codemod in `codemods/` (policy in `codemods/README.md`).
 
+## Unreleased
+
+- Fix: the sim desk's pace graphs hold up to a plan with thousands of gates. Gate keys are drawn one per pixel column and only where the band's three rows have room, and planned ticks, openings and by-hand squares are one per pixel column each, so a 2 491-gate plan draws a readable band instead of a smear and its whole plan is still marked.
+
 ## 1.0.0-rc.9
 
 - `watchpot sim`'s knob panel scales to hundreds of knobs: groups fold shut (their headers count knobs and those set by hand, and the desk remembers which are open), a filter matches key, label or group, and `Changed only` shows what is set by hand. A slider reruns on release and a number field on Enter or blur, not on every tick or keystroke; the rerun debounce is 1000 ms.

@@ -27,6 +27,10 @@ const M = { r: 16, b: 26, t: 10 };
 const GLYPH = 6.7;
 const KEY_GLYPH = 8.6;
 const KEY_ROW = 14;
+/** The smallest gap between two keys on one row. */
+const KEY_GAP = 6;
+/** The rows of keys the band takes at most: a plan too dense to label in these is thinned, not stacked. */
+const KEY_ROWS = 3;
 /** Before the first measure (and where nothing measures: a test) the svg is this big. */
 const FALLBACK = { w: 960, h: 400 };
 
@@ -342,39 +346,47 @@ interface PlacedKey {
   anchor: "start" | "end";
 }
 
-/** The gate marks: a hairline where each seed opened a gate, its planned tick, its by-hand square, its key. */
+/** The gate marks, each list already cut to one per pixel column. */
+interface Marks {
+  opened: readonly number[];
+  planned: readonly number[];
+  hand: readonly number[];
+}
+
+/** The gate marks: a hairline where a seed opened a gate, its planned tick, its by-hand square, and the keys the band
+ * had room for — each mark once per pixel column, so a pitched plan stays a texture rather than a smear. */
 const GateMarks = memo(function GateMarks({
   placed,
-  xOf,
+  marks,
   top,
   bottom,
 }: {
   placed: readonly PlacedKey[];
-  xOf: (h: number) => number;
+  marks: Marks;
   top: number;
   bottom: number;
 }) {
   return (
     <>
-      {placed.map(({ gate: g, row, x, anchor }, i) => (
-        <g key={g.key} className="graph__gate">
-          {g.openings.map((h) => (
-            <line key={`${h}-${i}`} className="graph__opened" x1={xOf(h)} x2={xOf(h)} y1={top} y2={bottom} />
-          ))}
-          <line
-            className="graph__planned"
-            x1={xOf(g.plannedH)}
-            x2={xOf(g.plannedH)}
-            y1={bottom - 18}
-            y2={bottom}
-          />
-          {g.hand && (
-            <rect className="graph__hand" x={xOf(g.plannedH) - 3.5} y={bottom - 26} width="7" height="7" />
-          )}
-          <text className="graph__gatename lettering" x={x} y={top - 5 - row * KEY_ROW} textAnchor={anchor}>
-            {g.key}
-          </text>
-        </g>
+      {marks.opened.map((x) => (
+        <line key={`o${x}`} className="graph__opened" x1={x} x2={x} y1={top} y2={bottom} />
+      ))}
+      {marks.planned.map((x) => (
+        <line key={`p${x}`} className="graph__planned" x1={x} x2={x} y1={bottom - 18} y2={bottom} />
+      ))}
+      {marks.hand.map((x) => (
+        <rect key={`h${x}`} className="graph__hand" x={x - 3.5} y={bottom - 26} width="7" height="7" />
+      ))}
+      {placed.map(({ gate, row, x, anchor }) => (
+        <text
+          className="graph__gatename lettering"
+          key={gate.key}
+          x={x}
+          y={top - 5 - row * KEY_ROW}
+          textAnchor={anchor}
+        >
+          {gate.key}
+        </text>
       ))}
     </>
   );
@@ -425,22 +437,52 @@ export function Graph(props: GraphProps) {
     [left, endHours, plotW],
   );
 
-  // The gate keys sit in rows above the plot, never over data: a key that would overlap the one before drops a row.
+  // The gate keys sit in rows above the plot, never over data. A game's plan can hold thousands of gates, so a key is
+  // drawn only where it can be read: one per pixel column, and one that finds no room in the band's rows is left to the
+  // gates table instead of being stacked over its neighbour.
   const placed = useMemo(() => {
     const out: PlacedKey[] = [];
     const ends: number[] = [];
+    const columns = new Set<number>();
     for (const gate of [...(gates ?? [])].sort((a, b) => a.labelH - b.labelH)) {
       const x = left + (Math.min(Math.max(gate.labelH, 0), endHours) / endHours) * plotW;
+      const column = Math.round(x);
+      if (columns.has(column)) continue;
       const span = gate.key.length * KEY_GLYPH + 4;
       const anchor = x + span > left + plotW ? "end" : "start";
       const from = anchor === "end" ? x - span - 4 : x;
-      let row = ends.findIndex((e) => e + 6 <= from);
-      if (row < 0) row = Math.min(ends.length, 2);
+      const found = ends.findIndex((e) => e + KEY_GAP <= from);
+      if (found < 0 && ends.length >= KEY_ROWS) continue;
+      const row = found < 0 ? ends.length : found;
       ends[row] = anchor === "end" ? x : x + span;
+      columns.add(column);
       out.push({ gate, row, x: x + (anchor === "end" ? -4 : 4), anchor });
     }
     return { placed: out, rows: ends.length };
   }, [gates, left, plotW, endHours]);
+
+  // The ticks and hairlines, one per pixel column each: thousands of planned minutes and openings would otherwise paint
+  // the plot solid and put thousands of nodes in the svg. They are drawn for every gate, labelled or not.
+  const marks = useMemo(() => {
+    const onePerColumn = (hours: readonly number[]): number[] => {
+      const seen = new Set<number>();
+      const out: number[] = [];
+      for (const h of hours) {
+        const x = xOf(h);
+        const column = Math.round(x);
+        if (seen.has(column)) continue;
+        seen.add(column);
+        out.push(x);
+      }
+      return out;
+    };
+    const all = gates ?? [];
+    return {
+      opened: onePerColumn(all.flatMap((g) => g.openings)),
+      planned: onePerColumn(all.map((g) => g.plannedH)),
+      hand: onePerColumn(all.filter((g) => g.hand).map((g) => g.plannedH)),
+    };
+  }, [gates, xOf]);
   const top = M.t + (placed.rows > 0 ? placed.rows * KEY_ROW : 0);
   const plotH = Math.max(40, height - top - M.b);
   const bottom = top + plotH;
@@ -612,7 +654,7 @@ export function Graph(props: GraphProps) {
             />
           </g>
 
-          <GateMarks placed={placed.placed} xOf={xOf} top={top} bottom={bottom} />
+          <GateMarks placed={placed.placed} marks={marks} top={top} bottom={bottom} />
 
           {empty && (
             <g className="graph__empty">
