@@ -33,7 +33,8 @@ import {
   valueAt,
   yAxis,
 } from "./series";
-import { GateTable, HourTable, type Pin } from "./Tables";
+import { GateTable, HourTable, type Pin, WaitTable } from "./Tables";
+import { waitStats } from "./waits";
 
 export interface AppProps {
   /** Opens the line to the desk server. Default: the WebSocket at `/ws`. A test passes a fake. */
@@ -63,7 +64,7 @@ const TRENDS = [
 /** Where the viewer's trend choice is kept. */
 const TREND_KEY = "watchpot-desk-trend";
 /** How long after the last change to a knob or a pin the pacing reruns. */
-const RERUN_MS = 500;
+const RERUN_MS = 1000;
 const cid = (name: string) => `cur:${name}`;
 const nid = (key: string) => `next:${key}`;
 
@@ -97,6 +98,8 @@ export function App({ connect = connectSocket, load = fetchDesk, onSeriesRender 
       // The choice holds for this session; nothing is kept.
     }
   };
+  // The dry spell picked in the waits table, marked on both graphs; a new run clears it.
+  const [spell, setSpell] = useState<{ from: number; to: number }>();
   const [online, setOnline] = useState(false);
   const link = useRef<DeskLink>(undefined);
   const lastId = useRef(0);
@@ -118,17 +121,19 @@ export function App({ connect = connectSocket, load = fetchDesk, onSeriesRender 
     if (!via) return;
     const id = ++lastId.current;
     const { knobs, pins } = handRef.current;
+    setSpell(undefined);
     dispatch({ type: "start", id, seeds });
     via.send({ type: "run", id, knobs: { ...knobs }, pins: structuredClone(pins), seeds });
   }, []);
 
   /** Changes what is set by hand, and reruns once it has been left alone for a moment. */
   const edit = useCallback(
-    (change: (h: Hand) => Hand) => {
+    (change: (h: Hand) => Hand, rerun = true) => {
       const next = change(handRef.current);
       handRef.current = next;
       setHandState(next);
       setNote(undefined);
+      if (!rerun) return;
       if (timer.current !== undefined) clearTimeout(timer.current);
       timer.current = setTimeout(() => play(seedsRef.current), RERUN_MS);
     },
@@ -205,8 +210,8 @@ export function App({ connect = connectSocket, load = fetchDesk, onSeriesRender 
     });
   }, []);
 
-  const setKnob = (key: string, value: number) =>
-    edit((h) => ({ ...h, knobs: { ...h.knobs, [key]: value } }));
+  const setKnob = (key: string, value: number, commit = true) =>
+    edit((h) => ({ ...h, knobs: { ...h.knobs, [key]: value } }), commit);
   const resetKnob = (key: string) => {
     const code = desk?.knobs.find((k) => k.key === key)?.code;
     if (code !== undefined) setKnob(key, code);
@@ -438,6 +443,7 @@ export function App({ connect = connectSocket, load = fetchDesk, onSeriesRender 
   ];
 
   const end = desk?.end.hours ?? 0;
+  const waits = useMemo(() => (desk ? waitStats(data, desk.windowHours, end) : undefined), [data, desk, end]);
   const playedH = Math.floor(run.playedMs / HOUR_MS);
   const phase =
     run.phase === "running"
@@ -583,6 +589,7 @@ export function App({ connect = connectSocket, load = fetchDesk, onSeriesRender 
               log={log}
               lines={view?.lines1 ?? []}
               gates={marks}
+              span={spell}
               stops={view?.stops1 ?? []}
               trend={trend}
               readout={readout1}
@@ -599,6 +606,7 @@ export function App({ connect = connectSocket, load = fetchDesk, onSeriesRender 
                 log={log}
                 lines={view.lines2}
                 gaps={view.gaps2}
+                span={spell}
                 stops={view.stops2}
                 trend={trend}
                 readout={readout2}
@@ -616,6 +624,7 @@ export function App({ connect = connectSocket, load = fetchDesk, onSeriesRender 
               waiting={waiting}
               onPin={setPin}
             />
+            <WaitTable stats={waits} waiting={waiting} selected={spell} onSelect={setSpell} />
           </div>
         </main>
         {desk && (

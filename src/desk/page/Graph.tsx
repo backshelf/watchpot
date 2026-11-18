@@ -80,6 +80,8 @@ export interface GraphProps {
   /** Hatched shapes in `[hours, y]`. */
   gaps?: readonly (readonly (readonly [number, number])[])[];
   gates?: readonly GateMark[];
+  /** A span of hours drawn as a translucent band behind the lines (a selected dry spell). */
+  span?: { from: number; to: number };
   /** The hours a crosshair can sit at, ascending. */
   stops: readonly number[];
   /** The trend window in hours: 0 (the default) draws the lines as they are. */
@@ -389,6 +391,7 @@ export function Graph(props: GraphProps) {
     lines,
     gaps,
     gates,
+    span: band,
     stops,
     trend = 0,
     readout,
@@ -587,6 +590,15 @@ export function Graph(props: GraphProps) {
           <line className="graph__axis" x1={left} x2={left + plotW} y1={bottom} y2={bottom} />
 
           <g clipPath={`url(#${uid}-clip)`}>
+            {band && (
+              <rect
+                className="graph__span"
+                x={xOf(band.from)}
+                y={top}
+                width={Math.max(1, xOf(band.to) - xOf(band.from))}
+                height={plotH}
+              />
+            )}
             <Series
               uid={uid}
               lines={lines}

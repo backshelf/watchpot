@@ -706,6 +706,33 @@ legend {
   width: 1%;
 }
 
+.parts__caption {
+  padding: 0.5rem 0.75rem 0.25rem;
+  color: var(--dp-ink-soft);
+  text-align: left;
+}
+
+.parts__pick {
+  padding: 0;
+  border: 0;
+  background: none;
+  color: inherit;
+  font: inherit;
+  text-decoration: underline;
+  cursor: pointer;
+}
+
+.parts tr.parts__on th,
+.parts tr.parts__on td {
+  background: color-mix(in oklch, var(--dp-live-deep) 14%, transparent);
+}
+
+/* A selected dry spell, marked on the graph behind the lines. */
+.graph__span {
+  fill: color-mix(in oklch, var(--dp-live-deep) 16%, transparent);
+  stroke: none;
+}
+
 .parts__delta {
   color: var(--dp-ink-soft);
 }
@@ -783,6 +810,17 @@ legend {
   gap: 0.5rem;
 }
 
+.panel__filter {
+  display: flex;
+  gap: 0.5rem;
+  padding: 0.5rem 0.75rem 0;
+}
+
+.panel__search {
+  flex: 1;
+  min-width: 0;
+}
+
 .panel__strip {
   grid-column: 1 / -1;
   min-height: 1.5em;
@@ -810,6 +848,28 @@ legend {
 .knobs__head {
   padding-bottom: 0.35rem;
   border-bottom: var(--dp-hair) solid var(--dp-ink);
+}
+
+.knobs__toggle {
+  display: block;
+  width: 100%;
+  padding: 0;
+  border: 0;
+  background: none;
+  color: inherit;
+  font: inherit;
+  letter-spacing: inherit;
+  text-align: left;
+  text-transform: inherit;
+  cursor: pointer;
+}
+
+.knobs__toggle::before {
+  content: "+ ";
+}
+
+.knobs__toggle[aria-expanded="true"]::before {
+  content: "− ";
 }
 
 .knobs__list {

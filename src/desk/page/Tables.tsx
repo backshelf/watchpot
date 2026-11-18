@@ -16,6 +16,7 @@ import {
   parsePrice,
   percentChange,
 } from "./series";
+import type { WaitStats } from "./waits";
 
 export type Pins = NonNullable<DeskInfo["pins"]>;
 export type Pin = Pins[string];
@@ -284,3 +285,149 @@ export function GateTable({
     </section>
   );
 }
+
+const KEY_LIMIT = 20;
+
+/** The waits between upgrades, for the median seed: the longest dry spells (each selectable, to mark it on the
+ * graphs), a row per upgrade, and a row per window. */
+export const WaitTable = memo(function WaitTable({
+  stats,
+  waiting,
+  selected,
+  onSelect,
+}: {
+  stats: WaitStats | undefined;
+  waiting: boolean;
+  selected?: { from: number; to: number };
+  onSelect: (spell: { from: number; to: number } | undefined) => void;
+}) {
+  const [all, setAll] = useState(false);
+  const keys = stats ? (all ? stats.keys : stats.keys.slice(0, KEY_LIMIT)) : [];
+  const wait = (h: number | undefined) => (h === undefined ? "–" : hoursMinutes(h));
+  return (
+    <section className="plate sheet">
+      <div className="plate__head">
+        <div className="graph__titlerow">
+          <h2 className="lettering">Waits</h2>
+          {stats && (
+            <p className="graph__caption">
+              seed {stats.seed} · samples every {hoursMinutes(stats.step)}
+            </p>
+          )}
+        </div>
+      </div>
+      {!stats ? (
+        <p className="empty">
+          {waiting
+            ? "Waiting for the first window: the waits between upgrades land here."
+            : "No samples to read waits from."}
+        </p>
+      ) : (
+        <div className="sheet__scroll">
+          <table className="parts" aria-label="Longest dry spells">
+            <caption className="parts__caption lettering">Longest dry spells</caption>
+            <thead>
+              <tr>
+                <th scope="col">From</th>
+                <th scope="col" className="parts__n">
+                  To
+                </th>
+                <th scope="col" className="parts__n">
+                  Length
+                </th>
+                <th scope="col">Ended by</th>
+              </tr>
+            </thead>
+            <tbody>
+              {stats.spells.map((s) => {
+                const on = selected?.from === s.from && selected?.to === s.to;
+                return (
+                  <tr key={`${s.from}-${s.to}`} className={on ? "parts__on" : undefined}>
+                    <th scope="row" className="num">
+                      <button
+                        type="button"
+                        className="parts__pick"
+                        aria-pressed={on}
+                        onClick={() => onSelect(on ? undefined : { from: s.from, to: s.to })}
+                      >
+                        {hoursMinutes(s.from)}
+                      </button>
+                    </th>
+                    <td className="num parts__n">{hoursMinutes(s.to)}</td>
+                    <td className="num parts__n">{hoursMinutes(s.hours)}</td>
+                    <td>{s.endedBy.length === 0 ? "end of run" : s.endedBy.join(", ")}</td>
+                  </tr>
+                );
+              })}
+            </tbody>
+          </table>
+          <table className="parts" aria-label="Per upgrade">
+            <caption className="parts__caption lettering">Per upgrade</caption>
+            <thead>
+              <tr>
+                <th scope="col">Upgrade</th>
+                <th scope="col" className="parts__n">
+                  Bought
+                </th>
+                <th scope="col" className="parts__n">
+                  First
+                </th>
+                <th scope="col" className="parts__n">
+                  Median wait
+                </th>
+                <th scope="col" className="parts__n">
+                  Longest wait
+                </th>
+              </tr>
+            </thead>
+            <tbody>
+              {keys.map((k) => (
+                <tr key={k.key}>
+                  <th scope="row">{k.key}</th>
+                  <td className="num parts__n">{k.bought}</td>
+                  <td className="num parts__n">{hoursMinutes(k.firstHours)}</td>
+                  <td className="num parts__n">{wait(k.medianWait)}</td>
+                  <td className="num parts__n">{wait(k.longestWait)}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+          {!all && stats.keys.length > KEY_LIMIT && (
+            <button type="button" className="control" onClick={() => setAll(true)}>
+              Show all {stats.keys.length}
+            </button>
+          )}
+          <table className="parts" aria-label="Per window">
+            <caption className="parts__caption lettering">Per window</caption>
+            <thead>
+              <tr>
+                <th scope="col">Window</th>
+                <th scope="col" className="parts__n">
+                  Buys
+                </th>
+                <th scope="col" className="parts__n">
+                  Median gap
+                </th>
+                <th scope="col" className="parts__n">
+                  Longest gap
+                </th>
+              </tr>
+            </thead>
+            <tbody>
+              {stats.windows.map((w) => (
+                <tr key={w.from}>
+                  <th scope="row" className="num">
+                    {hoursMinutes(w.from)}–{hoursMinutes(w.to)}
+                  </th>
+                  <td className="num parts__n">{w.buys}</td>
+                  <td className="num parts__n">{w.buys > 0 ? hoursMinutes(w.median) : "–"}</td>
+                  <td className="num parts__n">{w.buys > 0 ? hoursMinutes(w.longest) : "–"}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      )}
+    </section>
+  );
+});

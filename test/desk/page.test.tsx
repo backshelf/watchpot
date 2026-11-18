@@ -1,5 +1,5 @@
 // The sim desk's page, drawn over a fake socket and a fake desk: what a run streams in is what the page shows.
-import { afterEach, describe, expect, jest, test } from "bun:test";
+import { afterEach, beforeEach, describe, expect, jest, test } from "bun:test";
 import { act, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import { StrictMode } from "react";
 import { App } from "../../src/desk/page/App";
@@ -375,7 +375,10 @@ describe("the desk page", () => {
 const runs = (socket: ReturnType<typeof fake>) => socket.sent.filter((m) => m.type === "run");
 const wait = (ms: number) => act(() => void jest.advanceTimersByTime(ms));
 const slider = () => screen.getByRole("slider", { name: "Rate" }) as HTMLInputElement;
-const setRate = (v: number) => fireEvent.change(slider(), { target: { value: String(v) } });
+const setRate = (v: number) => {
+  fireEvent.change(slider(), { target: { value: String(v) } });
+  fireEvent.pointerUp(slider());
+};
 const field = (name: string) => screen.getByLabelText(`${name} value`) as HTMLInputElement;
 const knobRow = (name: string) => field(name).closest("li") as HTMLElement;
 const gates = () => within(screen.getByRole("table", { name: "Gates" }));
@@ -398,6 +401,9 @@ function fakeFetch(status: number, body: unknown) {
 }
 
 describe("the knob panel", () => {
+  beforeEach(() => {
+    localStorage.setItem("watchpot-desk-open-groups", JSON.stringify(["Economy", "Timing"]));
+  });
   afterEach(() => {
     jest.useRealTimers();
   });
@@ -405,20 +411,20 @@ describe("the knob panel", () => {
   test("knobs sit under their group's lettering, in spec order, with their units", async () => {
     await draw();
     const groups = screen.getAllByRole("heading", { level: 3 }).map((h) => h.textContent);
-    expect(groups).toEqual(["Economy", "Timing"]);
+    expect(groups).toEqual(["Economy · 1 knobs", "Timing · 1 knobs"]);
     expect(field("Delay").value).toBe("1:30");
     // A knob with no range is a number field only.
     expect(screen.queryByRole("slider", { name: "Delay" })).toBeNull();
     expect(slider().getAttribute("step")).toBe("0.5");
   });
 
-  test("moving a knob marks it by hand; after 500 ms one run goes out with the new value and the pins", async () => {
+  test("moving a knob marks it by hand; after a second one run goes out with the new value and the pins", async () => {
     const socket = await draw();
     jest.useFakeTimers();
     expect(within(knobRow("Rate")).queryByText("by hand")).toBeNull();
     setRate(4);
     expect(within(knobRow("Rate")).getByText("by hand")).toBeTruthy();
-    wait(499);
+    wait(999);
     expect(runs(socket)).toHaveLength(1);
     wait(1);
     expect(runs(socket)).toHaveLength(2);
@@ -435,11 +441,11 @@ describe("the knob panel", () => {
     const socket = await draw();
     jest.useFakeTimers();
     setRate(3);
-    wait(400);
+    wait(800);
     setRate(5);
-    wait(400);
+    wait(800);
     expect(runs(socket)).toHaveLength(1);
-    wait(100);
+    wait(200);
     expect(runs(socket)).toHaveLength(2);
     expect(runs(socket)[1]).toMatchObject({ knobs: { rate: 5 } });
   });
@@ -453,9 +459,11 @@ describe("the knob panel", () => {
     expect(slider().value).toBe("1.5");
   });
 
-  test("a number field sets a knob too; a time is typed and read as a clock", async () => {
+  test("a number field sets a knob on blur; a time is typed and read as a clock", async () => {
     const socket = await draw();
     fireEvent.change(field("Delay"), { target: { value: "2:30" } });
+    expect(field("Delay").value).toBe("2:30");
+    fireEvent.blur(field("Delay"));
     expect(field("Delay").value).toBe("2:30");
     expect(within(knobRow("Delay")).getByText("by hand")).toBeTruthy();
     expect(within(knobRow("Delay")).getByText("code 1:30")).toBeTruthy();
@@ -465,6 +473,40 @@ describe("the knob panel", () => {
     fireEvent.blur(field("Delay"));
     expect(field("Delay").value).toBe("2:30");
     expect(socket.sent).toHaveLength(1);
+  });
+
+  test("typing 150 sends no run until Enter, then exactly one after the debounce; Escape drops the draft", async () => {
+    const socket = await draw({
+      ...INFO,
+      knobs: [{ key: "cap", value: 100, code: 100, label: "Cap", group: "Economy" }],
+    });
+    jest.useFakeTimers();
+    for (const t of ["1", "15", "150"]) fireEvent.change(field("Cap"), { target: { value: t } });
+    wait(5000);
+    expect(runs(socket)).toHaveLength(1);
+    fireEvent.keyDown(field("Cap"), { key: "Enter" });
+    wait(999);
+    expect(runs(socket)).toHaveLength(1);
+    wait(1);
+    expect(runs(socket)).toHaveLength(2);
+    expect(runs(socket)[1]).toMatchObject({ knobs: { cap: 150 } });
+    fireEvent.change(field("Cap"), { target: { value: "7" } });
+    fireEvent.keyDown(field("Cap"), { key: "Escape" });
+    expect(field("Cap").value).toBe("150");
+  });
+
+  test("a slider drag moves the value live and asks for a run only on release", async () => {
+    const socket = await draw();
+    jest.useFakeTimers();
+    fireEvent.change(slider(), { target: { value: "3" } });
+    fireEvent.change(slider(), { target: { value: "4" } });
+    wait(5000);
+    expect(runs(socket)).toHaveLength(1);
+    expect(within(knobRow("Rate")).getByText("by hand")).toBeTruthy();
+    fireEvent.pointerUp(slider());
+    wait(1000);
+    expect(runs(socket)).toHaveLength(2);
+    expect(runs(socket)[1]).toMatchObject({ knobs: { rate: 4 } });
   });
 
   test("a share is stored as a fraction and shown, and typed, as a percentage; a multiplier leads with ×", async () => {
@@ -479,10 +521,12 @@ describe("the knob panel", () => {
     expect(knobRow("Away").textContent).toContain("%");
     expect(knobRow("Grow").textContent).toContain("×");
     fireEvent.change(field("Away"), { target: { value: "15" } });
+    fireEvent.blur(field("Away"));
     expect(socket.sent.length).toBe(1);
     expect(within(knobRow("Away")).getByText("code 50%")).toBeTruthy();
     expect((screen.getByRole("slider", { name: "Away" }) as HTMLInputElement).value).toBe("0.15");
     fireEvent.change(field("Grow"), { target: { value: "1.47" } });
+    fireEvent.blur(field("Grow"));
     expect(within(knobRow("Grow")).getByText("code 1.15")).toBeTruthy();
     expect(
       (screen.getByRole("slider", { name: "Grow" }) as HTMLInputElement).getAttribute("aria-valuetext"),
@@ -497,7 +541,7 @@ describe("the knob panel", () => {
     expect(slider().value).toBe("2");
     expect(within(knobRow("Rate")).queryByText("by hand")).toBeNull();
     expect(within(knobRow("Rate")).queryByRole("button", { name: /Reset/ })).toBeNull();
-    wait(500);
+    wait(1000);
     expect(runs(socket)[1]).toMatchObject({ knobs: { rate: 2 } });
   });
 
@@ -509,11 +553,11 @@ describe("the knob panel", () => {
     fireEvent.change(gates().getByRole("textbox", { name: "Price of g1" }), { target: { value: "250" } });
     fireEvent.change(gates().getByRole("textbox", { name: "Hour of g1" }), { target: { value: "1:30" } });
     expect(gates().getAllByText("by hand").length).toBe(2);
-    wait(500);
+    wait(1000);
     expect(runs(socket)).toHaveLength(2);
     expect(runs(socket)[1]).toMatchObject({ pins: { g1: { price: "250", atMs: 1.5 * H } } });
     fireEvent.click(gates().getByRole("button", { name: "Unpin" }));
-    wait(500);
+    wait(1000);
     expect(runs(socket)[2]).toMatchObject({ pins: {} });
     // The gates stay listed, from the run before, while the new run plays its first window.
     expect(gates().queryByRole("button", { name: "Unpin" })).toBeNull();
@@ -528,7 +572,7 @@ describe("the knob panel", () => {
     const price = screen.getByRole("textbox", { name: "Price of g1" });
     fireEvent.change(price, { target: { value: "lots" } });
     expect(price.getAttribute("aria-invalid")).toBe("true");
-    wait(500);
+    wait(1000);
     expect(runs(socket)[1]).toMatchObject({ pins: {} });
   });
 
@@ -538,7 +582,7 @@ describe("the knob panel", () => {
     expect(screen.queryByRole("button", { name: "Clear before" })).toBeNull();
     jest.useFakeTimers();
     setRate(5);
-    wait(500);
+    wait(1000);
     jest.useRealTimers();
     // The first window is replayed from the cache: part of the new run.
     const again = window(2, 1, 0, 2, [0, 1, 2], 10) as Extract<ToClient, { type: "window" }>;
@@ -605,5 +649,81 @@ describe("the knob panel", () => {
     await draw({ ...INFO, knobs: [] });
     expect(screen.getByText(/names no knobs/).textContent).toContain("defineKnobs");
     expect(screen.queryByRole("slider")).toBeNull();
+  });
+});
+
+describe("the knob panel's groups and filters", () => {
+  const MANY: DeskInfo = {
+    ...INFO,
+    knobs: [
+      { key: "rate", value: 2, code: 2, label: "Rate", group: "Economy", min: 0, max: 10, step: 0.5 },
+      { key: "cost", value: 5, code: 4, label: "Cost", group: "Economy" },
+      { key: "delay", value: 90_000, code: 90_000, label: "Delay", group: "Timing", unit: "ms" },
+      { key: "wait", value: 10, code: 10, label: "Wait", group: "Timing" },
+    ],
+  };
+  const clearStore = () => {
+    localStorage.removeItem("watchpot-desk-open-groups");
+  };
+  afterEach(clearStore);
+  const header = (name: RegExp) => screen.getByRole("button", { name });
+
+  test("groups start collapsed; a header opens its knobs and shows the counts", async () => {
+    clearStore();
+    await draw(MANY);
+    expect(screen.queryByLabelText("Rate value")).toBeNull();
+    expect(header(/^Economy/).textContent).toBe("Economy · 2 knobs · 1 by hand");
+    expect(header(/^Timing/).textContent).toBe("Timing · 2 knobs");
+    expect(header(/^Timing/).getAttribute("aria-expanded")).toBe("false");
+    fireEvent.click(header(/^Economy/));
+    expect(header(/^Economy/).getAttribute("aria-expanded")).toBe("true");
+    expect(screen.getByLabelText("Rate value")).toBeTruthy();
+    expect(screen.queryByLabelText("Delay value")).toBeNull();
+    expect(JSON.parse(localStorage.getItem("watchpot-desk-open-groups") ?? "[]")).toEqual(["Economy"]);
+  });
+
+  test("the filter shows only matching knobs across groups, open, and hides groups with none", async () => {
+    clearStore();
+    await draw(MANY);
+    const box = screen.getByRole("searchbox", { name: "Filter knobs" });
+    fireEvent.change(box, { target: { value: "WA" } });
+    expect(screen.getByLabelText("Wait value")).toBeTruthy();
+    expect(screen.queryByLabelText("Rate value")).toBeNull();
+    expect(screen.queryByRole("button", { name: /^Economy/ })).toBeNull();
+    // A group name matches all its knobs.
+    fireEvent.change(box, { target: { value: "econ" } });
+    expect(screen.getByLabelText("Rate value")).toBeTruthy();
+    expect(screen.getByLabelText("Cost value")).toBeTruthy();
+    fireEvent.change(box, { target: { value: "zzz" } });
+    expect(screen.getByText("No knobs match.")).toBeTruthy();
+  });
+
+  test("Changed only shows only knobs that differ from code, and combines with the filter", async () => {
+    clearStore();
+    await draw(MANY);
+    const only = screen.getByRole("button", { name: "Changed only" });
+    fireEvent.click(only);
+    expect(only.getAttribute("aria-pressed")).toBe("true");
+    expect(screen.getByLabelText("Cost value")).toBeTruthy();
+    expect(screen.queryByLabelText("Rate value")).toBeNull();
+    expect(screen.queryByRole("button", { name: /^Timing/ })).toBeNull();
+    fireEvent.change(screen.getByRole("searchbox", { name: "Filter knobs" }), { target: { value: "rate" } });
+    expect(screen.getByText("No knobs match.")).toBeTruthy();
+  });
+});
+
+describe("the waits table", () => {
+  test("lists a dry spell from the run; clicking it presses it, again clears it", async () => {
+    const socket = await draw();
+    await socket.say(window(1, 1, 0, 2, [0, 1, 2]));
+    const pick = () =>
+      within(screen.getByRole("table", { name: "Longest dry spells" })).getAllByRole(
+        "button",
+      )[0] as HTMLElement;
+    expect(pick().getAttribute("aria-pressed")).toBe("false");
+    fireEvent.click(pick());
+    expect(pick().getAttribute("aria-pressed")).toBe("true");
+    fireEvent.click(pick());
+    expect(pick().getAttribute("aria-pressed")).toBe("false");
   });
 });
