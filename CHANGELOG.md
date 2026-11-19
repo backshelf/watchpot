@@ -2,7 +2,7 @@
 
 Each release is a tag `vX.Y.Z`. A breaking change names its codemod in `codemods/` (policy in `codemods/README.md`).
 
-## Unreleased
+## 1.0.0-rc.11
 
 - `create-watchpot` writes a bare game: one button, one number and a saved setting, with the boilerplate done and no
   mechanic (no crit, combo, tabs, header, sheets, sound, stats or sim) and no look. It is written from the new

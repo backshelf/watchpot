@@ -1,6 +1,6 @@
 {
   "name": "create-watchpot",
-  "version": "1.0.0-rc.10",
+  "version": "1.0.0-rc.11",
   "description": "Make a new idle game on the watchpot engine: bun create watchpot, or npm create watchpot.",
   "license": "MIT",
   "homepage": "https://backshelf.github.io/watchpot",
@@ -32,7 +32,7 @@
   },
   "dependencies": {
     "@clack/prompts": "^1.9.0",
-    "watchpot": "workspace:^1.0.0-rc.10"
+    "watchpot": "workspace:^1.0.0-rc.11"
   },
   "devDependencies": {
     "@tailwindcss/vite": "^4.3.5",
