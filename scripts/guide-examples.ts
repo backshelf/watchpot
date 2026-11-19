@@ -222,7 +222,7 @@ export const allExamples = (): string[] =>
     .map((e) => relative(EXAMPLES, join(e.parentPath, e.name)).replaceAll("\\", "/"))
     .sort();
 
-/** The examples written for the guide: `guide-*` files and the Simmer folder. A chapter must reference each. */
+/** The examples written for the guide: `guide-*` files and the Simmer folder. A chapter or guide page must name each. */
 export const guideExamples = (): string[] =>
   allExamples().filter((f) => f.startsWith("guide-") || f.startsWith("simmer/"));
 
@@ -235,6 +235,24 @@ export type Report = {
   /** The stdout of each example a marker needed. */
   stdout: Map<string, string[] | Error>;
 };
+
+/** Every interactive guide page's source, by its path under `site/src/guide/`: a page names its examples too. */
+const guidePageSources = (): [string, string][] => {
+  const root = join(ROOT, "site", "src", "guide");
+  return readdirSync(root, { recursive: true, withFileTypes: true })
+    .filter((e) => e.isFile() && e.name.endsWith(".tsx"))
+    .map(
+      (e) =>
+        [
+          relative(root, join(e.parentPath, e.name)).replaceAll("\\", "/"),
+          lf(readFileSync(join(e.parentPath, e.name), "utf8")),
+        ] as [string, string],
+    );
+};
+
+/** Whether a page's text names an example: by its docs path, or by the file its page hands the panel. */
+const quoted = (body: string, file: string) =>
+  body.includes(`examples/${file}`) || body.includes(`"${file}"`) || body.includes(`'${file}'`);
 
 export const check = async (): Promise<Report> => {
   const byPage = new Map<string, Finding[]>();
@@ -309,18 +327,19 @@ export const check = async (): Promise<Report> => {
     }
   }
 
-  // Every guide example is quoted, linked or run from some chapter, and every other example from some page (the
-  // root README counts: it quotes one of its own).
+  // Every guide example is quoted, linked or run from some chapter or interactive page, and every other example from
+  // some page (the root README counts: it quotes one of its own).
   text.set("../README.md", lf(readFileSync(join(ROOT, "README.md"), "utf8")));
+  for (const [path, body] of guidePageSources()) text.set(`guide-page/${path}`, body);
   const referencedFrom = (file: string, where: (page: string) => boolean) =>
-    [...text].some(([page, body]) => where(page) && body.includes(`examples/${file}`)) ||
+    [...text].some(([page, body]) => where(page) && quoted(body, file)) ||
     markers.some((m) => m.file === file && where(m.page));
   const guide = new Set(guideExamples());
   const loose: Finding[] = [];
   for (const file of allExamples()) {
     if (guide.has(file)) {
-      if (!referencedFrom(file, (p) => p.startsWith("guide/")))
-        loose.push({ page: "", message: `docs/examples/${file} is referenced by no chapter` });
+      if (!referencedFrom(file, (p) => p.startsWith("guide/") || p.startsWith("guide-page/")))
+        loose.push({ page: "", message: `docs/examples/${file} is referenced by no chapter or guide page` });
     } else if (!referencedFrom(file, () => true)) {
       loose.push({ page: "", message: `docs/examples/${file} is referenced by no page` });
     }
