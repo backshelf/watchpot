@@ -1,0 +1,41 @@
+import { fmt } from "watchpot/core";
+import { useGameRuntime } from "watchpot/react";
+import { COUNT, NAME } from "./game/words";
+import { useGameState, useGameStore } from "./hooks";
+import { Button } from "./ui/Button";
+import { Counter } from "./ui/Counter";
+import { Panel } from "./ui/Panel";
+import { Title } from "./ui/Title";
+
+/**
+ * The page on the starter components (`src/ui/`): a counter, the button that raises it and the saved setting.
+ * `useGameRuntime` starts the clock (the catch-up for time away, then the ticks), applies the motion setting to the
+ * page and reports another tab taking the save.
+ */
+export function App() {
+  const store = useGameStore();
+  const motion = useGameState((s) => s.settings.motion);
+  const count = useGameState((s) => s.wallet[COUNT]);
+  const { taken } = useGameRuntime(store, { motion });
+  const shown = fmt(count);
+  return (
+    <main style={{ maxWidth: 480, margin: "0 auto", padding: 16, display: "grid", gap: 16 }}>
+      <Title>{NAME}</Title>
+      <Counter label="Count" mantissa={shown.mantissa} suffix={shown.suffix} />
+      <Button variant="primary" size="large" onClick={() => store.getState().wallet.credit(COUNT, 1)}>
+        Click
+      </Button>
+      <Panel heading="Settings">
+        <label>
+          <input
+            type="checkbox"
+            checked={motion === "reduced"}
+            onChange={(e) => store.getState().settings.change({ motion: e.target.checked ? "reduced" : "system" })}
+          />{" "}
+          Reduce motion
+        </label>
+      </Panel>
+      {taken && <p role="alert">{NAME} is open in another tab. Play there, or close it and reload this one.</p>}
+    </main>
+  );
+}

@@ -1,10 +1,11 @@
 /**
- * The Tailwind flavour: turns the game that `generate()` wrote (and `toVite()` converted, for the Vite flavour) into one
- * whose UI registry (`src/ui/`) is Tailwind utilities over the `--ui-*` tokens, not CSS modules. The copies are the
- * engine's `templates/tailwind/src/ui/`. The screens outside `src/ui/` keep their CSS modules: Tailwind v4 and CSS
- * modules share a page.
+ * The Tailwind flavour: wires Tailwind v4 into the game that was written (and converted, for the Vite flavour): its
+ * packages, the plugin of the flavour (Vite's, or Bun's with a `build.ts` and a `bunfig.toml`), and Biome's reading of
+ * Tailwind's at-rules. It adds no component. A game that asked for the starter components gets Tailwind's copies of
+ * them from `./components` (their `theme.css` is what imports Tailwind); a game that did not gets one stylesheet,
+ * `src/index.css`, that imports it and nothing more.
  */
-import { copyFileSync, existsSync, readdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import { readFileSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { formatWithBiome } from "./biome";
 
@@ -36,31 +37,18 @@ const BUNFIG = `[serve.static]
 plugins = ["bun-plugin-tailwind"]
 `;
 
-/** Writes the Tailwind flavour into the game in `out`. `flavour` is the template the game was written as. */
-export function toTailwind(out: string, engine: string, flavour: "bun" | "vite") {
-  const source = join(engine, "templates", "tailwind", "src", "ui");
-  const ui = join(out, "src", "ui");
-  const changed: string[] = [];
-
-  // Each component the scaffold kept is replaced by its Tailwind copy; the CSS modules go with them.
-  for (const file of readdirSync(ui)) {
-    if (!file.endsWith(".tsx")) continue;
-    const from = join(source, file);
-    if (!existsSync(from))
-      throw new Error(`create-watchpot: the engine has no Tailwind copy of src/ui/${file}`);
-    copyFileSync(from, join(ui, file));
-    changed.push(join("src", "ui", file));
-  }
-  for (const file of readdirSync(ui)) if (file.endsWith(".module.css")) rmSync(join(ui, file));
-  for (const file of ["theme.css", "pageRoot.ts", "README.md"]) {
-    copyFileSync(join(source, file), join(ui, file));
-    changed.push(join("src", "ui", file));
-  }
-  writeIndex(source, ui);
-  changed.push(join("src", "ui", "index.ts"));
-  describeReadme(out);
+/**
+ * Writes the Tailwind flavour into the game in `out`. `flavour` is the template the game was written as;
+ * `components` is whether the starter components (whose `theme.css` imports Tailwind) are in the game.
+ */
+export function toTailwind(out: string, engine: string, flavour: "bun" | "vite", components: boolean) {
+  const changed: string[] = ["biome.json"];
   allowTailwindDirectives(out);
-  changed.push("biome.json");
+  if (!components) {
+    writeFileSync(join(out, "src", "index.css"), '@import "tailwindcss";\n');
+    importStylesheet(out);
+    changed.push("src/main.tsx");
+  }
 
   writeManifest(out, flavour);
   if (flavour === "vite") {
@@ -72,22 +60,18 @@ export function toTailwind(out: string, engine: string, flavour: "bun" | "vite")
     addToTsconfig(out, "build.ts");
     changed.push("build.ts", "tsconfig.json");
   }
-  // Biome formats what it changed, as the scaffold's own pass does: the copies, the theme, the README, the manifests.
+  // Biome formats what it changed, as the scaffold's own pass does: the manifests, the config and the entry.
   formatWithBiome(out, engine, [...changed, "package.json"]);
 }
 
-/**
- * The engine's `index.ts` with its gates resolved against the components the game kept: a line that exports a
- * component the game dropped goes, and the marker comments go with the gates.
- */
-function writeIndex(source: string, ui: string) {
-  const lines = readFileSync(join(source, "index.ts"), "utf8").split("\n");
-  const kept = lines.filter((line) => {
-    if (/^\s*\/\/ @(if|end)\b/.test(line)) return false;
-    const from = line.match(/from "\.\/(\w+)"/);
-    return !from || existsSync(join(ui, `${from[1]}.tsx`));
-  });
-  writeFileSync(join(ui, "index.ts"), kept.join("\n"));
+/** The page's entry imports the stylesheet, after the store's import. */
+function importStylesheet(out: string) {
+  const file = join(out, "src", "main.tsx");
+  const line = 'import { createGameStore } from "./game/store";\n';
+  const text = readFileSync(file, "utf8");
+  if (!text.includes(line))
+    throw new Error("create-watchpot: src/main.tsx has changed; cannot add Tailwind to it");
+  writeFileSync(file, text.replace(line, `${line}import "./index.css";\n`));
 }
 
 /** Biome reads Tailwind's at-rules (`@import "tailwindcss"`, `@theme`) only when its CSS parser is told to. */
@@ -96,16 +80,6 @@ function allowTailwindDirectives(out: string) {
   const config = JSON.parse(readFileSync(file, "utf8")) as { css?: { parser?: Record<string, unknown> } };
   config.css = { ...config.css, parser: { ...config.css?.parser, tailwindDirectives: true } };
   writeFileSync(file, `${JSON.stringify(config, null, 2)}\n`);
-}
-
-/** The game's README says its components are CSS-module styled; under Tailwind that one line is wrong, so it is said right. */
-function describeReadme(out: string) {
-  const file = join(out, "README.md");
-  const text = readFileSync(file, "utf8");
-  const said = "each with its CSS module";
-  if (!text.includes(said))
-    throw new Error("create-watchpot: the game's README does not describe its CSS modules");
-  writeFileSync(file, text.replace(said, "each styled with Tailwind utilities"));
 }
 
 /** The game's dependencies: Tailwind, the plugin of its flavour, and the Bun game's build script. */

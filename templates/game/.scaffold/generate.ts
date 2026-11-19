@@ -912,7 +912,7 @@ function surface(ground: string, ink: string, signal: string, dark: boolean) {
 /** CSS's generic and system families: named bare in a font stack, never quoted. */
 const GENERIC = new Set(["system-ui", "ui-sans-serif", "ui-serif", "ui-monospace", "ui-rounded", "sans-serif", "serif", "monospace", "cursive", "fantasy", "math"]);
 
-function tokens(pl: Plan, rarities: string[]) {
+export function tokens(pl: Plan, rarities: string[]) {
   const { ground, ink, signal, rarities: hues } = pl.look.palette;
   const dark = luminance(ground) < 0.4;
   const base: Record<string, string> = surface(ground, ink, signal, dark);

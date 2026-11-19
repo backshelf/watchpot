@@ -4,6 +4,11 @@ Each release is a tag `vX.Y.Z`. A breaking change names its codemod in `codemods
 
 ## Unreleased
 
+- `create-watchpot` writes a bare game: one button, one number and a saved setting, with the boilerplate done and no
+  mechanic (no crit, combo, tabs, header, sheets, sound, stats or sim) and no look. It is written from the new
+  `templates/bare/`; the full `templates/game/` is what `/watchpot-init` fills, unchanged. Tailwind now only wires
+  Tailwind into the build (`src/index.css`); the styled components are a separate prompt and flag, `--components`
+  (CSS modules, or Tailwind utilities with Tailwind), and are copied in only when asked for.
 - `definePrestige` gained `milestones`: permanent unlocks reached the first time what one counts reaches its `at`,
   keyed on `best` (the best single gain ever paid, the default), `total`, `runs` or `seconds`, and never lost to a
   reset. The slice gains `best` and `milestones`, `select.reached(state, id)` reads one, and a save from before them

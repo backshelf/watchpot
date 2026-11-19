@@ -20,19 +20,21 @@ export default defineConfig({ plugins: [react()] });
 `;
 
 /** The README's command block and the line the Vite flavour adds after it. */
-const README_DEV_COMMENT = "# http://localhost:3000 (PORT=<n> for another); #dev opens the dev panel";
-const README_DEV_COMMENT_VITE =
-  "# the URL Vite prints, usually http://localhost:5173; #dev opens the dev panel";
-const README_BUN_NOTE =
-  "The pacing sim (`npm run sim`) and `npm run tokens` need Bun installed: https://bun.sh";
+const README_DEV_COMMENT = "# http://localhost:3000 (PORT=<n> for another)";
+const README_DEV_COMMENT_VITE = "# the URL Vite prints, usually http://localhost:5173";
+/** Said only when the game has the starter components, whose tokens script is the one thing that runs on Bun. */
+const README_BUN_NOTE = "`npm run tokens` needs Bun installed: https://bun.sh";
 
-/** Converts the written game in `out` to the Vite flavour. `engine` is the watchpot package the game was written from. */
-export function toVite(out: string, engine: string) {
+/**
+ * Converts the written game in `out` to the Vite flavour. `engine` is the watchpot package the game was written from;
+ * `components` is whether the game has the starter components (and so a tokens script).
+ */
+export function toVite(out: string, engine: string, components: boolean) {
   rmSync(join(out, "dev.ts"));
   writeFileSync(join(out, "vite.config.ts"), VITE_CONFIG);
   convertManifest(out);
   convertTsconfig(out);
-  convertReadme(out);
+  convertReadme(out, components);
   formatWithBiome(out, engine, ["package.json", "tsconfig.json", "vite.config.ts"]);
 }
 
@@ -75,8 +77,8 @@ function convertTsconfig(out: string) {
   writeFileSync(file, `${JSON.stringify(tsconfig, null, 2)}\n`);
 }
 
-/** The commands section runs through npm, and says that the sim and the tokens still need Bun. */
-function convertReadme(out: string) {
+/** The commands section runs through npm, and (with the starter components) says the tokens script still needs Bun. */
+function convertReadme(out: string, components: boolean) {
   const file = join(out, "README.md");
   let text = readFileSync(file, "utf8");
   const start = text.indexOf("## Commands");
@@ -88,6 +90,6 @@ function convertReadme(out: string) {
   commands = commands
     .replace(README_DEV_COMMENT, README_DEV_COMMENT_VITE)
     .replace(/\bbun (install|run )/g, "npm $1");
-  text = `${text.slice(0, start)}${commands}\n${README_BUN_NOTE}\n${text.slice(end)}`;
+  text = `${text.slice(0, start)}${commands}${components ? `\n${README_BUN_NOTE}\n` : ""}${text.slice(end)}`;
   writeFileSync(file, text);
 }

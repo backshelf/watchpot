@@ -2,31 +2,35 @@
 /**
  * Makes a new idle game on the watchpot engine: `bun create watchpot` or `npm create watchpot`.
  *
- * It asks for a name, a template (Bun or Vite), Tailwind for the UI, a 3D stage and agent skills, then writes the game
- * from the engine's template (the engine is the installed `watchpot` package, whose `templates/game` the files are read
- * from at run time), copies the skills in, and installs. The Vite template converts the written game (`./vite.ts`), and
- * the Tailwind one swaps the UI registry for Tailwind's copies (`./tailwind.ts`). Runs on Node 20+ and on Bun.
+ * It asks for a name, a template (Bun or Vite), Tailwind, the starter components, a 3D stage and agent skills, then
+ * writes the game from the engine's bare template (the engine is the installed `watchpot` package, whose
+ * `templates/bare` the files are read from at run time), copies the skills in, and installs. The bare game is one
+ * button and one number, with no look: plain HTML. The Vite template converts the written game (`./vite.ts`);
+ * Tailwind only wires Tailwind into the build (`./tailwind.ts`); the starter components (`./components.ts`) are the
+ * template's UI registry, copied in only when asked for, in Tailwind's copies when Tailwind is on. Runs on Node 20+
+ * and on Bun.
  *
- * Non-interactive (tests, scripts): `--name <n> --vite --tailwind --three --skills=.claude/skills,.agents/skills --no-install --yes`.
+ * Non-interactive (tests, scripts): `--name <n> --vite --tailwind --components --three --skills=.claude/skills,.agents/skills --no-install --yes`.
  * Any answer given as a flag skips its prompt; `--yes` takes the default for every answer not given.
  */
 import { spawnSync } from "node:child_process";
 import {
+  copyFileSync,
   cpSync,
   existsSync,
   mkdirSync,
-  mkdtempSync,
   readdirSync,
   readFileSync,
+  renameSync,
   rmSync,
   statSync,
   writeFileSync,
 } from "node:fs";
 import { createRequire } from "node:module";
-import { tmpdir } from "node:os";
-import { dirname, join, resolve } from "node:path";
+import { basename, dirname, join, resolve } from "node:path";
 import * as p from "@clack/prompts";
-import { generate, slugify } from "../../../templates/game/.scaffold/generate";
+import { slugify } from "../../../templates/game/.scaffold/generate";
+import { addComponents } from "./components";
 import { toTailwind } from "./tailwind";
 import { toVite } from "./vite";
 
@@ -43,6 +47,7 @@ interface Flags {
   name?: string;
   vite?: boolean;
   tailwind?: boolean;
+  components?: boolean;
   three?: boolean;
   skills?: string[];
   install: boolean;
@@ -53,6 +58,7 @@ interface Choices {
   name: string;
   vite: boolean;
   tailwind: boolean;
+  components: boolean;
   three: boolean;
   skills: string[];
 }
@@ -60,7 +66,7 @@ interface Choices {
 class UsageError extends Error {}
 
 const USAGE =
-  "usage: create-watchpot [--name <name>] [--vite] [--tailwind] [--three] [--skills=<dir,dir>] [--no-install] [--yes]\n" +
+  "usage: create-watchpot [--name <name>] [--vite] [--tailwind] [--components] [--three] [--skills=<dir,dir>] [--no-install] [--yes]\n" +
   `  --skills takes any of: ${TARGETS.map((t) => t.value).join(", ")}`;
 
 function parseFlags(argv: readonly string[]): Flags {
@@ -83,6 +89,9 @@ function parseFlags(argv: readonly string[]): Flags {
         break;
       case "--tailwind":
         flags.tailwind = true;
+        break;
+      case "--components":
+        flags.components = true;
         break;
       case "--three":
         flags.three = true;
@@ -175,7 +184,18 @@ async function choose(flags: Flags): Promise<Choices> {
       ? false
       : answered(
           await p.confirm({
-            message: "Tailwind CSS?",
+            message: "Tailwind CSS? (wires it into the build; adds no components)",
+            initialValue: false,
+          }),
+        ));
+
+  const components =
+    flags.components ??
+    (flags.yes
+      ? false
+      : answered(
+          await p.confirm({
+            message: `Add starter components (buttons, panels, sheets and more, ready-made${tailwind ? ", in Tailwind" : ""})?`,
             initialValue: false,
           }),
         ));
@@ -208,7 +228,7 @@ async function choose(flags: Flags): Promise<Choices> {
         }),
       );
   }
-  return { name: name.trim(), vite, tailwind, three, skills };
+  return { name: name.trim(), vite, tailwind, components, three, skills };
 }
 
 /** The engine: the installed `watchpot` package (or `WATCHPOT_ENGINE_DIR`, for the tests against a checkout). */
@@ -235,26 +255,81 @@ interface EnginePackage {
   devDependencies?: Record<string, string>;
 }
 
-/** Writes the game: the template, its content from the fixture with the name given, and (with skills) the agent docs. */
-async function writeGame(engine: string, choice: Choices, out: string, pkg: EnginePackage) {
-  const template = join(engine, "templates", "game");
-  const fixture = join(template, ".scaffold", "fixtures", "smallest-clicker.json");
-  const temp = mkdtempSync(join(tmpdir(), "create-watchpot-"));
-  try {
-    const answers = JSON.parse(readFileSync(fixture, "utf8")) as Record<string, unknown>;
-    const file = join(temp, "answers.json");
-    writeFileSync(file, `${JSON.stringify({ ...answers, name: choice.name }, null, 2)}\n`);
-    await generate({
-      answers: file,
-      out,
-      engine: `v${pkg.version}`,
-      mode: "full",
-      agents: choice.skills.length > 0,
-      template,
+/** What the bare template holds that the game does not: its own README and agent docs, and the page's other version. */
+const NOT_COPIED = new Set(["README.md", "AGENTS.md", "components", "node_modules"]);
+
+const htmlEscape = (s: string) => s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+
+/** The line the game's README says about what its page is made of. */
+function componentsLine(choice: Choices): string {
+  if (choice.components)
+    return `- \`src/ui/\` the starter components over the engine's headless \`watchpot/ui\`${choice.tailwind ? ", each styled with Tailwind utilities" : ", each with its CSS module"} (\`src/ui/README.md\` lists them and the tokens they read); \`design/tokens.json\` is compiled to \`src/tokens.css\` by \`bun run tokens\`.\n`;
+  if (choice.tailwind) return "- `src/index.css` imports Tailwind. No component is styled yet.\n";
+  return "";
+}
+
+/** The `*.tmpl` files of the written game, by relative path. */
+function templates(dir: string, rel = ""): string[] {
+  return readdirSync(join(dir, rel), { withFileTypes: true }).flatMap((e) => {
+    const r = rel ? `${rel}/${e.name}` : e.name;
+    if (e.isDirectory()) return e.name === "node_modules" ? [] : templates(dir, r);
+    return e.name.endsWith(".tmpl") ? [r] : [];
+  });
+}
+
+/**
+ * Writes the game: the bare template (one button, one number, a saved setting), with its name, its slug and the
+ * engine's version put in, and (with skills) the agent docs. No look, no component, no mechanic.
+ */
+function writeGame(engine: string, choice: Choices, out: string, pkg: EnginePackage) {
+  const template = join(engine, "templates", "bare");
+  const slug = slugify(choice.name);
+  cpSync(template, out, {
+    recursive: true,
+    filter: (src) => src === template || !NOT_COPIED.has(basename(src)),
+  });
+  // The template keeps its ignore file as `gitignore`: npm leaves every `.gitignore` out of a published package.
+  renameSync(join(out, "gitignore"), join(out, ".gitignore"));
+
+  const vars: Record<string, string> = {
+    name: choice.name,
+    nameHtml: htmlEscape(choice.name),
+    slug,
+    engine: `v${pkg.version}`,
+    componentsLine: componentsLine(choice),
+  };
+  for (const rel of templates(out)) {
+    const file = join(out, rel);
+    const text = readFileSync(file, "utf8").replace(/\{\{(\w+)\}\}/g, (m, key: string) => {
+      const value = vars[key];
+      if (value === undefined) throw new Error(`create-watchpot: ${rel}: unknown placeholder ${m}`);
+      return value;
     });
-  } finally {
-    rmSync(temp, { recursive: true, force: true });
+    writeFileSync(file.slice(0, -".tmpl".length), text);
+    rmSync(file);
   }
+
+  // The game's name and save stem: the template's own words, rewritten.
+  const words = join(out, "src", "game", "words.ts");
+  const source = readFileSync(words, "utf8");
+  const nameLine = /^export const NAME = .*;$/m;
+  const slugLine = /^export const SLUG = .*;$/m;
+  if (!nameLine.test(source) || !slugLine.test(source))
+    throw new Error("create-watchpot: src/game/words.ts has changed; cannot name the game");
+  writeFileSync(
+    words,
+    source
+      .replace(nameLine, () => `export const NAME = ${JSON.stringify(choice.name)};`)
+      .replace(slugLine, () => `export const SLUG = ${JSON.stringify(slug)};`),
+  );
+
+  if (choice.skills.length > 0) copyFileSync(join(template, "AGENTS.md"), join(out, "AGENTS.md"));
+}
+
+/** Any valid answers file, for the one thing that wants one: the tokens' palette and type (the template's defaults). */
+function fixtureAnswers(engine: string): Record<string, unknown> {
+  const fixture = join(engine, "templates", "game", ".scaffold", "fixtures", "smallest-clicker.json");
+  return JSON.parse(readFileSync(fixture, "utf8")) as Record<string, unknown>;
 }
 
 /** The game's package.json: the engine from npm, and the 3D stage's two packages at the engine's own versions. */
@@ -321,11 +396,17 @@ async function main() {
   p.intro(`create-watchpot: ${choice.name}`);
   const step = p.spinner();
   step.start(`Writing ${slug}/`);
-  await writeGame(engine, choice, out, pkg);
+  writeGame(engine, choice, out, pkg);
   fixManifest(out, choice, pkg);
   copySkills(engine, out, choice.skills);
-  if (choice.vite) toVite(out, engine);
-  if (choice.tailwind) toTailwind(out, engine, choice.vite ? "vite" : "bun");
+  if (choice.components)
+    await addComponents(out, engine, {
+      tailwind: choice.tailwind,
+      name: choice.name,
+      answers: fixtureAnswers(engine),
+    });
+  if (choice.vite) toVite(out, engine, choice.components);
+  if (choice.tailwind) toTailwind(out, engine, choice.vite ? "vite" : "bun", choice.components);
   step.stop(`Wrote ${slug}/`);
 
   const pm = choice.vite ? "npm" : process.versions.bun !== undefined ? "bun" : "npm";

@@ -8,15 +8,26 @@ bun create watchpot        # or: npm create watchpot
 
 It asks a few questions, writes the game into a new folder named after it, and installs its packages.
 
+## What you get
+
+A bare game: one button, one number that goes up, and a saved setting (reduce motion). It has the boilerplate done (the
+store and its save, the clock that catches up the time away, the typed hooks, the build, the lint and the typecheck) and
+nothing else: no mechanic, no look, plain HTML. Every choice below adds to that; none of them adds a mechanic.
+
 ## The prompts
 
 1. **Name.** The game's title (default `My Idle Game`). Its folder is the name's slug, in the current folder; a folder
    that already holds files is refused.
-2. **Tailwind CSS?** No by default. Yes styles the game's UI components (`src/ui/`) with Tailwind v4 utilities over the
-   `--ui-*` tokens, instead of CSS modules. The screens outside `src/ui/` keep their CSS modules.
-3. **3D stage?** No by default. Yes adds `three` and `@react-three/fiber` to the game, at the same versions the engine
+2. **Which template?** Bun (the default under Bun) or Vite on Node.
+3. **Tailwind CSS?** No by default. Yes wires Tailwind v4 into the build and adds `src/index.css`, which imports it. It
+   adds no styled component: you write the classes.
+4. **Starter components?** No by default. Yes copies in `src/ui/`: ready-made buttons, panels, sheets, counters and
+   more over the engine's headless `watchpot/ui`, with the colour and type tokens they read (`design/tokens.json`,
+   compiled to `src/tokens.css`), and a page built on them. They are CSS modules, or Tailwind utilities when Tailwind
+   is on. They are the game's own after that: restyle or delete them.
+5. **3D stage?** No by default. Yes adds `three` and `@react-three/fiber` to the game, at the same versions the engine
    itself uses.
-4. **AI agent skills?** No by default. Yes adds `AGENTS.md` and the engine's `watchpot-init` skill, then asks where:
+6. **AI agent skills?** No by default. Yes adds `AGENTS.md` and the engine's `watchpot-init` skill, then asks where:
    `.claude/skills` (Claude Code), `.agents/skills` (Codex and others), `.cursor/skills` (Cursor). At least one.
 
 Ctrl-C at any prompt cancels and exits 0.
@@ -24,17 +35,19 @@ Ctrl-C at any prompt cancels and exits 0.
 ## Flags
 
 ```sh
-bun create watchpot --name "Tap Jar" --tailwind --three --skills=.claude/skills,.agents/skills --no-install --yes
+bun create watchpot --name "Tap Jar" --tailwind --components --three --skills=.claude/skills,.agents/skills --no-install --yes
 ```
 
-- `--name <name>`, `--tailwind`, `--three`, `--skills=<dir,dir>`: answer that prompt with the flag, so it is not asked.
+- `--name <name>`, `--vite`, `--tailwind`, `--components`, `--three`, `--skills=<dir,dir>`: answer that prompt with the
+  flag, so it is not asked.
 - `--yes`: take the default for every prompt that has no flag.
 - `--no-install`: write the game and stop, without `bun install` (or `npm install`).
 
 ## What it does
 
-The game is written from the engine's own template and its smallest answers fixture, with the name given. The engine is
-the installed `watchpot` package, so the game's `watchpot` dependency is `^<the engine's version>`, from npm.
+The game is written from the engine's bare template (`templates/bare/`), with the name given. The engine is the
+installed `watchpot` package, so the game's `watchpot` dependency is `^<the engine's version>`, from npm. The fuller
+template with every system (`templates/game/`) is what the engine's `/watchpot-init` skill fills from an interview.
 
 The game runs on Bun: after `cd <slug>`, `bun run dev` serves it at `http://localhost:3000`. Get Bun at https://bun.sh.
 

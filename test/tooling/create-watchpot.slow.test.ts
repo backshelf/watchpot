@@ -95,6 +95,62 @@ test("create-watchpot with no skills and no 3D stage writes neither", async () =
   expect(existsSync(join(game, ".agents"))).toBe(false);
 }, 120_000);
 
+/** Every file of a written game, by relative path (no `node_modules`). */
+const filesOf = (dir: string) =>
+  readdirSync(dir, { recursive: true })
+    .map(String)
+    .filter((f) => !f.includes("node_modules"))
+    .map((f) => f.replaceAll("\\", "/"));
+
+test("create-watchpot writes a bare game: one button and one number, no mechanic, no look, no component", async () => {
+  if (!Bun.which("node")) return;
+  mkdirSync(TEST_OUT, { recursive: true });
+  const dir = mkdtempSync(join(TEST_OUT, "bare-"));
+  dirs.push(dir);
+  const ran = await run(["node", BUNDLE, "--no-install", "--yes"], dir, { WATCHPOT_ENGINE_DIR: ROOT });
+  expect(ran.code, ran.output).toBe(0);
+
+  const game = join(dir, "my-idle-game");
+  const files = filesOf(game);
+  // Nothing of the template's systems, screens, registry, tokens or sim.
+  for (const gone of ["src/ui", "src/app", "src/screens", "src/content", "src/shaders", "design", "sim"])
+    expect(
+      files.filter((f) => f === gone || f.startsWith(`${gone}/`)),
+      gone,
+    ).toEqual([]);
+  expect(files).not.toContain("src/tokens.css");
+  expect(files.filter((f) => f.endsWith(".css"))).toEqual([]);
+  expect(files).toContain("src/App.tsx");
+  const src = files
+    .filter((f) => f.startsWith("src/") && /\.tsx?$/.test(f))
+    .map((f) => readFileSync(join(game, f), "utf8"))
+    .join("\n");
+  for (const mechanic of ["defineClicker", "crit", "combo", "defineGenerators", "defineUpgradeTree", "sound"])
+    expect(src, mechanic).not.toContain(mechanic);
+  // The name reaches the page, the save and the README; the placeholders are all filled.
+  expect(readFileSync(join(game, "src", "game", "words.ts"), "utf8")).toContain('NAME = "My Idle Game"');
+  expect(readFileSync(join(game, "src", "game", "words.ts"), "utf8")).toContain('SLUG = "my-idle-game"');
+  expect(readFileSync(join(game, "index.html"), "utf8")).toContain("<title>My Idle Game</title>");
+  for (const file of ["README.md", "index.html", "package.json", "biome.json"])
+    expect(readFileSync(join(game, file), "utf8"), file).not.toContain("{{");
+  const manifest = JSON.parse(readFileSync(join(game, "package.json"), "utf8")) as {
+    dependencies: Record<string, string>;
+  };
+  expect(Object.keys(manifest.dependencies).sort()).toEqual([
+    "break_eternity.js",
+    "immer",
+    "react",
+    "react-dom",
+    "watchpot",
+    "zustand",
+  ]);
+
+  // It type-checks and builds as it stands (its imports resolve from the checkout, up the tree).
+  const built = await run([process.execPath, "build", "./index.html", "--outdir", "dist"], game);
+  expect(built.code, built.output).toBe(0);
+  expect(existsSync(join(game, "dist", "index.html"))).toBe(true);
+}, 180_000);
+
 test("create-watchpot --vite writes a game that Vite builds", async () => {
   if (!Bun.which("node")) return;
   mkdirSync(TEST_OUT, { recursive: true });
@@ -156,17 +212,19 @@ test("create-watchpot --tailwind writes a Bun game whose registry is Tailwind an
   expect(manifest.devDependencies["bun-plugin-tailwind"]).toBeDefined();
   expect(manifest.devDependencies["@tailwindcss/vite"]).toBeUndefined();
   expect(readFileSync(join(game, "bunfig.toml"), "utf8")).toContain('plugins = ["bun-plugin-tailwind"]');
-  expect(existsSync(join(game, "src", "ui", "Button.module.css"))).toBe(false);
-  expect(readFileSync(join(game, "src", "ui", "Button.tsx"), "utf8")).not.toContain("module.css");
+  // Tailwind alone: one stylesheet that imports it, and no component.
+  expect(existsSync(join(game, "src", "ui"))).toBe(false);
+  expect(readFileSync(join(game, "src", "index.css"), "utf8")).toContain('@import "tailwindcss"');
+  expect(readFileSync(join(game, "src", "main.tsx"), "utf8")).toContain('import "./index.css"');
 
   // The game has no node_modules of its own: Bun, Tailwind and watchpot resolve from the package's, up the tree.
   const built = await run([process.execPath, "build.ts"], game);
   expect(built.code, built.output).toBe(0);
   expect(existsSync(join(game, "dist", "index.html")), built.output).toBe(true);
-  expect(builtCss(join(game, "dist"))).toContain(".bg-ui-surface");
+  expect(builtCss(join(game, "dist"))).toMatch(/box-sizing:\s*border-box/);
 }, 180_000);
 
-test("create-watchpot --vite --tailwind writes a Vite game whose registry is Tailwind and whose build runs", async () => {
+test("create-watchpot --vite --tailwind writes a Vite game that Tailwind styles and whose build runs", async () => {
   if (!Bun.which("node")) return;
   mkdirSync(TEST_OUT, { recursive: true });
   const dir = mkdtempSync(join(TEST_OUT, "vite-tailwind-"));
@@ -190,10 +248,92 @@ test("create-watchpot --vite --tailwind writes a Vite game whose registry is Tai
   expect(manifest.devDependencies["bun-plugin-tailwind"]).toBeUndefined();
   expect(readFileSync(join(game, "vite.config.ts"), "utf8")).toContain("plugins: [react(), tailwindcss()]");
   expect(existsSync(join(game, "bunfig.toml"))).toBe(false);
+  expect(existsSync(join(game, "src", "ui"))).toBe(false);
 
   const vite = join(PACKAGE, "node_modules", "vite", "bin", "vite.js");
   const built = await run(["node", vite, "build"], game);
   expect(built.code, built.output).toBe(0);
   expect(existsSync(join(game, "dist", "index.html")), built.output).toBe(true);
+  expect(builtCss(join(game, "dist"))).toMatch(/box-sizing:\s*border-box/);
+}, 180_000);
+
+/** Writes a game with the starter components into `TEST_OUT` and returns its folder. */
+async function componentsGame(prefix: string, name: string, flags: string[]) {
+  mkdirSync(TEST_OUT, { recursive: true });
+  const dir = mkdtempSync(join(TEST_OUT, `${prefix}-`));
+  dirs.push(dir);
+  const ran = await run(
+    ["node", BUNDLE, "--name", name, "--components", ...flags, "--yes", "--no-install"],
+    dir,
+    {
+      WATCHPOT_ENGINE_DIR: ROOT,
+    },
+  );
+  expect(ran.code, ran.output).toBe(0);
+  return join(dir, name.toLowerCase().replaceAll(" ", "-"));
+}
+
+test("create-watchpot --components writes the registry on CSS modules, with its tokens, and the game builds", async () => {
+  if (!Bun.which("node")) return;
+  const game = await componentsGame("components", "Parts Jar", []);
+  const files = filesOf(game);
+  expect(files).toContain("src/ui/Button.tsx");
+  expect(files).toContain("src/ui/Button.module.css");
+  expect(files).toContain("src/ui/theme.css");
+  expect(files).toContain("design/tokens.json");
+  expect(files).toContain("src/tokens.css");
+  // Only what a bare game can use: nothing of the template's own features, nor the shader backdrop.
+  for (const left of ["Backdrop", "Tree", "AchievementWall", "Arrival", "BuffChip", "RarityChip"])
+    expect(
+      files.filter((f) => f.startsWith(`src/ui/${left}.`)),
+      left,
+    ).toEqual([]);
+  const index = readFileSync(join(game, "src", "ui", "index.ts"), "utf8");
+  expect(index).not.toContain("@if");
+  expect(index).not.toContain("Backdrop");
+  expect(index).toContain('from "./Button"');
+  expect(readFileSync(join(game, "index.html"), "utf8")).toContain('data-theme="game"');
+  expect(readFileSync(join(game, "src", "App.tsx"), "utf8")).toContain('from "./ui/Button"');
+  const manifest = JSON.parse(readFileSync(join(game, "package.json"), "utf8")) as {
+    scripts: Record<string, string>;
+    dependencies: Record<string, string>;
+  };
+  expect(manifest.scripts.tokens).toBe("bun design/build-tokens.ts");
+  expect(manifest.dependencies["@number-flow/react"]).toBeDefined();
+
+  // It type-checks (Biome's own organised imports aside) and builds.
+  const typed = await run([process.execPath, "check"], game);
+  expect(typed.code, typed.output).toBe(0);
+  const built = await run([process.execPath, "build", "./index.html", "--outdir", "dist"], game);
+  expect(built.code, built.output).toBe(0);
+  expect(builtCss(join(game, "dist"))).toContain("--ui-accent");
+}, 180_000);
+
+test("create-watchpot --tailwind --components writes the registry in Tailwind, and the game builds", async () => {
+  if (!Bun.which("node")) return;
+  const game = await componentsGame("components-tailwind", "Parts Utility", ["--tailwind"]);
+  const files = filesOf(game);
+  expect(files).toContain("src/ui/Button.tsx");
+  expect(files.filter((f) => f.endsWith(".module.css"))).toEqual([]);
+  expect(files).not.toContain("src/index.css");
+  expect(readFileSync(join(game, "src", "ui", "Button.tsx"), "utf8")).not.toContain("module.css");
+  expect(readFileSync(join(game, "src", "ui", "theme.css"), "utf8")).toContain('@import "tailwindcss"');
+
+  const typed = await run([process.execPath, "check"], game);
+  expect(typed.code, typed.output).toBe(0);
+  const built = await run([process.execPath, "build.ts"], game);
+  expect(built.code, built.output).toBe(0);
+  expect(builtCss(join(game, "dist"))).toContain(".bg-ui-surface");
+}, 180_000);
+
+test("create-watchpot --vite --tailwind --components writes the registry in Tailwind, and Vite builds it", async () => {
+  if (!Bun.which("node")) return;
+  const game = await componentsGame("components-vite-tailwind", "Parts Vite", ["--vite", "--tailwind"]);
+  expect(existsSync(join(game, "src", "ui", "Button.tsx"))).toBe(true);
+  expect(readFileSync(join(game, "README.md"), "utf8")).toContain("`npm run tokens` needs Bun");
+
+  const vite = join(PACKAGE, "node_modules", "vite", "bin", "vite.js");
+  const built = await run(["node", vite, "build"], game);
+  expect(built.code, built.output).toBe(0);
   expect(builtCss(join(game, "dist"))).toContain(".bg-ui-surface");
 }, 180_000);
