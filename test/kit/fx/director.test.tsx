@@ -219,6 +219,29 @@ describe("the stage", () => {
       ).toEqual(["a", "b"]);
     }
   });
+  test("a small landing mid-release waits behind the held batches, a gap apart", () => {
+    const { time, director, batches } = setup();
+    director.push(cue("big", "seal"));
+    for (const k of ["a", "b"]) {
+      director.push(cue("small", k));
+      time.advance(100);
+    }
+    director.done();
+    expect(batches.map((b) => b.kind)).toEqual(["a"]);
+
+    // "b" still waits its turn: "c" queues behind it instead of going out now.
+    director.push(cue("small", "c"));
+    time.advance(100);
+    expect(batches.map((b) => b.kind)).toEqual(["a"]);
+    expect(director.log().at(-1)).toMatchObject({ kind: "c", fate: "held" });
+
+    time.advance(399);
+    expect(batches.map((b) => b.kind)).toEqual(["a"]);
+    time.advance(1);
+    expect(batches.map((b) => b.kind)).toEqual(["a", "b"]);
+    time.advance(500);
+    expect(batches.map((b) => b.kind)).toEqual(["a", "b", "c"]);
+  });
 });
 
 describe("the read hold", () => {
@@ -233,6 +256,48 @@ describe("the read hold", () => {
     expect(director.stage()).toBe(show);
     time.advance(500);
     director.done(show?.id);
+    expect(director.stage()).toBeNull();
+  });
+
+  test("an early done ends the show at readyAt, logged once as early", () => {
+    const { time, director } = setup();
+    director.push(cue("big", "seal", "gate", { readMs: 2000 }));
+    const show = director.stage();
+    time.advance(1500);
+    // An id that is not on the stage, and the same early press twice: one deferred end, one log line.
+    director.done((show?.id ?? 0) + 99);
+    director.done(show?.id);
+    director.done(show?.id);
+    expect(director.stage()).toBe(show);
+    expect(director.log().filter((l) => l.fate === "early")).toHaveLength(1);
+    expect(director.log().at(-1)).toMatchObject({ kind: "seal", tier: "big", fate: "early" });
+
+    time.advance(499);
+    expect(director.stage()).toBe(show);
+    time.advance(1);
+    expect(director.stage()).toBeNull();
+  });
+
+  test("an early done still ends the show when the hold timer fires a hair early", () => {
+    const time = manualTime();
+    // Every timer lands a millisecond ahead of the duration clock, as a real timeout can.
+    const director = createDirector<Data>({
+      now: time.now,
+      schedule: (fn, ms) => time.schedule(fn, Math.max(0, ms - 1)),
+      reduced: () => false,
+      coalesceMs: 100,
+      gapMs: 500,
+    });
+    director.push(cue("big", "seal", "gate", { readMs: 2000 }));
+    const show = director.stage();
+    time.advance(1500);
+    director.done(show?.id);
+    expect(director.stage()).toBe(show);
+
+    time.advance(498);
+    expect(director.stage()).toBe(show);
+    time.advance(1);
+    // The hold's timer fired at 1999, before readyAt: it ends the show rather than refreshing it and hanging.
     expect(director.stage()).toBeNull();
   });
 

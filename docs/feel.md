@@ -151,17 +151,18 @@ its renderers). It decides what plays when and hands the cue over; it never draw
 
 - **The read hold.** A big cue carries `readMs`: how long its words need. `readingMs(words, { perWordMs?, minMs?,
   maxMs? })` works it out from the game's own count (220 a word, at least 1200, at most 6000). The show stays on the
-  stage for that long, reduced motion or not, and `done(id)` before then does nothing; the director never ends it
-  itself. Subscribers hear the stage again when the hold expires (a fresh `StagedCue`), so a renderer shows its
-  "press to continue" then.
+  stage for that long, reduced motion or not. A `done(id)` before then is deferred to `readyAt`: a renderer that
+  presses the moment its animation ends still ends the show, when the hold expires, and a press after `readyAt` ends
+  it at once. Subscribers hear the stage when the hold expires (a fresh `StagedCue` to show its "press to continue"
+  on), or the empty stage when a press was already deferred.
 - **The stage.** `stage()` is the show on it (a `StagedCue`: the cue plus `id`, the `pushed` tier, `reduced`, its
   `readMs` and the `readyAt` it is readable from), the same object until it changes; `useStage(director)` is it as
   React state. The renderer calls `done(id)` when the show ends; an id that is no longer on the stage (a medium a big
   cut short) ends nothing. `waiting()` counts the queue.
 - **Batches.** `onBatch(fn)` (or `useCueBatches(director, fn)`) hears each batch: `{ kind, cues, mine, first,
   reduced }`. A batch of ten is one bigger answer, not ten. Batches that land during a big show wait (`holdMost`, 12,
-  a scene's worth) and then all go out after it, oldest first, one `gapMs` apart; `releaseMost` (default: all) cuts
-  that list short.
+  a scene's worth) and then all go out after it, oldest first, one `gapMs` apart; one that lands while they are
+  still releasing waits its turn behind them; `releaseMost` (default: all) cuts that list short.
 - **The machine.** A cue's `mine` says it came from the player's own gesture; unset, `options.mine()` is asked at the
   push (pass a gesture tracker's `recent`). With `machine.downscale: true` a cue that is neither mine nor a `first`
   drops a tier (big to medium, medium to small); it is off by default, so a delayed or automated big show the game
@@ -173,7 +174,8 @@ its renderers). It decides what plays when and hands the cue over; it never draw
   `prefersReducedMotion`), read as it goes out: the renderer shows its still.
 - **Development.** `sample(name, make)` names a cue; `replay(name)` pushes it as the player's, so a show can be looked
   at without playing to it (wire it to the console or a query string). `log()` is what happened to the last
-  `logMost` (200) cues and batches: `staged`, `queued`, `shown`, `held`, `waiting`, `dropped`, `demoted`, `cut`.
+  `logMost` (200) cues and batches: `staged`, `queued`, `shown`, `held`, `waiting`, `dropped`, `demoted`, `cut`,
+  `early` (a `done` pressed during a big show's read hold).
 - `clear()` drops everything waiting and on the stage; `dispose()` also cancels its timers and forgets its listeners.
 
 ```tsx

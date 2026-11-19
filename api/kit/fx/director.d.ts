@@ -6,11 +6,12 @@
  * - `micro` goes straight out as a batch of one: a tick, never held or rationed.
  * - `small` never takes the stage. Smalls of one kind landing within `coalesceMs` of the first go out as one batch
  *   (ten at once are one bigger sticker, not ten). While a big show holds the stage they wait, up to `holdMost`, and
- *   when it ends they go out after it, oldest first, one `gapMs` apart.
+ *   when it ends they go out after it, oldest first, one `gapMs` apart; a batch that lands while they are still
+ *   releasing waits its turn behind them.
  * - `medium` takes the stage one at a time, `gapMs` apart; past `maxQueue` waiting, a medium goes out as a small.
  * - `big` takes the stage at once: a medium on it is cut short (and handed to the smalls), mediums wait behind it.
- *   It stays up for at least its `readMs` (`readingMs` works one out from a line's words); `done` before then is
- *   ignored, and subscribers hear the stage when the hold expires. The director never ends it itself.
+ *   It stays up for at least its `readMs` (`readingMs` works one out from a line's words); a `done` before then is
+ *   deferred to `readyAt`, when the show ends and subscribers hear the stage. It never ends itself.
  * - The machine's wins are rationed: a machine's batch of smalls goes out only when it holds a first, at most one
  *   every `machine.gapMs`, a few waiting their turn (the newest kept), and with `machine.downscale` a cue that is
  *   neither the player's (`mine`) nor a `first` drops a tier. The player's own wins are never rationed.
@@ -69,7 +70,7 @@ export interface ReadingOptions {
  */
 export declare function readingMs(words: number, options?: ReadingOptions): number;
 /** What the director did with a cue or a batch: what the dev log records. */
-export type CueFate = "staged" | "queued" | "shown" | "held" | "waiting" | "dropped" | "demoted" | "cut";
+export type CueFate = "staged" | "queued" | "shown" | "held" | "waiting" | "dropped" | "demoted" | "cut" | "early";
 /** One line of the director's log. */
 export interface CueLogEntry {
     kind: string;
@@ -130,7 +131,10 @@ export interface Director<D> {
     stage(): StagedCue<D> | null;
     /** How many shows wait for the stage. */
     waiting(): number;
-    /** The show on the stage has ended. With an id, only that show: a show already cut short ends nothing. */
+    /**
+     * The show on the stage has ended. With an id, only that show: a show already cut short ends nothing. Called before
+     * a `big` show's `readyAt`, it is deferred: the show ends when the hold expires.
+     */
     done(id?: number): void;
     /** Hears the stage change. Returns the unsubscribe. */
     subscribe(fn: () => void): () => void;

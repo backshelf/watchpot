@@ -9,11 +9,12 @@ import { prefersReducedMotion } from "./motion";
  * - `micro` goes straight out as a batch of one: a tick, never held or rationed.
  * - `small` never takes the stage. Smalls of one kind landing within `coalesceMs` of the first go out as one batch
  *   (ten at once are one bigger sticker, not ten). While a big show holds the stage they wait, up to `holdMost`, and
- *   when it ends they go out after it, oldest first, one `gapMs` apart.
+ *   when it ends they go out after it, oldest first, one `gapMs` apart; a batch that lands while they are still
+ *   releasing waits its turn behind them.
  * - `medium` takes the stage one at a time, `gapMs` apart; past `maxQueue` waiting, a medium goes out as a small.
  * - `big` takes the stage at once: a medium on it is cut short (and handed to the smalls), mediums wait behind it.
- *   It stays up for at least its `readMs` (`readingMs` works one out from a line's words); `done` before then is
- *   ignored, and subscribers hear the stage when the hold expires. The director never ends it itself.
+ *   It stays up for at least its `readMs` (`readingMs` works one out from a line's words); a `done` before then is
+ *   deferred to `readyAt`, when the show ends and subscribers hear the stage. It never ends itself.
  * - The machine's wins are rationed: a machine's batch of smalls goes out only when it holds a first, at most one
  *   every `machine.gapMs`, a few waiting their turn (the newest kept), and with `machine.downscale` a cue that is
  *   neither the player's (`mine`) nor a `first` drops a tier. The player's own wins are never rationed.
@@ -87,7 +88,16 @@ export function readingMs(words: number, options: ReadingOptions = {}): number {
 }
 
 /** What the director did with a cue or a batch: what the dev log records. */
-export type CueFate = "staged" | "queued" | "shown" | "held" | "waiting" | "dropped" | "demoted" | "cut";
+export type CueFate =
+  | "staged"
+  | "queued"
+  | "shown"
+  | "held"
+  | "waiting"
+  | "dropped"
+  | "demoted"
+  | "cut"
+  | "early";
 
 /** One line of the director's log. */
 export interface CueLogEntry {
@@ -152,7 +162,10 @@ export interface Director<D> {
   stage(): StagedCue<D> | null;
   /** How many shows wait for the stage. */
   waiting(): number;
-  /** The show on the stage has ended. With an id, only that show: a show already cut short ends nothing. */
+  /**
+   * The show on the stage has ended. With an id, only that show: a show already cut short ends nothing. Called before
+   * a `big` show's `readyAt`, it is deferred: the show ends when the hold expires.
+   */
   done(id?: number): void;
   /** Hears the stage change. Returns the unsubscribe. */
   subscribe(fn: () => void): () => void;
@@ -226,6 +239,8 @@ export function createDirector<D>(options: DirectorOptions = {}): Director<D> {
   const made = new Map<string, () => Cue<D>>();
   const lines: CueLogEntry[] = [];
   let current: StagedCue<D> | null = null;
+  /** A `done` that came before the show's `readyAt`: it ends the show when the hold expires. */
+  let pendingDoneId: number | null = null;
   let resting = false;
   let draining = false;
   let lastMachine = Number.NEGATIVE_INFINITY;
@@ -278,9 +293,9 @@ export function createDirector<D>(options: DirectorOptions = {}): Director<D> {
     }, wait);
   };
 
-  /** A batch of smalls at the door: held behind a big show, rationed when it is the machine's, else out. */
+  /** A batch of smalls at the door: held behind a big show (and behind one releasing), rationed when the machine's. */
   function offer(b: CueBatch<D>, rationed = false): void {
-    if (takeover()) {
+    if (takeover() || (!rationed && (held.length > 0 || cancelRelease !== null))) {
       if (held.length < holdMost) {
         held.push(b);
         noteBatch(b, "held");
@@ -349,15 +364,21 @@ export function createDirector<D>(options: DirectorOptions = {}): Director<D> {
   const setStage = (show: StagedCue<D> | null) => {
     const wasBig = takeover();
     const hold = show ? show.readMs : 0;
+    pendingDoneId = null;
     current = show ? { ...show, reduced: isReduced(), readyAt: now() + hold } : null;
     if (takeover()) stopRelease();
     if (current && hold > 0) {
       // The hold expiring is a change of the stage (a fresh object), so a `useStage` renderer re-renders and can
-      // show its "press to continue". The show itself stays: only the renderer's `done` ends it.
+      // show its "press to continue". A `done` pressed during the hold ends it here instead; the show itself stays
+      // until then.
       const mine = epoch;
       const id = current.id;
       later(() => {
         if (mine !== epoch || !current || current.id !== id) return;
+        if (pendingDoneId === id) {
+          finishCurrent();
+          return;
+        }
         current = { ...current };
         emit();
       }, hold);
@@ -375,6 +396,19 @@ export function createDirector<D>(options: DirectorOptions = {}): Director<D> {
     setStage(show);
     note(show.kind, show.tier, 1, Boolean(show.mine), Boolean(show.first), "staged");
     emit();
+  };
+  /** Takes the show off the stage, rests a `gapMs`, then lets the queue back on. */
+  const finishCurrent = () => {
+    pendingDoneId = null;
+    setStage(null);
+    resting = true;
+    emit();
+    const mine = epoch;
+    later(() => {
+      if (mine !== epoch) return;
+      resting = false;
+      next();
+    }, gapMs);
   };
 
   const director: Director<D> = {
@@ -430,17 +464,15 @@ export function createDirector<D>(options: DirectorOptions = {}): Director<D> {
     waiting: () => queue.length,
     done(id) {
       if (!current || (id !== undefined && id !== current.id)) return;
-      // A big show still being read stays: an early press does nothing, and its own renderer will press again.
-      if (now() < current.readyAt) return;
-      setStage(null);
-      resting = true;
-      emit();
-      const mine = epoch;
-      later(() => {
-        if (mine !== epoch) return;
-        resting = false;
-        next();
-      }, gapMs);
+      // A big show still being read stays: the press is deferred, and the show ends when the hold expires.
+      if (now() < current.readyAt) {
+        if (pendingDoneId !== current.id) {
+          pendingDoneId = current.id;
+          note(current.kind, current.tier, 1, Boolean(current.mine), Boolean(current.first), "early");
+        }
+        return;
+      }
+      finishCurrent();
     },
     subscribe(fn) {
       listeners.add(fn);
@@ -458,6 +490,7 @@ export function createDirector<D>(options: DirectorOptions = {}): Director<D> {
       held.length = 0;
       machineWaiting.length = 0;
       current = null;
+      pendingDoneId = null;
       resting = false;
       draining = false;
       emit();
