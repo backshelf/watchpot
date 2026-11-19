@@ -1,0 +1,29 @@
+# Runs the engine's fast gates, npm dist build checks, example build and site build on pushes and PRs.
+name: ci
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: ${{ github.ref != 'refs/heads/main' }}
+
+jobs:
+  gates:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: 1.4.4
+      - run: bun install --frozen-lockfile
+      - run: bun run gates
+      - run: bun test --path-ignore-patterns="**/node_modules/**" ./test/tooling/dist.slow.test.ts
+      - run: bun run --cwd examples/orbital-orchard build
+      - run: bun run site:build

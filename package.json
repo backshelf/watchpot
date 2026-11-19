@@ -1,6 +1,26 @@
 {
   "name": "watchpot",
   "version": "1.0.0-rc.10",
+  "description": "A framework-light engine for idle and incremental games, in TypeScript on Bun and React.",
+  "license": "MIT",
+  "homepage": "https://backshelf.github.io/watchpot",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/backshelf/watchpot.git"
+  },
+  "bugs": {
+    "url": "https://github.com/backshelf/watchpot/issues"
+  },
+  "keywords": [
+    "idle-game",
+    "incremental-game",
+    "game-engine",
+    "clicker",
+    "typescript",
+    "react",
+    "bun",
+    "simulation"
+  ],
   "private": false,
   "type": "module",
   "engines": {

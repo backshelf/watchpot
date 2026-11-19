@@ -2,6 +2,23 @@
   "name": "create-watchpot",
   "version": "1.0.0-rc.10",
   "description": "Make a new idle game on the watchpot engine: bun create watchpot, or npm create watchpot.",
+  "license": "MIT",
+  "homepage": "https://backshelf.github.io/watchpot",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/backshelf/watchpot.git",
+    "directory": "packages/create-watchpot"
+  },
+  "bugs": {
+    "url": "https://github.com/backshelf/watchpot/issues"
+  },
+  "keywords": [
+    "watchpot",
+    "idle-game",
+    "incremental-game",
+    "scaffold",
+    "cli"
+  ],
   "type": "module",
   "bin": {
     "create-watchpot": "dist/index.js"
