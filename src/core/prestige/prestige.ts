@@ -507,8 +507,8 @@ export function definePrestige<
       // it does keep: 0 is honest, and so is no milestone reached. A game's own merge may drop them too.
       return {
         ...out,
-        ...("best" in out ? {} : { best: fresh.best }),
-        ...("milestones" in out ? {} : { milestones: fresh.milestones }),
+        best: out.best ?? fresh.best,
+        milestones: out.milestones ?? fresh.milestones,
       };
     },
     // Declared over `G`; the store hands it the game's state, which holds the layer's actions as well.

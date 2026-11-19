@@ -174,6 +174,51 @@ describe("the stage", () => {
     time.advance(5000);
     expect(batches.map((b) => b.kind)).toEqual(["a"]);
   });
+
+  test("a second big show stops the first release chain, so held batches stay a gap apart", () => {
+    const { time, director, batches } = setup();
+    director.push(cue("big", "seal", "b1"));
+    for (const k of ["a", "b", "c"]) {
+      director.push(cue("small", k));
+      time.advance(100);
+    }
+    director.done();
+    expect(batches.map((b) => b.kind)).toEqual(["a"]);
+
+    time.advance(200);
+    director.push(cue("big", "seal", "b2"));
+    time.advance(100);
+    director.done();
+    expect(batches.map((b) => b.kind)).toEqual(["a", "b"]);
+
+    // The first release chain's timer was due at +200ms here: it must not fire early.
+    time.advance(200);
+    expect(batches.map((b) => b.kind)).toEqual(["a", "b"]);
+    time.advance(299);
+    expect(batches.map((b) => b.kind)).toEqual(["a", "b"]);
+    time.advance(1);
+    expect(batches.map((b) => b.kind)).toEqual(["a", "b", "c"]);
+  });
+
+  test("releaseMost at or below zero drops every held batch", () => {
+    for (const releaseMost of [0, -1]) {
+      const { time, director, batches } = setup({ releaseMost });
+      director.push(cue("big", "seal"));
+      for (const k of ["a", "b"]) {
+        director.push(cue("small", k));
+        time.advance(100);
+      }
+      director.done();
+      time.advance(5000);
+      expect(batches).toHaveLength(0);
+      expect(
+        director
+          .log()
+          .filter((l) => l.fate === "dropped")
+          .map((l) => l.kind),
+      ).toEqual(["a", "b"]);
+    }
+  });
 });
 
 describe("the read hold", () => {

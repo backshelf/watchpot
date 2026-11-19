@@ -196,7 +196,7 @@ export function createDirector<D>(options: DirectorOptions = {}): Director<D> {
   const isReduced = options.reduced ?? prefersReducedMotion;
   const now = options.now ?? (() => performance.now());
   const timers = new Set<() => void>();
-  const later = (fn: () => void, ms: number) => {
+  const later = (fn: () => void, ms: number): (() => void) => {
     const schedule =
       options.schedule ??
       ((f: () => void, wait: number) => {
@@ -210,6 +210,10 @@ export function createDirector<D>(options: DirectorOptions = {}): Director<D> {
     };
     cancel = schedule(run, ms);
     timers.add(cancel);
+    return () => {
+      timers.delete(cancel);
+      cancel();
+    };
   };
 
   const queue: StagedCue<D>[] = [];
@@ -227,6 +231,13 @@ export function createDirector<D>(options: DirectorOptions = {}): Director<D> {
   let lastMachine = Number.NEGATIVE_INFINITY;
   let nextId = 1;
   let epoch = 0;
+  let releaseEpoch = 0;
+  let cancelRelease: (() => void) | null = null;
+  const stopRelease = () => {
+    releaseEpoch++;
+    cancelRelease?.();
+    cancelRelease = null;
+  };
 
   const note = (kind: string, tier: CueTier, n: number, mine: boolean, first: boolean, fate: CueFate) => {
     lines.push({ kind, tier, n, mine, first, fate });
@@ -317,16 +328,17 @@ export function createDirector<D>(options: DirectorOptions = {}): Director<D> {
   };
 
   /** Lets out what waited behind a big show, oldest first, one `gapMs` apart; a new big show pauses it. */
-  const releaseHeld = () => {
-    if (takeover()) return;
+  const releaseHeld = (gen: number) => {
+    if (gen !== releaseEpoch || takeover()) return;
     const b = held.shift();
     if (!b) return;
     offer(b, true);
-    if (held.length === 0) return;
+    if (gen !== releaseEpoch || takeover() || held.length === 0) return;
     const mine = epoch;
-    later(() => {
-      if (mine !== epoch) return;
-      releaseHeld();
+    cancelRelease = later(() => {
+      cancelRelease = null;
+      if (mine !== epoch || gen !== releaseEpoch) return;
+      releaseHeld(gen);
     }, gapMs);
   };
 
@@ -338,6 +350,7 @@ export function createDirector<D>(options: DirectorOptions = {}): Director<D> {
     const wasBig = takeover();
     const hold = show ? show.readMs : 0;
     current = show ? { ...show, reduced: isReduced(), readyAt: now() + hold } : null;
+    if (takeover()) stopRelease();
     if (current && hold > 0) {
       // The hold expiring is a change of the stage (a fresh object), so a `useStage` renderer re-renders and can
       // show its "press to continue". The show itself stays: only the renderer's `done` ends it.
@@ -350,8 +363,9 @@ export function createDirector<D>(options: DirectorOptions = {}): Director<D> {
       }, hold);
     }
     if (wasBig && !takeover()) {
-      for (const b of held.splice(releaseMost)) noteBatch(b, "dropped");
-      releaseHeld();
+      for (const b of held.splice(Math.max(0, releaseMost))) noteBatch(b, "dropped");
+      stopRelease();
+      releaseHeld(releaseEpoch);
     }
   };
   const next = () => {
@@ -438,6 +452,7 @@ export function createDirector<D>(options: DirectorOptions = {}): Director<D> {
     },
     clear() {
       epoch++;
+      stopRelease();
       queue.length = 0;
       buffers.clear();
       held.length = 0;

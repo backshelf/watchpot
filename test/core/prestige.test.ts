@@ -499,6 +499,48 @@ describe("milestones", () => {
       }),
     ).toThrow(/unknown "gold"/);
   });
+
+  test("a custom merge that leaves best or milestones undefined still defaults to 0 and none", () => {
+    const backend = createMemoryBackend();
+    backend.setItem(
+      "toy-milestones-undef.save",
+      serialize({
+        version: 1,
+        state: {
+          ascension: {
+            runs: 3,
+            lifetime: "6",
+            currency: "1",
+            runStart: T0 - 1000,
+            peak: 0,
+            paceAt: T0 - 1000,
+          },
+        },
+      }),
+    );
+    const layer = definePrestige({
+      key: "ascension",
+      action: "ascend",
+      reach: [wallet, generator],
+      gain: (s) => powerGain(s.wallet.lifetime, { k: 1, exp: 1, per: 100 }),
+      milestones: [{ id: "first", at: 1 }],
+      merge: (m) => ({ ...m, best: undefined as never, milestones: undefined as never }),
+    });
+    const game = defineGame({
+      id: "toy-milestones-undef",
+      save: { key: "toy-milestones-undef.save", version: 1 },
+      features: [wallet, generator, layer],
+    });
+    const store = createIdleStore(game, {
+      storage: createGameStorage(backend, { debounceMs: 0, onError: () => {} }),
+      now: () => T0,
+      seed: "milestones-undef",
+    });
+    const s = store.getState();
+    expect(s.ascension.best.eq(0)).toBe(true);
+    expect(s.ascension.milestones).toEqual([]);
+    expect(layer.select.reached(s, "first")).toBe(false);
+  });
 });
 
 describe("the curves", () => {
