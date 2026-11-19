@@ -54,7 +54,7 @@ export const SECTIONS: readonly GuideSection[] = [
     slug: "shader",
     dir: "shader",
     label: "Shaders",
-    note: "Interactive pages on shaders, one idea each: the 2D canvas, its pool, the 3D stage.",
+    note: "Interactive pages on shaders, one idea each: a surface, its uniforms, the pool, and when WebGL cannot run.",
   },
 ];
 

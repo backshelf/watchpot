@@ -438,6 +438,14 @@ Three things to know before trusting a fit:
 - A derived value that reads the fit table (or anything else outside the state) is not recomputed when the fit
   writes a price. Read the table in a step or a select, not in `derived`.
 
+## The kit (`watchpot/kit`)
+
+- `createDirector`'s `big` shows stay on stage for `readMs` (worked out from a line's word count with `readingMs`)
+  and ignore `done` until `readyAt` has passed; the director never ends one itself.
+- Batches held during a takeover release after it oldest first, one `gapMs` apart (previously the newest `3` went out
+  at once); `holdMost` defaults to `12` (was `6`) and `releaseMost` defaults to all of them (was `3`).
+- `StagedCue` gained `readMs` and `readyAt`, and `Cue.readMs` is optional.
+
 ## Tests (`watchpot/test`)
 
 - New: `decimalComparisons({ tsconfig, under? })`, a typed check that fails on Decimals compared with `<`, `===`
