@@ -5,10 +5,12 @@
  *
  * - `micro` goes straight out as a batch of one: a tick, never held or rationed.
  * - `small` never takes the stage. Smalls of one kind landing within `coalesceMs` of the first go out as one batch
- *   (ten at once are one bigger sticker, not ten). While a big show holds the stage they wait (the newest few go out
- *   after it).
+ *   (ten at once are one bigger sticker, not ten). While a big show holds the stage they wait, up to `holdMost`, and
+ *   when it ends they go out after it, oldest first, one `gapMs` apart.
  * - `medium` takes the stage one at a time, `gapMs` apart; past `maxQueue` waiting, a medium goes out as a small.
  * - `big` takes the stage at once: a medium on it is cut short (and handed to the smalls), mediums wait behind it.
+ *   It stays up for at least its `readMs` (`readingMs` works one out from a line's words); `done` before then is
+ *   ignored, and subscribers hear the stage when the hold expires. The director never ends it itself.
  * - The machine's wins are rationed: a machine's batch of smalls goes out only when it holds a first, at most one
  *   every `machine.gapMs`, a few waiting their turn (the newest kept), and with `machine.downscale` a cue that is
  *   neither the player's (`mine`) nor a `first` drops a tier. The player's own wins are never rationed.
@@ -24,6 +26,11 @@ export interface Cue<D> {
     mine?: boolean;
     /** It is a thing happening for the first time: the machine's firsts still show. */
     first?: boolean;
+    /**
+     * A big show's minimum on the stage, ms (see `readingMs`). Unset or 0, it can be ended at once. Read for `big`: a
+     * lesser cue is a batch or a page that already holds no longer than its own renderer needs.
+     */
+    readMs?: number;
 }
 /** A cue on the stage: an id to end it by, the tier it was pushed at, and whether motion is reduced. */
 export interface StagedCue<D> extends Cue<D> {
@@ -32,6 +39,10 @@ export interface StagedCue<D> extends Cue<D> {
     pushed: CueTier;
     /** Reduced motion was asked for when it took the stage: the renderer shows its still. */
     reduced: boolean;
+    /** The read hold it took the stage with: at least this long (`big` only; 0 otherwise). */
+    readMs: number;
+    /** The director's `now` at which the hold has passed: a renderer shows its "press to continue" then. */
+    readyAt: number;
 }
 /** Smalls of one kind (or one micro) going out together, oldest first. */
 export interface CueBatch<D> {
@@ -43,6 +54,20 @@ export interface CueBatch<D> {
     first: boolean;
     reduced: boolean;
 }
+/** How a line's reading time is worked out: see `readingMs`. */
+export interface ReadingOptions {
+    /** Time a word gets, ms. Default 220. */
+    perWordMs?: number;
+    /** The floor, however short the line. Default 1200. */
+    minMs?: number;
+    /** The cap, however long the line. Default 6000. */
+    maxMs?: number;
+}
+/**
+ * How long a line takes to read, ms, for a big cue's `readMs`. The engine never reads the words: the game counts
+ * them and passes the figure.
+ */
+export declare function readingMs(words: number, options?: ReadingOptions): number;
 /** What the director did with a cue or a batch: what the dev log records. */
 export type CueFate = "staged" | "queued" | "shown" | "held" | "waiting" | "dropped" | "demoted" | "cut";
 /** One line of the director's log. */
@@ -79,9 +104,11 @@ export interface DirectorOptions {
     gapMs?: number;
     /** How many mediums may wait for the stage; one more goes out as a small. Default 3. */
     maxQueue?: number;
-    /** How many batches wait out a big show. Default 6. */
+    /** How many batches wait out a big show. Default 12: a scene's worth of lines. */
     holdMost?: number;
-    /** How many of those go out after it, the newest. Default 3. */
+    /**
+     * How many of those go out after it, the oldest first, one `gapMs` apart. Default: all of them.
+     */
     releaseMost?: number;
     /** The machine's rationing, or false for none. */
     machine?: MachineRation | false;

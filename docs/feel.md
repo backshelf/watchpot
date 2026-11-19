@@ -147,15 +147,21 @@ its renderers). It decides what plays when and hands the cue over; it never draw
 | `micro` | a batch of one, at once (`onBatch`) | never held or rationed: keep its answer tiny |
 | `small` | a batch per kind (`onBatch`) | smalls of a kind within `coalesceMs` (350) are one batch; held behind a big show |
 | `medium` | the stage, one at a time | `gapMs` (900) apart; past `maxQueue` (3) waiting, it goes out as a small |
-| `big` | the stage, at once | cuts a medium short (handed to the smalls), jumps the waiting mediums |
+| `big` | the stage, at once | cuts a medium short (handed to the smalls), jumps the waiting mediums; stays up for at least its `readMs` |
 
-- **The stage.** `stage()` is the show on it (a `StagedCue`: the cue plus `id`, the `pushed` tier and `reduced`),
-  the same object until it changes; `useStage(director)` is it as React state. The renderer calls `done(id)` when the
-  show ends; an id that is no longer on the stage (a medium a big cut short) ends nothing. `waiting()` counts the
-  queue.
+- **The read hold.** A big cue carries `readMs`: how long its words need. `readingMs(words, { perWordMs?, minMs?,
+  maxMs? })` works it out from the game's own count (220 a word, at least 1200, at most 6000). The show stays on the
+  stage for that long, reduced motion or not, and `done(id)` before then does nothing; the director never ends it
+  itself. Subscribers hear the stage again when the hold expires (a fresh `StagedCue`), so a renderer shows its
+  "press to continue" then.
+- **The stage.** `stage()` is the show on it (a `StagedCue`: the cue plus `id`, the `pushed` tier, `reduced`, its
+  `readMs` and the `readyAt` it is readable from), the same object until it changes; `useStage(director)` is it as
+  React state. The renderer calls `done(id)` when the show ends; an id that is no longer on the stage (a medium a big
+  cut short) ends nothing. `waiting()` counts the queue.
 - **Batches.** `onBatch(fn)` (or `useCueBatches(director, fn)`) hears each batch: `{ kind, cues, mine, first,
-  reduced }`. A batch of ten is one bigger answer, not ten. Batches that land during a big show wait (`holdMost`, 6)
-  and the newest `releaseMost` (3) go out when it ends.
+  reduced }`. A batch of ten is one bigger answer, not ten. Batches that land during a big show wait (`holdMost`, 12,
+  a scene's worth) and then all go out after it, oldest first, one `gapMs` apart; `releaseMost` (default: all) cuts
+  that list short.
 - **The machine.** A cue's `mine` says it came from the player's own gesture; unset, `options.mine()` is asked at the
   push (pass a gesture tracker's `recent`). With `machine.downscale: true` a cue that is neither mine nor a `first`
   drops a tier (big to medium, medium to small); it is off by default, so a delayed or automated big show the game

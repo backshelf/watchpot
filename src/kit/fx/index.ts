@@ -29,6 +29,8 @@ export {
   type Director,
   type DirectorOptions,
   type MachineRation,
+  type ReadingOptions,
+  readingMs,
   type StagedCue,
   useCueBatches,
   useStage,

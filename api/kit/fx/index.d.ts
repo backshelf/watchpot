@@ -1,7 +1,7 @@
 export { Count, type CountProps, type CountRun, type CountUpOptions, countBetween, countEase, countFrameCap, countUp, } from "./Count";
 export { burst, type ConfettiColors, cents, centsShots, confettiShots, type FireOptions, readConfettiColors, type Shot, } from "./confetti";
 export { type DigitSplit, MAX_ROLLS_PER_SECOND, splitDigits } from "./digitSnap";
-export { type Cue, type CueBatch, type CueFate, type CueLogEntry, type CueTier, createDirector, type Director, type DirectorOptions, type MachineRation, type StagedCue, useCueBatches, useStage, } from "./director";
+export { type Cue, type CueBatch, type CueFate, type CueLogEntry, type CueTier, createDirector, type Director, type DirectorOptions, type MachineRation, type ReadingOptions, readingMs, type StagedCue, useCueBatches, useStage, } from "./director";
 export { Flash, type FlashProps, flashKeyframes } from "./Flash";
 export { FLIGHT, FlightHost, type FlightHostProps, type FlyOptions, staggerOf, useFlight } from "./flight";
 export { createGestures, type GestureOptions, type GestureTracker, middleOf, type PressLike, pressPoint, type ScreenPoint, useGestures, } from "./gesture";

@@ -7,6 +7,7 @@ import {
   createDirector,
   type Director,
   type DirectorOptions,
+  readingMs,
   useStage,
 } from "../../../src/kit/fx/director";
 
@@ -140,8 +141,8 @@ describe("the stage", () => {
     expect(director.stage()?.data).toBe("m2");
   });
 
-  test("smalls held behind a big show go out after it, only the newest few", () => {
-    const { time, director, batches } = setup({ releaseMost: 2 });
+  test("smalls held behind a big show all go out after it, oldest first, a gap apart", () => {
+    const { time, director, batches } = setup();
     director.push(cue("big", "seal"));
     for (const k of ["a", "b", "c"]) {
       director.push(cue("small", k));
@@ -149,7 +150,83 @@ describe("the stage", () => {
     }
     expect(batches).toHaveLength(0);
     director.done();
-    expect(batches.map((b) => b.kind)).toEqual(["b", "c"]);
+    expect(batches.map((b) => b.kind)).toEqual(["a"]);
+    time.advance(499);
+    expect(batches.map((b) => b.kind)).toEqual(["a"]);
+    time.advance(1);
+    expect(batches.map((b) => b.kind)).toEqual(["a", "b"]);
+    time.advance(500);
+    expect(batches.map((b) => b.kind)).toEqual(["a", "b", "c"]);
+  });
+
+  test("a held batch past the hold limit is dropped, and clear stops the release", () => {
+    const { time, director, batches } = setup({ holdMost: 3 });
+    director.push(cue("big", "seal"));
+    for (const k of ["a", "b", "c", "d"]) {
+      director.push(cue("small", k));
+      time.advance(100);
+    }
+    expect(director.log().filter((l) => l.fate === "held")).toHaveLength(3);
+    expect(director.log().at(-1)).toMatchObject({ kind: "d", fate: "dropped" });
+    director.done();
+    expect(batches.map((b) => b.kind)).toEqual(["a"]);
+    director.clear();
+    time.advance(5000);
+    expect(batches.map((b) => b.kind)).toEqual(["a"]);
+  });
+});
+
+describe("the read hold", () => {
+  test("a big show ignores done until its readMs has passed", () => {
+    const { time, director } = setup();
+    director.push(cue("big", "seal", "gate", { readMs: 2000 }));
+    const show = director.stage();
+    expect(show?.readMs).toBe(2000);
+    expect(show?.readyAt).toBe(2000);
+    time.advance(1500);
+    director.done(show?.id);
+    expect(director.stage()).toBe(show);
+    time.advance(500);
+    director.done(show?.id);
+    expect(director.stage()).toBeNull();
+  });
+
+  test("a subscriber hears the stage when the hold expires", () => {
+    const { time, director } = setup();
+    let calls = 0;
+    director.subscribe(() => calls++);
+    director.push(cue("big", "seal", "gate", { readMs: 2000 }));
+    const show = director.stage();
+    calls = 0;
+    time.advance(1999);
+    expect(calls).toBe(0);
+    expect(director.stage()).toBe(show);
+    time.advance(1);
+    expect(calls).toBe(1);
+    expect(director.stage()).not.toBe(show);
+    expect(director.stage()).toMatchObject({ readyAt: 2000, readMs: 2000 });
+  });
+
+  test("reduced motion does not shorten the hold", () => {
+    const { time, director } = setup({ reduced: () => true });
+    director.push(cue("big", "seal", "gate", { readMs: 2000 }));
+    expect(director.stage()?.reduced).toBe(true);
+    time.advance(1999);
+    director.done();
+    expect(director.stage()).not.toBeNull();
+    time.advance(1);
+    director.done();
+    expect(director.stage()).toBeNull();
+  });
+
+  test("readingMs floors a short line and caps a long one", () => {
+    expect(readingMs(0)).toBe(1200);
+    expect(readingMs(3)).toBe(1200);
+    expect(readingMs(10)).toBe(2200);
+    expect(readingMs(500)).toBe(6000);
+    expect(readingMs(10, { perWordMs: 100, minMs: 500 })).toBe(1000);
+    expect(readingMs(100, { maxMs: 2000 })).toBe(2000);
+    expect(readingMs(100, { maxMs: Number.POSITIVE_INFINITY })).toBe(22000);
   });
 });
 

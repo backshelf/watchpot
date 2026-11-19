@@ -8,10 +8,12 @@ import { prefersReducedMotion } from "./motion";
  *
  * - `micro` goes straight out as a batch of one: a tick, never held or rationed.
  * - `small` never takes the stage. Smalls of one kind landing within `coalesceMs` of the first go out as one batch
- *   (ten at once are one bigger sticker, not ten). While a big show holds the stage they wait (the newest few go out
- *   after it).
+ *   (ten at once are one bigger sticker, not ten). While a big show holds the stage they wait, up to `holdMost`, and
+ *   when it ends they go out after it, oldest first, one `gapMs` apart.
  * - `medium` takes the stage one at a time, `gapMs` apart; past `maxQueue` waiting, a medium goes out as a small.
  * - `big` takes the stage at once: a medium on it is cut short (and handed to the smalls), mediums wait behind it.
+ *   It stays up for at least its `readMs` (`readingMs` works one out from a line's words); `done` before then is
+ *   ignored, and subscribers hear the stage when the hold expires. The director never ends it itself.
  * - The machine's wins are rationed: a machine's batch of smalls goes out only when it holds a first, at most one
  *   every `machine.gapMs`, a few waiting their turn (the newest kept), and with `machine.downscale` a cue that is
  *   neither the player's (`mine`) nor a `first` drops a tier. The player's own wins are never rationed.
@@ -29,6 +31,11 @@ export interface Cue<D> {
   mine?: boolean;
   /** It is a thing happening for the first time: the machine's firsts still show. */
   first?: boolean;
+  /**
+   * A big show's minimum on the stage, ms (see `readingMs`). Unset or 0, it can be ended at once. Read for `big`: a
+   * lesser cue is a batch or a page that already holds no longer than its own renderer needs.
+   */
+  readMs?: number;
 }
 
 /** A cue on the stage: an id to end it by, the tier it was pushed at, and whether motion is reduced. */
@@ -38,6 +45,10 @@ export interface StagedCue<D> extends Cue<D> {
   pushed: CueTier;
   /** Reduced motion was asked for when it took the stage: the renderer shows its still. */
   reduced: boolean;
+  /** The read hold it took the stage with: at least this long (`big` only; 0 otherwise). */
+  readMs: number;
+  /** The director's `now` at which the hold has passed: a renderer shows its "press to continue" then. */
+  readyAt: number;
 }
 
 /** Smalls of one kind (or one micro) going out together, oldest first. */
@@ -49,6 +60,30 @@ export interface CueBatch<D> {
   /** Any of them was a first. */
   first: boolean;
   reduced: boolean;
+}
+
+/** How a line's reading time is worked out: see `readingMs`. */
+export interface ReadingOptions {
+  /** Time a word gets, ms. Default 220. */
+  perWordMs?: number;
+  /** The floor, however short the line. Default 1200. */
+  minMs?: number;
+  /** The cap, however long the line. Default 6000. */
+  maxMs?: number;
+}
+
+/**
+ * How long a line takes to read, ms, for a big cue's `readMs`. The engine never reads the words: the game counts
+ * them and passes the figure.
+ */
+export function readingMs(words: number, options: ReadingOptions = {}): number {
+  const perWord = options.perWordMs ?? 220;
+  const min = options.minMs ?? 1200;
+  const max = options.maxMs ?? 6000;
+  return Math.max(
+    min,
+    Math.min(max, Math.round((Number.isFinite(words) ? Math.max(0, words) : 0) * perWord)),
+  );
 }
 
 /** What the director did with a cue or a batch: what the dev log records. */
@@ -90,9 +125,11 @@ export interface DirectorOptions {
   gapMs?: number;
   /** How many mediums may wait for the stage; one more goes out as a small. Default 3. */
   maxQueue?: number;
-  /** How many batches wait out a big show. Default 6. */
+  /** How many batches wait out a big show. Default 12: a scene's worth of lines. */
   holdMost?: number;
-  /** How many of those go out after it, the newest. Default 3. */
+  /**
+   * How many of those go out after it, the oldest first, one `gapMs` apart. Default: all of them.
+   */
   releaseMost?: number;
   /** The machine's rationing, or false for none. */
   machine?: MachineRation | false;
@@ -142,8 +179,8 @@ export function createDirector<D>(options: DirectorOptions = {}): Director<D> {
   const coalesceMs = options.coalesceMs ?? 350;
   const gapMs = options.gapMs ?? 900;
   const maxQueue = options.maxQueue ?? 3;
-  const holdMost = options.holdMost ?? 6;
-  const releaseMost = options.releaseMost ?? 3;
+  const holdMost = options.holdMost ?? 12;
+  const releaseMost = options.releaseMost ?? Number.POSITIVE_INFINITY;
   const logMost = options.logMost ?? 200;
   const machine =
     options.machine === false
@@ -279,11 +316,43 @@ export function createDirector<D>(options: DirectorOptions = {}): Director<D> {
     }, coalesceMs);
   };
 
-  /** Puts `show` on the stage (or clears it), and lets out what waited behind a big show that just left. */
+  /** Lets out what waited behind a big show, oldest first, one `gapMs` apart; a new big show pauses it. */
+  const releaseHeld = () => {
+    if (takeover()) return;
+    const b = held.shift();
+    if (!b) return;
+    offer(b, true);
+    if (held.length === 0) return;
+    const mine = epoch;
+    later(() => {
+      if (mine !== epoch) return;
+      releaseHeld();
+    }, gapMs);
+  };
+
+  /**
+   * Puts `show` on the stage (or clears it), starts its read hold, and lets out what waited behind a big show that
+   * just left.
+   */
   const setStage = (show: StagedCue<D> | null) => {
     const wasBig = takeover();
-    current = show ? { ...show, reduced: isReduced() } : null;
-    if (wasBig && !takeover()) for (const b of held.splice(0).slice(-releaseMost)) offer(b, true);
+    const hold = show ? show.readMs : 0;
+    current = show ? { ...show, reduced: isReduced(), readyAt: now() + hold } : null;
+    if (current && hold > 0) {
+      // The hold expiring is a change of the stage (a fresh object), so a `useStage` renderer re-renders and can
+      // show its "press to continue". The show itself stays: only the renderer's `done` ends it.
+      const mine = epoch;
+      const id = current.id;
+      later(() => {
+        if (mine !== epoch || !current || current.id !== id) return;
+        current = { ...current };
+        emit();
+      }, hold);
+    }
+    if (wasBig && !takeover()) {
+      for (const b of held.splice(releaseMost)) noteBatch(b, "dropped");
+      releaseHeld();
+    }
   };
   const next = () => {
     if (current || resting) return;
@@ -305,6 +374,8 @@ export function createDirector<D>(options: DirectorOptions = {}): Director<D> {
         pushed: cue.tier,
         id: nextId++,
         reduced: false,
+        readMs: t === "big" ? Math.max(0, cue.readMs ?? 0) : 0,
+        readyAt: 0,
       });
       switch (tier) {
         case "micro":
@@ -345,6 +416,8 @@ export function createDirector<D>(options: DirectorOptions = {}): Director<D> {
     waiting: () => queue.length,
     done(id) {
       if (!current || (id !== undefined && id !== current.id)) return;
+      // A big show still being read stays: an early press does nothing, and its own renderer will press again.
+      if (now() < current.readyAt) return;
       setStage(null);
       resting = true;
       emit();

@@ -2,6 +2,18 @@
 
 Each release is a tag `vX.Y.Z`. A breaking change names its codemod in `codemods/` (policy in `codemods/README.md`).
 
+## Unreleased
+
+- `definePrestige` gained `milestones`: permanent unlocks reached the first time what one counts reaches its `at`,
+  keyed on `best` (the best single gain ever paid, the default), `total`, `runs` or `seconds`, and never lost to a
+  reset. The slice gains `best` and `milestones`, `select.reached(state, id)` reads one, and a save from before them
+  loads with none reached.
+- Breaking: `createDirector`'s big shows stay on the stage for their `readMs` (worked out from a line's words with
+  `readingMs`) and ignore `done` until it has passed, so a celebration can be read; the director never ends one
+  itself. Batches held during a takeover go out after it oldest first, one `gapMs` apart; `holdMost` is 12 and
+  `releaseMost` defaults to all of them rather than the newest three. `StagedCue` gained `readMs` and `readyAt`;
+  `Cue.readMs` is optional.
+
 ## 1.0.0-rc.10
 
 - Fix: the sim desk's pace graphs hold up to a plan with thousands of gates. Gate keys are drawn one per pixel column and only where the band's three rows have room, and planned ticks, openings and by-hand squares are one per pixel column each, so a 2 491-gate plan draws a readable band instead of a smear and its whole plan is still marked.
