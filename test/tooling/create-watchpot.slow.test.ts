@@ -354,10 +354,17 @@ test("create-watchpot --vite --components --skills writes CSS modules and Vite's
 
   // `AGENTS.md` says the commands of a Vite game: npm, a reloading dev server, and no Bun dev port.
   const agents = readFileSync(join(game, "AGENTS.md"), "utf8");
+  expect(agents).toContain("Vite, TypeScript, React 19");
+  expect(agents).not.toContain("Bun, TypeScript, React 19");
   expect(agents).toContain("`npm run dev`");
   expect(agents).toContain("`npm run verify`");
   expect(agents).not.toContain("localhost:3000");
   expect(agents).not.toContain("Hot reload is off");
+
+  const manifest = JSON.parse(readFileSync(join(game, "package.json"), "utf8")) as {
+    engines: Record<string, string>;
+  };
+  expect(manifest.engines).toEqual({ node: ">=20" });
 
   // The README's runtime line is the Node one, and its tokens script is still the one command that needs Bun.
   const readme = readFileSync(join(game, "README.md"), "utf8");

@@ -53,9 +53,11 @@ export function toVite(out: string, engine: string, components: boolean) {
 function convertManifest(out: string) {
   const file = join(out, "package.json");
   const manifest = JSON.parse(readFileSync(file, "utf8")) as {
+    engines?: Record<string, string>;
     scripts: Record<string, string>;
     devDependencies: Record<string, string>;
   };
+  manifest.engines = { node: ">=20" };
   const overrides: Record<string, string> = {
     dev: "vite",
     build: "vite build",
@@ -123,6 +125,7 @@ function convertAgents(out: string) {
   writeFileSync(
     file,
     text
+      .replace("Bun, TypeScript, React 19", "Vite, TypeScript, React 19")
       .replace(AGENTS_DEV_LINE, AGENTS_DEV_LINE_VITE)
       .replaceAll("`bun run verify`", "`npm run verify`")
       .replaceAll("`bun run gates`", "`npm run gates`"),
