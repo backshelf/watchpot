@@ -19,7 +19,9 @@ exported symbol (never by line: the examples are edited in place).
 The running example is Simmer (`docs/examples/simmer/*` and the `guide-*` files built on it): `simmer/game.ts` for
 pages 1 to 10, `simmer/main.tsx` (its page) for 5 and 7, `guide-words-and-numbers.ts` for 8 and 9,
 `simmer/game-wallet.ts` (the wallet, derived values, the `heat` stat and the lid) for 11 to 15, `guide-first-page.ts`
-(chapter 6's game on it) for 16 and 17, and `guide-first-game.tsx` (that game's page) for 18.
+(chapter 6's game on it) for 16 and 17, and `guide-first-game.tsx` (that game's page) for 18. The last three leave
+Simmer for the smallest games each subject needs: `guide-two-ways.tsx` (the README's smallest game and its page) for
+19, `guide-flags.ts` (the workshop) for 20, and `guide-screens.tsx` (the pantry) for 21.
 
 ## 1. What an idle game is
 
@@ -250,8 +252,59 @@ pages 1 to 10, `simmer/main.tsx` (its page) for 5 and 7, `guide-words-and-number
 - **Teaches.** `guide-first-game.tsx` (new, typechecked, run headless by the slow examples test and linked from
   chapter 6): `makeStore`, `Count`, `App`, `start`, over chapter 6's game (`guide-first-page.ts`) without the foam
   and the big bubbles.
-- **Ends getting started.** Next is chapter 7 of the guide; the page says what the reader has, how to make a real
-  game (chapter 2's folder, chapter 13's template, `/watchpot-init`), the deeper chapters and the reference.
+- **Leads into 19.** The page no longer ends getting started: it closes on what the reader has, says the two ways
+  into a real project are next, and the pager carries on to 19. The closing (the deeper chapters, the reference,
+  the unshipped parts of chapters 1 to 6) moves to 21.
+
+## 19. Two ways in: add it to an existing project, or start from one.
+
+- **Idea.** The engine installs into a project that already exists — a game file and a page beside what is there —
+  or it writes the project: one command, a few questions, and a folder that is already a running game. Both end at
+  the same two things.
+- **The reader does.** Presses the panel's own page: bakes a loaf, buys an oven, watches the derived rate double,
+  starts over. Compares the two file trees below it. Reads the smallest game and the page it is drawn by.
+- **They see.** A real game, on the engine, saving in this browser, drawn by its own React components — the thing
+  both ways in lead to. Two trees: the existing project's, with two new files and one line added, and the
+  template's, with `content/`, `game/`, `app/`, `screens/`, `ui/`, `shaders/`, `design/`, `sim/` and `test/` as well.
+- **Words.** template, tag (both glossary popups); install, scaffold (plain).
+- **Teaches.** `guide-two-ways.tsx` (new, typechecked): `bakery`, `game`, `App`, `start`. The README's smallest game
+  without its store and clock lines, so the panel makes the store as a `main.tsx` does.
+- **Links.** `installing.md`, `start-a-game.md`, `guide/13-from-the-template.md` and `guide/02-your-first-game.md`;
+  says which choice suits an existing React app, a jam, a prototype, and a game meant to be kept.
+
+## 20. An upgrade whose effect is not a number.
+
+- **Idea.** An upgrade can open a page, put a tab on the rail or switch a rule on, and change no number at all. The
+  engine's word for the switch is a flag: a name the game's rules ask about, kept by the stats feature.
+- **The reader does.** Adds coals, buys the workshop's one upgrade, watches a page appear under the shop and the
+  coals start climbing unaided; stokes to see the press pay double. Then sets the source's `flags` to `[]`,
+  unwriting the flag, and watches the page go, the draw stop and the press pay one again, with the upgrade still
+  bought.
+- **They see.** The flag itself as a readout (`true`/`false`), the page it opens, the coal a second it turns on,
+  and a stoke that pays 2 instead of 1; with the flag unwritten, the page and the draw go, the press pays 1 again,
+  and the shop still reads "Bought".
+- **Words.** flag (plain); stats feature, upgrade tree, effect (glossary popups); source (plain, as page 14 used it).
+- **Teaches.** `guide-flags.ts` (new, typechecked): `grate > nodes` (the node with `effects: []`), `SECOND_GRATE` (the
+  source, its `active` reading the ranks and its `flags` the control's token), `numbers`, `fire > steps > produce >
+  grate` (the rule), `fire > actions > stoke` (an action reading the flag too).
+
+## 21. Several pages in React.
+
+- **Idea.** A game with more than one page is a screen per page, a rail of tabs that opens them, and the chrome — the
+  clock, the count, the rail — drawn once around whichever screen is open. Only the open screen is drawn.
+- **The reader does.** Switches tabs on the pantry and watches the count stay put across them; puts up a shelf and
+  sees another screen's figure follow; adds the fourth screen by adding one entry to `EXTRA`, opens it, opens a tin,
+  reads it in the ledger, then takes the entry out again.
+- **They see.** A small game with a rail of three tabs, each screen drawn alone under the shared header; a fourth tab
+  that appears with one entry and goes with it, while the tins it opened stay in the state.
+- **Words.** screen, rail, chrome (plain); primitive (glossary popup); transient (glossary popup, in the closing
+  note).
+- **Teaches.** `guide-screens.tsx` (new, typechecked): `Shelf` (a screen), `SCREENS` (one table, typed by tab name),
+  `EXTRA` (the fourth entry, the control's token), `TABS` (the rail), `App` (the chrome, the open screen, the rail on
+  `NavTabs`).
+- **Ends getting started.** Next is chapter 7 of the guide; the page says how to make a real game (chapter 2's
+  folder, chapter 13's template, `/watchpot-init`), then the deeper chapters and the reference, and leaves the
+  unshipped parts of chapters 1 to 6 where they are.
 
 ## Where this departs from chapters 1 to 6
 
@@ -265,5 +318,6 @@ pages 1 to 10, `simmer/main.tsx` (its page) for 5 and 7, `guide-words-and-number
 - **Left for after getting started**: the eight phases in full, `"stop"` and guards, `after`/`before`, game time and
   warps, transient state and profile resets (chapter 3's second half); chapter 5's tour of a real game; and chapter 6's
   clicker, gauge, spawns and buffs. Each is on the reference shelf, and the last page links them.
-- **No install and no files on disk** until the end: the pages run in the browser. Page 18 ends with how to make the
-  folder (chapter 2's five files) and the template (chapter 13).
+- **No install and no files on disk** until the end: the pages run in the browser. Page 19 ends with how to make the
+  folder (chapter 2's five files), add the engine to one you have, or scaffold the template (chapter 13); page 21
+  ends the sequence.

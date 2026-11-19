@@ -1,11 +1,11 @@
 // Getting started, step 18: your first page. The whole of Simmer's first page, the example's own React components,
 // running in the panel on a store saved in this browser; the words say what each part is and which page taught it,
-// list the words learned, and point on: the deeper chapters, the reference, and making a real game.
+// list the words learned, and point on to the two ways into a real project (step 19).
 import * as react from "react";
 import * as jsxRuntime from "react/jsx-runtime";
 import * as watchpotReact from "watchpot/react";
 import * as watchpotUi from "watchpot/ui";
-import { Away, Code, definePage, ExamplePage, Note, Panel, Reload, StartOver, Term, Try } from "../kit";
+import { Away, Code, definePage, ExamplePage, Panel, Reload, StartOver, Term, Try } from "../kit";
 
 function YourPage() {
   return (
@@ -175,44 +175,19 @@ export default definePage({
         of them is in the <a href="../glossary.html">glossary</a>.
       </p>
 
-      <h2>Where to go next</h2>
-      <ul>
-        <li>
-          <strong>Make it real.</strong> To build a game of your own by hand, chapter 2 of the guide,{" "}
-          <a href="../guide/02-your-first-game.html">Your first game</a>, makes the folder: the install and
-          five small files. To start one the way the engine's own games start, from a template that already
-          works on a phone, saves across machines and proves its pacing, read{" "}
-          <a href="../guide/13-from-the-template.html">From the template</a>. If you build with an AI coding
-          agent, the engine ships a skill for it: <code>/watchpot-init</code> asks about your game and
-          scaffolds it from that template.
-        </li>
-        <li>
-          <strong>Go deeper.</strong> The guide carries on from here, one chapter a subject:{" "}
-          <a href="../guide/07-the-first-reset.html">the first reset</a> (starting over for a bonus),{" "}
-          <a href="../guide/08-effects.html">effects</a> (stats in depth),{" "}
-          <a href="../guide/09-saving-and-time-away.html">saving and time away</a>,{" "}
-          <a href="../guide/10-the-page.html">the page</a>,{" "}
-          <a href="../guide/11-look-and-sound.html">look and sound</a> and{" "}
-          <a href="../guide/12-proving-the-pacing.html">proving the pacing</a>.
-        </li>
-        <li>
-          <strong>Look something up.</strong> <a href="../reference.html">The reference</a> has a page for
-          every system (clicker, gauge, spawns, buffs, prestige and the rest), each with an example that runs.
-        </li>
-      </ul>
-      <Note title="Where this leaves the old chapters">
-        <p>
-          Chapters 1 to 6 of the guide cover the same ground as these eighteen steps, in one long read each,
-          and a little more: chapter 6 also shows the foam on the pot, the big bubbles and the boost they
-          start, which run underneath this page without a part of it to show them. Read it when you want them;
-          chapter 7 picks up from Simmer as it stands here.
-        </p>
-      </Note>
+      <h2>What comes next</h2>
+      <p>
+        Everything on this page runs in the browser, on files this site built for you. The next step is a
+        folder of your own, and there are two ways to get one: add the engine to a project you already have,
+        or have it write the project for you from its template.
+      </p>
+      <p>
+        <Step n={19} slug="two-ways-in">
+          Two ways in
+        </Step>{" "}
+        takes a game as small as this one apart — the game file, the page, and the shape of both kinds of
+        project it can live in.
+      </p>
     </>
   ),
-  next: {
-    href: "../guide/07-the-first-reset.html",
-    title: "The first reset",
-    label: "Continue in the guide",
-  },
 });
