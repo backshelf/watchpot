@@ -21,7 +21,7 @@ import { liteTokens } from "../src/guide/kit/lite-highlight";
 import type { PageDef } from "../src/guide/kit/page";
 import { runProblem, syntaxProblem } from "../src/guide/kit/problem";
 import { runModules } from "../src/guide/kit/run";
-import { outline, pageFiles } from "../src/guide/pages";
+import { outline, pageFiles, pagesDir, SECTIONS, START_SECTION, sectionDir } from "../src/guide/pages";
 import { dedent, findPiece, findToken } from "../src/guide/source";
 
 const repoRoot = join(import.meta.dir, "../..");
@@ -32,11 +32,11 @@ const glossary = new Set(
   parseGlossary(readFileSync(join(repoRoot, "docs/glossary.md"), "utf8")).map((e) => e.id),
 );
 const pages = await Promise.all(
-  pageFiles().map(async (f) => ({ ...f, page: (await import(f.path)).default as PageDef })),
+  pageFiles(START_SECTION).map(async (f) => ({ ...f, page: (await import(f.path)).default as PageDef })),
 );
 
 describe("each getting-started page", () => {
-  const steps = outline();
+  const steps = outline(START_SECTION);
   for (const { slug, n, path, page } of pages) {
     describe(slug, () => {
       test("is a step of the outline, under its title", () => {
@@ -94,6 +94,34 @@ describe("each getting-started page", () => {
       }
     });
   }
+});
+
+describe("the guide's sections", () => {
+  test("each has its own folder and outline, and no two pages share an address", () => {
+    const labels = new Set<string>();
+    const addresses = new Set<string>();
+    for (const section of SECTIONS) {
+      expect(readFileSync(join(sectionDir(section), "OUTLINE.md"), "utf8").trim().length).toBeGreaterThan(0);
+      expect(section.label.length).toBeGreaterThan(0);
+      expect(section.note.length).toBeGreaterThan(0);
+      expect(labels.has(section.label)).toBe(false);
+      labels.add(section.label);
+      for (const file of pageFiles(section)) {
+        expect(file.path.startsWith(pagesDir(section))).toBe(true);
+        const out = `${section.slug}/${file.slug}.html`;
+        expect(addresses.has(out)).toBe(false);
+        addresses.add(out);
+      }
+    }
+  });
+
+  test("getting started is the guide root, its pages at the top, the markdown chapters it covers marked older", () => {
+    expect(SECTIONS[0]).toBe(START_SECTION);
+    expect(START_SECTION.dir).toBe(".");
+    expect(pageFiles(START_SECTION).length).toBeGreaterThan(0);
+    expect(START_SECTION.replaces?.test("guide/03-a-button.md")).toBe(true);
+    expect(START_SECTION.replaces?.test("guide/07-time-away.md")).toBe(false);
+  });
 });
 
 /** The page's game with the box's piece replaced, run as the worker runs it: a store, made fresh. */

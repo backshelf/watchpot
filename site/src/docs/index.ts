@@ -37,10 +37,24 @@ export interface DocsOptions {
   /** Repository facts for links that leave the docs. */
   repo: RepoInfo;
   /**
-   * The guide's getting-started pages (built apart, from TSX): listed first in the contents, and the markdown chapters
-   * they replace tagged as older there. `search` adds them to the finder.
+   * The guide's sections (built apart, from TSX): each listed in the contents under its own label, tag and note, in
+   * this order, and its pages added to the finder. A section with no links contributes no group.
    */
-  start?: { links: NavLink[]; replaces: (docsPath: string) => boolean; search: SearchEntry[] };
+  sections?: DocsSection[];
+}
+
+/** One guide section as the docs' contents lists it. */
+export interface DocsSection {
+  /** The group's heading. */
+  label: string;
+  /** The group's one-line note, said under the label. */
+  note?: string;
+  /** A word after the label (`new`). */
+  tag?: string;
+  links: NavLink[];
+  /** The markdown chapters its pages replace, tagged as the older read in the contents. */
+  replaces?: (docsPath: string) => boolean;
+  search: SearchEntry[];
 }
 
 export interface DocsResult {
@@ -50,9 +64,6 @@ export interface DocsResult {
   /** The contents, for pages drawn elsewhere into the same shell. */
   nav: NavModel;
 }
-
-/** What the guide's pages are called in the contents. */
-export const START_LABEL = "Getting started";
 
 export interface SearchEntry {
   url: string;
@@ -130,6 +141,18 @@ function renderToc(page: ParsedPage): string {
 
 function crumbs(group: string | null): string {
   return group ? `<p class="doc__crumbs">In the docs, under ${escapeHtml(group)}.</p>` : "";
+}
+
+/** The guide's sections as contents groups, in order: a section with no pages contributes no group. */
+export function sectionGroups(sections: readonly DocsSection[]): NavModel["groups"] {
+  return sections
+    .filter((section) => section.links.length > 0)
+    .map((section) => ({
+      label: section.label,
+      tag: section.tag,
+      note: section.note,
+      links: section.links,
+    }));
 }
 
 export async function buildDocs(options: DocsOptions): Promise<DocsResult> {
@@ -221,29 +244,19 @@ export async function buildDocs(options: DocsOptions): Promise<DocsResult> {
     const page = pages.find((p) => p.repoPath === outside.repoPath);
     if (page) top.push(toLink(page));
   }
-  const start = options.start;
-  const startGroups =
-    start && start.links.length > 0
-      ? [
-          {
-            label: START_LABEL,
-            tag: "new",
-            note: "Interactive pages, one idea each. Chapters marked older cover the same ground in one long read.",
-            links: start.links,
-          },
-        ]
-      : [];
+  const sections = options.sections ?? [];
+  const replaced = (path: string) => sections.some((section) => section.replaces?.(path) ?? false);
   const nav: NavModel = {
     top,
     groups: [
-      ...startGroups,
+      ...sectionGroups(sections),
       ...groups.map((g) => ({
         label: g.label,
         links: g.pages.flatMap((path) => {
           const page = outOf.get(path);
           if (!page) return [];
           const link = toLink(page);
-          return [start?.replaces(path) ? { ...link, tag: "older" } : link];
+          return [replaced(path) ? { ...link, tag: "older" } : link];
         }),
       })),
     ],
@@ -361,7 +374,10 @@ export async function buildDocs(options: DocsOptions): Promise<DocsResult> {
   }
 
   writes.push(
-    Bun.write(join(outDir, "search.json"), `${JSON.stringify([...(start?.search ?? []), ...search])}\n`),
+    Bun.write(
+      join(outDir, "search.json"),
+      `${JSON.stringify([...sections.flatMap((section) => section.search), ...search])}\n`,
+    ),
   );
   await Promise.all(writes);
   return { pages: pages.length, examples: sourceMap.size, warnings, nav };

@@ -3,12 +3,13 @@
 import { cp, mkdir, rm } from "node:fs/promises";
 import { dirname, join, resolve } from "node:path";
 import { SITE } from "./site.config";
-import { buildDocs, type SearchEntry } from "./src/docs";
+import { buildDocs, type DocsSection, type SearchEntry } from "./src/docs";
 import { relativeUrl } from "./src/docs/links";
 import { llmsTxt } from "./src/docs/llms";
 import { renderNav } from "./src/docs/nav";
 import { fillShell } from "./src/docs/shell";
-import { buildGuide, guideLinks } from "./src/guide/build";
+import { buildGuide, type GuideBuild, guideLinks } from "./src/guide/build";
+import { SECTIONS, START_SECTION } from "./src/guide/pages";
 
 const here = import.meta.dir;
 const repoRoot = join(here, "..");
@@ -68,9 +69,9 @@ export interface BuildResult {
   weights?: Record<string, number>;
 }
 
-/** The guide's first page, as its built address under docs/: the getting-started pages when there are any. */
+/** The guide's first page, as its built address under docs/: getting started's first page when there is one. */
 async function guideEntry(): Promise<string> {
-  const first = guideLinks()[0];
+  const first = guideLinks(START_SECTION)[0];
   if (first) return first.out;
   for (const name of ["README.md", "index.md"]) {
     if (await Bun.file(join(repoRoot, "docs/guide", name)).exists()) return "guide/index.html";
@@ -137,25 +138,34 @@ export async function build({ dev = false, out = join(here, "dist") } = {}): Pro
   const shellPath = join(out, "docs.html");
   const shell = await Bun.file(shellPath).text();
   await rm(shellPath);
-  // The guide's getting-started pages: built from TSX, drawn into the same shell, listed first in the contents.
-  const guide = await buildGuide({ repoRoot, out, dev });
-  if (!guide.ok) return { ok: false, ms: performance.now() - started, pages: 0, warnings: guide.warnings };
+  // The guide's sections: built from TSX, drawn into the same shell, listed first in the contents in their order.
+  const guide: GuideBuild[] = [];
+  for (const section of SECTIONS) {
+    const built = await buildGuide({ repoRoot, out, dev, section });
+    if (!built.ok) return { ok: false, ms: performance.now() - started, pages: 0, warnings: built.warnings };
+    guide.push(built);
+  }
+  const sections: DocsSection[] = SECTIONS.map((section, i) => ({
+    label: section.label,
+    note: section.note,
+    tag: section.tag,
+    links: guide[i]?.links ?? [],
+    // The markdown chapters a section's pages rewrite stay, tagged as the older read.
+    replaces: section.replaces ? (path: string) => section.replaces?.test(path) ?? false : undefined,
+    search: guide[i]?.search ?? [],
+  }));
   const docs = await buildDocs({
     repoRoot,
     outDir: join(out, "docs"),
     shell,
     repo: { url: SITE.repoUrl, branch: SITE.repoBranch, public: SITE.repoPublic },
-    start: {
-      links: guide.links,
-      // The markdown chapters the getting-started pages are rewriting stay, tagged as the older read.
-      replaces: (path) => /^guide\/0[1-6]-/.test(path),
-      search: guide.search,
-    },
+    sections,
   });
-  guide.write(
-    (page, slots) => fillShell(shell, page, slots),
-    (page) => renderNav(docs.nav, page, (to) => relativeUrl(page, to)),
-  );
+  for (const built of guide)
+    built.write(
+      (page, slots) => fillShell(shell, page, slots),
+      (page) => renderNav(docs.nav, page, (to) => relativeUrl(page, to)),
+    );
 
   // A map of the docs for language models, from the same entries the docs search reads.
   const entries = JSON.parse(await Bun.file(join(out, "docs", "search.json")).text()) as SearchEntry[];
@@ -171,9 +181,9 @@ export async function build({ dev = false, out = join(here, "dist") } = {}): Pro
   return {
     ok: true,
     ms: performance.now() - started,
-    pages: docs.pages + docs.examples + guide.links.length + 1,
-    warnings: [...guide.warnings, ...docs.warnings],
-    weights: guide.weights,
+    pages: docs.pages + docs.examples + guide.reduce((n, section) => n + section.links.length, 0) + 1,
+    warnings: [...guide.flatMap((section) => section.warnings), ...docs.warnings],
+    weights: Object.assign({}, ...guide.map((section) => section.weights)),
   };
 }
 

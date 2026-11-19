@@ -12,14 +12,23 @@ kit/                what pages are written with (import from "../kit" only)
 OUTLINE.md          the sequence: each `## N. Title` is a step; the build reads it for titles and the progress strip
 data.ts, source.ts  build side: pieces of an example by name, listings, controls' tokens, modules as JavaScript
 prerender.tsx       draws every page to HTML at build time (in a process of its own, so a rebuild reads pages afresh)
-build.ts            bundles one script per page and the code box's worker, writes `docs/start/NN-slug.html`
+build.ts            bundles one script per page and the code box's worker, writes `docs/<section>/NN-slug.html`
 ```
 
 At build time each page is drawn to HTML inside the docs' own shell (contents, masthead, scheme switch), with the data
 it needs beside it as JSON: its listings (quoted from the example files and highlighted), its glossary words (only the
 ones it uses), and the example's modules as JavaScript. In the browser the page's script hydrates that HTML and starts
-the game. Pages are listed in the contents under "Getting started" as soon as their file exists; a step of the outline
-with no file yet is a dashed cell in the progress strip.
+the game. Pages are listed in the contents under their section's label as soon as their file exists; a step of the
+outline with no file yet is a dashed cell in the progress strip.
+
+## A section
+
+The guide is a few sections side by side, one folder each under `site/src/guide/`: its `pages/` and its `OUTLINE.md`,
+and nothing else of its own. Getting started is the guide root, its `pages/` at the top, because that is where it was
+written first. A section is described once, in `SECTIONS` in [`pages.ts`](pages.ts): `slug` is the folder under `docs/`
+its pages are built to (`start`, `sound`), `dir` the folder here (`.` for the guide root), and `label`, `note` and
+`tag` are what the docs contents says above its pages. A section with no pages yet shows no group at all, so one can be
+added before its first page is written; each section numbers and titles its pages from its own `OUTLINE.md`.
 
 ## A page, annotated
 

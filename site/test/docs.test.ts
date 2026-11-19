@@ -1,9 +1,16 @@
 import { describe, expect, test } from "bun:test";
 import { join } from "node:path";
-import { entryMap } from "../src/docs";
+import { type DocsSection, entryMap, sectionGroups } from "../src/docs";
 import { docsPageOut, type Exists, type LinkContext, resolveLink } from "../src/docs/links";
 import { indexBlocks, parseMarkdown, renderBody } from "../src/docs/markdown";
-import { buildNavGroups, type IndexBlock, type NavPage, pluralLabel } from "../src/docs/nav";
+import {
+  buildNavGroups,
+  type IndexBlock,
+  type NavModel,
+  type NavPage,
+  pluralLabel,
+  renderNav,
+} from "../src/docs/nav";
 import { basePrefix, fillShell } from "../src/docs/shell";
 import { createSlugger } from "../src/docs/text";
 
@@ -257,6 +264,56 @@ describe("sidebar", () => {
       { label: "Deeper", pages: ["beta.md"] },
       { label: "More", pages: ["gamma.md", "orphan-a.md", "orphan-b.md", "examples/notes.md"] },
     ]);
+  });
+});
+
+describe("the guide's sections in the contents", () => {
+  const section = (over: Partial<DocsSection> = {}): DocsSection => ({
+    label: "Getting started",
+    note: "Interactive pages, one idea each.",
+    links: [{ out: "start/01.html", title: "One" }],
+    search: [],
+    ...over,
+  });
+
+  test("each section is a group of its own, with its own label, tag and note", () => {
+    const groups = sectionGroups([
+      section({ tag: "new" }),
+      section({
+        label: "Sound",
+        note: "Cues, voices and the mix.",
+        links: [{ out: "sound/01.html", title: "A cue" }],
+      }),
+    ]);
+    expect(groups.map((g) => g.label)).toEqual(["Getting started", "Sound"]);
+    expect(groups[0]?.tag).toBe("new");
+    expect(groups[0]?.note).toBe("Interactive pages, one idea each.");
+    expect(groups[1]?.note).toBe("Cues, voices and the mix.");
+    expect(groups[1]?.links.map((l) => l.out)).toEqual(["sound/01.html"]);
+  });
+
+  test("a section with no pages yet contributes no group", () => {
+    expect(sectionGroups([section({ label: "Shaders", links: [] })])).toEqual([]);
+  });
+
+  test("the contents draw each group's own heading, tag and note", () => {
+    const nav: NavModel = {
+      top: [],
+      groups: sectionGroups([
+        section({ tag: "new" }),
+        section({
+          label: "Sim and fit",
+          note: "Headless runs.",
+          links: [{ out: "sim/01.html", title: "A run" }],
+        }),
+      ]),
+    };
+    const html = renderNav(nav, "start/01.html", (out) => out);
+    expect(html).toContain('Getting started <span class="doc-nav__tag">new</span>');
+    expect(html).toContain('<p class="doc-nav__note">Interactive pages, one idea each.</p>');
+    expect(html).toContain("Sim and fit");
+    expect(html).toContain('<p class="doc-nav__note">Headless runs.</p>');
+    expect(html).toContain('<a href="sim/01.html">A run</a>');
   });
 });
 

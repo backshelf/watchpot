@@ -178,6 +178,8 @@ export interface EditData {
 export interface PageData {
   n: number;
   slug: string;
+  /** The section's label in the docs contents: "Getting started", "Sound". */
+  section: string;
   steps: StepData[];
   code: Record<string, CodeData>;
   terms: Record<string, TermData>;

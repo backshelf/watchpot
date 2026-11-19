@@ -1,7 +1,7 @@
-// Draws every guide page at build time, in a process of its own (so a rebuild always reads the pages fresh):
+// Draws one section's guide pages at build time, in a process of its own (so a rebuild always reads the pages fresh):
 //   bun site/src/guide/prerender.tsx <job.json>
-// The job names the repository and the built worker's address; the answer, every page's HTML and data, is written to
-// the job's `out` file.
+// The job names the repository, the section and the built worker's address; the answer, every page's HTML and data, is
+// written to the job's `out` file.
 import { readFileSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { renderToStaticMarkup, renderToString } from "react-dom/server";
@@ -12,10 +12,12 @@ import { parseGlossary } from "./glossary";
 import { fresh, StaticHost } from "./kit/host";
 import type { CodeData, Link, PageData, PageDef, StepData, TermData } from "./kit/page";
 import { GuideRoot } from "./kit/shell";
-import { outline, pageFiles } from "./pages";
+import { outline, pageFiles, sectionFor } from "./pages";
 
 export interface PrerenderJob {
   repoRoot: string;
+  /** The guide section's slug: whose `OUTLINE.md` and `pages/` the job reads. */
+  section: string;
   /** The worker script, as a URL from a guide page. */
   worker: string;
   out: string;
@@ -38,8 +40,9 @@ export interface PrerenderResult {
   problems: string[];
 }
 
-/** Every page, drawn. A page that cannot be built is left out and named in `problems`. */
+/** Every page of the job's section, drawn. A page that cannot be built is left out and named in `problems`. */
 export async function prerender(job: Omit<PrerenderJob, "out">): Promise<PrerenderResult> {
+  const section = sectionFor(job.section);
   const files = exampleFiles(job.repoRoot);
   const tokenize = await createTokenizer(["ts", "tsx"]);
   const glossary: Record<string, TermData> = Object.fromEntries(
@@ -48,8 +51,8 @@ export async function prerender(job: Omit<PrerenderJob, "out">): Promise<Prerend
       { title: e.title, short: e.short, href: `../glossary.html#${e.id}` },
     ]),
   );
-  const steps = outline();
-  const written = pageFiles();
+  const steps = outline(section);
+  const written = pageFiles(section);
   const byN = new Map(written.map((f) => [f.n, f]));
   const pages: PrerenderedPage[] = [];
   const problems: string[] = [];
@@ -84,6 +87,7 @@ export async function prerender(job: Omit<PrerenderJob, "out">): Promise<Prerend
       const data: PageData = {
         n: file.n,
         slug: file.slug,
+        section: section.label,
         steps: stepData,
         code,
         terms: {},

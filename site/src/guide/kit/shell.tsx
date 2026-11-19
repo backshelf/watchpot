@@ -9,9 +9,9 @@ import type { ParamValue } from "./run";
 function Progress({ data }: { data: PageData }) {
   const total = data.steps.length;
   return (
-    <nav className="steps" aria-label="Getting started, step by step">
+    <nav className="steps" aria-label={`${data.section}, step by step`}>
       <p className="steps__where">
-        Getting started <span className="num">{String(data.n).padStart(2, "0")}</span>
+        {data.section} <span className="num">{String(data.n).padStart(2, "0")}</span>
         <span className="steps__of"> of {total}</span>
       </p>
       <ol className="steps__list">
