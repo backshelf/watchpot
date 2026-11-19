@@ -265,6 +265,42 @@ describe("the reset pace", () => {
     expect(store.getState().high.currency.eq(10)).toBe(true);
   });
 
+  test("a depth-1 reset that starts a deeper layer's own fields over keeps its best and milestones", () => {
+    const low = definePrestige({
+      key: "low",
+      reach: [wallet],
+      gain: (s) => powerGain(s.wallet.lifetime, { k: 1, exp: 1, per: 1 }),
+      depth: 2,
+      // Its own fields start over at a depth-1 reset, though its own reset reaches depth 2.
+      reset: { depth: 1 },
+      milestones: [{ id: "forty", at: 40 }],
+    });
+    const shallow = definePrestige({
+      key: "shallow",
+      reach: [wallet],
+      gain: (s) => powerGain(s.wallet.lifetime, { k: 1, exp: 1, per: 1 }),
+    });
+    const game = defineGame({
+      id: "toy-shallow",
+      save: { key: "toy-shallow.save", version: 1 },
+      features: [wallet, low, shallow],
+    });
+    const store = createIdleStore(game, { storage: memory(), now: () => T0 });
+    store.getState().catchUp(T0);
+    store.getState().wallet.earn(40);
+    expect(store.getState().low.reset(T0 + 1000)).toBe(true);
+    expect(store.getState().low.best.eq(40)).toBe(true);
+    expect(store.getState().low.milestones).toEqual(["forty"]);
+    store.getState().wallet.earn(5);
+    expect(store.getState().shallow.reset(T0 + 2000)).toBe(true);
+    const s = store.getState().low;
+    // The depth-1 reset ran the layer's own rule, so its fields started over...
+    expect(s.lifetime.eq(0)).toBe(true);
+    // ... but its best and milestones are permanent.
+    expect(s.best.eq(40)).toBe(true);
+    expect(s.milestones).toEqual(["forty"]);
+  });
+
   test("refuses a past share outside (0, 1] and a game step that takes the layer's own name", () => {
     const gain = () => D(0);
     expect(() => definePrestige({ key: "p", gain, pace: { past: 0 } })).toThrow(/pace.past/);

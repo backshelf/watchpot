@@ -42,8 +42,9 @@ export interface PrestigeCore {
    */
   lifetime: Decimal;
   /**
-   * The best single gain this layer has ever paid. No reset this layer survives starts it over (only a profile
-   * reset does), so a milestone keyed on it cannot be farmed by spamming resets that pay next to nothing.
+   * The best single gain this layer has ever paid. It survives every reset except a full profile reset, even one
+   * that starts this layer's own fields over and wipes its `lifetime` (a higher layer's reset), so a milestone
+   * keyed on it cannot be farmed by spamming resets that pay next to nothing.
    */
   best: Decimal;
   /**
@@ -420,19 +421,24 @@ export function definePrestige<
     depth: Math.min(depth, own.depth),
     rule: (before, fresh, ctx) => {
       const at = ctx.depth ?? 1;
-      const after =
-        at >= own.depth ? applyReachedRule(own.rule as ReachedRule<S>, before, fresh, ctx) : before;
+      // best and milestones survive every reset but a profile reset, even one that starts this layer's own fields
+      // over: keep them whatever the game's rule makes of the rest.
+      const reached =
+        at >= own.depth
+          ? {
+              ...applyReachedRule(own.rule as ReachedRule<S>, before, fresh, ctx),
+              best: before.best,
+              milestones: before.milestones,
+            }
+          : before;
       return at >= depth
         ? {
-            ...after,
-            // A reset this layer survives never starts these over: only a profile reset does.
-            best: before.best,
-            milestones: before.milestones,
+            ...reached,
             runStart: ctx.now,
             peak: 0,
             paceAt: ctx.now,
           }
-        : after;
+        : reached;
     },
   };
 

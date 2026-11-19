@@ -22,8 +22,9 @@ export interface PrestigeCore {
      */
     lifetime: Decimal;
     /**
-     * The best single gain this layer has ever paid. No reset this layer survives starts it over (only a profile
-     * reset does), so a milestone keyed on it cannot be farmed by spamming resets that pay next to nothing.
+     * The best single gain this layer has ever paid. It survives every reset except a full profile reset, even one
+     * that starts this layer's own fields over and wipes its `lifetime` (a higher layer's reset), so a milestone
+     * keyed on it cannot be farmed by spamming resets that pay next to nothing.
      */
     best: Decimal;
     /**
