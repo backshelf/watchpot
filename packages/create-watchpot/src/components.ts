@@ -24,17 +24,19 @@ const stemOf = (file: string) => file.replace(/(\.module)?\.(tsx|css)$/, "");
 function copyRegistry(source: string, ui: string) {
   mkdirSync(ui, { recursive: true });
   const nothing: ReadonlySet<string> = new Set();
-  for (const file of readdirSync(source)) {
-    if (file === "index.ts" || LEFT_OUT.has(stemOf(file))) continue;
+  for (const entry of readdirSync(source, { withFileTypes: true })) {
+    const file = entry.name;
+    if (!entry.isFile() || file === "index.ts" || LEFT_OUT.has(stemOf(file))) continue;
     // A file whose first line is `// @feature <flag>` belongs to a feature the bare game has not got.
     const text = gate(readFileSync(join(source, file), "utf8"), nothing, file);
     if (text !== null) writeFileSync(join(ui, file), text);
   }
-  // The barrel keeps the exports whose component is there, and no marker comments.
+  // The barrel keeps the exports whose component is there (a `.tsx` component, or a plain `.ts` one), and no markers.
   const lines = gate(readFileSync(join(source, "index.ts"), "utf8"), nothing, "index.ts")?.split("\n") ?? [];
   const kept = lines.filter((line) => {
     const from = line.match(/from "\.\/(\w+)"/);
-    return !from || existsSync(join(ui, `${from[1]}.tsx`));
+    if (!from) return true;
+    return existsSync(join(ui, `${from[1]}.tsx`)) || existsSync(join(ui, `${from[1]}.ts`));
   });
   writeFileSync(join(ui, "index.ts"), kept.join("\n"));
 }

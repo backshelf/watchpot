@@ -27,7 +27,7 @@ import {
   writeFileSync,
 } from "node:fs";
 import { createRequire } from "node:module";
-import { basename, dirname, join, resolve } from "node:path";
+import { dirname, join, relative, resolve } from "node:path";
 import * as p from "@clack/prompts";
 import { slugify } from "../../../templates/game/.scaffold/generate";
 import { addComponents } from "./components";
@@ -69,12 +69,16 @@ const USAGE =
   "usage: create-watchpot [--name <name>] [--vite] [--tailwind] [--components] [--three] [--skills=<dir,dir>] [--no-install] [--yes]\n" +
   `  --skills takes any of: ${TARGETS.map((t) => t.value).join(", ")}`;
 
+/** Flags that are answered by being there or not: a value (`--vite=false`) is a mistake, not a way to turn them off. */
+const BOOLEAN_FLAGS = new Set(["--vite", "--tailwind", "--components", "--three", "--no-install", "--yes"]);
+
 function parseFlags(argv: readonly string[]): Flags {
   const flags: Flags = { install: true, yes: false };
   for (let i = 0; i < argv.length; i++) {
     const arg = argv[i] ?? "";
     const eq = arg.indexOf("=");
     const key = arg.startsWith("--") && eq > 0 ? arg.slice(0, eq) : arg;
+    if (eq > 0 && BOOLEAN_FLAGS.has(key)) throw new UsageError(`${key} takes no value`);
     const take = (): string => {
       const value = eq > 0 ? arg.slice(eq + 1) : argv[++i];
       if (value === undefined || value.startsWith("--")) throw new UsageError(`${key} needs a value`);
@@ -215,7 +219,7 @@ async function choose(flags: Flags): Promise<Choices> {
   if (flags.skills === undefined && !flags.yes) {
     const agents = answered(
       await p.confirm({
-        message: "Add AI agent skills (the watchpot-init skill, and an AGENTS.md)?",
+        message: "Add AI agent skills (the watchpot skills, and an AGENTS.md)?",
         initialValue: false,
       }),
     );
@@ -255,7 +259,10 @@ interface EnginePackage {
   devDependencies?: Record<string, string>;
 }
 
-/** What the bare template holds that the game does not: its own README and agent docs, and the page's other version. */
+/**
+ * What the bare template holds that the game does not: its own README and agent docs, the components' page, and anything
+ * installed. Matched by path from the template's root, so a nested folder of the same name is still copied.
+ */
 const NOT_COPIED = new Set(["README.md", "AGENTS.md", "components", "node_modules"]);
 
 const htmlEscape = (s: string) => s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
@@ -263,7 +270,7 @@ const htmlEscape = (s: string) => s.replace(/&/g, "&amp;").replace(/</g, "&lt;")
 /** The line the game's README says about what its page is made of. */
 function componentsLine(choice: Choices): string {
   if (choice.components)
-    return `- \`src/ui/\` the starter components over the engine's headless \`watchpot/ui\`${choice.tailwind ? ", each styled with Tailwind utilities" : ", each with its CSS module"} (\`src/ui/README.md\` lists them and the tokens they read); \`design/tokens.json\` is compiled to \`src/tokens.css\` by \`bun run tokens\`.\n`;
+    return `- \`src/ui/\` the starter components over the engine's headless \`watchpot/ui\`${choice.tailwind ? ", each styled with Tailwind utilities" : ", each with its CSS module"} (\`src/ui/README.md\` lists them and the tokens they read); \`design/tokens.json\` is compiled to \`src/tokens.css\` by \`${choice.vite ? "npm" : "bun"} run tokens\`.\n`;
   if (choice.tailwind) return "- `src/index.css` imports Tailwind. No component is styled yet.\n";
   return "";
 }
@@ -286,7 +293,7 @@ function writeGame(engine: string, choice: Choices, out: string, pkg: EnginePack
   const slug = slugify(choice.name);
   cpSync(template, out, {
     recursive: true,
-    filter: (src) => src === template || !NOT_COPIED.has(basename(src)),
+    filter: (src) => src === template || !NOT_COPIED.has(relative(template, src).replaceAll("\\", "/")),
   });
   // The template keeps its ignore file as `gitignore`: npm leaves every `.gitignore` out of a published package.
   renameSync(join(out, "gitignore"), join(out, ".gitignore"));

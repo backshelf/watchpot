@@ -27,8 +27,9 @@ nothing else: no mechanic, no look, plain HTML. Every choice below adds to that;
    is on. They are the game's own after that: restyle or delete them.
 5. **3D stage?** No by default. Yes adds `three` and `@react-three/fiber` to the game, at the same versions the engine
    itself uses.
-6. **AI agent skills?** No by default. Yes adds `AGENTS.md` and the engine's `watchpot-init` skill, then asks where:
-   `.claude/skills` (Claude Code), `.agents/skills` (Codex and others), `.cursor/skills` (Cursor). At least one.
+6. **AI agent skills?** No by default. Yes adds `AGENTS.md` and the engine's watchpot skills (including the
+   `watchpot-init` one), then asks where: `.claude/skills` (Claude Code), `.agents/skills` (Codex and others),
+   `.cursor/skills` (Cursor). At least one.
 
 Ctrl-C at any prompt cancels and exits 0.
 
@@ -43,13 +44,18 @@ bun create watchpot --name "Tap Jar" --tailwind --components --three --skills=.c
 - `--yes`: take the default for every prompt that has no flag.
 - `--no-install`: write the game and stop, without `bun install` (or `npm install`).
 
+The boolean flags (`--vite`, `--tailwind`, `--components`, `--three`, `--no-install`, `--yes`) take no value:
+`--vite=false` is an error, not a way to turn it off.
+
 ## What it does
 
 The game is written from the engine's bare template (`templates/bare/`), with the name given. The engine is the
 installed `watchpot` package, so the game's `watchpot` dependency is `^<the engine's version>`, from npm. The fuller
-template with every system (`templates/game/`) is what the engine's `/watchpot-init` skill fills from an interview.
+template with every system (`templates/game/`) is what the engine's watchpot skills fill from an interview.
 
-The game runs on Bun: after `cd <slug>`, `bun run dev` serves it at `http://localhost:3000`. Get Bun at https://bun.sh.
+The Bun game runs on Bun: after `cd <slug>`, `bun run dev` serves it at `http://localhost:3000`. Get Bun at
+https://bun.sh. The Vite game runs on Node 20 or later: `npm run dev` serves it on Vite's dev server (usually
+`http://localhost:5173`), with hot reload.
 
 ## Development
 
