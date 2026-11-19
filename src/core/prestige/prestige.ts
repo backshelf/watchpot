@@ -1,5 +1,5 @@
 import type { Draft } from "immer";
-import { Decimal, type DecimalSource, ZERO } from "../decimal";
+import { D, Decimal, type DecimalSource, ZERO } from "../decimal";
 import {
   applyReachedRule,
   defineFeature,
@@ -42,6 +42,15 @@ export interface PrestigeCore {
    */
   lifetime: Decimal;
   /**
+   * The best single gain this layer has ever paid. No reset this layer survives starts it over (only a profile
+   * reset does), so a milestone keyed on it cannot be farmed by spamming resets that pay next to nothing.
+   */
+  best: Decimal;
+  /**
+   * The ids of the milestones reached so far, in the order they were reached. Permanent: no reset takes one back.
+   */
+  milestones: readonly string[];
+  /**
    * Game time this layer's run began: its last reset, or any deeper one (a `resetRun` at this layer's depth or more),
    * or the profile's start. Steps and selects read run length off it.
    */
@@ -56,6 +65,29 @@ export interface PrestigeCore {
 export interface PrestigeHeld {
   /** Unspent prestige currency. */
   currency: Decimal;
+}
+
+/** What a prestige milestone can count. */
+export const PRESTIGE_MILESTONE_ONS = ["best", "total", "runs", "seconds"] as const;
+
+/**
+ * What a milestone counts: `best` (the best single gain this layer has paid, the default), `total` (its `lifetime`),
+ * `runs` (its reset count) or `seconds` (the longest run in the layer).
+ */
+export type PrestigeMilestoneOn = (typeof PRESTIGE_MILESTONE_ONS)[number];
+
+/** A permanent unlock, reached the first time what it counts reaches `at`, and never lost. */
+export interface PrestigeMilestoneDef {
+  readonly id: string;
+  /** The label a page shows (default: the id). */
+  readonly name?: string;
+  readonly text?: string;
+  readonly at: DecimalSource;
+  /**
+   * What it counts (default: `best`). A count of resets can be farmed by spamming trivial resets; `best` cannot,
+   * and `seconds` asks the run to last.
+   */
+  readonly on?: PrestigeMilestoneOn;
 }
 
 /**
@@ -157,6 +189,12 @@ export interface PrestigeDef<
   /** Tunes the reset pace (see `PrestigePaceDef`); every layer keeps one. */
   readonly pace?: PrestigePaceDef<G>;
   /**
+   * Permanent unlocks, reached the first time what one counts reaches its `at`; no reset takes one back. Checked
+   * after every reset and in the layer's `settle.pace` step, so a `seconds` milestone lands while the run waits.
+   * `select.reached(state, id)` answers whether one is reached.
+   */
+  readonly milestones?: readonly PrestigeMilestoneDef[];
+  /**
    * What a reset is worth to the sim's auto-player now, in the unit of its objective (at or below 0 it is never
    * taken). A reset does not raise the objective at once, so the auto-player cannot work this out itself: with
    * `worth` the layer declares one free move, `<key>.<action>`, that presses the reset; without it the layer
@@ -206,6 +244,8 @@ export interface PrestigeSelect<G extends object> {
   runSeconds(state: G, now: number): number;
   /** The reset pace at game time `now`, for a page that redraws between passes (the derived `pace` is as of `paceAt`). */
   pace(state: G, now: number): number;
+  /** Whether the layer has reached the milestone `id`. Permanent: once true, it stays true. */
+  reached(state: G, id: string): boolean;
 }
 
 /** A layer's fixed configuration. */
@@ -251,10 +291,11 @@ const runLabelOf = (run: number): string => `run${run}`;
 /**
  * Declares a prestige layer. Its state is `PrestigeCore` (plus `currency` unless it pays into a wallet) plus the
  * extras `initial` returns; its slice also serves `pace`, `peakShare` and `pastPeak`. The reset, inside one recipe:
- * `canReset`, `beforeReset`, the gain added to `lifetime` (and to `currency` when held here), the store's `resetRun`
- * at `now` with the rng `runLabel(runs + 1)`, the gain credited to the `payInto` wallet, `runs` counted,
- * `afterReset`. Throws at definition when `payInto` names a currency the wallet lacks or one the layer's own reset
- * would wipe, when `pace.past` is outside (0, 1], or when the game's steps take the `settle.pace` name.
+ * `canReset`, `beforeReset`, the gain added to `lifetime` (and `best` raised to it), the store's `resetRun` at `now`
+ * with the rng `runLabel(runs + 1)`, the gain credited to the `payInto` wallet, `runs` counted, the milestones
+ * reached, `afterReset`. Throws at definition when `payInto` names a currency the wallet lacks or one the layer's own
+ * reset would wipe, when `pace.past` is outside (0, 1], when a milestone id repeats, counts an unknown `on` or asks
+ * for an `at` not above 0, or when the game's steps take the `settle.pace` name.
  */
 export function definePrestige<
   const K extends string,
@@ -289,6 +330,18 @@ export function definePrestige<
     throw new Error(
       `prestige "${def.key}": the settle step "${PACE_STEP}" is the layer's own; name yours otherwise`,
     );
+  const milestoneIds = new Set<string>();
+  for (const m of def.milestones ?? []) {
+    if (milestoneIds.has(m.id))
+      throw new Error(`prestige "${def.key}": the milestone "${m.id}" is declared twice`);
+    milestoneIds.add(m.id);
+    if (m.on !== undefined && !(PRESTIGE_MILESTONE_ONS as readonly string[]).includes(m.on))
+      throw new Error(`prestige "${def.key}": the milestone "${m.id}" counts an unknown "${String(m.on)}"`);
+    if (!D(m.at).gt(0))
+      throw new Error(
+        `prestige "${def.key}": the milestone "${m.id}" needs an at above 0; got ${String(m.at)}`,
+      );
+  }
 
   type Slice = PrestigeCore & Partial<PrestigeHeld>;
   const layer = (s: object): Slice => (s as Record<string, Slice>)[def.key] as Slice;
@@ -301,6 +354,22 @@ export function definePrestige<
   const paceAt = (s: object, now: number): number =>
     resetPace(def.gain(asG(s)), kept(asG(s)), runSeconds(s, now), floorS);
 
+  /**
+   * Marks every milestone `s` has reached now, the seconds of the run it was reached in handed in. A milestone is
+   * reached once: it joins `milestones` and no reset takes it back.
+   */
+  const reach = (s: Draft<G>, seconds: number) => {
+    const p = layer(s);
+    for (const m of def.milestones ?? []) {
+      if (p.milestones.includes(m.id)) continue;
+      const on = m.on ?? "best";
+      const have =
+        on === "runs" ? D(p.runs) : on === "seconds" ? D(seconds) : on === "total" ? p.lifetime : p.best;
+      if (have.lt(m.at)) continue;
+      p.milestones = [...p.milestones, m.id];
+    }
+  };
+
   /** The reset inside a recipe: the checks, the gain, the run reset, the payout, the count and the hooks. */
   const run = (
     s: Draft<G>,
@@ -312,13 +381,17 @@ export function definePrestige<
     def.beforeReset?.(s, now);
     const gain = def.gain(s);
     const p = layer(s);
+    // Read before the run resets: a `seconds` milestone reached by the run that ends here counts it.
+    const seconds = runSeconds(s, now);
     p.lifetime = p.lifetime.add(gain);
+    if (gain.gt(p.best)) p.best = gain;
     if (!pay) p.currency = (p.currency ?? ZERO).add(gain);
     resetRun(s, { now, rng: rng(p.runs + 1), depth });
     // After the run is reset: a wallet currency the reset reaches would otherwise lose the payout at once.
     if (pay) pay.wallet.draft.credit(s as never, pay.currency, gain);
     const q = layer(s);
     q.runs += 1;
+    reach(s, seconds);
     def.afterReset?.(s, { gain, now, run: q.runs });
     return true;
   };
@@ -349,7 +422,17 @@ export function definePrestige<
       const at = ctx.depth ?? 1;
       const after =
         at >= own.depth ? applyReachedRule(own.rule as ReachedRule<S>, before, fresh, ctx) : before;
-      return at >= depth ? { ...after, runStart: ctx.now, peak: 0, paceAt: ctx.now } : after;
+      return at >= depth
+        ? {
+            ...after,
+            // A reset this layer survives never starts these over: only a profile reset does.
+            best: before.best,
+            milestones: before.milestones,
+            runStart: ctx.now,
+            peak: 0,
+            paceAt: ctx.now,
+          }
+        : after;
     },
   };
 
@@ -361,6 +444,7 @@ export function definePrestige<
         const p = layer(d);
         p.paceAt = ctx.now;
         if (pace > p.peak) p.peak = pace;
+        reach(d, runSeconds(d, ctx.now));
       },
     },
   };
@@ -403,6 +487,8 @@ export function definePrestige<
       ({
         runs: 0,
         lifetime: ZERO,
+        best: ZERO,
+        milestones: [],
         runStart: ctx.now,
         peak: 0,
         paceAt: ctx.now,
@@ -415,7 +501,16 @@ export function definePrestige<
     steps: { ...(def.steps ?? {}), settle } as FeatureSteps<G>,
     reset,
     migrations: def.migrations,
-    merge: def.merge,
+    merge: (merged, fresh) => {
+      const out = def.merge?.(merged, fresh) ?? merged;
+      // A save from before `best` and `milestones` existed has neither, and the best gain ever paid is not in what
+      // it does keep: 0 is honest, and so is no milestone reached. A game's own merge may drop them too.
+      return {
+        ...out,
+        ...("best" in out ? {} : { best: fresh.best }),
+        ...("milestones" in out ? {} : { milestones: fresh.milestones }),
+      };
+    },
     // Declared over `G`; the store hands it the game's state, which holds the layer's actions as well.
     moves: def.worth ? (((state: G) => [resetMove(state)]) as never) : undefined,
   });
@@ -426,6 +521,7 @@ export function definePrestige<
       gain: (s) => def.gain(asG(s)),
       runSeconds: (s, now) => runSeconds(s, now),
       pace: (s, now) => paceAt(s, now),
+      reached: (s, id) => layer(s).milestones.includes(id),
     },
     def: {
       action: name,

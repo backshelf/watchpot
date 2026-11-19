@@ -22,6 +22,15 @@ export interface PrestigeCore {
      */
     lifetime: Decimal;
     /**
+     * The best single gain this layer has ever paid. No reset this layer survives starts it over (only a profile
+     * reset does), so a milestone keyed on it cannot be farmed by spamming resets that pay next to nothing.
+     */
+    best: Decimal;
+    /**
+     * The ids of the milestones reached so far, in the order they were reached. Permanent: no reset takes one back.
+     */
+    milestones: readonly string[];
+    /**
      * Game time this layer's run began: its last reset, or any deeper one (a `resetRun` at this layer's depth or more),
      * or the profile's start. Steps and selects read run length off it.
      */
@@ -35,6 +44,26 @@ export interface PrestigeCore {
 export interface PrestigeHeld {
     /** Unspent prestige currency. */
     currency: Decimal;
+}
+/** What a prestige milestone can count. */
+export declare const PRESTIGE_MILESTONE_ONS: readonly ["best", "total", "runs", "seconds"];
+/**
+ * What a milestone counts: `best` (the best single gain this layer has paid, the default), `total` (its `lifetime`),
+ * `runs` (its reset count) or `seconds` (the longest run in the layer).
+ */
+export type PrestigeMilestoneOn = (typeof PRESTIGE_MILESTONE_ONS)[number];
+/** A permanent unlock, reached the first time what it counts reaches `at`, and never lost. */
+export interface PrestigeMilestoneDef {
+    readonly id: string;
+    /** The label a page shows (default: the id). */
+    readonly name?: string;
+    readonly text?: string;
+    readonly at: DecimalSource;
+    /**
+     * What it counts (default: `best`). A count of resets can be farmed by spamming trivial resets; `best` cannot,
+     * and `seconds` asks the run to last.
+     */
+    readonly on?: PrestigeMilestoneOn;
 }
 /**
  * The derived values every prestige layer serves on its slice, worked out from the state (never saved): the reset
@@ -131,6 +160,12 @@ export interface PrestigeDef<K extends string, N extends string, W extends strin
     /** Tunes the reset pace (see `PrestigePaceDef`); every layer keeps one. */
     readonly pace?: PrestigePaceDef<G>;
     /**
+     * Permanent unlocks, reached the first time what one counts reaches its `at`; no reset takes one back. Checked
+     * after every reset and in the layer's `settle.pace` step, so a `seconds` milestone lands while the run waits.
+     * `select.reached(state, id)` answers whether one is reached.
+     */
+    readonly milestones?: readonly PrestigeMilestoneDef[];
+    /**
      * What a reset is worth to the sim's auto-player now, in the unit of its objective (at or below 0 it is never
      * taken). A reset does not raise the objective at once, so the auto-player cannot work this out itself: with
      * `worth` the layer declares one free move, `<key>.<action>`, that presses the reset; without it the layer
@@ -178,6 +213,8 @@ export interface PrestigeSelect<G extends object> {
     runSeconds(state: G, now: number): number;
     /** The reset pace at game time `now`, for a page that redraws between passes (the derived `pace` is as of `paceAt`). */
     pace(state: G, now: number): number;
+    /** Whether the layer has reached the milestone `id`. Permanent: once true, it stays true. */
+    reached(state: G, id: string): boolean;
 }
 /** A layer's fixed configuration. */
 export interface PrestigeConfig<N extends string, W extends string> {
@@ -211,10 +248,11 @@ export type PrestigeFeature<K extends string, N extends string, W extends string
 /**
  * Declares a prestige layer. Its state is `PrestigeCore` (plus `currency` unless it pays into a wallet) plus the
  * extras `initial` returns; its slice also serves `pace`, `peakShare` and `pastPeak`. The reset, inside one recipe:
- * `canReset`, `beforeReset`, the gain added to `lifetime` (and to `currency` when held here), the store's `resetRun`
- * at `now` with the rng `runLabel(runs + 1)`, the gain credited to the `payInto` wallet, `runs` counted,
- * `afterReset`. Throws at definition when `payInto` names a currency the wallet lacks or one the layer's own reset
- * would wipe, when `pace.past` is outside (0, 1], or when the game's steps take the `settle.pace` name.
+ * `canReset`, `beforeReset`, the gain added to `lifetime` (and `best` raised to it), the store's `resetRun` at `now`
+ * with the rng `runLabel(runs + 1)`, the gain credited to the `payInto` wallet, `runs` counted, the milestones
+ * reached, `afterReset`. Throws at definition when `payInto` names a currency the wallet lacks or one the layer's own
+ * reset would wipe, when `pace.past` is outside (0, 1], when a milestone id repeats, counts an unknown `on` or asks
+ * for an `at` not above 0, or when the game's steps take the `settle.pace` name.
  */
 export declare function definePrestige<const K extends string, X extends object = Record<never, never>, A extends object = Record<never, never>, const N extends string = "reset", W extends string = never, const R extends ReachShape = readonly [], G extends object = Record<K, PrestigeState<W, X> & PrestigePaceValues> & ReachOf<R>>(def: PrestigeDef<K, N, W, X, A, R, G>): PrestigeFeature<K, N, W, X, A, R, G>;
 /** The standing multiplier lifetime currency gives: `1 + k × lifetime ^ exp`. Exactly 1 with nothing earned. */

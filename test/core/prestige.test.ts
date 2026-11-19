@@ -8,11 +8,14 @@ import {
   defineFeature,
   defineGame,
   definePrestige,
+  flushSave,
   lifetimeMultiplier,
   nextFloat,
+  type PrestigeMilestoneDef,
   powerGain,
   type RngState,
   resetPace,
+  serialize,
   vocab,
 } from "watchpot/core";
 import { generator, T0, wallet } from "./toy";
@@ -356,6 +359,145 @@ describe("paying into a wallet", () => {
     expect(() =>
       definePrestige({ key: "p", gain, depth: 2, payInto: { wallet: two, currency: "shards" } }),
     ).toThrow();
+  });
+});
+
+describe("milestones", () => {
+  /** A layer paying one shard per hundred gold this run, its milestones as given, over `backend`. */
+  function milestoned(milestones: readonly PrestigeMilestoneDef[], backend = createMemoryBackend()) {
+    const layer = definePrestige({
+      key: "ascension",
+      action: "ascend",
+      reach: [wallet, generator],
+      gain: (s) => powerGain(s.wallet.lifetime, { k: 1, exp: 1, per: 100 }),
+      milestones,
+    });
+    const game = defineGame({
+      id: "toy-milestones",
+      save: { key: "toy-milestones.save", version: 1 },
+      features: [wallet, generator, layer],
+    });
+    const store = createIdleStore(game, {
+      storage: createGameStorage(backend, { debounceMs: 0, onError: () => {} }),
+      now: () => T0,
+      seed: "milestones",
+    });
+    store.getState().catchUp(T0);
+    return { store, layer, game, backend };
+  }
+
+  test("fifty resets at the least gain never reach a milestone above that gain", () => {
+    const { store, layer } = milestoned([
+      { id: "best-5", at: 5 },
+      { id: "runs-50", at: 50, on: "runs" },
+    ]);
+    // The least gain: a hundred gold, one shard, every run.
+    for (let i = 0; i < 50; i++) {
+      store.getState().wallet.earn(100);
+      expect(store.getState().ascension.ascend()).toBe(true);
+    }
+    const s = store.getState();
+    expect(s.ascension.runs).toBe(50);
+    expect(s.ascension.best.eq(1)).toBe(true);
+    // The reset count is farmable this way, which is why it is not the default: the best gain is not.
+    expect(layer.select.reached(s, "runs-50")).toBe(true);
+    expect(layer.select.reached(s, "best-5")).toBe(false);
+  });
+
+  test("total, runs and seconds each reach when they should", () => {
+    const { store, layer } = milestoned([
+      { id: "total-3", at: 3, on: "total" },
+      { id: "runs-2", at: 2, on: "runs" },
+      { id: "seconds-5", at: 5, on: "seconds" },
+    ]);
+    const reached = (id: string) => layer.select.reached(store.getState(), id);
+    for (let i = 1; i <= 3; i++) {
+      store.getState().wallet.earn(100);
+      store.getState().ascension.ascend();
+      expect(reached("total-3")).toBe(i === 3);
+      expect(reached("runs-2")).toBe(i >= 2);
+    }
+    expect(reached("seconds-5")).toBe(false);
+    // Seconds reach while the run waits: the settle step sees them pass, with no reset.
+    for (let i = 1; i <= 6; i++) store.getState().tick(1000, T0 + i * 1000);
+    expect(reached("seconds-5")).toBe(true);
+  });
+
+  test("a reached milestone stays reached through later resets and a save", () => {
+    const { store, layer, game, backend } = milestoned([{ id: "first", at: 1 }]);
+    store.getState().wallet.earn(100);
+    store.getState().ascension.ascend();
+    expect(layer.select.reached(store.getState(), "first")).toBe(true);
+    store.getState().wallet.earn(100);
+    store.getState().ascension.ascend();
+    expect(store.getState().ascension.runs).toBe(2);
+    expect(layer.select.reached(store.getState(), "first")).toBe(true);
+    flushSave(store);
+
+    const reloaded = createIdleStore(game, {
+      storage: createGameStorage(backend, { debounceMs: 0, onError: () => {} }),
+      now: () => T0,
+      seed: "milestones",
+    });
+    const s = reloaded.getState();
+    expect(s.ascension.runs).toBe(2);
+    expect(s.ascension.best.eq(1)).toBe(true);
+    expect(s.ascension.milestones).toEqual(["first"]);
+    expect(layer.select.reached(s, "first")).toBe(true);
+  });
+
+  test("a save from before best and milestones loads with 0 and none, and plays", () => {
+    const backend = createMemoryBackend();
+    backend.setItem(
+      "toy-milestones.save",
+      serialize({
+        version: 1,
+        state: {
+          ascension: {
+            runs: 4,
+            lifetime: "10",
+            currency: "2",
+            runStart: T0 - 2000,
+            peak: 0,
+            paceAt: T0 - 2000,
+          },
+        },
+      }),
+    );
+    const { store, layer } = milestoned([{ id: "runs-5", at: 5, on: "runs" }], backend);
+    const s = store.getState();
+    expect(s.ascension.runs).toBe(4);
+    expect(s.ascension.lifetime.eq(10)).toBe(true);
+    expect(s.ascension.best.eq(0)).toBe(true);
+    expect(s.ascension.milestones).toEqual([]);
+    // It plays: the fifth reset is the one the milestone waits for.
+    store.getState().wallet.earn(100);
+    expect(store.getState().ascension.ascend()).toBe(true);
+    expect(layer.select.reached(store.getState(), "runs-5")).toBe(true);
+    expect(store.getState().ascension.best.eq(1)).toBe(true);
+  });
+
+  test("refuses a repeated id, an at not above 0 and an unknown count", () => {
+    const gain = () => D(0);
+    expect(() =>
+      definePrestige({
+        key: "p",
+        gain,
+        milestones: [
+          { id: "m", at: 1 },
+          { id: "m", at: 2 },
+        ],
+      }),
+    ).toThrow(/declared twice/);
+    expect(() => definePrestige({ key: "p", gain, milestones: [{ id: "m", at: 0 }] })).toThrow(/above 0/);
+    expect(() =>
+      definePrestige({
+        key: "p",
+        gain,
+        // @ts-expect-error not a count a milestone knows
+        milestones: [{ id: "m", at: 1, on: "gold" }],
+      }),
+    ).toThrow(/unknown "gold"/);
   });
 });
 

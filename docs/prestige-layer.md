@@ -1,8 +1,8 @@
 # A prestige layer
 
 `definePrestige({ key, gain })` is a feature factory for a layer above the run. It owns `runs`, `lifetime` (every unit it has
-paid while its own state lasts), `runStart` and the run's best reset pace, holds its currency (or pays it into a wallet
-with `payInto`), and has one action that pays the gain and calls the store's `resetRun`.
+paid while its own state lasts), `best` (the best gain ever paid), `runStart` and the run's best reset pace, holds its
+currency (or pays it into a wallet with `payInto`), and has one action that pays the gain and calls the store's `resetRun`.
 
 Example: [`examples/prestige-layer.ts`](examples/prestige-layer.ts) (`bun docs/examples/prestige-layer.ts`).
 
@@ -19,6 +19,13 @@ Example: [`examples/prestige-layer.ts`](examples/prestige-layer.ts) (`bun docs/e
   `{ depth: 2 }` (or `{ depth: 2, rule }`), which an ordinary reset leaves alone. The lower layer itself takes
   `reset: { depth: 2 }` so the higher layer starts its currency and its count over; a function rule reads
   `ctx.depth` to keep less the deeper the reset.
+- **Milestones.** `milestones: [{ id, at, on?, name?, text? }]` are permanent unlocks: each is reached the first time
+  what it counts reaches `at`, and no reset takes one back. `on` is `best` (default: the best single gain this layer
+  has paid), `total` (its `lifetime`), `runs` (its reset count) or `seconds` (the longest run in it). `best` is the
+  default because it cannot be farmed: a count of resets is reached in a minute by spamming resets that pay nothing
+  worth having, while a best gain asks for a run that was worth resetting. Reach is checked after every reset and in
+  the layer's `settle.pace` step, so a `seconds` milestone lands while the run waits; `layer.select.reached(state, id)`
+  reads one. The factory throws on a repeated id, an `at` not above 0, or an unknown `on`.
 - **The run start.** `runStart` is the game time this layer's run began: its own reset, any deeper one, or the
   profile's start. A step or a select reads run length off it (`layer.select.runSeconds(state, now)`).
 - **When to reset.** Every layer keeps its reset pace. `resetPace(gain, kept, seconds, floorS)` is
@@ -35,8 +42,8 @@ Example: [`examples/prestige-layer.ts`](examples/prestige-layer.ts) (`bun docs/e
 - **Inside a step.** `layer.draft.<action>(draft, { now, resetRun })` (`layer.draft.ascend` here) is the reset inside
   a recipe (an autobuyer that resets for the player passes its step's `ctx.now` and `ctx.resetRun`): the same checks,
   gain and hooks as the action. `beforeReset(draft, now)` is told the game time.
-- **The namespaces.** `select` (`held`, `gain`, `runSeconds`, `pace`), `def` (`action`, `depth`, `pace`, `payInto`)
-  and `draft` (the reset). `reach` takes a list, a function returning one, or `reach<{ key: State }>()`.
+- **The namespaces.** `select` (`held`, `gain`, `runSeconds`, `pace`, `reached`), `def` (`action`, `depth`, `pace`,
+  `payInto`) and `draft` (the reset). `reach` takes a list, a function returning one, or `reach<{ key: State }>()`.
 - Curves: `powerGain(amount, { k, exp, per, mult })` is `floor(k x (amount / per) ^ exp x mult)`;
   `lifetimeMultiplier(lifetime, { k, exp })` is `1 + k x lifetime ^ exp`.
 - A tree to spend the currency on is a second feature beside it (see [upgrade tree](upgrade-tree.md)).
