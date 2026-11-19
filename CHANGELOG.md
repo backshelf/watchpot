@@ -2,11 +2,11 @@
 
 Each release is a tag `vX.Y.Z`. A breaking change names its codemod in `codemods/` (policy in `codemods/README.md`).
 
-## Unreleased
+## 1.0.0-rc.12
 
 - Fix: `createDirector` defers a `done(id)` that comes before a big show's `readyAt` to `readyAt` (the cue's fate is `"early"`) instead of dropping it, and a batch of smalls that lands while held batches are still releasing waits behind them rather than overtaking.
 - Fix: a prestige layer keeps its `best` and `milestones` through any reset that is not a full profile reset, including when the layer's own `reset` rule fires below its `depth`.
-- Fix: the Vite flavour of `create-watchpot` rewrites `AGENTS.md` and the README's runtime line to `npm run`, and its tokens line names `npm run tokens`; a boolean flag given a value (`--vite=false`) is a usage error (exit 2) rather than a silent no-op; template copying filters on top-level paths, so a nested folder of a system's name is still written; the registry copy skips subdirectories and keeps its `.ts` barrels.
+- Fix: the Vite flavour of `create-watchpot` rewrites `AGENTS.md` (including its runtime line) and the README's runtime line to Node/Vite and `npm run`, sets `engines.node` to `>=20`, and names `npm run tokens` in its tokens line; a boolean flag given a value (`--vite=false`) is a usage error (exit 2) rather than a silent no-op; template copying filters on top-level paths, so a nested folder of a system's name is still written; the registry copy skips subdirectories and keeps its `.ts` barrels.
 
 ## 1.0.0-rc.11
 
