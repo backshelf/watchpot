@@ -135,7 +135,7 @@ without a browser. And the engine never names a game: nothing in it knows what y
   Bun fetches that with your machine's own git credentials, so the install works only for a GitHub account that
   can read the repository: today, its owner and anyone they add to it. If you cannot clone
   `github.com/backshelf/watchpot`, you cannot install it either. The [README](../../README.md#install) has the
-  one-time `gh auth` setup and the URL forms that do not work.
+  one-time `gh auth` setup.
 - **The peer packages.** React 19 (`react` and `react-dom`), immer, zustand and break_eternity.js are peers: your
   game installs them itself. The rest are optional, each needed only by the entry that uses it: zzfx by
   `watchpot/sound`, three.js and React Three Fiber by `watchpot/three`, canvas-confetti and `@number-flow/react` by
@@ -188,10 +188,6 @@ If you are in a hurry, read chapters 2 and 3, then jump to the chapter for whate
 
 ## Things that bite
 
-- **The install fails with a 404 or an auth error.** The repository is private, so the shorter
-  `github:backshelf/watchpot` form and plain `git+https://` URLs fail even with access: they go through an
-  endpoint that cannot see private repositories. Use the `git+ssh://github.com/...` form above, with no user name in
-  it.
 - **An older Bun fails on `bun check`.** The typecheck script needs Bun 1.4.3 or newer. Run `bun upgrade`.
 - **Nothing looks like anything.** That is the split working as designed. The engine's components are unstyled
   until your game styles them; start from the template's `src/ui/` rather than from bare `watchpot/ui`.
