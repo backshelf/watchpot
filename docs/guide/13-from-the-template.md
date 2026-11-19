@@ -404,7 +404,7 @@ engine's own checks cover it.
 
 ## The AI route
 
-The engine was built alongside an AI skill for Claude Code, `/watchpot`, that interviews you about the game (its
+The engine was built alongside an AI skill, `/watchpot`, that interviews you about the game (its
 fiction, its loop, its look), writes the answers file, runs the same `new.ts`, and goes on to help build the game.
 It is not in this repository, and nothing above needs it: the command is the whole scaffold.
 

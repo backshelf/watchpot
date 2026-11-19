@@ -90,7 +90,7 @@
 /* The title block: ruled cells, a caption over each field. */
 .titleblock {
   display: grid;
-  grid-template-columns: 1.4fr 1.2fr 0.7fr;
+  grid-template-columns: 1.4fr 0.7fr;
   margin: 0;
   max-width: 34rem;
   border: var(--hair) solid var(--ink);
@@ -104,7 +104,7 @@
   min-width: 0;
 }
 
-.titleblock > div:nth-child(4),
+.titleblock > div:nth-child(2),
 .titleblock__wide {
   border-right: 0;
 }
@@ -283,14 +283,6 @@
 @media (max-width: 30rem) {
   .titleblock {
     grid-template-columns: 1fr 1fr;
-  }
-
-  .titleblock > div:nth-child(3) {
-    border-right: 0;
-  }
-
-  .titleblock > div:nth-child(4) {
-    grid-column: 1 / -1;
   }
 }
 

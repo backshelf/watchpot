@@ -144,9 +144,9 @@ without a browser. And the engine never names a game: nothing in it knows what y
 
 ## How this was made
 
-Most of watchpot's code was written by an AI model, Anthropic's Claude. A person set the direction, built games on
-it, reviewed what came back and decided what stayed. That holds for the tests and the docs too, this guide
-included. It is said here, near the start, so you can read the code and judge it knowing that.
+This was written AI-assisted, under close direction from a developer who has spent years playing idle games. That
+holds for the tests and the docs too, this guide included. It is said here, near the start, so you can read the
+code and judge it knowing that.
 
 ## How to read this guide
 

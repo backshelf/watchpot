@@ -139,21 +139,9 @@
   color: var(--ink);
 }
 
-/* The sheet is signed where a drawing is: a title block under its heading. */
+/* The sheet is signed where a drawing is: its heading sits over the words. */
 .how__head {
   display: grid;
   gap: 2rem;
   align-content: space-between;
-}
-
-.how .titleblock {
-  border-color: var(--paper);
-}
-
-.how .titleblock > div {
-  border-color: oklch(from var(--paper) l c h / 0.4);
-}
-
-.how .titleblock dt {
-  color: oklch(from var(--paper) l c h / 0.8);
 }

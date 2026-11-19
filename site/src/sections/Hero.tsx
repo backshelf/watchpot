@@ -11,6 +11,7 @@ import {
 import { useMediaQuery } from "watchpot/ui";
 import { version } from "../../../package.json";
 import { store } from "../app/store";
+import { NOTICE_BODY } from "../notice";
 import { ASSEMBLY, anchorOf, facesOf, fit, type Geometry, PARTS, partAt } from "../shaders/assembly";
 
 const TOKENS = ["--paper", "--ink", "--live"] as const;
@@ -257,17 +258,9 @@ export function Hero() {
           </ol>
         </div>
         <dl className="titleblock">
-          <div className="titleblock__wide">
+          <div>
             <dt className="lettering">Title</dt>
             <dd>watchpot, an idle-game engine</dd>
-          </div>
-          <div>
-            <dt className="lettering">Drawn</dt>
-            <dd>an AI model (Claude)</dd>
-          </div>
-          <div>
-            <dt className="lettering">Directed, checked</dt>
-            <dd>a person</dd>
           </div>
           <div>
             <dt className="lettering">Rev</dt>
@@ -275,7 +268,7 @@ export function Hero() {
           </div>
           <div className="titleblock__wide">
             <dd>
-              Most of the code was written by an AI model. <a href="#how-made">How this was made</a>
+              {NOTICE_BODY} <a href="#how-made">More on that</a>
             </dd>
           </div>
         </dl>

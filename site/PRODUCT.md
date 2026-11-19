@@ -57,8 +57,7 @@ registry. Entries: `core`, `sim`, `test`, `react`, `hooks`, `kit`, `kit/theme`, 
 ## Brand Commitments
 
 - The name is `watchpot`, lowercase.
-- The "how this was made" statement from the top of `README.md` appears plainly on the site, not buried: most of the
-  code was written by an AI model (Anthropic's Claude), working with a person who set the direction.
+- The notice from `README.md`, verbatim, appears plainly on the site, not buried.
 - Kin to VOID IF REMOVED (the game built on the engine) but clearly its own thing: less upfront and less bold; where
   the game is flashy, the site is technically impressive. Shaders carry the point. High definition.
 - No fonts or scripts fetched from a third party; anything used is self-hosted under a licence that allows it.

@@ -12,8 +12,8 @@ rules their own: the engine ships mechanism and behaviour, never a stylesheet.
 The website — the guide, the reference pages and a game built with the engine — is at
 <https://backshelf.github.io/watchpot>.
 
-**How this was made.** The engine was written AI-assisted, under close direction from a developer who has spent
-years playing idle games, and what it claims is held to by the sim lab and the test suite rather than by trust.
+**How this was made.** This was written AI-assisted, under close direction from a developer who has spent years
+playing idle games.
 
 ## Install
 

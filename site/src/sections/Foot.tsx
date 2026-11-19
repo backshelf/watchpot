@@ -19,9 +19,9 @@ export function Foot() {
           <a href="#content">Top of the page</a>
         </nav>
         <p className="foot__small">
-          Published by backshelf. Written mostly by an AI model, as said above. Set in Archivo and Chivo Mono
-          (SIL Open Font License), served from this site: the page fetches nothing from anyone else, and keeps
-          one small save and your choice of print in this browser.
+          Published by backshelf. Written AI-assisted, as said above. Set in Archivo and Chivo Mono (SIL Open
+          Font License), served from this site: the page fetches nothing from anyone else, and keeps one small
+          save and your choice of print in this browser.
         </p>
       </div>
     </footer>
