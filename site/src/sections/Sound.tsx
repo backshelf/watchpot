@@ -593,14 +593,6 @@ export function Sound() {
           <dt className="lettering">Entry</dt>
           <dd className="num">watchpot/sound</dd>
         </div>
-        <div>
-          <dt className="lettering">Mode</dt>
-          <dd className="num">{mode}</dd>
-        </div>
-        <div>
-          <dt className="lettering">Sounds</dt>
-          <dd>synthesised: zzfx voices and babble, no recordings</dd>
-        </div>
         <div className="tb__wide">
           <dt className="lettering">Recipes</dt>
           <dd>

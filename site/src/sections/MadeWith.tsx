@@ -113,12 +113,13 @@ export function MadeWith() {
           <dd>{name}</dd>
         </div>
         <div>
-          <dt className="lettering">Engine</dt>
-          <dd>watchpot, installed by tag</dd>
-        </div>
-        <div>
-          <dt className="lettering">Captures</dt>
-          <dd>A new game's first ten minutes, played for this page</dd>
+          <dt className="lettering">Play it</dt>
+          {/* Target once it is live: the game's galaxy.click page. */}
+          <dd>
+            <button type="button" className="button button--small" aria-disabled="true">
+              Coming soon
+            </button>
+          </dd>
         </div>
       </dl>
     </section>
