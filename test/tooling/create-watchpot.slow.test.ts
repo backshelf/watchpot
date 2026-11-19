@@ -146,6 +146,8 @@ test("create-watchpot writes a bare game: one button and one number, no mechanic
   ]);
 
   // It type-checks and builds as it stands (its imports resolve from the checkout, up the tree).
+  const typed = await run([process.execPath, "check"], game);
+  expect(typed.code, typed.output).toBe(0);
   const built = await run([process.execPath, "build", "./index.html", "--outdir", "dist"], game);
   expect(built.code, built.output).toBe(0);
   expect(existsSync(join(game, "dist", "index.html"))).toBe(true);
@@ -337,3 +339,47 @@ test("create-watchpot --vite --tailwind --components writes the registry in Tail
   expect(built.code, built.output).toBe(0);
   expect(builtCss(join(game, "dist"))).toContain(".bg-ui-surface");
 }, 180_000);
+
+test("create-watchpot --vite --components --skills writes CSS modules and Vite's commands into the docs", async () => {
+  if (!Bun.which("node")) return;
+  const game = await componentsGame("components-vite-skills", "Parts Node", [
+    "--vite",
+    "--skills=.claude/skills",
+  ]);
+
+  // The registry is the CSS-module copy (Tailwind is off), and the skills wrote the agent docs.
+  expect(filesOf(game)).toContain("src/ui/Button.tsx");
+  expect(filesOf(game)).toContain("src/ui/Button.module.css");
+  expect(existsSync(join(game, ".claude", "skills", "watchpot-init", "SKILL.md"))).toBe(true);
+
+  // `AGENTS.md` says the commands of a Vite game: npm, a reloading dev server, and no Bun dev port.
+  const agents = readFileSync(join(game, "AGENTS.md"), "utf8");
+  expect(agents).toContain("`npm run dev`");
+  expect(agents).toContain("`npm run verify`");
+  expect(agents).not.toContain("localhost:3000");
+  expect(agents).not.toContain("Hot reload is off");
+
+  // The README's runtime line is the Node one, and its tokens script is still the one command that needs Bun.
+  const readme = readFileSync(join(game, "README.md"), "utf8");
+  expect(readme).toContain("npm run typecheck");
+  expect(readme).toContain("npm run tokens");
+  expect(readme).not.toContain("bun check");
+
+  const vite = join(PACKAGE, "node_modules", "vite", "bin", "vite.js");
+  const built = await run(["node", vite, "build"], game);
+  expect(built.code, built.output).toBe(0);
+  expect(existsSync(join(game, "dist", "index.html")), built.output).toBe(true);
+  expect(builtCss(join(game, "dist"))).toContain("--ui-accent");
+}, 180_000);
+
+test("create-watchpot rejects a value on a boolean flag: --vite=false is a usage error", async () => {
+  if (!Bun.which("node")) return;
+  const dir = scratch();
+  const ran = await run(["node", BUNDLE, "--vite=false", "--no-install", "--yes"], dir, {
+    WATCHPOT_ENGINE_DIR: ROOT,
+  });
+  expect(ran.code, ran.output).toBe(2);
+  expect(ran.output).toContain("--vite takes no value");
+  // Nothing is written: the flags are read before the game is.
+  expect(readdirSync(dir)).toEqual([]);
+}, 120_000);

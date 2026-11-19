@@ -25,5 +25,6 @@ jobs:
       - run: bun install --frozen-lockfile
       - run: bun run gates
       - run: bun test --path-ignore-patterns="**/node_modules/**" ./test/tooling/dist.slow.test.ts
+      - run: bun test --path-ignore-patterns="**/node_modules/**" ./test/tooling/create-watchpot.slow.test.ts
       - run: bun run --cwd examples/orbital-orchard build
       - run: bun run site:build

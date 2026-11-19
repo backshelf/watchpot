@@ -2,17 +2,24 @@
 
 Each release is a tag `vX.Y.Z`. A breaking change names its codemod in `codemods/` (policy in `codemods/README.md`).
 
+## Unreleased
+
+- Fix: `createDirector` defers a `done(id)` that comes before a big show's `readyAt` to `readyAt` (the cue's fate is `"early"`) instead of dropping it, and a batch of smalls that lands while held batches are still releasing waits behind them rather than overtaking.
+- Fix: a prestige layer keeps its `best` and `milestones` through any reset that is not a full profile reset, including when the layer's own `reset` rule fires below its `depth`.
+- Fix: the Vite flavour of `create-watchpot` rewrites `AGENTS.md` and the README's runtime line to `npm run`, and its tokens line names `npm run tokens`; a boolean flag given a value (`--vite=false`) is a usage error (exit 2) rather than a silent no-op; template copying filters on top-level paths, so a nested folder of a system's name is still written; the registry copy skips subdirectories and keeps its `.ts` barrels.
+
 ## 1.0.0-rc.11
 
-- `create-watchpot` writes a bare game: one button, one number and a saved setting, with the boilerplate done and no
-  mechanic (no crit, combo, tabs, header, sheets, sound, stats or sim) and no look. It is written from the new
+- Breaking: `create-watchpot` writes a bare game: one button, one number and a saved setting, with the boilerplate done
+  and no mechanic (no crit, combo, tabs, header, sheets, sound, stats or sim) and no look. It is written from the new
   `templates/bare/`; the full `templates/game/` is what `/watchpot-init` fills, unchanged. Tailwind now only wires
   Tailwind into the build (`src/index.css`); the styled components are a separate prompt and flag, `--components`
   (CSS modules, or Tailwind utilities with Tailwind), and are copied in only when asked for.
 - `definePrestige` gained `milestones`: permanent unlocks reached the first time what one counts reaches its `at`,
   keyed on `best` (the best single gain ever paid, the default), `total`, `runs` or `seconds`, and never lost to a
   reset. The slice gains `best` and `milestones`, `select.reached(state, id)` reads one, and a save from before them
-  loads with none reached.
+  loads with none reached. `PrestigeCore` gains `best` and `milestones` as required fields, so a layer written by hand
+  against that interface must add them.
 - Breaking: `createDirector`'s big shows stay on the stage for their `readMs` (worked out from a line's words with
   `readingMs`) and ignore `done` until it has passed, so a celebration can be read; the director never ends one
   itself. Batches held during a takeover go out after it oldest first, one `gapMs` apart; `holdMost` is 12 and
