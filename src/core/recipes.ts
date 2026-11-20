@@ -1,6 +1,7 @@
 import type { Draft } from "immer";
+import { type CostCurve, costAt, costOfMany, maxAffordable } from "./cost";
 import type { CurrenciesFeature, CurrencyDraft, Purse } from "./currencies";
-import { D, type Decimal, type DecimalSource, ZERO } from "./decimal";
+import { D, type Decimal, type DecimalSource, ONE, ZERO } from "./decimal";
 import {
   defineFeature,
   type Feature,
@@ -13,7 +14,8 @@ import {
 
 /**
  * Recipes: crafting, inputs to outputs. A recipe takes amounts of some currencies and gives amounts of others, all
- * or nothing, as many times over as asked; a yield multiplier scales what it gives. The pure rules work over a
+ * or nothing, as many times over as asked; a yield multiplier scales what it gives, and `costGrowth` (or a `CostCurve`
+ * input) scales what each further craft takes by how many have already been crafted. The pure rules work over a
  * `Purse` that can also be credited; `defineCrafting({ key, wallet, list })` is a feature over a currencies feature, with
  * an optional timed queue: a recipe with `takesMs` makes one at a time on game time, so a queue finishes during an
  * absence.
@@ -22,10 +24,24 @@ import {
 /** An amount per currency; a currency absent is none. */
 export type Amounts<C extends string = string> = { readonly [P in C]?: DecimalSource };
 
+/** What one input currency of a recipe charges: a flat amount, or a cost curve over how many have been crafted. */
+export type RecipeInput = DecimalSource | CostCurve;
+
+/** An input per currency; a currency absent is none. */
+export type RecipeInputs<C extends string = string> = { readonly [P in C]?: RecipeInput };
+
+/** How a recipe's flat inputs scale with each craft: one growth factor for all inputs, or per currency. */
+export type RecipeGrowth<C extends string = string> = DecimalSource | { readonly [P in C]?: DecimalSource };
+
 /** What a recipe takes and gives, per craft. */
 export interface Recipe<C extends string = string> {
-  readonly inputs: Amounts<C>;
+  readonly inputs: RecipeInputs<C>;
   readonly outputs: Amounts<C>;
+  /**
+   * What each further craft multiplies a flat input by (default 1: a flat price). A single number scales every flat
+   * input; a record scales each currency at its own pace. Each scaled price is floored to a whole number, as in `tree`.
+   */
+  readonly costGrowth?: RecipeGrowth<C>;
 }
 
 /** A purse that can also be credited: what a craft pays from and pays into. */
@@ -44,28 +60,83 @@ function positive<C extends string>(amounts: Amounts<C>): [C, Decimal][] {
   return out;
 }
 
+const isCostCurve = (input: RecipeInput): input is CostCurve =>
+  typeof input === "function" ||
+  (typeof input === "object" && input !== null && "base" in input && "growth" in input);
+
+const isGrowthRecord = <C extends string>(
+  growth: RecipeGrowth<C>,
+): growth is { readonly [P in C]?: DecimalSource } =>
+  typeof growth === "object" && growth !== null && !("layer" in growth);
+
+/** Each positive input of `recipe` as a `CostCurve` over how many have already been crafted. */
+function inputCurves<C extends string>(recipe: Recipe<C>): [C, CostCurve][] {
+  const out: [C, CostCurve][] = [];
+  const rawGrowth = recipe.costGrowth;
+  for (const [c, a] of Object.entries(recipe.inputs) as [C, RecipeInput | undefined][]) {
+    if (a === undefined) continue;
+    if (isCostCurve(a)) {
+      if (typeof a === "function" || D(a.base).gt(0)) out.push([c, a]);
+      continue;
+    }
+    const base = D(a);
+    if (base.lte(0)) continue;
+    if (rawGrowth === undefined) {
+      out.push([c, { base, growth: ONE, round: "none" }]);
+      continue;
+    }
+    const g = isGrowthRecord(rawGrowth) ? D(rawGrowth[c] ?? ONE) : D(rawGrowth);
+    out.push([c, { base, growth: g, round: "floor" }]);
+  }
+  return out;
+}
+
 const timesOf = (times: number): number => (Number.isFinite(times) ? Math.max(0, Math.floor(times)) : 0);
 
-/** Whether the purse covers every input of `times` crafts (at least one). */
-export function canCraft<C extends string>(recipe: Recipe<C>, purse: Purse<C>, times = 1): boolean {
+/** What `times` crafts of `recipe` cost per input currency when `bought` have already been crafted. */
+export function recipeCost<C extends string>(
+  recipe: Recipe<C>,
+  times = 1,
+  bought = 0,
+): Partial<Record<C, Decimal>> {
+  const out: Partial<Record<C, Decimal>> = {};
+  const n = timesOf(times);
+  if (n <= 0) return out;
+  for (const [c, curve] of inputCurves(recipe)) {
+    const amount = n === 1 ? costAt(curve, bought) : costOfMany(curve, bought, n);
+    if (amount.gt(0)) out[c] = amount;
+  }
+  return out;
+}
+
+/** Whether the purse covers every input of `times` crafts (at least one) when `bought` have already been crafted. */
+export function canCraft<C extends string>(
+  recipe: Recipe<C>,
+  purse: Purse<C>,
+  times = 1,
+  bought = 0,
+): boolean {
   const n = timesOf(times);
   if (n <= 0) return false;
-  return positive(recipe.inputs).every(([c, a]) => purse.balance(c).gte(a.mul(n)));
+  return inputCurves(recipe).every(([c, curve]) =>
+    purse.balance(c).gte(n === 1 ? costAt(curve, bought) : costOfMany(curve, bought, n)),
+  );
 }
 
 /**
- * How many crafts the purse covers, `limit` at most: the fewest whole crafts any input allows. A recipe that takes
- * nothing is bounded by `limit` alone (0 without one).
+ * How many crafts the purse covers when `bought` have already been crafted, `limit` at most: the fewest whole crafts
+ * any input allows. A recipe that takes nothing is bounded by `limit` alone (0 without one).
  */
 export function maxCraftable<C extends string>(
   recipe: Recipe<C>,
   purse: Purse<C>,
   limit = Number.POSITIVE_INFINITY,
+  bought = 0,
 ): number {
-  const inputs = positive(recipe.inputs);
-  if (inputs.length === 0) return Number.isFinite(limit) ? timesOf(limit) : 0;
+  const curves = inputCurves(recipe);
+  if (curves.length === 0) return Number.isFinite(limit) ? timesOf(limit) : 0;
   let n = Number.isFinite(limit) ? timesOf(limit) : Number.MAX_SAFE_INTEGER;
-  for (const [c, a] of inputs) n = Math.min(n, purse.balance(c).div(a).floor().toNumber());
+  for (const [c, curve] of curves) n = Math.min(n, maxAffordable(curve, bought, purse.balance(c), n));
   return Number.isFinite(n) ? Math.max(0, n) : 0;
 }
 
@@ -73,12 +144,17 @@ export function maxCraftable<C extends string>(
  * Takes the inputs of `times` crafts from the purse, all or nothing: false, with nothing taken, when it is short (a
  * purse that refuses a debit the check passed, by a rule of its own, gets back what was already taken).
  */
-export function payRecipe<C extends string>(recipe: Recipe<C>, purse: CraftPurse<C>, times = 1): boolean {
+export function payRecipe<C extends string>(
+  recipe: Recipe<C>,
+  purse: CraftPurse<C>,
+  times = 1,
+  bought = 0,
+): boolean {
   const n = timesOf(times);
-  if (!canCraft(recipe, purse, n)) return false;
+  if (!canCraft(recipe, purse, n, bought)) return false;
   const taken: [C, Decimal][] = [];
-  for (const [c, a] of positive(recipe.inputs)) {
-    const amount = a.mul(n);
+  for (const [c, curve] of inputCurves(recipe)) {
+    const amount = n === 1 ? costAt(curve, bought) : costOfMany(curve, bought, n);
     if (!purse.debit(c, amount)) {
       for (const [back, b] of taken) purse.credit(back, b);
       return false;
@@ -107,16 +183,17 @@ export function giveRecipe<C extends string>(
 }
 
 /**
- * Crafts `times` over: takes every input, gives every output scaled by `yieldMult`, and returns what was made, or
- * null (nothing touched) when the purse is short. Multi-input, multi-output, Decimal amounts.
+ * Crafts `times` over: takes every input (scaled from `bought`), gives every output scaled by `yieldMult`, and returns
+ * what was made, or null (nothing touched) when the purse is short. Multi-input, multi-output, Decimal amounts.
  */
 export function craft<C extends string>(
   recipe: Recipe<C>,
   purse: CraftPurse<C>,
   times = 1,
   yieldMult: DecimalSource = 1,
+  bought = 0,
 ): Partial<Record<C, Decimal>> | null {
-  if (!payRecipe(recipe, purse, times)) return null;
+  if (!payRecipe(recipe, purse, times, bought)) return null;
   return giveRecipe(recipe, purse, times, yieldMult);
 }
 
@@ -125,6 +202,8 @@ export interface RecipeDef<C extends string, G> extends Recipe<C> {
   readonly id: string;
   /** Whether it can be crafted now. Default: always. */
   readonly unlocked?: (state: G) => boolean;
+  /** The most crafts of this recipe that may ever be made (queued crafts included). Default: no limit. */
+  readonly limit?: number | ((state: G) => number);
   /** The multiplier on its outputs, read when they are given (default 1). */
   readonly yield?: (state: G) => DecimalSource;
   /**
@@ -173,10 +252,12 @@ export interface CraftingActions {
 }
 
 /** A crafting list's read-only questions over state. */
-export interface CraftingSelect<G> {
+export interface CraftingSelect<G, C extends string = string> {
   /** Whether it is unlocked now. */
   open(state: G, id: string): boolean;
-  /** How many the wallet covers now (0 when locked). */
+  /** What the next `times` (default 1) crafts of `id` cost per input currency now. */
+  cost(state: G, id: string, times?: number): Partial<Record<C, Decimal>>;
+  /** How many the wallet covers now (0 when locked or at its limit). */
   craftable(state: G, id: string): number;
   /** A timed recipe's job, or null. */
   job(state: G, id: string): CraftJob | null;
@@ -204,7 +285,7 @@ export interface CraftingDraftHelpers {
 
 /** The three namespaces of a crafting feature. */
 export interface CraftingHelpers<C extends string, G> {
-  readonly select: CraftingSelect<G>;
+  readonly select: CraftingSelect<G, C>;
   readonly def: CraftingFixed<C, G>;
   readonly draft: CraftingDraftHelpers;
 }
@@ -265,6 +346,21 @@ export function defineCrafting<
   };
   const open = (state: G, r: RecipeDef<C, G>): boolean => r.unlocked?.(state) ?? true;
   const yieldOf = (state: G, r: RecipeDef<C, G>): DecimalSource => r.yield?.(state) ?? 1;
+  /** How many crafts of `id` have already been paid for: given (`made`) plus still under way on the queue. */
+  const boughtOf = (state: unknown, id: string): number => {
+    const s = own(state);
+    const made = Math.floor(s.made[id]?.toNumber() ?? 0);
+    const job = s.queue.find((j) => j.recipe === id);
+    const queued = job ? Math.max(0, job.times - job.done) : 0;
+    return Math.max(0, made + queued);
+  };
+  /** How many more crafts of `r` its `limit` allows when `bought` have already been paid for. */
+  const leftOf = (state: G, r: RecipeDef<C, G>, bought: number): number => {
+    if (r.limit === undefined) return Number.POSITIVE_INFINITY;
+    const cap = typeof r.limit === "function" ? r.limit(state) : r.limit;
+    if (!Number.isFinite(cap)) return Number.POSITIVE_INFINITY;
+    return Math.max(0, Math.floor(cap) - bought);
+  };
   /** Gives `n` crafts: the outputs, the count, and the hook. */
   const give = (draft: Draft<Own>, r: RecipeDef<C, G>, n: number, now: number): void => {
     const state = draft as unknown as G;
@@ -274,15 +370,22 @@ export function defineCrafting<
     def.onCraft?.(draft as unknown as Draft<G>, r, n, now);
   };
 
-  const select: CraftingSelect<G> = {
+  const select: CraftingSelect<G, C> = {
     open: (state, id) => {
       const r = byId.get(id);
       return r !== undefined && open(state, r);
     },
+    cost: (state, id, times = 1) => {
+      const r = byId.get(id);
+      return r ? recipeCost(r, times, boughtOf(state, id)) : {};
+    },
     craftable: (state, id) => {
       const r = byId.get(id);
-      return r && open(state, r)
-        ? maxCraftable(r, wallet.draft.purse(state as unknown as CurrencyDraft<WK>))
+      if (!r || !open(state, r)) return 0;
+      const bought = boughtOf(state, id);
+      const left = leftOf(state, r, bought);
+      return left > 0
+        ? maxCraftable(r, wallet.draft.purse(state as unknown as CurrencyDraft<WK>), left, bought)
         : 0;
     },
     job: (state, id) => own(state).queue.find((j) => j.recipe === id) ?? null,
@@ -300,7 +403,9 @@ export function defineCrafting<
     const r = byId.get(id);
     const state = draft as unknown as G;
     if (!r || n <= 0 || !open(state, r)) return false;
-    if (!payRecipe(r, purseOf(draft), n)) return false;
+    const bought = boughtOf(draft, id);
+    if (n > leftOf(state, r, bought)) return false;
+    if (!payRecipe(r, purseOf(draft), n, bought)) return false;
     if (r.takesMs === undefined) {
       give(draft, r, n, now);
       return true;
@@ -355,8 +460,11 @@ export function defineCrafting<
   /** Crafts as many as the wallet covers inside a recipe. */
   const craftMaxDraft = (draft: Draft<Own>, id: string, now: number): number => {
     const r = byId.get(id);
-    if (!r || !open(draft as unknown as G, r)) return 0;
-    const most = maxCraftable(r, purseOf(draft));
+    const state = draft as unknown as G;
+    if (!r || !open(state, r)) return 0;
+    const bought = boughtOf(draft, id);
+    const left = leftOf(state, r, bought);
+    const most = left > 0 ? maxCraftable(r, purseOf(draft), left, bought) : 0;
     return craftDraft(draft, id, most, now) ? most : 0;
   };
 

@@ -47,15 +47,18 @@ export const game = defineGame({
 // Pure, over any purse that can be credited: craft(recipe, purse, times, yieldMult) → what was made, or null.
 ```
 
-- **Pure rules** over a `CraftPurse` (a `Purse` plus `credit`): `canCraft(recipe, purse, times = 1)`,
-  `maxCraftable(recipe, purse, limit?)` (the fewest whole crafts any input allows; a recipe that takes nothing is
-  bounded by `limit` alone), `craft(recipe, purse, times = 1, yieldMult = 1)` → what was made per currency, or null
-  with nothing touched. `payRecipe` and `giveRecipe` are its two halves. Amounts are Decimals; a recipe is
-  `{ inputs, outputs }`, each an amount per currency.
+- **Pure rules** over a `CraftPurse` (a `Purse` plus `credit`): `recipeCost(recipe, times = 1, bought = 0)`,
+  `canCraft(recipe, purse, times = 1, bought = 0)`, `maxCraftable(recipe, purse, limit?, bought = 0)` (the fewest whole
+  crafts any input allows; a recipe that takes nothing is bounded by `limit` alone),
+  `craft(recipe, purse, times = 1, yieldMult = 1, bought = 0)` → what was made per currency, or null with nothing
+  touched. `payRecipe` and `giveRecipe` are its two halves. Amounts are Decimals; a recipe is
+  `{ inputs, outputs, costGrowth? }`, where each input is a flat amount or a `CostCurve`, and `costGrowth` (a single
+  multiplier or per-currency record) scales flat inputs by `floor(base × growth^bought)`.
 - **`defineCrafting({ key, wallet, list, reset?, onCraft? })`** saves `{ made, queue }` under `key`; `made` counts crafts
   given per recipe (Decimals). A run reset clears it unless `reset` says otherwise.
-- **`RecipeDef<C, G>`**: `id`, `inputs`, `outputs`, `unlocked?(state)`, `yield?(state)` (read when the outputs are
-  given) and `takesMs?` (a number, or `(state) => number`).
+- **`RecipeDef<C, G>`**: `id`, `inputs`, `outputs`, `costGrowth?`, `limit?` (a number or `(state) => number`, capping
+  `made + queued`), `unlocked?(state)`, `yield?(state)` (read when the outputs are given) and `takesMs?` (a number, or
+  `(state) => number`).
 - **Timed recipes.** The inputs are paid at once and the crafts join the recipe's one job (another craft extends
   it); `<key>.produce.queue` gives each as its time passes, one at a time (`startedAt + k × takesMs`), so one long
   step gives what many short ones do and a queue finishes during an absence.
@@ -70,7 +73,7 @@ export const game = defineGame({
 - **Actions:** `craft(id, times = 1)` (all or nothing; false when locked or short) and `craftMax(id)` (returns how
   many). **`draft`** (in a recipe, named like the actions): `forge.draft.craft(draft, id, times?, now?)` and
   `forge.draft.craftMax(draft, id, now?)`, the same craft for a step or a game's own action (an automatic crafter),
-  counted and heard like the action's. **`select`** (questions over state): `open`, `craftable(state, id)`,
-  `job(state, id)` and `nextInMs(state, id, now)`. **`def`:** `list` and `recipe(id)`. `reach` names the features
-  the callbacks (`unlocked`, `yield`, `takesMs`, `onCraft`) read, as on `feature`, so their state is typed with no
-  annotation (the wallet is reached already).
+  counted and heard like the action's. **`select`** (questions over state): `open`, `cost(state, id, times?)`,
+  `craftable(state, id)`, `job(state, id)` and `nextInMs(state, id, now)`. **`def`:** `list` and `recipe(id)`. `reach`
+  names the features the callbacks (`unlocked`, `limit`, `yield`, `takesMs`, `onCraft`) read, as on `feature`, so their
+  state is typed with no annotation (the wallet is reached already).

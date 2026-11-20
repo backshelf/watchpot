@@ -12,6 +12,7 @@ import {
   HOUR_MS,
   maxCraftable,
   type Recipe,
+  recipeCost,
   vocab,
 } from "watchpot/core";
 import { freshStore, T0 } from "watchpot/test";
@@ -186,6 +187,55 @@ describe("crafting", () => {
     const one = { id: "a", inputs: {}, outputs: {} };
     expect(() => defineCrafting({ key: "x", wallet, list: [one, one] })).toThrow(/twice/);
     expect(() => defineCrafting({ key: "x", wallet, list: [{ ...one, takesMs: 0 }] })).toThrow(/above zero/);
+  });
+
+  test("scaled costs and recipe limits scale each craft by how many were made or queued", () => {
+    const scaled = defineCrafting({
+      key: "scaled",
+      wallet,
+      list: [
+        {
+          id: "cap",
+          inputs: { gold: 10, gems: 2 },
+          costGrowth: { gold: 2, gems: 1.5 },
+          outputs: {},
+        },
+        {
+          id: "relic",
+          inputs: { gold: 20 },
+          costGrowth: 2,
+          limit: 1,
+          outputs: {},
+          takesMs: 10_000,
+        },
+      ],
+    });
+    const { store } = freshStore(
+      defineGame({
+        id: "scaled",
+        save: { key: "scaled.save", version: 1 },
+        features: [wallet, scaled],
+        vocab: WORDS,
+      }),
+    );
+    store.getState().wallet.credit("gems", 10);
+
+    // First craft: 10 gold, 2 gems; second: 20 gold, 3 gems; third: 40 gold, 4 gems (floored 2 * 1.5^2 = 4.5 -> 4).
+    expect(scaled.select.cost(store.getState(), "cap").gold?.toNumber()).toBe(10);
+    expect(scaled.select.cost(store.getState(), "cap").gems?.toNumber()).toBe(2);
+    expect(scaled.select.craftable(store.getState(), "cap")).toBe(3); // 10+20+40=70 <= 100 gold; 2+3+4=9 <= 10 gems
+    expect(store.getState().scaled.craft("cap", 1)).toBe(true);
+    expect(store.getState().wallet.gold.toNumber()).toBe(90);
+    expect(store.getState().wallet.gems.toNumber()).toBe(8);
+    expect(scaled.select.cost(store.getState(), "cap").gold?.toNumber()).toBe(20);
+    expect(scaled.select.cost(store.getState(), "cap").gems?.toNumber()).toBe(3);
+    expect(recipeCost({ inputs: { gold: 10 }, costGrowth: 2, outputs: {} }, 2, 1).gold?.toNumber()).toBe(60);
+
+    // Timed relic with limit: 1 cannot be crafted or queued a second time even before its timer finishes.
+    expect(scaled.select.craftable(store.getState(), "relic")).toBe(1);
+    expect(store.getState().scaled.craft("relic", 1)).toBe(true);
+    expect(scaled.select.craftable(store.getState(), "relic")).toBe(0);
+    expect(store.getState().scaled.craft("relic", 1)).toBe(false);
   });
 });
 

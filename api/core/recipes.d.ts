@@ -1,10 +1,12 @@
 import type { Draft } from "immer";
+import { type CostCurve } from "./cost";
 import type { CurrenciesFeature, Purse } from "./currencies";
 import { type Decimal, type DecimalSource } from "./decimal";
 import { type Feature, type NeedsOf, type ReachOf, type ReachShape, type ResetRule } from "./feature";
 /**
  * Recipes: crafting, inputs to outputs. A recipe takes amounts of some currencies and gives amounts of others, all
- * or nothing, as many times over as asked; a yield multiplier scales what it gives. The pure rules work over a
+ * or nothing, as many times over as asked; a yield multiplier scales what it gives, and `costGrowth` (or a `CostCurve`
+ * input) scales what each further craft takes by how many have already been crafted. The pure rules work over a
  * `Purse` that can also be credited; `defineCrafting({ key, wallet, list })` is a feature over a currencies feature, with
  * an optional timed queue: a recipe with `takesMs` makes one at a time on game time, so a queue finishes during an
  * absence.
@@ -13,39 +15,58 @@ import { type Feature, type NeedsOf, type ReachOf, type ReachShape, type ResetRu
 export type Amounts<C extends string = string> = {
     readonly [P in C]?: DecimalSource;
 };
+/** What one input currency of a recipe charges: a flat amount, or a cost curve over how many have been crafted. */
+export type RecipeInput = DecimalSource | CostCurve;
+/** An input per currency; a currency absent is none. */
+export type RecipeInputs<C extends string = string> = {
+    readonly [P in C]?: RecipeInput;
+};
+/** How a recipe's flat inputs scale with each craft: one growth factor for all inputs, or per currency. */
+export type RecipeGrowth<C extends string = string> = DecimalSource | {
+    readonly [P in C]?: DecimalSource;
+};
 /** What a recipe takes and gives, per craft. */
 export interface Recipe<C extends string = string> {
-    readonly inputs: Amounts<C>;
+    readonly inputs: RecipeInputs<C>;
     readonly outputs: Amounts<C>;
+    /**
+     * What each further craft multiplies a flat input by (default 1: a flat price). A single number scales every flat
+     * input; a record scales each currency at its own pace. Each scaled price is floored to a whole number, as in `tree`.
+     */
+    readonly costGrowth?: RecipeGrowth<C>;
 }
 /** A purse that can also be credited: what a craft pays from and pays into. */
 export interface CraftPurse<C extends string = string> extends Purse<C> {
     credit(currency: C, amount: DecimalSource): void;
 }
-/** Whether the purse covers every input of `times` crafts (at least one). */
-export declare function canCraft<C extends string>(recipe: Recipe<C>, purse: Purse<C>, times?: number): boolean;
+/** What `times` crafts of `recipe` cost per input currency when `bought` have already been crafted. */
+export declare function recipeCost<C extends string>(recipe: Recipe<C>, times?: number, bought?: number): Partial<Record<C, Decimal>>;
+/** Whether the purse covers every input of `times` crafts (at least one) when `bought` have already been crafted. */
+export declare function canCraft<C extends string>(recipe: Recipe<C>, purse: Purse<C>, times?: number, bought?: number): boolean;
 /**
- * How many crafts the purse covers, `limit` at most: the fewest whole crafts any input allows. A recipe that takes
- * nothing is bounded by `limit` alone (0 without one).
+ * How many crafts the purse covers when `bought` have already been crafted, `limit` at most: the fewest whole crafts
+ * any input allows. A recipe that takes nothing is bounded by `limit` alone (0 without one).
  */
-export declare function maxCraftable<C extends string>(recipe: Recipe<C>, purse: Purse<C>, limit?: number): number;
+export declare function maxCraftable<C extends string>(recipe: Recipe<C>, purse: Purse<C>, limit?: number, bought?: number): number;
 /**
  * Takes the inputs of `times` crafts from the purse, all or nothing: false, with nothing taken, when it is short (a
  * purse that refuses a debit the check passed, by a rule of its own, gets back what was already taken).
  */
-export declare function payRecipe<C extends string>(recipe: Recipe<C>, purse: CraftPurse<C>, times?: number): boolean;
+export declare function payRecipe<C extends string>(recipe: Recipe<C>, purse: CraftPurse<C>, times?: number, bought?: number): boolean;
 /** Credits the outputs of `times` crafts, scaled by `yieldMult`. Returns what was made. */
 export declare function giveRecipe<C extends string>(recipe: Recipe<C>, purse: Pick<CraftPurse<C>, "credit">, times?: number, yieldMult?: DecimalSource): Partial<Record<C, Decimal>>;
 /**
- * Crafts `times` over: takes every input, gives every output scaled by `yieldMult`, and returns what was made, or
- * null (nothing touched) when the purse is short. Multi-input, multi-output, Decimal amounts.
+ * Crafts `times` over: takes every input (scaled from `bought`), gives every output scaled by `yieldMult`, and returns
+ * what was made, or null (nothing touched) when the purse is short. Multi-input, multi-output, Decimal amounts.
  */
-export declare function craft<C extends string>(recipe: Recipe<C>, purse: CraftPurse<C>, times?: number, yieldMult?: DecimalSource): Partial<Record<C, Decimal>> | null;
+export declare function craft<C extends string>(recipe: Recipe<C>, purse: CraftPurse<C>, times?: number, yieldMult?: DecimalSource, bought?: number): Partial<Record<C, Decimal>> | null;
 /** One recipe of a crafting feature. The game's own fields (a name, a line) ride along. */
 export interface RecipeDef<C extends string, G> extends Recipe<C> {
     readonly id: string;
     /** Whether it can be crafted now. Default: always. */
     readonly unlocked?: (state: G) => boolean;
+    /** The most crafts of this recipe that may ever be made (queued crafts included). Default: no limit. */
+    readonly limit?: number | ((state: G) => number);
     /** The multiplier on its outputs, read when they are given (default 1). */
     readonly yield?: (state: G) => DecimalSource;
     /**
@@ -84,10 +105,12 @@ export interface CraftingActions {
     craftMax(id: string): number;
 }
 /** A crafting list's read-only questions over state. */
-export interface CraftingSelect<G> {
+export interface CraftingSelect<G, C extends string = string> {
     /** Whether it is unlocked now. */
     open(state: G, id: string): boolean;
-    /** How many the wallet covers now (0 when locked). */
+    /** What the next `times` (default 1) crafts of `id` cost per input currency now. */
+    cost(state: G, id: string, times?: number): Partial<Record<C, Decimal>>;
+    /** How many the wallet covers now (0 when locked or at its limit). */
     craftable(state: G, id: string): number;
     /** A timed recipe's job, or null. */
     job(state: G, id: string): CraftJob | null;
@@ -112,7 +135,7 @@ export interface CraftingDraftHelpers {
 }
 /** The three namespaces of a crafting feature. */
 export interface CraftingHelpers<C extends string, G> {
-    readonly select: CraftingSelect<G>;
+    readonly select: CraftingSelect<G, C>;
     readonly def: CraftingFixed<C, G>;
     readonly draft: CraftingDraftHelpers;
 }
