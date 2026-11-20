@@ -9,7 +9,7 @@ import {
   ALL_FLAGS,
   type Answers,
   contentFiles,
-  engineTag,
+  engineSpec,
   flagsOf,
   fontLinks,
   gate,
@@ -168,12 +168,12 @@ describe("what the template writes", () => {
     const answers = join(TEMPLATE, ".scaffold", "fixtures", "smallest-clicker.json");
     const dir = join(await mkdtemp(join(tmpdir(), "watchpot-gen-")), "game");
     try {
-      await generate({ answers, out: dir, engine: "v0.0.0", mode: "full", lint: false });
+      await generate({ answers, out: dir, engine: "^0.0.0", mode: "full", lint: false });
       const files = readdirSync(dir, { recursive: true }).map((f) => String(f).replaceAll("\\", "/"));
       expect(files).toContain("package.json");
       expect(files).toContain("src/tokens.css");
       expect(files.filter((f) => f.endsWith(".tmpl") || f.startsWith(".scaffold"))).toEqual([]);
-      expect(readFileSync(join(dir, "package.json"), "utf8")).toContain("watchpot.git#v0.0.0");
+      expect(readFileSync(join(dir, "package.json"), "utf8")).toContain('"watchpot": "^0.0.0"');
     } finally {
       await rm(dirname(dir), { recursive: true, force: true });
     }
@@ -230,13 +230,15 @@ describe("what the template writes", () => {
     const answers = join(TEMPLATE, ".scaffold", "fixtures", "smallest.json");
     const dir = join(await mkdtemp(join(tmpdir(), "watchpot-gen-")), "game");
     try {
-      await generate({ answers, out: dir, engine: "v0.0.0", mode: "full", lint: false });
+      await generate({ answers, out: dir, engine: "^0.0.0", mode: "full", lint: false });
       const files = readdirSync(dir, { recursive: true }).map((f) => String(f).replaceAll("\\", "/"));
       expect(files.filter((f) => f === "test" || f.startsWith("test/"))).toEqual([]);
-      const scripts = JSON.parse(readFileSync(join(dir, "package.json"), "utf8")).scripts as Record<
-        string,
-        string
-      >;
+      const manifest = JSON.parse(readFileSync(join(dir, "package.json"), "utf8")) as {
+        dependencies: Record<string, string>;
+        scripts: Record<string, string>;
+      };
+      expect(manifest.dependencies.watchpot).toBe("^0.0.0");
+      const scripts = manifest.scripts;
       expect(scripts.test).toBeUndefined();
       expect(scripts["test:changed"]).toBeUndefined();
       expect(scripts["test:slow"]).toBeUndefined();
@@ -245,9 +247,9 @@ describe("what the template writes", () => {
     }
   });
 
-  test("the default engine tag is this engine's own version", async () => {
+  test("the default engine spec is this engine's own npm range", async () => {
     const pkg = JSON.parse(readFileSync(join(TEMPLATE, "..", "..", "package.json"), "utf8"));
-    expect(await engineTag()).toBe(`v${pkg.version}`);
+    expect(await engineSpec()).toBe(`^${pkg.version}`);
   });
 
   test("every .tmpl placeholder has a value", () => {

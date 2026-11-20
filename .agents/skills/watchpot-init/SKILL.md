@@ -142,7 +142,7 @@ scaffold and build.
 Run the engine's own command (`ENGINE` is its path), with the answers file and an empty or missing target:
 
 ```sh
-bun ENGINE/templates/game/.scaffold/new.ts <answers.json> <target> --agents [--engine <tag>] [--no-install]
+bun ENGINE/templates/game/.scaffold/new.ts <answers.json> <target> --agents [--engine <spec>] [--no-install]
 ```
 
 `--agents` is on because a game made through this skill is being built with an agent: it adds a short `AGENTS.md`
@@ -150,9 +150,8 @@ and puts the concept and the answers in `design/`, where the build reads them.
 
 It copies the template, writes the game from the answers (content, `design/tokens.json`, the starter backdrop, the
 `*.tmpl` files), compiles the tokens, installs and formats, and refuses a non-empty target or an answers
-file with a problem (it lists every problem at once). What it wires, how the template is gated by flag, what
-`--engine` pins and how to install the engine from the npm package instead of a git tag are in
-`ENGINE/templates/game/.scaffold/README.md`; read it rather than this file.
+file with a problem (it lists every problem at once). What it wires, how the template is gated by flag, and what
+`--engine` pins are in `ENGINE/templates/game/.scaffold/README.md`; read it rather than this file.
 
 Then, in the new game's folder:
 

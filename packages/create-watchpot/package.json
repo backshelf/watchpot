@@ -1,6 +1,6 @@
 {
   "name": "create-watchpot",
-  "version": "1.0.0-rc.12",
+  "version": "1.0.0-rc.13",
   "description": "Make a new idle game on the watchpot engine: bun create watchpot, or npm create watchpot.",
   "license": "MIT",
   "homepage": "https://backshelf.github.io/watchpot",

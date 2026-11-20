@@ -1,7 +1,7 @@
 /**
  * Makes a new game from an answers file, start to finish: the whole scaffold, with nothing outside this repository.
  *
- *   bun templates/game/.scaffold/new.ts <answers.json> <out-dir> [--engine <tag>] [--template <dir>] [--no-install] [--agents]
+ *   bun templates/game/.scaffold/new.ts <answers.json> <out-dir> [--engine <spec>] [--template <dir>] [--no-install] [--agents]
  *
  * From a checkout of the engine, or from an install of it (`bun node_modules/watchpot/templates/game/.scaffold/new.ts`).
  * `answers.md` beside this file is the answers' reference; `fixtures/smallest-clicker.json` is the least one says.
@@ -16,7 +16,7 @@
 import { spawnSync } from "node:child_process";
 import { readdir, stat } from "node:fs/promises";
 import { resolve } from "node:path";
-import { engineTag, generate, lookWarnings } from "./generate";
+import { engineSpec, generate, lookWarnings } from "./generate";
 
 const argv = process.argv.slice(2);
 const flag = (name: string): string | undefined => {
@@ -32,12 +32,12 @@ const has = (name: string): boolean => {
 };
 
 const template = flag("template");
-const engine = flag("engine") ?? (await engineTag(template ? resolve(template) : undefined));
+const engine = flag("engine") ?? (await engineSpec(template ? resolve(template) : undefined));
 const install = !has("no-install");
 const agents = has("agents");
 const [answersArg, outArg] = argv;
 if (!answersArg || !outArg) {
-  console.error("usage: bun .scaffold/new.ts <answers.json> <out-dir> [--engine <tag>] [--template <dir>] [--no-install] [--agents]");
+  console.error("usage: bun .scaffold/new.ts <answers.json> <out-dir> [--engine <spec>] [--template <dir>] [--no-install] [--agents]");
   process.exit(2);
 }
 const answers = resolve(answersArg);

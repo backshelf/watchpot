@@ -3,9 +3,9 @@
  * content it writes always matches the code it writes into, at whatever engine tag the template came from. `new.ts`
  * runs it and then the install; this is the step on its own.
  *
- *   bun .scaffold/generate.ts --answers <answers.json> --out <dir> [--engine <tag>] [--mode full|content] [--agents]
+ *   bun .scaffold/generate.ts --answers <answers.json> --out <dir> [--engine <spec>] [--mode full|content] [--agents]
  *
- * `--engine` defaults to this engine's own version (`v` and its `package.json` version). `--agents` also writes a
+ * `--engine` defaults to this engine's own npm range (`^` and its `package.json` version). `--agents` also writes a
  * generic `AGENTS.md` (copied from `templates/agents/AGENTS.md`) and the concept in `design/` (`concept.md`, the
  * answers in `answers.json`); without it a game ships no agent docs. `full` (default) copies the
  * template into `--out` when that is empty or missing (a folder holding a copy already is generated in place; the
@@ -1213,10 +1213,10 @@ export const TEMPLATE = resolve(HERE, "..");
  */
 const isEntry = resolve(process.argv[1] ?? "") === join(HERE, "generate.ts");
 
-/** The engine tag a template belongs to: `v` and its engine's `package.json` version (this engine's, by default). */
-export async function engineTag(template = TEMPLATE): Promise<string> {
+/** The engine dependency spec a template belongs to: `^` and its engine's `package.json` version. */
+export async function engineSpec(template = TEMPLATE): Promise<string> {
   const pkg = JSON.parse(await readFile(join(engineOf(template), "package.json"), "utf8")) as { version: string };
-  return `v${pkg.version}`;
+  return `^${pkg.version}`;
 }
 
 /** Whether `dir` is missing or holds nothing. */
@@ -1335,7 +1335,7 @@ if (isEntry) {
   const out = arg("out");
   if (!answers || !out) {
     console.error(
-      "usage: bun .scaffold/generate.ts --answers <file> --out <dir> [--engine <tag, default this engine's>] [--mode full|content] [--agents] [--template <templates/game dir>]",
+      "usage: bun .scaffold/generate.ts --answers <file> --out <dir> [--engine <spec, default this engine's>] [--mode full|content] [--agents] [--template <templates/game dir>]",
     );
     process.exit(2);
   }
@@ -1345,7 +1345,7 @@ if (isEntry) {
   const pl = await generate({
     answers,
     out,
-    engine: arg("engine") ?? (await engineTag(template)),
+    engine: arg("engine") ?? (await engineSpec(template)),
     mode,
     agents,
     template,

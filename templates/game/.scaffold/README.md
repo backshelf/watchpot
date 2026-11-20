@@ -26,18 +26,16 @@ needed to scaffold: no agent, no skill. The `/watchpot-init` skill (`.agents/ski
 the engine) is the interview that writes the answers file and the build that makes the game after it; it runs this
 command and nothing of its own.
 
-**How the game installs the engine.** The template's `package.json` names the engine as a dependency, and `--engine
-<tag>` (default: `v` and this engine's own version) is the tag it writes there, as a git dependency:
-`"watchpot": "git+ssh://github.com/backshelf/watchpot.git#<tag>"`. A game that takes the engine from the npm package
-instead replaces that one line with `"watchpot": "^<version>"` (or runs `bun add watchpot`): run `new.ts` with
-`--no-install`, make that change, then `bun install && bun run lint:fix`. Moving to a newer engine later is the same
-one line (a new tag, or a new version) and `bun install`. Nothing else in the template depends on which: it reads the
-engine only through the `watchpot/*` imports.
+**How the game installs the engine.** The template's `package.json` names `watchpot` as a dependency, and `--engine
+<spec>` (default: `^` and this engine's own version, from npm) is the spec it writes there. Passing a git URL
+(`--engine "git+ssh://github.com/backshelf/watchpot.git#v<version>"`) or another semver range pins that instead.
+Moving to a newer engine later is the same one line (or `bun update watchpot`) and `bun install`. Nothing else in the
+template depends on which: it reads the engine only through the `watchpot/*` imports.
 
 ## The parts
 
 - **`new.ts`** the whole sequence above.
-- **`generate.ts`** the generation alone: `--answers <file> --out <dir> [--engine <tag>] [--mode full|content] [--agents]`. In
+- **`generate.ts`** the generation alone: `--answers <file> --out <dir> [--engine <spec>] [--mode full|content] [--agents]`. In
   `full` mode (the default) it copies the template into an empty `--out`, writes `src/content/*` and
   `design/tokens.json`, drops the files and blocks of the flags not chosen, renders each `*.tmpl` (the files whose
   name would clash with the engine's own: `package.json`, `biome.json`, `index.html`, the README), compiles

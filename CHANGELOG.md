@@ -2,6 +2,11 @@
 
 Each release is a tag `vX.Y.Z`. A breaking change names its codemod in `codemods/` (policy in `codemods/README.md`).
 
+## 1.0.0-rc.13
+
+- `defineRecipes` supports scaled costs, per-recipe craft limits, and a `cost` selector.
+- Fix: `templates/game` scaffold and `watchpot-init` skill updates.
+
 ## 1.0.0-rc.12
 
 - Fix: `createDirector` defers a `done(id)` that comes before a big show's `readyAt` to `readyAt` (the cue's fate is `"early"`) instead of dropping it, and a batch of smalls that lands while held batches are still releasing waits behind them rather than overtaking.
